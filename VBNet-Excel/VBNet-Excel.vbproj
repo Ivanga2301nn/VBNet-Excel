@@ -1,0 +1,312 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{D6275C51-1A22-4629-9B7F-CF279A16CF10}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>VBNet_Excel</RootNamespace>
+    <AssemblyName>VBNet-Excel</AssemblyName>
+    <FileAlignment>512</FileAlignment>
+    <MyType>Windows</MyType>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <DefineDebug>true</DefineDebug>
+    <DefineTrace>true</DefineTrace>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DocumentationFile>VBNet-Excel.xml</DocumentationFile>
+    <NoWarn>42016,41999,42017,42018,42019,42032,42036,42020,42021,42022</NoWarn>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <DefineDebug>false</DefineDebug>
+    <DefineTrace>true</DefineTrace>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DocumentationFile>VBNet-Excel.xml</DocumentationFile>
+    <NoWarn>42016,41999,42017,42018,42019,42032,42036,42020,42021,42022</NoWarn>
+  </PropertyGroup>
+  <PropertyGroup>
+    <OptionExplicit>On</OptionExplicit>
+  </PropertyGroup>
+  <PropertyGroup>
+    <OptionCompare>Binary</OptionCompare>
+  </PropertyGroup>
+  <PropertyGroup>
+    <OptionStrict>Off</OptionStrict>
+  </PropertyGroup>
+  <PropertyGroup>
+    <OptionInfer>On</OptionInfer>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <DebugSymbols>true</DebugSymbols>
+    <DefineDebug>true</DefineDebug>
+    <DefineTrace>true</DefineTrace>
+    <OutputPath>bin\x64\Debug\</OutputPath>
+    <DocumentationFile>VBNet-Excel.xml</DocumentationFile>
+    <NoWarn>42016,41999,42017,42018,42019,42032,42036,42020,42021,42022</NoWarn>
+    <DebugType>full</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <DefineTrace>true</DefineTrace>
+    <OutputPath>bin\x64\Release\</OutputPath>
+    <DocumentationFile>VBNet-Excel.xml</DocumentationFile>
+    <Optimize>true</Optimize>
+    <NoWarn>42016,41999,42017,42018,42019,42032,42036,42020,42021,42022</NoWarn>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="accoremgd">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\accoremgd.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="acdbmgd">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\acdbmgd.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="acmgd">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\acmgd.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="BouncyCastle.Cryptography, Version=2.0.0.0, Culture=neutral, PublicKeyToken=072edcf4a5328938, processorArchitecture=MSIL">
+      <HintPath>..\packages\BouncyCastle.Cryptography.2.4.0\lib\net461\BouncyCastle.Cryptography.dll</HintPath>
+    </Reference>
+    <Reference Include="itextsharp, Version=5.5.13.4, Culture=neutral, PublicKeyToken=8354ae6d2174ddca, processorArchitecture=MSIL">
+      <HintPath>..\packages\iTextSharp.5.5.13.4\lib\net461\itextsharp.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.ComponentModel.DataAnnotations" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Numerics" />
+    <Reference Include="System.Security" />
+    <Reference Include="System.Security.Cryptography.Pkcs, Version=8.0.0.1, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Security.Cryptography.Pkcs.8.0.1\lib\net462\System.Security.Cryptography.Pkcs.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="WindowsBase" />
+  </ItemGroup>
+  <ItemGroup>
+    <Import Include="ACSMCOMPONENTS24Lib" />
+    <Import Include="Microsoft.VisualBasic" />
+    <Import Include="System" />
+    <Import Include="System.Collections" />
+    <Import Include="System.Collections.Generic" />
+    <Import Include="System.Data" />
+    <Import Include="System.Diagnostics" />
+    <Import Include="System.Linq" />
+    <Import Include="System.Xml.Linq" />
+    <Import Include="System.Threading.Tasks" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Class1.vb" />
+    <Compile Include="CreateLayout.vb" />
+    <Compile Include="Dokmentaci.vb" />
+    <Compile Include="DwgCleaner.vb" />
+    <Compile Include="SheetSet_new.vb" />
+    <Compile Include="Form_Print.Designer.vb">
+      <DependentUpon>Form_Print.vb</DependentUpon>
+    </Compile>
+    <Compile Include="Form_Print.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Form_Tran6eq.Designer.vb">
+      <DependentUpon>Form_Tran6eq.vb</DependentUpon>
+    </Compile>
+    <Compile Include="Form_Tran6eq.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Form_Tablo_new.Designer.vb">
+      <DependentUpon>Form_Tablo_new.vb</DependentUpon>
+    </Compile>
+    <Compile Include="Form_Tablo_new.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Class_Kabelni_kanali.vb" />
+    <Compile Include="Class_Skari_Kanali.vb" />
+    <Compile Include="Form_KabelniKanali.Designer.vb">
+      <DependentUpon>Form_KabelniKanali.vb</DependentUpon>
+    </Compile>
+    <Compile Include="Form_KabelniKanali.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Form_Obekti.Designer.vb">
+      <DependentUpon>Form_Obekti.vb</DependentUpon>
+    </Compile>
+    <Compile Include="Form_Obekti.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Insert_Signature.vb" />
+    <Compile Include="Layouts.vb" />
+    <Compile Include="PIC.vb" />
+    <Compile Include="Form_PV.Designer.vb">
+      <DependentUpon>Form_PV.vb</DependentUpon>
+    </Compile>
+    <Compile Include="Form_PV.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Public.vb" />
+    <Compile Include="PV_Module.vb" />
+    <Compile Include="Form_Tablo.Designer.vb">
+      <DependentUpon>Form_Tablo.vb</DependentUpon>
+    </Compile>
+    <Compile Include="Form_Tablo.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Ka4vane.vb" />
+    <Compile Include="Kabel.vb" />
+    <Compile Include="Legend.vb" />
+    <Compile Include="Form_Skari_Kanali_New.Designer.vb">
+      <DependentUpon>Form_Skari_Kanali_New.vb</DependentUpon>
+    </Compile>
+    <Compile Include="Form_Skari_Kanali_New.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SheetSet.vb" />
+    <Compile Include="Tablo.vb" />
+    <Compile Include="CommonUtil.vb" />
+    <Compile Include="Form_ExcelUtilForm.Designer.vb">
+      <DependentUpon>Form_ExcelUtilForm.vb</DependentUpon>
+    </Compile>
+    <Compile Include="Form_ExcelUtilForm.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="ExportExcelUtil.vb" />
+    <Compile Include="My Project\AssemblyInfo.vb" />
+    <Compile Include="My Project\Application.Designer.vb">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Application.myapp</DependentUpon>
+    </Compile>
+    <Compile Include="My Project\Resources.Designer.vb">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+    <Compile Include="My Project\Settings.Designer.vb">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+    </Compile>
+    <Compile Include="Tran6eq.vb" />
+    <Compile Include="Zapiska.vb" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Form_ExcelUtilForm.resx">
+      <DependentUpon>Form_ExcelUtilForm.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Form_Print.resx">
+      <DependentUpon>Form_Print.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Form_Tablo.resx">
+      <DependentUpon>Form_Tablo.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Form_KabelniKanali.resx">
+      <DependentUpon>Form_KabelniKanali.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Form_Tablo_new.resx">
+      <DependentUpon>Form_Tablo_new.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Form_Tran6eq.resx">
+      <DependentUpon>Form_Tran6eq.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="My Project\Resources.resx">
+      <Generator>VbMyResourcesResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.vb</LastGenOutput>
+      <CustomToolNamespace>My.Resources</CustomToolNamespace>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Form_PV.resx">
+      <DependentUpon>Form_PV.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Form_Skari_Kanali_New.resx">
+      <DependentUpon>Form_Skari_Kanali_New.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Form_Obekti.resx">
+      <DependentUpon>Form_Obekti.vb</DependentUpon>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="My Project\Application.myapp">
+      <Generator>MyApplicationCodeGenerator</Generator>
+      <LastGenOutput>Application.Designer.vb</LastGenOutput>
+    </None>
+    <None Include="My Project\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <CustomToolNamespace>My</CustomToolNamespace>
+      <LastGenOutput>Settings.Designer.vb</LastGenOutput>
+    </None>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <COMReference Include="ACSMCOMPONENTS24Lib">
+      <Guid>{7CC328B4-EB05-4611-B602-D23EAEAD2B2E}</Guid>
+      <VersionMajor>1</VersionMajor>
+      <VersionMinor>0</VersionMinor>
+      <Lcid>0</Lcid>
+      <WrapperTool>tlbimp</WrapperTool>
+      <Isolated>False</Isolated>
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+    </COMReference>
+    <COMReference Include="AXDBLib">
+      <Guid>{39FFAA00-8623-488F-8C53-DD3B0B7A464F}</Guid>
+      <VersionMajor>1</VersionMajor>
+      <VersionMinor>0</VersionMinor>
+      <Lcid>0</Lcid>
+      <WrapperTool>tlbimp</WrapperTool>
+      <Isolated>False</Isolated>
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+    </COMReference>
+    <COMReference Include="Microsoft.Office.Core">
+      <Guid>{2DF8D04C-5BFA-101B-BDE5-00AA0044DE52}</Guid>
+      <VersionMajor>2</VersionMajor>
+      <VersionMinor>8</VersionMinor>
+      <Lcid>0</Lcid>
+      <WrapperTool>primary</WrapperTool>
+      <Isolated>False</Isolated>
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+    </COMReference>
+    <COMReference Include="Microsoft.Office.Interop.Excel">
+      <Guid>{00020813-0000-0000-C000-000000000046}</Guid>
+      <VersionMajor>1</VersionMajor>
+      <VersionMinor>9</VersionMinor>
+      <Lcid>0</Lcid>
+      <WrapperTool>primary</WrapperTool>
+      <Isolated>False</Isolated>
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+    </COMReference>
+    <COMReference Include="Microsoft.Office.Interop.Word">
+      <Guid>{00020905-0000-0000-C000-000000000046}</Guid>
+      <VersionMajor>8</VersionMajor>
+      <VersionMinor>7</VersionMinor>
+      <Lcid>0</Lcid>
+      <WrapperTool>primary</WrapperTool>
+      <Isolated>False</Isolated>
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+    </COMReference>
+    <COMReference Include="VBIDE">
+      <Guid>{0002E157-0000-0000-C000-000000000046}</Guid>
+      <VersionMajor>5</VersionMajor>
+      <VersionMinor>3</VersionMinor>
+      <Lcid>0</Lcid>
+      <WrapperTool>primary</WrapperTool>
+      <Isolated>False</Isolated>
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+    </COMReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Service Include="{94E38DFF-614B-4CBD-B67C-F211BB35CE8B}" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.VisualBasic.targets" />
+</Project>

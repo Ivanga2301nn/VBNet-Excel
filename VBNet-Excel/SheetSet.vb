@@ -693,30 +693,30 @@ Public Class SheetSet
         Loop
     End Sub
 
-    ' Step through all open sheet sets
+    ' Обход на всички отворени набори от листове
     <CommandMethod("ADSK_StepThroughTheOpenSheetSets")>
     Public Sub StepThroughTheOpenSheetSets()
-        ' Get a reference to the Sheet Set Manager object
+        ' Взема референция към Sheet Set Manager обекта
         Dim sheetSetManager As IAcSmSheetSetMgr
         sheetSetManager = New AcSmSheetSetMgr
 
-        ' Get the loaded databases
+        ' Взема заредените бази данни
         Dim enumDatabase As IAcSmEnumDatabase
         enumDatabase = sheetSetManager.GetDatabaseEnumerator()
 
-        ' Get the first open database
+        ' Взема първата отворена база данни
         Dim item As IAcSmPersist
         item = enumDatabase.Next()
         Dim customMessage As String = ""
-        ' If a database is open continue
+        ' Ако има отворена база — продължи
         If Not item Is Nothing Then
             Dim count As Integer = 0
-            ' Step through the database enumerator
+            ' Обход на енумератора на базите данни
             Do While Not item Is Nothing
-                ' Append the file name of the open sheet set to the output string
+                ' Добавя името на файла на отворения sheet set към изходния низ
                 customMessage = customMessage + vbLf +
                             item.GetDatabase().GetFileName()
-                ' Get the next open database and increment the counter
+                ' Взема следващата отворена база и увеличава брояча
                 item = enumDatabase.Next()
                 count = count + 1
             Loop
@@ -725,10 +725,10 @@ Public Class SheetSet
         Else
             customMessage = "No sheet sets are currently open."
         End If
-        ' Display the custom message
+        ' Показва съобщението
         MsgBox(customMessage)
     End Sub
-    ' Synchronize the properties of a sheet with the sheet set
+    ' Синхронизира свойствата на лист с тези на набора от листове
     Private Sub SyncProperties(ByVal sheetSetDatabase As IAcSmDatabase)
         ' Вземи обектите в набора от листове
         Dim enumerator As IAcSmEnumPersist = sheetSetDatabase.GetEnumerator()

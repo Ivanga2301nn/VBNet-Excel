@@ -176,22 +176,13 @@ Public Class SheetSet_new
             'Обхожда Layout-ите в чертежа и анализира имената им спрямо зададените речници.
             listSheetSet = CollectLayoutsData(acDoc, name_file, sheetsInFile)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+            ' --- 5. СОРТИРАНЕ ---
+            Dim sortedList As New List(Of srtSheetSet)
+            For Each pair In Sheets
+                For Each item In listSheetSet
+                    If item.nameSheet = pair.Key Then sortedList.Add(item)
+                Next
+            Next
 
 
 
@@ -205,6 +196,55 @@ Public Class SheetSet_new
         MsgBox("Sheet Set Name: " & sheetSetDatabase.GetSheetSet().GetName() & vbCrLf &
            "Sheet Set Description: " & sheetSetDatabase.GetSheetSet().GetDesc())
     End Sub
+    ''' <summary>
+    ''' Създава Sheet Set файл (DST) и добавя листовете според подадения сортиран списък.
+    ''' </summary>
+    ''' <param name="sheetSetDatabase">Отворената Sheet Set база данни (DST)</param>
+    ''' <param name="dstPath">Път, където ще се запази DST файлът</param>
+    ''' <param name="sortedList">Списък от листове (srtSheetSet), сортирани по групи</param>
+    ''' <param name="name_file">DWG файл, който се добавя към листовете</param>
+    Public Sub saveDST(sheetSetDatabase As AcSmDatabase,
+                   dstPath As String,
+                   sortedList As List(Of srtSheetSet),
+                   name_file As String)
+        Try
+            ' --- 6. ЗАПИС В DST ---
+            ' 1. Променливи за текущата и главната папка (Subset)
+            Dim mainSubset As AcSmSubset = Nothing
+            Dim currentSubset As AcSmSubset = Nothing
+            ' 2. Обхождаме сортирания списък с листове
+            For i As Integer = 0 To sortedList.Count - 1
+                Dim current = sortedList(i)
+                ' 2а. Номерираме листа според реда му в списъка
+                current.Number = (i + 1).ToString()
+                ' 3. Създаваме нова главна папка (Subset), ако е първи елемент
+                ' или ако името на основния лист (Sheet) се е променило спрямо предходния
+                If i = 0 OrElse current.nameSheet <> sortedList(i - 1).nameSheet Then
+                    mainSubset = CreateSubset(sheetSetDatabase, current.nameSheet, "", "", "", "", True)
+                    currentSubset = mainSubset
+                End If
+                ' 4. Ако има под-папка (SubSheet), създаваме я
+                If Not String.IsNullOrEmpty(current.nameSubSheet) Then
+                    ' Създаваме под-папка, ако името й се различава от предходното
+                    If i = 0 OrElse current.nameSubSheet <> sortedList(i - 1).nameSubSheet Then
+                        currentSubset = mainSubset.CreateSubset(current.nameSubSheet, "")
+                    End If
+                Else
+                    ' Ако няма под-папка, текущата папка е главната
+                    currentSubset = mainSubset
+                End If
+
+                ' 5. Импортираме листа в текущата папка (Subset)
+                ImportASheet(currentSubset, current.nameLayoutForSheet, "", current.Number, name_file, current.nameLayout)
+            Next
+            ' 6. Показваме съобщение за успешно записан DST файл
+            MsgBox("Sheet Set файлът е запазен успешно: " & dstPath)
+        Catch ex As Exception
+            ' 7. Ако възникне грешка, показваме съобщение
+            MsgBox("Грешка при запазване на Sheet Set файла: " & ex.Message)
+        End Try
+    End Sub
+
     ''' <summary>
     ''' Обхожда Layout-ите в чертежа и анализира имената им спрямо зададените речници.
     ''' Събира данни за всички Layout-и в даден DWG документ.
@@ -650,4 +690,108 @@ Public Class SheetSet_new
             Debug.Print("Грешка при почистване: " & ex.Message)
         End Try
     End Sub
+    ''' <summary>
+    ''' Създава нов Subset (папка) в Sheet Set-а с предоставено име и описание.
+    ''' Може да зададе местоположение за нови листове и шаблони.
+    ''' </summary>
+    ''' <param name="sheetSetDatabase">Sheet Set база данни (DST)</param>
+    ''' <param name="name">Име на Subset-а</param>
+    ''' <param name="description">Описание на Subset-а</param>
+    ''' <param name="newSheetLocation">Път за нови DWG файлове (по избор)</param>
+    ''' <param name="newSheetDWTLocation">Път до DWT шаблон (по избор)</param>
+    ''' <param name="newSheetDWTLayout">Име на Layout в DWT шаблона (по избор)</param>
+    ''' <param name="promptForDWT">Дали да се пита за шаблон при създаване на нов лист</param>
+    ''' <returns>Връща създадения AcSmSubset</returns>
+    Private Function CreateSubset(sheetSetDatabase As AcSmDatabase,
+                                  name As String,
+                                  description As String,
+                                  Optional newSheetLocation As String = "",
+                                  Optional newSheetDWTLocation As String = "",
+                                  Optional newSheetDWTLayout As String = "",
+                                  Optional promptForDWT As Boolean = False) As AcSmSubset
+
+        ' 1. Създаваме Subset с име и описание
+        Dim subset As AcSmSubset = sheetSetDatabase.GetSheetSet().CreateSubset(name, description)
+        ' 2. Вземаме папката, в която се намира Sheet Set-ът
+        Dim sheetSetFolder As String
+        sheetSetFolder = Mid(sheetSetDatabase.GetFileName(), 1, InStrRev(sheetSetDatabase.GetFileName(), "\"))
+        ' 3. Създаваме File Reference обект за нови листове
+        Dim fileReference As IAcSmFileReference
+        fileReference = subset.GetNewSheetLocation()
+        ' 4. Ако е зададен път за нови листове, го използваме, иначе използваме папката на Sheet Set-а
+        If newSheetLocation <> "" Then
+            fileReference.SetFileName(newSheetLocation)
+        Else
+            fileReference.SetFileName(sheetSetFolder)
+        End If
+        ' 5. Задаваме местоположението за нови листове в Subset-а
+        subset.SetNewSheetLocation(fileReference)
+        ' 6. Вземаме Layout Reference обекта за дефиниране на шаблон
+        Dim layoutReference As AcSmAcDbLayoutReference
+        layoutReference = subset.GetDefDwtLayout
+        ' 7. Ако е зададен шаблон, задаваме неговото име и път
+        If newSheetDWTLocation <> "" Then
+            layoutReference.SetFileName(newSheetDWTLocation)
+            layoutReference.SetName(newSheetDWTLayout)
+            ' 8. Присвояваме Layout Reference на Subset-а
+            subset.SetDefDwtLayout(layoutReference)
+        End If
+        ' 9. Задаваме дали да се пита за шаблон при създаване на нов лист
+        subset.SetPromptForDwt(promptForDWT)
+        ' 10. Връщаме създадения Subset
+        CreateSubset = subset
+    End Function
+    ''' <summary>
+    ''' Импортира нов лист (Sheet) в Subset или Sheet Set.
+    ''' Настройва Layout, DWG файл и свойства на листа.
+    ''' </summary>
+    ''' <param name="component">Обектът, в който ще се импортира (Subset или Sheet Set)</param>
+    ''' <param name="title">Заглавие на листа</param>
+    ''' <param name="description">Описание на листа</param>
+    ''' <param name="number">Номер на листа</param>
+    ''' <param name="fileName">DWG файл за импортиране</param>
+    ''' <param name="layout">Layout в DWG файла</param>
+    ''' <returns>Връща импортирания AcSmSheet</returns>
+    Private Function ImportASheet(component As IAcSmComponent,
+                                  title As String,
+                                  description As String,
+                                  number As String,
+                                  fileName As String,
+                                  layout As String) As AcSmSheet
+        Try
+            ' Ако заглавието е празно, използваме името на Layout-а
+            If IsNothing(title) Then title = layout
+            Dim sheet As AcSmSheet
+            ' 1. Създаваме Layout Reference обект
+            Dim layoutReference As New AcSmAcDbLayoutReference
+            layoutReference.InitNew(component)
+            ' 2. Настройваме DWG файл и Layout за листа
+            layoutReference.SetFileName(fileName)
+            layoutReference.SetName(layout)
+            ' 3. Импортираме листа в Subset или Sheet Set
+            If component.GetTypeName = "AcSmSubset" Then
+                Debug.Print("Опит за импорт: File=" & fileName & " Layout=" & layout)
+                ' Проверка дали DWG файлът физически съществува
+                If Not System.IO.File.Exists(fileName) Then
+                    MsgBox("Грешка: Файлът не е намерен на този път: " & fileName)
+                End If
+                Dim subset As AcSmSubset = component
+                sheet = subset.ImportSheet(layoutReference)
+                subset.InsertComponent(sheet, Nothing)
+            Else
+                Dim sheetSetDatabase As AcSmDatabase = component
+                sheet = sheetSetDatabase.GetSheetSet().ImportSheet(layoutReference)
+                sheetSetDatabase.GetSheetSet().InsertComponent(sheet, Nothing)
+            End If
+            ' 4. Настройваме свойства на листа
+            sheet.SetDesc(description)
+            sheet.SetTitle(title)
+            sheet.SetNumber(number)
+            ' 5. Връщаме импортирания лист
+            ImportASheet = sheet
+        Catch ex As Exception
+            ' Показваме съобщение при възникнала грешка
+            MsgBox("Възникна грешка: " & ex.Message & vbCrLf & vbCrLf & ex.StackTrace.ToString)
+        End Try
+    End Function
 End Class

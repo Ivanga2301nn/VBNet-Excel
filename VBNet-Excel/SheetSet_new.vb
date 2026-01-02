@@ -119,9 +119,9 @@ Public Class SheetSet_new
     {"Слаботокова инсталация", 3},
     {"Заземителна инсталация", 4},
     {"Мълниезащитна инсталация", 5},
-    {"Еднолинейна схема на", 6},
-    {"Котировки ел. инсталации", 7},
-    {"Кабелни скари и кабелни канали", 8}
+    {"Кабелни скари и кабелни канали", 6},
+    {"Еднолинейна схема на", 7},
+    {"Котировки ел. инсталации", 8}
 }
     ' ПОД-ПАПКИ: Само за Слаботоковите инсталации
     ' Програмата ще знае: ако инсталацията е в този списък, сложи я вътре в "Слаботокови инсталации"
@@ -173,13 +173,11 @@ Public Class SheetSet_new
             CleanOldSheetsFromCurrentDWG(sheetSetDatabase, name_file)
             'Обхожда Layout-ите в чертежа и анализира имената им спрямо зададените речници.
             listSheetSet = CollectLayoutsData(acDoc, name_file, sheetsInFile)
+
             ' --- 5. СОРТИРАНЕ ---
             Dim sortedList As New List(Of srtSheetSet)
-            For Each pair In Sheets
-                For Each item In listSheetSet
-                    If item.nameSheet = pair.Key Then sortedList.Add(item)
-                Next
-            Next
+            sortedList = BuildSortedSheetList(listSheetSet)
+
             Dim a As Integer = 1
             a = a + 1
             ' --- 6. ЗАПИС В DST ---
@@ -193,6 +191,56 @@ Public Class SheetSet_new
         MsgBox("Sheet Set Name: " & sheetSetDatabase.GetSheetSet().GetName() & vbCrLf &
            "Sheet Set Description: " & sheetSetDatabase.GetSheetSet().GetDesc())
     End Sub
+
+
+
+    ''' <summary>
+    ''' Изгражда списък от листове, подреден по трите нива:
+    ''' 1) nameSheet (първо ниво, ред от Sheets)
+    ''' 2) nameSubSheet (второ ниво, последователно)
+    ''' 3) nameLayoutForSheet (трето ниво, логически ред)
+    ''' </summary>
+    ''' <param name="listSheetSet">Списък с листове (srtSheetSet)</param>
+    ''' <returns>Подреден списък от листове</returns>
+    Private Function BuildSortedSheetList(listSheetSet As List(Of srtSheetSet)) _
+                                      As List(Of srtSheetSet)
+        Dim secondLevelList As New List(Of srtSheetSet)
+        If listSheetSet Is Nothing OrElse listSheetSet.Count = 0 Then
+            Return secondLevelList
+        End If
+        ' === Първо ниво ===
+        Dim firstLevelList As New List(Of srtSheetSet)
+        For Each pair In Sheets
+            For Each item In listSheetSet
+                If item.nameSheet = pair.Key Then
+                    firstLevelList.Add(item)
+                End If
+            Next
+        Next
+        ' === Второ ниво ===
+        ' Създаваме нов списък, който ще съдържа подредените елементи по nameSubSheet
+
+        Dim subSheetNames As New List(Of String)
+        ' Събираме уникални nameSubSheet от първо ниво
+        For Each s In firstLevelList
+            If Not subSheetNames.Contains(s.nameSubSheet) Then
+                subSheetNames.Add(s.nameSubSheet)
+            End If
+        Next
+        ' Подреждаме първо ниво по второ ниво
+        For Each subName In subSheetNames
+            For Each s In firstLevelList
+                If s.nameSubSheet = subName Then
+                    secondLevelList.Add(s)
+                End If
+            Next
+        Next
+        Return secondLevelList
+    End Function
+
+
+
+
 
     ''' <summary>
     ''' Сортира списък от обекти srtSheetSet спрямо подредбата на ключовете в Dictionary.

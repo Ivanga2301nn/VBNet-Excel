@@ -275,58 +275,64 @@ Public Class SheetSet_new
             Next
         Next
 
-        ' --- НАЧАЛО НА ТРЕТО НИВО ---
-        ' 1. Вземаме всички листове само за текущата подгрупа (напр. "Осветление")
-        Dim subGroupItems = currentSectionSheets.Where(Function(x) If(x.nameSubSheet, "") = subName).ToList()
 
-        ' 2. Проверяваме дали в имената присъства думата "Кота"
-        Dim hasElevations = subGroupItems.Any(Function(x) x.nameLayoutForSheet.Contains("Кота"))
+        ' ==========================================
+        ' ОБРАБОТКА НА ТРЕТО НИВО
+        ' ==========================================
+        Dim returnList As New List(Of srtSheetSet)
+        ' Вземаме уникалните секции в реда, в който са подредени в secondLevelList
+        Dim sectionOrder = secondLevelList.Select(Function(x) x.nameSheet).Distinct().ToList()
+        For Each secName In sectionOrder
+            ' Вземаме всички елементи за текущата секция (напр. "Ел. инсталация")
+            Dim sectionItems = secondLevelList.Where(Function(x) x.nameSheet = secName).ToList()
+            ' Намираме уникалните подгрупи (напр. "Осветление", "Контакти")
+            Dim uniqueSubs = sectionItems.Select(Function(x) If(x.nameSubSheet, "")).Distinct().ToList()
+            For Each subName In uniqueSubs
+                ' 1. Вземаме чертежите само за текущата подгрупа
+                Dim subGroupItems = sectionItems.Where(Function(x) If(x.nameSubSheet, "").Trim() = subName.Trim()).ToList()
+                ' 2. Проверяваме дали имаме Коти или Етажи
+                Dim hasElevations = subGroupItems.Any(Function(x) x.nameLayoutForSheet.Contains("Кота"))
+                Dim sortedSubGroup As List(Of srtSheetSet)
+                If hasElevations Then
+                    ' --- СОРТИРАНЕ ПО КОТА (Математическо) ---
+                    sortedSubGroup = subGroupItems.OrderBy(Function(x)
+                                                               Dim val As Double = 0
+                                                               ' Заменяме "Кота" и оправяме десетичния знак
+                                                               Dim numPart = x.nameLayoutForSheet.Replace("Кота", "").Replace(",", ".").Trim()
+                                                               ' Правилен TryParse с подаване на val
+                                                               Double.TryParse(numPart, Globalization.NumberStyles.Any, Globalization.CultureInfo.InvariantCulture, val)
+                                                               Return val
+            ).ToList()
+        Else
+                    ' --- СОРТИРАНЕ ПО ЕТАЖ / НИВО ---
+                    sortedSubGroup = subGroupItems.OrderBy(Function(x)
+                                                               Dim nameLower = x.nameLayoutForSheet.ToLower().Trim()
 
-        Dim finalSortedItems As List(Of srtSheetSet)
+                                                               ' А. Проверка в речника numbers (Партер, Сутерен и т.н.)
+                                                               Dim match = numbers.FirstOrDefault(Function(p) p.Value.ToLower() = nameLower)
+                                                               If match.Value IsNot Nothing Then Return CDbl(match.Key)
 
-        If hasElevations Then
-            ' Сортиране по КОТА (математическо: -1.20 < 0.00 < 10.50)
-            finalSortedItems = subGroupItems.OrderBy(Function(x)
-                                                         Dim val As Double = 0
-                                                         ' Чистим текста, оправяме запетаите и превръщаме в число
-                                                         Dim numPart = x.nameLayoutForSheet.Replace("Кота", "").Replace(",", ".").Trim()
-                                                         Double.TryParse(numPart, Drawing.Printing.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, val)
-                                                         Return val
-    ).ToList()
-Else
-            ' Сортиране по ЕТАЖ / НИВО
-            finalSortedItems = subGroupItems.OrderBy(Function(x)
-                                                         Dim nameLower = x.nameLayoutForSheet.ToLower().Trim()
+                                                               ' Б. Търсене на число (Regex) за "Ниво 1", "Етаж -1"
+                                                               Dim m = System.Text.RegularExpressions.Regex.Match(nameLower, "-?\d+")
+                                                               If m.Success Then
+                                                                   Dim levelNum As Double = 0
+                                                                   If Double.TryParse(m.Value, Globalization.NumberStyles.Any, Globalization.CultureInfo.InvariantCulture, levelNum) Then
+                                                                       Return levelNum
+                                                                   End If
+                                                               End If
 
-                                                         ' А. Търсим в речника numbers (Сутерен, Партер, Първи етаж)
-                                                         Dim match = numbers.FirstOrDefault(Function(p) p.Value.ToLower() = nameLower)
-                                                         If match.Value IsNot Nothing Then Return CDbl(match.Key)
+                                                               ' В. Всичко останало отива накрая
+                                                               Return 9999.0
+            ).ThenBy(Function(x) x.nameLayoutForSheet).ToList()
+        End If
+                ' 3. Добавяме подредената подгрупа към финалния списък
+                returnList.AddRange(sortedSubGroup)
+            Next
+        Next
 
-                                                         ' Б. Ако го няма в речника, търсим число в името (напр. "ниво -1" или "етаж 2")
-                                                         ' Търси поредица от цифри, включително знака минус отпред
-                                                         Dim m = System.Text.RegularExpressions.Regex.Match(nameLower, "-?\d+")
-                                                         If m.Success Then
-                                                             Dim levelNum As Double
-                                                             If Double.TryParse(m.Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, levelNum) Then
-                                                                 Return levelNum
-                                                             End If
-                                                         End If
+        ' ВРЪЩАМЕ ФИНАЛНИЯ РЕЗУЛТАТ
+        Return returnList
 
-                                                         ' В. Ако е обикновен текст без цифри (напр. "Спецификация") - отива най-отзад
-                                                         Return 9999.0
-    ).ThenBy(Function(x) x.nameLayoutForSheet).ToList() ' Подрежда опашката азбучно
-End If
-
-        ' 3. Записваме подредените резултати в крайния списък
-        secondLevelList.AddRange(finalSortedItems)
-
-        ' --- КРАЙ НА ТРЕТО НИВО ---
-
-
-
-
-        ' 6. Връщаме сортирания списък
-        Return secondLevelList
     End Function
 
 

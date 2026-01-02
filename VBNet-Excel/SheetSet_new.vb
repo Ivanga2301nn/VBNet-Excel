@@ -171,6 +171,8 @@ Public Class SheetSet_new
 
             ' Почистване на всички Sheet-и от текущия DWG и премахване на празни папки (Subsets) в Sheet Set базата данни.
             CleanOldSheetsFromCurrentDWG(sheetSetDatabase, name_file)
+
+            sheetsInFile = GetSheetsFromDatabase(sheetSetDatabase)  ' Съществуващи Sheet-и
             'Обхожда Layout-ите в чертежа и анализира имената им спрямо зададените речници.
             listSheetSet = CollectLayoutsData(acDoc, name_file, sheetsInFile)
 
@@ -208,6 +210,20 @@ Public Class SheetSet_new
         If listSheetSet Is Nothing OrElse listSheetSet.Count = 0 Then
             Return secondLevelList
         End If
+        ' === Цикъл за почистване и подготовка преди първо ниво ===
+        For i As Integer = listSheetSet.Count - 1 To 0 Step -1
+            Dim s As srtSheetSet = listSheetSet(i)
+            ' 1) Ако nameSheet = "Настройки", премахваме елемента
+            If String.Equals(s.nameSheet, "Настройки", StringComparison.OrdinalIgnoreCase) Then
+                listSheetSet.RemoveAt(i)
+                Continue For
+            End If
+            ' 2) Ако nameSheet е празно или Nothing, записваме nameLayoutForSheet в nameSheet
+            If String.IsNullOrWhiteSpace(s.nameSheet) Then
+                s.nameSheet = s.nameLayout
+                listSheetSet(i) = s
+            End If
+        Next
         ' === Първо ниво ===
         Dim firstLevelList As New List(Of srtSheetSet)
         For Each pair In Sheets
@@ -219,7 +235,6 @@ Public Class SheetSet_new
         Next
         ' === Второ ниво ===
         ' Създаваме нов списък, който ще съдържа подредените елементи по nameSubSheet
-
         Dim subSheetNames As New List(Of String)
         ' Събираме уникални nameSubSheet от първо ниво
         For Each s In firstLevelList

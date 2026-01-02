@@ -52,21 +52,22 @@ Public Class SheetSet_new
         {20, "Двадесети етаж"}
 }
     Dim Sheets As New Dictionary(Of String, Integer) From {
-        {"Ел.захранване НН", 1},
-        {"Заснемане и демонтаж", 2},
-        {"Осветителна инсталация", 3},
-        {"Евакуационно осветление", 4},
-        {"Фасадно осветление", 5},
-        {"Силова инсталация", 6},
-        {"Ел.инсталация контакти", 7},
-        {"План покрив", 8},
-        {"Инсталации интернет и кабелна телевизия", 9},
-        {"Слаботокова инсталация", 10},
-        {"Кабелни скари и кабелни канали", 11},
-        {"Защитна заземителна инсталация", 12},
-        {"Мълниезащитна инсталация", 13},
-        {"Еднолинейна схема на табло", 14},
-        {"Котировки ел. инсталации", 15}
+        {"Съдържание", 1},
+        {"Ел.захранване НН", 2},
+        {"Заснемане и демонтаж", 3},
+        {"Осветителна инсталация", 4},
+        {"Евакуационно осветление", 5},
+        {"Фасадно осветление", 6},
+        {"Силова инсталация", 7},
+        {"Ел.инсталация контакти", 8},
+        {"План покрив", 9},
+        {"Инсталации интернет и кабелна телевизия", 10},
+        {"Слаботокова инсталация", 11},
+        {"Кабелни скари и кабелни канали", 12},
+        {"Защитна заземителна инсталация", 13},
+        {"Мълниезащитна инсталация", 14},
+        {"Еднолинейна схема на табло", 15},
+        {"Котировки ел. инсталации", 16}
     }
     Dim Installations As New Dictionary(Of String, String) From {
         {"ВЪН", "Ел.захранване НН"},
@@ -103,7 +104,7 @@ Public Class SheetSet_new
         {"ТЕЛ", "Телефонна инсталация"},
         {"ИНК", "Инсталации интернет и кабелна телевизия"},
         {"ИКТ", "Инсталации интернет кабелна телевизия и телефон"},
-        {"ВИД", "Инсталации видеонаблюдение"},
+        {"ВИД", "Инсталация видеонаблюдение"},
         {"БОЛ", "Болнична повиквателна инсталация"},
         {"ДОС", "Инсталация контрол на достъпа"},
         {"ОПО", "Оповестителна инсталация"},
@@ -193,9 +194,6 @@ Public Class SheetSet_new
         MsgBox("Sheet Set Name: " & sheetSetDatabase.GetSheetSet().GetName() & vbCrLf &
            "Sheet Set Description: " & sheetSetDatabase.GetSheetSet().GetDesc())
     End Sub
-
-
-
     ''' <summary>
     ''' Изгражда списък от листове, подреден по трите нива:
     ''' 1) nameSheet (първо ниво, ред от Sheets)
@@ -236,22 +234,97 @@ Public Class SheetSet_new
                 End If
             Next
         Next
-        ' === Второ ниво ===
-        ' 4. Събираме уникалните имена на под-папките (nameSubSheet)
-        Dim subSheetNames As New List(Of String)
-        For Each s In firstLevelList
-            If Not subSheetNames.Contains(s.nameSubSheet) Then
-                subSheetNames.Add(s.nameSubSheet)
+        ' Добавяме останалите, които НЕ са намерени в Sheets
+        For Each item In listSheetSet
+            ' Проверяваме дали името на листа го НЯМА в ключовете на Sheets
+            If Not Sheets.ContainsKey(item.nameSheet) Then
+                ' Проверяваме дали вече не сме го добавили (за сигурност)
+                If Not firstLevelList.Contains(item) Then
+                    firstLevelList.Add(item)
+                End If
             End If
         Next
-        ' 5. Добавяме листовете в второто ниво според под-папките
-        For Each subName In subSheetNames
-            For Each s In firstLevelList
-                If s.nameSubSheet = subName Then
-                    secondLevelList.Add(s)
-                End If
+        ' === Второ ниво ===
+        ' 1. Вземаме всички уникални имена на секции, които реално са в твоя списък (всички 28)
+        Dim realSectionsInData = firstLevelList.Select(Function(x) x.nameSheet).Distinct().ToList()
+
+        ' 2. Подреждаме тези имена, като ползваме Sheets само за справка (без да го променяме!)
+        Dim orderedSections = realSectionsInData.OrderBy(Function(name)
+                                                             ' Ако името съществува в речника, вземаме неговата тежест
+                                                             If Sheets.ContainsKey(name) Then
+                                                                 Return Sheets(name)
+                                                             Else
+                                                                 ' Ако го няма (тези 4 елемента), му даваме голямо число, за да отиде най-отзад
+                                                                 Return 999
+                                                             End If
+                                                         End Function).ToList()
+
+        ' 3. СЕГА вече въртим цикъла по подредения списък, който съдържа ВСИЧКИ 28 елемента
+        For Each sectionName In orderedSections
+            Dim currentSectionSheets = firstLevelList.Where(Function(x) x.nameSheet = sectionName).ToList()
+
+            ' Тук следва твоята логика за SubSheet
+            Dim uniqueSubs = currentSectionSheets.Select(Function(x) If(x.nameSubSheet, "")).Distinct().ToList()
+
+            For Each subName In uniqueSubs
+                For Each s In currentSectionSheets
+                    If If(s.nameSubSheet, "") = subName Then
+                        secondLevelList.Add(s) ' Вече добавяме всички 28!
+                    End If
+                Next
             Next
         Next
+
+        ' --- НАЧАЛО НА ТРЕТО НИВО ---
+        ' 1. Вземаме всички листове само за текущата подгрупа (напр. "Осветление")
+        Dim subGroupItems = currentSectionSheets.Where(Function(x) If(x.nameSubSheet, "") = subName).ToList()
+
+        ' 2. Проверяваме дали в имената присъства думата "Кота"
+        Dim hasElevations = subGroupItems.Any(Function(x) x.nameLayoutForSheet.Contains("Кота"))
+
+        Dim finalSortedItems As List(Of srtSheetSet)
+
+        If hasElevations Then
+            ' Сортиране по КОТА (математическо: -1.20 < 0.00 < 10.50)
+            finalSortedItems = subGroupItems.OrderBy(Function(x)
+                                                         Dim val As Double = 0
+                                                         ' Чистим текста, оправяме запетаите и превръщаме в число
+                                                         Dim numPart = x.nameLayoutForSheet.Replace("Кота", "").Replace(",", ".").Trim()
+                                                         Double.TryParse(numPart, Drawing.Printing.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, val)
+                                                         Return val
+    ).ToList()
+Else
+            ' Сортиране по ЕТАЖ / НИВО
+            finalSortedItems = subGroupItems.OrderBy(Function(x)
+                                                         Dim nameLower = x.nameLayoutForSheet.ToLower().Trim()
+
+                                                         ' А. Търсим в речника numbers (Сутерен, Партер, Първи етаж)
+                                                         Dim match = numbers.FirstOrDefault(Function(p) p.Value.ToLower() = nameLower)
+                                                         If match.Value IsNot Nothing Then Return CDbl(match.Key)
+
+                                                         ' Б. Ако го няма в речника, търсим число в името (напр. "ниво -1" или "етаж 2")
+                                                         ' Търси поредица от цифри, включително знака минус отпред
+                                                         Dim m = System.Text.RegularExpressions.Regex.Match(nameLower, "-?\d+")
+                                                         If m.Success Then
+                                                             Dim levelNum As Double
+                                                             If Double.TryParse(m.Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, levelNum) Then
+                                                                 Return levelNum
+                                                             End If
+                                                         End If
+
+                                                         ' В. Ако е обикновен текст без цифри (напр. "Спецификация") - отива най-отзад
+                                                         Return 9999.0
+    ).ThenBy(Function(x) x.nameLayoutForSheet).ToList() ' Подрежда опашката азбучно
+End If
+
+        ' 3. Записваме подредените резултати в крайния списък
+        secondLevelList.AddRange(finalSortedItems)
+
+        ' --- КРАЙ НА ТРЕТО НИВО ---
+
+
+
+
         ' 6. Връщаме сортирания списък
         Return secondLevelList
     End Function

@@ -274,65 +274,49 @@ Public Class SheetSet_new
                 Next
             Next
         Next
-
-
-        ' ==========================================
-        ' ОБРАБОТКА НА ТРЕТО НИВО
-        ' ==========================================
+        ' --- ТРЕТО НИВО (Започва тук) ---
         Dim returnList As New List(Of srtSheetSet)
-        ' Вземаме уникалните секции в реда, в който са подредени в secondLevelList
+        ' 1. Вземаме уникалните секции от вече готовия secondLevelList
         Dim sectionOrder = secondLevelList.Select(Function(x) x.nameSheet).Distinct().ToList()
         For Each secName In sectionOrder
-            ' Вземаме всички елементи за текущата секция (напр. "Ел. инсталация")
+            ' Вземаме чертежите за текущата секция
             Dim sectionItems = secondLevelList.Where(Function(x) x.nameSheet = secName).ToList()
-            ' Намираме уникалните подгрупи (напр. "Осветление", "Контакти")
             Dim uniqueSubs = sectionItems.Select(Function(x) If(x.nameSubSheet, "")).Distinct().ToList()
             For Each subName In uniqueSubs
-                ' 1. Вземаме чертежите само за текущата подгрупа
+                ' Сега subGroupItems е дефиниран вътре в правилния цикъл!
                 Dim subGroupItems = sectionItems.Where(Function(x) If(x.nameSubSheet, "").Trim() = subName.Trim()).ToList()
-                ' 2. Проверяваме дали имаме Коти или Етажи
                 Dim hasElevations = subGroupItems.Any(Function(x) x.nameLayoutForSheet.Contains("Кота"))
                 Dim sortedSubGroup As List(Of srtSheetSet)
                 If hasElevations Then
-                    ' --- СОРТИРАНЕ ПО КОТА (Математическо) ---
-                    sortedSubGroup = subGroupItems.OrderBy(Function(x)
+                    ' --- СОРТИРАНЕ ПО КОТА ---
+                    sortedSubGroup = subGroupItems.OrderBy(Function(x As srtSheetSet)
                                                                Dim val As Double = 0
-                                                               ' Заменяме "Кота" и оправяме десетичния знак
-                                                               Dim numPart = x.nameLayoutForSheet.Replace("Кота", "").Replace(",", ".").Trim()
-                                                               ' Правилен TryParse с подаване на val
+                                                               Dim layoutName As String = If(x.nameLayoutForSheet, "")
+                                                               Dim numPart As String = layoutName.Replace("Кота", "").Replace(",", ".").Trim()
+                                                               ' ТУК Е ПОПРАВКАТА ЗА TryParse:
                                                                Double.TryParse(numPart, Globalization.NumberStyles.Any, Globalization.CultureInfo.InvariantCulture, val)
                                                                Return val
-            ).ToList()
-        Else
+                                                           End Function).ToList()
+                Else
                     ' --- СОРТИРАНЕ ПО ЕТАЖ / НИВО ---
-                    sortedSubGroup = subGroupItems.OrderBy(Function(x)
+                    sortedSubGroup = subGroupItems.OrderBy(Function(x As srtSheetSet)
                                                                Dim nameLower = x.nameLayoutForSheet.ToLower().Trim()
-
-                                                               ' А. Проверка в речника numbers (Партер, Сутерен и т.н.)
                                                                Dim match = numbers.FirstOrDefault(Function(p) p.Value.ToLower() = nameLower)
                                                                If match.Value IsNot Nothing Then Return CDbl(match.Key)
 
-                                                               ' Б. Търсене на число (Regex) за "Ниво 1", "Етаж -1"
                                                                Dim m = System.Text.RegularExpressions.Regex.Match(nameLower, "-?\d+")
                                                                If m.Success Then
                                                                    Dim levelNum As Double = 0
-                                                                   If Double.TryParse(m.Value, Globalization.NumberStyles.Any, Globalization.CultureInfo.InvariantCulture, levelNum) Then
-                                                                       Return levelNum
-                                                                   End If
+                                                                   If Double.TryParse(m.Value, Globalization.NumberStyles.Any, Globalization.CultureInfo.InvariantCulture, levelNum) Then Return levelNum
                                                                End If
-
-                                                               ' В. Всичко останало отива накрая
                                                                Return 9999.0
-            ).ThenBy(Function(x) x.nameLayoutForSheet).ToList()
-        End If
-                ' 3. Добавяме подредената подгрупа към финалния списък
+                                                           End Function).ThenBy(Function(x) x.nameLayoutForSheet).ToList()
+                End If
+                ' Добавяме към финалния списък
                 returnList.AddRange(sortedSubGroup)
             Next
         Next
-
-        ' ВРЪЩАМЕ ФИНАЛНИЯ РЕЗУЛТАТ
         Return returnList
-
     End Function
 
 

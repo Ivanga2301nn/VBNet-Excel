@@ -205,20 +205,22 @@ Public Class SheetSet_new
     ''' <param name="listSheetSet">Списък с листове (srtSheetSet)</param>
     ''' <returns>Подреден списък от листове</returns>
     Private Function BuildSortedSheetList(listSheetSet As List(Of srtSheetSet)) _
-                                      As List(Of srtSheetSet)
+                                  As List(Of srtSheetSet)
+        ' 1. Списък за резултатното второ ниво
         Dim secondLevelList As New List(Of srtSheetSet)
+        ' 2. Проверка за празен или Nothing списък
         If listSheetSet Is Nothing OrElse listSheetSet.Count = 0 Then
             Return secondLevelList
         End If
         ' === Цикъл за почистване и подготовка преди първо ниво ===
         For i As Integer = listSheetSet.Count - 1 To 0 Step -1
             Dim s As srtSheetSet = listSheetSet(i)
-            ' 1) Ако nameSheet = "Настройки", премахваме елемента
+            ' 2а. Премахваме елементите с nameSheet = "Настройки"
             If String.Equals(s.nameSheet, "Настройки", StringComparison.OrdinalIgnoreCase) Then
                 listSheetSet.RemoveAt(i)
                 Continue For
             End If
-            ' 2) Ако nameSheet е празно или Nothing, записваме nameLayoutForSheet в nameSheet
+            ' 2б. Ако nameSheet е празно или Nothing, използваме nameLayoutForSheet като име
             If String.IsNullOrWhiteSpace(s.nameSheet) Then
                 s.nameSheet = s.nameLayout
                 listSheetSet(i) = s
@@ -226,6 +228,7 @@ Public Class SheetSet_new
         Next
         ' === Първо ниво ===
         Dim firstLevelList As New List(Of srtSheetSet)
+        ' 3. Подреждаме по зададените ключове (Sheets е речник с подредбата)
         For Each pair In Sheets
             For Each item In listSheetSet
                 If item.nameSheet = pair.Key Then
@@ -234,15 +237,14 @@ Public Class SheetSet_new
             Next
         Next
         ' === Второ ниво ===
-        ' Създаваме нов списък, който ще съдържа подредените елементи по nameSubSheet
+        ' 4. Събираме уникалните имена на под-папките (nameSubSheet)
         Dim subSheetNames As New List(Of String)
-        ' Събираме уникални nameSubSheet от първо ниво
         For Each s In firstLevelList
             If Not subSheetNames.Contains(s.nameSubSheet) Then
                 subSheetNames.Add(s.nameSubSheet)
             End If
         Next
-        ' Подреждаме първо ниво по второ ниво
+        ' 5. Добавяме листовете в второто ниво според под-папките
         For Each subName In subSheetNames
             For Each s In firstLevelList
                 If s.nameSubSheet = subName Then
@@ -250,8 +252,10 @@ Public Class SheetSet_new
                 End If
             Next
         Next
+        ' 6. Връщаме сортирания списък
         Return secondLevelList
     End Function
+
 
 
 

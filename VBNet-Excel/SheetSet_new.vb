@@ -196,38 +196,62 @@ Public Class SheetSet_new
            "Sheet Set Description: " & sheetSetDatabase.GetSheetSet().GetDesc())
     End Sub
     ''' <summary>
-    ''' Изгражда списък от листове, подреден по трите нива:
-    ''' 1) nameSheet (първо ниво, ред от Sheets)
-    ''' 2) nameSubSheet (второ ниво, последователно)
-    ''' 3) nameLayoutForSheet (трето ниво, логически ред)
+    ''' Изгражда финален, напълно подреден списък от Sheet-и за AutoCAD Sheet Set Manager.
+    ''' Подреждането се извършва на ТРИ логически нива:
+    '''
+    ''' 1) Първо ниво – nameSheet
+    '''    • Основни секции (инсталации)
+    '''    • Подредени според дефиниран ред (Dictionary Sheets)
+    '''
+    ''' 2) Второ ниво – nameSubSheet
+    '''    • Подсекции в рамките на всяка основна секция
+    '''    • Запазва реалната структура от данните
+    '''
+    ''' 3) Трето ниво – nameLayoutForSheet
+    '''    • Реално сортиране на листовете (Кота / Етаж / Ниво)
+    '''    • Съобразено със специфичното поведение на AutoCAD SSM
     ''' </summary>
-    ''' <param name="listSheetSet">Списък с листове (srtSheetSet)</param>
-    ''' <returns>Подреден списък от листове</returns>
+    ''' <param name="listSheetSet">Списък с всички листове (srtSheetSet), събрани от DWG</param>
+    ''' <returns>Краен списък, готов за импорт в Sheet Set</returns>
     Private Function BuildSortedSheetList(listSheetSet As List(Of srtSheetSet)) _
-                                  As List(Of srtSheetSet)
-        ' 1. Списък за резултатното второ ниво
+                                      As List(Of srtSheetSet)
+        ' =========================================================================
+        ' 1. ПОДГОТОВКА И ПРОВЕРКИ
+        ' =========================================================================
+        ' Списък, който ще държи резултата след второто ниво на подреждане
         Dim secondLevelList As New List(Of srtSheetSet)
-        ' 2. Проверка за празен или Nothing списък
+
+        ' Ако входният списък е празен или Nothing – няма какво да сортираме
         If listSheetSet Is Nothing OrElse listSheetSet.Count = 0 Then
             Return secondLevelList
         End If
-        ' === Цикъл за почистване и подготовка преди първо ниво ===
+        ' =========================================================================
+        ' 2. ПРЕДВАРИТЕЛНО ПОЧИСТВАНЕ НА ДАННИТЕ
+        ' =========================================================================
+        ' • Премахваме ненужни секции
+        ' • Коригираме празни или некоректни стойности
+        ' Цикълът е отзад-напред, за да можем безопасно да махаме елементи
         For i As Integer = listSheetSet.Count - 1 To 0 Step -1
             Dim s As srtSheetSet = listSheetSet(i)
-            ' 2а. Премахваме елементите с nameSheet = "Настройки"
+            ' 2.1 Премахваме секцията "Настройки" – тя не трябва да влиза в Sheet Set-а
             If String.Equals(s.nameSheet, "Настройки", StringComparison.OrdinalIgnoreCase) Then
                 listSheetSet.RemoveAt(i)
                 Continue For
             End If
-            ' 2б. Ако nameSheet е празно или Nothing, използваме nameLayoutForSheet като име
+            ' 2.2 Ако липсва име на основна секция,
+            ' използваме името на Layout-а като резервен вариант
             If String.IsNullOrWhiteSpace(s.nameSheet) Then
                 s.nameSheet = s.nameLayout
                 listSheetSet(i) = s
             End If
         Next
-        ' === Първо ниво ===
+        ' =========================================================================
+        ' 3. ПЪРВО НИВО – ПОДРЕЖДАНЕ ПО ОСНОВНИ СЕКЦИИ (nameSheet)
+        ' =========================================================================
+        ' Тук ще съберем всички Sheet-и, подредени по дефинирания ред в Dictionary Sheets
         Dim firstLevelList As New List(Of srtSheetSet)
-        ' 3. Подреждаме по зададените ключове (Sheets е речник с подредбата)
+        ' 3.1 Минаваме по реда, зададен в Dictionary Sheets
+        ' Това гарантира еднакъв и контролиран ред всеки път
         For Each pair In Sheets
             For Each item In listSheetSet
                 If item.nameSheet = pair.Key Then
@@ -235,79 +259,95 @@ Public Class SheetSet_new
                 End If
             Next
         Next
-        ' Добавяме останалите, които НЕ са намерени в Sheets
+        ' 3.2 Добавяме и всички останали секции,
+        ' които НЕ присъстват в Dictionary Sheets
         For Each item In listSheetSet
-            ' Проверяваме дали името на листа го НЯМА в ключовете на Sheets
             If Not Sheets.ContainsKey(item.nameSheet) Then
-                ' Проверяваме дали вече не сме го добавили (за сигурност)
                 If Not firstLevelList.Contains(item) Then
                     firstLevelList.Add(item)
                 End If
             End If
         Next
-        ' === Второ ниво ===
-        ' 1. Вземаме всички уникални имена на секции, които реално са в твоя списък (всички 28)
-        Dim realSectionsInData = firstLevelList.Select(Function(x) x.nameSheet).Distinct().ToList()
-
-        ' 2. Подреждаме тези имена, като ползваме Sheets само за справка (без да го променяме!)
-        Dim orderedSections = realSectionsInData.OrderBy(Function(name)
-                                                             ' Ако името съществува в речника, вземаме неговата тежест
-                                                             If Sheets.ContainsKey(name) Then
-                                                                 Return Sheets(name)
-                                                             Else
-                                                                 ' Ако го няма (тези 4 елемента), му даваме голямо число, за да отиде най-отзад
-                                                                 Return 999
-                                                             End If
-                                                         End Function).ToList()
-
-        ' 3. СЕГА вече въртим цикъла по подредения списък, който съдържа ВСИЧКИ 28 елемента
+        ' =========================================================================
+        ' 4. ВТОРО НИВО – ПОДРЕЖДАНЕ ПО ПОДСЕКЦИИ (nameSubSheet)
+        ' =========================================================================
+        ' 4.1 Вземаме всички реално използвани секции от данните
+        Dim realSectionsInData =
+        firstLevelList.Select(Function(x) x.nameSheet).Distinct().ToList()
+        ' 4.2 Подреждаме секциите според тежестта им в Dictionary Sheets
+        ' Ако секцията не съществува там – тя отива най-отзад
+        Dim orderedSections =
+        realSectionsInData.OrderBy(Function(name)
+                                       If Sheets.ContainsKey(name) Then
+                                           Return Sheets(name)
+                                       Else
+                                           Return 999
+                                       End If
+                                   End Function).ToList()
+        ' 4.3 Изграждаме secondLevelList,
+        ' като групираме по секция → подсекция
         For Each sectionName In orderedSections
-            Dim currentSectionSheets = firstLevelList.Where(Function(x) x.nameSheet = sectionName).ToList()
-
-            ' Тук следва твоята логика за SubSheet
-            Dim uniqueSubs = currentSectionSheets.Select(Function(x) If(x.nameSubSheet, "")).Distinct().ToList()
-
+            Dim currentSectionSheets =
+            firstLevelList.Where(Function(x) x.nameSheet = sectionName).ToList()
+            ' Вземаме уникалните подсекции за текущата секция
+            Dim uniqueSubs =
+            currentSectionSheets.Select(Function(x) If(x.nameSubSheet, "")).Distinct().ToList()
             For Each subName In uniqueSubs
                 For Each s In currentSectionSheets
                     If If(s.nameSubSheet, "") = subName Then
-                        secondLevelList.Add(s) ' Вече добавяме всички 28!
+                        secondLevelList.Add(s)
                     End If
                 Next
             Next
         Next
-
-
-
-        ' --- ТРЕТО НИВО (Започва тук) ---
+        ' =========================================================================
+        ' 5. ТРЕТО НИВО – ЛОГИЧЕСКО СОРТИРАНЕ НА ЛИСТОВЕТЕ
+        ' =========================================================================
+        ' Това е финалният списък, който ще бъде върнат
         Dim returnList As New List(Of srtSheetSet)
-        ' 1. Вземаме уникалните секции от вече готовия secondLevelList
-        Dim sectionOrder = secondLevelList.Select(Function(x) x.nameSheet).Distinct().ToList()
+        ' 5.1 Вземаме реда на секциите такъв, какъвто вече е изграден
+        Dim sectionOrder =
+        secondLevelList.Select(Function(x) x.nameSheet).Distinct().ToList()
         For Each secName In sectionOrder
-            ' Вземаме чертежите за текущата секция
-            Dim sectionItems = secondLevelList.Where(Function(x) x.nameSheet = secName).ToList()
-            Dim uniqueSubs = sectionItems.Select(Function(x) If(x.nameSubSheet, "")).Distinct().ToList()
+            ' Всички листове за текущата секция
+            Dim sectionItems =
+            secondLevelList.Where(Function(x) x.nameSheet = secName).ToList()
+            ' Подсекции в рамките на тази секция
+            Dim uniqueSubs =
+            sectionItems.Select(Function(x) If(x.nameSubSheet, "")).Distinct().ToList()
             For Each subName In uniqueSubs
-                ' Сега subGroupItems е дефиниран вътре в правилния цикъл!
+                ' Всички листове за текущата подсекция
                 Dim subGroupItems = sectionItems.Where(Function(x) If(x.nameSubSheet, "").Trim() = subName.Trim()).ToList()
-                Dim hasElevations = subGroupItems.Any(Function(x) x.nameLayoutForSheet.Contains("Кота"))
+                ' Проверяваме дали имаме коти
+                Dim hasElevations =
+                subGroupItems.Any(Function(x) x.nameLayoutForSheet.Contains("Кота"))
                 Dim sortedSubGroup As List(Of srtSheetSet)
                 If hasElevations Then
-                    ' --- СОРТИРАНЕ ПО КОТА ---
-                    sortedSubGroup = subGroupItems.OrderBy(Function(x As srtSheetSet)
-                                                               Dim val As Double = 0
-                                                               Dim layoutName As String = If(x.nameLayoutForSheet, "")
-                                                               Dim numPart As String = layoutName.Replace("Кота", "").Replace(",", ".").Trim()
-                                                               ' ТУК Е ПОПРАВКАТА ЗА TryParse:
-                                                               Double.TryParse(numPart, Globalization.NumberStyles.Any, Globalization.CultureInfo.InvariantCulture, val)
-                                                               Return val
-                                                           End Function).ToList()
+                    ' -------------------------------------------------------------
+                    ' СОРТИРАНЕ ПО КОТА (числово)
+                    ' -------------------------------------------------------------
+                    sortedSubGroup =
+                    subGroupItems.OrderBy(Function(x)
+                                              Dim val As Double = 0
+                                              Dim layoutName = If(x.nameLayoutForSheet, "")
+                                              Dim numPart =
+                                                   layoutName.Replace("Кота", "").Replace(",", ".").Trim()
+
+                                              Double.TryParse(numPart,
+                                                               Globalization.NumberStyles.Any,
+                                                               Globalization.CultureInfo.InvariantCulture,
+                                                               val)
+                                              Return val
+                                          End Function).ToList()
                 Else
+                    ' -------------------------------------------------------------
+                    ' СОРТИРАНЕ ПО ЕТАЖ / НИВО
+                    ' -------------------------------------------------------------
                     ' --- СОРТИРАНЕ ПО ЕТАЖ / НИВО ---
                     sortedSubGroup = subGroupItems.OrderBy(Function(x As srtSheetSet)
                                                                Dim nameLower = x.nameLayoutForSheet.ToLower().Trim()
                                                                Dim match = numbers.FirstOrDefault(Function(p) p.Value.ToLower() = nameLower)
                                                                If match.Value IsNot Nothing Then Return CDbl(match.Key)
-
                                                                Dim m = System.Text.RegularExpressions.Regex.Match(nameLower, "-?\d+")
                                                                If m.Success Then
                                                                    Dim levelNum As Double = 0
@@ -316,15 +356,18 @@ Public Class SheetSet_new
                                                                Return 9999.0
                                                            End Function).ThenBy(Function(x) x.nameLayoutForSheet).ToList()
                 End If
-                ' --- МАГИЯТА ЗА AUTOCAD ---
-                ' Обръщаме подгрупата, защото AutoCAD SSM добавя всеки нов лист НАЙ-ОТГОРЕ.
-                ' Така след обръщането, Първи етаж ще се окаже най-отгоре в AutoCAD.
+                ' =========================================================================
+                ' СПЕЦИФИКА НА AUTOCAD SHEET SET MANAGER
+                ' =========================================================================
+                ' AutoCAD добавя всеки нов Sheet НАЙ-ОТГОРЕ в списъка.
+                ' За да получим правилен визуален ред,
+                ' обръщаме подредения списък преди импорта.
                 sortedSubGroup.Reverse()
-
                 ' Добавяме към финалния резултат
                 returnList.AddRange(sortedSubGroup)
             Next
         Next
+        ' Връщаме напълно подредения списък
         Return returnList
     End Function
     ''' <summary>

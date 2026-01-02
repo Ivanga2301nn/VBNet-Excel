@@ -185,6 +185,7 @@ Public Class SheetSet_new
             a = a + 1
             ' --- 6. ЗАПИС В DST ---
             saveDST(sheetSetDatabase, File_DST, sortedList, name_file)
+
         Catch ex As Exception
             MsgBox("Грешка: " & ex.Message)
         Finally
@@ -274,6 +275,9 @@ Public Class SheetSet_new
                 Next
             Next
         Next
+
+
+
         ' --- ТРЕТО НИВО (Започва тук) ---
         Dim returnList As New List(Of srtSheetSet)
         ' 1. Вземаме уникалните секции от вече готовия secondLevelList
@@ -312,40 +316,16 @@ Public Class SheetSet_new
                                                                Return 9999.0
                                                            End Function).ThenBy(Function(x) x.nameLayoutForSheet).ToList()
                 End If
-                ' Добавяме към финалния списък
+                ' --- МАГИЯТА ЗА AUTOCAD ---
+                ' Обръщаме подгрупата, защото AutoCAD SSM добавя всеки нов лист НАЙ-ОТГОРЕ.
+                ' Така след обръщането, Първи етаж ще се окаже най-отгоре в AutoCAD.
+                sortedSubGroup.Reverse()
+
+                ' Добавяме към финалния резултат
                 returnList.AddRange(sortedSubGroup)
             Next
         Next
         Return returnList
-    End Function
-
-
-
-
-
-
-    ''' <summary>
-    ''' Сортира списък от обекти srtSheetSet спрямо подредбата на ключовете в Dictionary.
-    ''' </summary>
-    ''' <param name="sourceList">Оригиналният списък с данни.</param>
-    ''' <param name="orderDict">Dictionary, чиито ключове определят новата подредба.</param>
-    Public Function SortSheetSet(sourceList As List(Of srtSheetSet), orderDict As Dictionary(Of String, Object)) As List(Of srtSheetSet)
-
-        ' 1. Индексираме оригиналния списък в Dictionary за O(1) достъп.
-        ' Използваме GroupBy, в случай че имаш повече от един елемент с едно и също име.
-        Dim lookup = sourceList.GroupBy(Function(x) x.nameSheet).ToDictionary(Function(g) g.Key, Function(g) g.ToList())
-
-        Dim result As New List(Of srtSheetSet)
-
-        ' 2. Обхождаме само желания ред (от Sheets)
-        For Each key In orderDict.Keys
-            If lookup.ContainsKey(key) Then
-                ' Добавяме всички намерени елементи с това име
-                result.AddRange(lookup(key))
-            End If
-        Next
-
-        Return result
     End Function
     ''' <summary>
     ''' Създава Sheet Set файл (DST) и добавя листовете според подадения сортиран списък.
@@ -384,7 +364,6 @@ Public Class SheetSet_new
                     ' Ако няма под-папка, текущата папка е главната
                     currentSubset = mainSubset
                 End If
-
                 ' 5. Импортираме листа в текущата папка (Subset)
                 ImportASheet(currentSubset, current.nameLayoutForSheet, "", current.Number, name_file, current.nameLayout)
             Next

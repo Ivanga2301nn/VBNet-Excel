@@ -171,11 +171,8 @@ Public Class SheetSet_new
 
             ' Почистване на всички Sheet-и от текущия DWG и премахване на празни папки (Subsets) в Sheet Set базата данни.
             CleanOldSheetsFromCurrentDWG(sheetSetDatabase, name_file)
-            ' Връща списък с всички Sheet-и от дадена Sheet Set база данни (DST).
-            sheetsInFile = GetSheetsFromDatabase(sheetSetDatabase)  ' Съществуващи Sheet-и
             'Обхожда Layout-ите в чертежа и анализира имената им спрямо зададените речници.
             listSheetSet = CollectLayoutsData(acDoc, name_file, sheetsInFile)
-
             ' --- 5. СОРТИРАНЕ ---
             Dim sortedList As New List(Of srtSheetSet)
             For Each pair In Sheets
@@ -183,10 +180,10 @@ Public Class SheetSet_new
                     If item.nameSheet = pair.Key Then sortedList.Add(item)
                 Next
             Next
-
-
-
-
+            Dim a As Integer = 1
+            a = a + 1
+            ' --- 6. ЗАПИС В DST ---
+            saveDST(sheetSetDatabase, File_DST, sortedList, name_file)
         Catch ex As Exception
             MsgBox("Грешка: " & ex.Message)
         Finally
@@ -196,6 +193,30 @@ Public Class SheetSet_new
         MsgBox("Sheet Set Name: " & sheetSetDatabase.GetSheetSet().GetName() & vbCrLf &
            "Sheet Set Description: " & sheetSetDatabase.GetSheetSet().GetDesc())
     End Sub
+
+    ''' <summary>
+    ''' Сортира списък от обекти srtSheetSet спрямо подредбата на ключовете в Dictionary.
+    ''' </summary>
+    ''' <param name="sourceList">Оригиналният списък с данни.</param>
+    ''' <param name="orderDict">Dictionary, чиито ключове определят новата подредба.</param>
+    Public Function SortSheetSet(sourceList As List(Of srtSheetSet), orderDict As Dictionary(Of String, Object)) As List(Of srtSheetSet)
+
+        ' 1. Индексираме оригиналния списък в Dictionary за O(1) достъп.
+        ' Използваме GroupBy, в случай че имаш повече от един елемент с едно и също име.
+        Dim lookup = sourceList.GroupBy(Function(x) x.nameSheet).ToDictionary(Function(g) g.Key, Function(g) g.ToList())
+
+        Dim result As New List(Of srtSheetSet)
+
+        ' 2. Обхождаме само желания ред (от Sheets)
+        For Each key In orderDict.Keys
+            If lookup.ContainsKey(key) Then
+                ' Добавяме всички намерени елементи с това име
+                result.AddRange(lookup(key))
+            End If
+        Next
+
+        Return result
+    End Function
     ''' <summary>
     ''' Създава Sheet Set файл (DST) и добавя листовете според подадения сортиран списък.
     ''' </summary>
@@ -216,7 +237,7 @@ Public Class SheetSet_new
             For i As Integer = 0 To sortedList.Count - 1
                 Dim current = sortedList(i)
                 ' 2а. Номерираме листа според реда му в списъка
-                current.Number = (i + 1).ToString()
+                'current.Number = (i + 1).ToString()
                 ' 3. Създаваме нова главна папка (Subset), ако е първи елемент
                 ' или ако името на основния лист (Sheet) се е променило спрямо предходния
                 If i = 0 OrElse current.nameSheet <> sortedList(i - 1).nameSheet Then
@@ -244,7 +265,6 @@ Public Class SheetSet_new
             MsgBox("Грешка при запазване на Sheet Set файла: " & ex.Message)
         End Try
     End Sub
-
     ''' <summary>
     ''' Обхожда Layout-ите в чертежа и анализира имената им спрямо зададените речници.
     ''' Събира данни за всички Layout-и в даден DWG документ.
@@ -276,46 +296,8 @@ Public Class SheetSet_new
                 ' 8. Използваме твои речници за определяне на групата и подсекцията
                 currentItem.nameSheet = If(Installations.ContainsKey(Instal), Installations(Instal), "")
                 currentItem.nameSubSheet = If(Slabotokowa.ContainsKey(Instal), Slabotokowa(Instal), "")
-                ' --- 9. Логика за имената на Layout-а според ключови думи (КОТА / ТАБЛО / ЕТАЖ / СУТ) ---
-                Dim result As String = ""
-                Dim upperKey As String = Item.Key.ToUpper()
-                Select Case True
-                    Case upperKey.Contains("КОТА")
-                        ' 9a. Извличаме котата от името (намираме + или - след "КОТА")
-                        Dim kotaIdx = upperKey.IndexOf("КОТА")
-                        Dim pIdx = Item.Key.IndexOf("+")
-                        Dim mIdx = Item.Key.IndexOf("-")
-                        Select Case True
-                            Case pIdx > 0 And pIdx > kotaIdx
-                                result = Item.Key.Substring(pIdx).Trim()
-                            Case mIdx > 0 And mIdx > kotaIdx
-                                result = Item.Key.Substring(mIdx).Trim()
-                            Case Else
-                                Dim sIdx = Item.Key.Trim().LastIndexOf(" ")
-                                result = If(sIdx > -1, "+" & Item.Key.Substring(sIdx).Trim(), "+0.00")
-                        End Select
-                        currentItem.nameLayoutForSheet = "Кота " & result
-                        ' Преобразуваме котата в число за сортиране
-                        currentItem.Number = Val(result.Replace(",", "."))
-                    Case upperKey.Contains("ТАБЛО")
-                        ' 9b. Извличаме текста след последния интервал за табло
-                        Dim lastSpace = Item.Key.Trim().LastIndexOf(" ")
-                        result = If(lastSpace > -1, Item.Key.Substring(lastSpace).Trim(), " ")
-                        currentItem.nameLayoutForSheet = "Табло ''" & Trim(result) & "''"
-                    Case upperKey.Contains("ЕТАЖ")
-                        ' 9c. Извличаме номера на етажа с Regex и преобразуваме в текст
-                        Dim m As Match = Regex.Match(upperKey, "\d+")
-                        If m.Success Then
-                            currentItem.nameLayoutForSheet = NumberToText(CInt(m.Value))
-                        Else
-                            currentItem.nameLayoutForSheet = "###### ЕТАЖ"
-                        End If
-                    Case upperKey.Contains("СУТ") ' Корекция за СУТЕРЕН
-                        currentItem.nameLayoutForSheet = "Сутерен"
-                    Case Else
-                        ' 9d. Ако няма ключова дума, използваме името на инсталацията или оригиналното име
-                        currentItem.nameLayoutForSheet = If(Not String.IsNullOrEmpty(currentItem.nameSheet), currentItem.nameSheet, Item.Key)
-                End Select
+                ' 9. Логика за имената на Layout-а според ключови думи (КОТА / ТАБЛО / ЕТАЖ / СУТ) 
+                currentItem.nameLayoutForSheet = GetLayoutName(Item.Key)
                 ' 10. Добавяме в списъка само ако Layout-а е нов (не съществува в DST)
                 If IsNewLayout(name_file, currentItem.nameLayout, sheetsInFile) Then
                     listSheetSet.Add(currentItem)
@@ -326,6 +308,101 @@ Public Class SheetSet_new
         End Using
         ' 12. Връщаме списъка с обработени Layout-и
         Return listSheetSet
+    End Function
+    ''' <summary>
+    ''' Определя името на layout-а за Sheet на база ключов текст.
+    ''' Анализира ключови думи като КОТА, ТАБЛО, ЕТАЖ, СУТЕРЕН.
+    ''' Ако ключът не се разпознае, връща ясно обозначение за проблемен layout.
+    ''' </summary>
+    ''' <param name="key">Оригиналният ключ (напр. име от речник)</param>
+    ''' Речник с номера на етажи:
+    ''' Key = номер (Integer),
+    ''' Value = текст (напр. "Първи етаж")
+    ''' <returns>Форматирано име за nameLayoutForSheet</returns>
+    Private Function GetLayoutName(key As String) As String
+        ' Преобразуваме ключа в главни букви
+        ' за да избегнем проблеми с малки/големи букви
+        Dim upperKey As String = key.ToUpper()
+        ' Помощна променлива за извлечени стойности
+        Dim result As String = ""
+        ' Основна логика за разпознаване по ключови думи
+        Select Case True
+        ' ===============================
+        ' КОТА
+        ' ===============================
+            Case upperKey.Contains("КОТА")
+                ' Позиция на думата "КОТА"
+                Dim kotaIdx As Integer = upperKey.IndexOf("КОТА")
+                ' Позиция на "+" и "-"
+                Dim pIdx As Integer = key.IndexOf("+")
+                Dim mIdx As Integer = key.IndexOf("-")
+                ' Определяме откъде започва котата
+                Select Case True
+                    Case pIdx > 0 AndAlso pIdx > kotaIdx
+                        result = key.Substring(pIdx).Trim()
+                    Case mIdx > 0 AndAlso mIdx > kotaIdx
+                        result = key.Substring(mIdx).Trim()
+                    Case Else
+                        ' Ако няма + или -, взимаме текста след последния интервал
+                        Dim sIdx As Integer = key.Trim().LastIndexOf(" ")
+                        result = If(sIdx > -1, "+" & key.Substring(sIdx).Trim(), "+0.00")
+                End Select
+                ' Връщаме форматираното име за layout
+                Return "Кота " & result
+        ' ===============================
+        ' ТАБЛО
+        ' ===============================
+            Case upperKey.Contains("ТАБЛО")
+                ' Намираме последния интервал
+                Dim lastSpace As Integer = key.Trim().LastIndexOf(" ")
+                ' Вземаме текста след него
+                result = If(lastSpace > -1, key.Substring(lastSpace).Trim(), " ")
+                ' Връщаме форматираното име
+                Return "Табло ''" & Trim(result) & "''"
+        ' ===============================
+        ' ЕТАЖ
+        ' ===============================
+            Case upperKey.Contains("ЕТАЖ")
+                ' Опит за извличане на цифра (напр. "2")
+                Dim m As Match = Regex.Match(upperKey, "\d+")
+                ' Тук ще запишем намерения етаж
+                Dim foundFloor As String = ""
+                If m.Success Then
+                    ' Ако има цифра – търсим я в речника
+                    Dim fNum As Integer = CInt(m.Value)
+                    If numbers.ContainsKey(fNum) Then
+                        foundFloor = numbers(fNum)
+                    End If
+                Else
+                    ' Ако няма цифри – търсим текстово съвпадение
+                    For Each kvp In numbers
+                        If upperKey.Contains(kvp.Value.ToUpper()) Then
+                            foundFloor = kvp.Value
+                            Exit For
+                        End If
+                    Next
+                End If
+                ' Проверка дали е намерен валиден етаж
+                If Not String.IsNullOrEmpty(foundFloor) Then
+                    Return foundFloor
+                Else
+                    ' Маркираме проблемен етаж
+                    Return "###### ЕТАЖ"
+                End If
+        ' ===============================
+        ' СУТЕРЕН
+        ' ===============================
+            Case upperKey.Contains("СУТ")
+                Return "Сутерен"
+
+                ' ===============================
+                ' ПО ПОДРАЗБИРАНЕ
+                ' ===============================
+            Case Else
+                ' Ако няма разпозната ключова дума,
+                ' връщаме оригиналния ключ
+                Return key
+        End Select
     End Function
     ''' <summary>
     ''' Проверява дали Layout-ът е нов за Sheet Set-а.

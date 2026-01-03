@@ -643,25 +643,25 @@ Public Class SheetSet_new
             Return "CANCELLED"
         End If
         ' --- 5. Потребителят избра "Да" → въвежда ново име ---
-        Dim pso As New PromptStringOptions(vbLf & "Въведете ново име на сградата (или 'BuildingName' за общ режим): ")
+        Dim pso As New PromptStringOptions(vbLf & "Въведете ново име на сградата (или 'BuildingName' за общ режим, Enter за пропуск): ")
         pso.AllowSpaces = True
         Dim pr As PromptResult = ed.GetString(pso)
-        ' Ако потребителят натисне ESC или не въведе валидно име, връщаме "CANCELLED"
+        ' Ако потребителят натисне ESC, връщаме "CANCELLED"
         If pr.Status <> PromptStatus.OK Then Return "CANCELLED"
-        ' Запазваме новото въведено име
-        bName = pr.StringResult.Trim()
+        ' Ако потребителят натисне само Enter (празен низ), запазваме старото име
+        If Not String.IsNullOrWhiteSpace(pr.StringResult) Then
+            bName = pr.StringResult.Trim()
+        End If
         ' --- 6. Обновяване на Custom Property в DWG ---
         Try
             Dim infoBuilder As New DatabaseSummaryInfoBuilder(doc.Database.SummaryInfo)
             Dim customProps As System.Collections.IDictionary = infoBuilder.CustomPropertyTable
-            ' Просто присвояваме стойността, Add вече не е нужен, защото GetOrCreateBuildingName вече създава property
+            ' Присвояваме стойността (ако е празно, остава старата)
             customProps(propKey) = bName
-            ' Записваме промените обратно в SummaryInfo на DWG
+            ' Записваме обратно в DWG
             doc.Database.SummaryInfo = infoBuilder.ToDatabaseSummaryInfo()
-            ' Информираме потребителя за обновеното име
             ed.WriteMessage(vbLf & "Параметърът е обновен на: " & bName)
         Catch ex As Exception
-            ' В случай на грешка, показваме съобщение, но функцията продължава
             ed.WriteMessage(vbLf & "Грешка при обновяване на BuildingName: " & ex.Message)
         End Try
         ' --- 7. Връщаме текущото име на сградата ---

@@ -112,6 +112,36 @@ Public Class SheetSet_new
         {"ПИЦ", "Пожароизвестителна инсталация"},
         {"ДОМ", "Домофона инсталация"}
     }
+    ' Всички видове инсталации с трибуквен код ---
+    Private ReadOnly LisAll As New Dictionary(Of String, String) From {
+    {"ВЪН", "OUT"},               ' Outdoor / външно
+    {"Ел.захранване НН", "PWR"},  ' Power supply / Ел.захранване
+    {"Осветителна инсталация", "LGT"},  ' Lighting / Осветление
+    {"Евакуационно осветление", "EVC"},  ' Evacuation lighting / Осветление за евакуация
+    {"Фасадно осветление", "FAC"},  ' Facade lighting / Фасадно осветление
+    {"Ел.инсталация контакти", "CON"},  ' Contacts / Ел.инсталация контакти
+    {"Силова инсталация", "POW"},  ' Power / Силова инсталация
+    {"Мълниезащитна инсталация", "LTP"},  ' Lightning protection / Мълниезащита
+    {"Защитна заземителна инсталация", "GND"},  ' Grounding / Заземяване
+    {"Еднолинейна схема на табло", "DBS"},  ' Distribution board schematic / Табло
+    {"Котировки ел. инсталации", "ELV"},  ' Elevations / Котировки
+    {"План покрив", "RFL"},  ' Roof plan / План покрив
+    {"Заснемане и демонтаж", "DEM"},  ' Demolition / Заснемане и демонтаж
+    {"Настройки", "CFG"},  ' Configuration / Настройки
+    {"Инсталация интернет", "NET"},  ' Internet installation
+    {"Инсталация кабелна телевизия", "CAT"},  ' Cable TV
+    {"Телефонна инсталация", "TEL"},  ' Telephone installation
+    {"Инсталации интернет и кабелна телевизия", "INT"},  ' Combined Internet + TV
+    {"Инсталации интернет кабелна телевизия и телефон", "ICT"},  ' Internet + TV + Telephone
+    {"Инсталация видеонаблюдение", "VID"},  ' Video surveillance
+    {"Болнична повиквателна инсталация", "NCS"},  ' Nurse Call System 
+    {"Инсталация контрол на достъпа", "ACS"},  ' Access Control System
+    {"Оповестителна инсталация", "PAS"},  ' Public Address System
+    {"Сигнално-охранителна инсталация", "SEC"},  ' Security / Охрана
+    {"Пожароизвестителна инсталация", "FIR"},  ' Fire alarm / Пожар
+    {"Домофона инсталация", "DIC"},  ' Door Intercom Communication / Система с табло на входа, звънци по апартаменти/офиси, отваряне на врата
+    {"Инсталации интернет и кабелна телевизия", "HOM"}  ' Home installations / Къщи
+    }
     ' ГЛАВНИ ПАПКИ: Име (Key) и Пореден номер/Индекс (Value)
     Dim MainSubsets As New Dictionary(Of String, Integer) From {
     {"Ел. захранване НН", 0},

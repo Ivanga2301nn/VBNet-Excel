@@ -143,7 +143,7 @@ Public Class SheetSet_new
         ' Извикваме процедурата за името
         Dim buildingName As String = GetBuildingName(acDoc)
         ' Ако потребителят е отказал име, спираме до тук
-        If buildingName = "CANCELLED" Then Return
+        'If buildingName = "CANCELLED" Then Return
         Dim name_file As String = acDoc.Name                                    ' Име на DWG файла
         Dim File_Path As String = Path.GetDirectoryName(name_file)              ' Път до папката
         Dim Path_Name As String = Path.GetFileName(File_Path)                   ' Име на папката (име на проекта)
@@ -184,7 +184,7 @@ Public Class SheetSet_new
             Dim a As Integer = 1
             a = a + 1
             ' --- 6. ЗАПИС В DST ---
-            saveDST(sheetSetDatabase, File_DST, sortedList, name_file)
+            saveDST(acDoc, sheetSetDatabase, File_DST, sortedList, name_file)
 
         Catch ex As Exception
             MsgBox("Грешка: " & ex.Message)
@@ -213,14 +213,12 @@ Public Class SheetSet_new
     ''' </summary>
     ''' <param name="listSheetSet">Списък с всички листове (srtSheetSet), събрани от DWG</param>
     ''' <returns>Краен списък, готов за импорт в Sheet Set</returns>
-    Private Function BuildSortedSheetList(listSheetSet As List(Of srtSheetSet)) _
-                                      As List(Of srtSheetSet)
+    Private Function BuildSortedSheetList(listSheetSet As List(Of srtSheetSet)) As List(Of srtSheetSet)
         ' =========================================================================
         ' 1. ПОДГОТОВКА И ПРОВЕРКИ
         ' =========================================================================
         ' Списък, който ще държи резултата след второто ниво на подреждане
         Dim secondLevelList As New List(Of srtSheetSet)
-
         ' Ако входният списък е празен или Nothing – няма какво да сортираме
         If listSheetSet Is Nothing OrElse listSheetSet.Count = 0 Then
             Return secondLevelList
@@ -377,41 +375,68 @@ Public Class SheetSet_new
     ''' <param name="dstPath">Път, където ще се запази DST файлът</param>
     ''' <param name="sortedList">Списък от листове (srtSheetSet), сортирани по групи</param>
     ''' <param name="name_file">DWG файл, който се добавя към листовете</param>
-    Public Sub saveDST(sheetSetDatabase As AcSmDatabase,
-                   dstPath As String,
-                   sortedList As List(Of srtSheetSet),
-                   name_file As String)
+    Public Sub saveDST(acDoc As Document,
+                       sheetSetDatabase As AcSmDatabase,
+                       dstPath As String,
+                       sortedList As List(Of srtSheetSet),
+                       name_file As String)
         Try
-            ' --- 6. ЗАПИС В DST ---
-            ' 1. Променливи за текущата и главната папка (Subset)
+            Dim rootSubset As AcSmSubset = Nothing
+            Dim useBuildingRoot As Boolean = False
+            ' --- Четене на BuildingName от DWG без промпт към потребителя ---
+            Dim buildingName As String = GetOrCreateBuildingName(acDoc)
+            ' --- Проверка на режима ---
+            If buildingName = "BuildingName" Then
+                ' -----------------------------
+                ' СТАНДАРТЕН РЕЖИМ - > една сграда
+                '------------------------------
+                acDoc.Editor.WriteMessage(vbLf & "СТАНДАРТЕН РЕЖИМ - > една сграда")
+            Else
+                ' -----------------------------
+                ' РАЗШИРЕН РЕЖИМ - > много сгради
+                '------------------------------
+                ' Корен на DST става buildingName
+                acDoc.Editor.WriteMessage(vbLf & "РАЗШИРЕН РЕЖИМ - > много сгради:" & buildingName)
+                rootSubset = CreateSubset(sheetSetDatabase, buildingName, "", "", "", "", True)
+                useBuildingRoot = True
+            End If
+
+            ' --- Променливи за текущата и главната папка (Subset) ---
             Dim mainSubset As AcSmSubset = Nothing
             Dim currentSubset As AcSmSubset = Nothing
-            ' 2. Обхождаме сортирания списък с листове
+            Dim prevNameSheet As String = ""
+            Dim prevNameSubSheet As String = ""
+            ' --- Обхождане на списъка с листове ---
             For i As Integer = 0 To sortedList.Count - 1
                 Dim current = sortedList(i)
-                ' 2а. Номерираме листа според реда му в списъка
-                'current.Number = (i + 1).ToString()
-                ' 3. Създаваме нова главна папка (Subset), ако е първи елемент
-                ' или ако името на основния лист (Sheet) се е променило спрямо предходния
-                If i = 0 OrElse current.nameSheet <> sortedList(i - 1).nameSheet Then
-                    mainSubset = CreateSubset(sheetSetDatabase, current.nameSheet, "", "", "", "", True)
+                ' --- Създаване на mainSubset (nameSheet) ако се е сменило ---
+                If current.nameSheet <> prevNameSheet Then
+                    If useBuildingRoot Then
+                        ' Разширен режим: mainSubset е под buildingName
+                        mainSubset = rootSubset.CreateSubset(current.nameSheet, "")
+                    Else
+                        ' Стандартен режим: mainSubset е директно root
+                        mainSubset = CreateSubset(sheetSetDatabase, current.nameSheet, "", "", "", "", True)
+                    End If
                     currentSubset = mainSubset
+                    prevNameSheet = current.nameSheet
+                    prevNameSubSheet = "" ' нулираме предходната под-папка
                 End If
-                ' 4. Ако има под-папка (SubSheet), създаваме я
+                ' --- Създаване на под-папка (nameSubSheet) ако има такава ---
                 If Not String.IsNullOrEmpty(current.nameSubSheet) Then
-                    ' Създаваме под-папка, ако името й се различава от предходното
-                    If i = 0 OrElse current.nameSubSheet <> sortedList(i - 1).nameSubSheet Then
+                    If current.nameSubSheet <> prevNameSubSheet Then
                         currentSubset = mainSubset.CreateSubset(current.nameSubSheet, "")
+                        prevNameSubSheet = current.nameSubSheet
                     End If
                 Else
-                    ' Ако няма под-папка, текущата папка е главната
+                    ' Ако няма под-папка, листът отива директно под mainSubset
                     currentSubset = mainSubset
                 End If
-                ' 5. Импортираме листа в текущата папка (Subset)
-                ImportASheet(currentSubset, current.nameLayoutForSheet, "", current.Number, name_file, current.nameLayout)
+                ' --- Импортиране на листа ---
+                ImportASheet(currentSubset, current.nameLayoutForSheet, "", current.Number, current.nameFile, current.nameLayout)
             Next
-            ' 6. Показваме съобщение за успешно записан DST файл
-            MsgBox("Sheet Set файлът е запазен успешно: " & dstPath)
+            ' --- Съобщение за успешно записан DST ---
+            MsgBox("Sheet Set файлът е запазен успешно!")
         Catch ex As Exception
             ' 7. Ако възникне грешка, показваме съобщение
             MsgBox("Грешка при запазване на Sheet Set файла: " & ex.Message)
@@ -667,7 +692,6 @@ Public Class SheetSet_new
         ' --- 7. Връщаме текущото име на сградата ---
         Return bName
     End Function
-
     ''' <summary>
     ''' Заключва или отключва дадена база данни на Sheet Set (AcSmDatabase).
     ''' </summary>

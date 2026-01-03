@@ -408,33 +408,38 @@ Public Class SheetSet_new
     ''' </summary>
     <CommandMethod("GenerateSheetNumbers")>
     Public Sub GenerateSheetNumbersCommand()
-        ' --- 1. Взимаме активния документ и базата данни ---
-        Dim acDoc As Document = AcApp.DocumentManager.MdiActiveDocument
-        Dim acDb As Database = acDoc.Database
-        ' --- 2. Взимаме името на сградата от DWG ---
-        Dim buildingName As String = GetBuildingName(acDoc)
-        ' Ако потребителят е отказал да въведе име, прекратяваме процедурата
-        If buildingName = "CANCELLED" Then
-            acDoc.Editor.WriteMessage(vbLf & "Потребителят отказа операцията.")
-            Return
-        End If
-        ' --- 3. Определяме пътя до DST файла ---
-        Dim dwgFolder As String = Path.GetDirectoryName(acDb.Filename)  ' Папката на DWG файла
-        Dim projectName As String = Path.GetFileName(dwgFolder)        ' Име на проекта (папката)
-        Dim dstPath As String = Path.Combine(dwgFolder, projectName & ".dst") ' Пълен път до DST файла
-        ' --- 4. Инициализираме Sheet Set Manager ---
-        Dim sheetSetManager As IAcSmSheetSetMgr = New AcSmSheetSetMgr()
         Dim sheetSetDatabase As AcSmDatabase
-        ' --- 5. Проверяваме дали DST файлът съществува ---
-        If System.IO.File.Exists(dstPath) Then            ' Отваряме съществуващ DST файл
-            sheetSetDatabase = sheetSetManager.OpenDatabase(dstPath, False)
-        Else
-            ' Ако DST файлът не съществува, извеждаме съобщение и спираме
-            MsgBox("DST файлът не съществува: " & dstPath, MsgBoxStyle.Exclamation, "Внимание")
-            Return
-        End If
-        ' --- 6. Извикваме основната логика за генериране на номера на листовете ---
-        GenerateSheetNumbers(acDoc, sheetSetDatabase)
+        Try
+            ' --- 1. Взимаме активния документ и базата данни ---
+            Dim acDoc As Document = AcApp.DocumentManager.MdiActiveDocument
+            Dim acDb As Database = acDoc.Database
+            ' --- 3. Определяме пътя до DST файла ---
+            Dim dwgFolder As String = Path.GetDirectoryName(acDb.Filename)  ' Папката на DWG файла
+            Dim projectName As String = Path.GetFileName(dwgFolder)        ' Име на проекта (папката)
+            Dim dstPath As String = Path.Combine(dwgFolder, projectName & ".dst") ' Пълен път до DST файла
+            ' --- 4. Инициализираме Sheet Set Manager ---
+            Dim sheetSetManager As IAcSmSheetSetMgr = New AcSmSheetSetMgr()
+
+            ' --- 5. Проверяваме дали DST файлът съществува ---
+            If System.IO.File.Exists(dstPath) Then            ' Отваряме съществуващ DST файл
+                sheetSetDatabase = sheetSetManager.OpenDatabase(dstPath, False)
+            Else
+                ' Ако DST файлът не съществува, извеждаме съобщение и спираме
+                MsgBox("DST файлът не съществува: " & dstPath, MsgBoxStyle.Exclamation, "Внимание")
+                Return
+            End If
+
+            If LockDatabase(sheetSetDatabase, True) = False Then                 ' Заключване за запис
+                MsgBox("Sheet set не може да бъде отворен за четене.")
+                Exit Sub
+            End If
+            ' --- 6. Извикваме основната логика за генериране на номера на листовете ---
+            GenerateSheetNumbers(acDoc, sheetSetDatabase)
+        Catch ex As Exception
+            MsgBox("Грешка: " & ex.Message)
+        Finally
+            If sheetSetDatabase IsNot Nothing Then LockDatabase(sheetSetDatabase, False) ' Отключване на DST
+        End Try
     End Sub
     ''' <summary>
     ''' Генерира номерата на листовете в DST според избрания режим.

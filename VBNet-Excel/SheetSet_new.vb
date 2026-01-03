@@ -141,7 +141,7 @@ Public Class SheetSet_new
         ' 1. Взимаме пълния път на текущия DWG файл
         Dim dwgPath As String = acDb.Filename
         ' Извикваме процедурата за името
-        Dim buildingName As String = GetBuildingName(acDb)
+        Dim buildingName As String = GetBuildingName(acDoc)
         ' Ако потребителят е отказал име, спираме до тук
         If buildingName = "CANCELLED" Then Return
         Dim name_file As String = acDoc.Name                                    ' Име на DWG файла
@@ -576,68 +576,98 @@ Public Class SheetSet_new
         Return True
     End Function
     ''' <summary>
-    ''' Връща името на сградата от свойствата на чертежа (Database).
-    ''' Ако потребителят иска, позволява въвеждане на ново име.
-    ''' Използва "BuildingName" като ключово свойство.
+    ''' Връща текущото име на сграда, записано в DWG файла (Custom Property "BuildingName").
+    ''' Ако няма записано име, създава свойството с начална стойност "BuildingName" и го връща.
     ''' </summary>
-    ''' <param name="acDb">Обект Database на текущия AutoCAD документ</param>
-    ''' <returns>
-    ''' Връща текущото или ново име на сградата.
-    ''' Ако потребителят анулира въвеждането (ESC), връща "CANCELLED".
-    ''' </returns>
-    Private Function GetBuildingName(ByVal acDb As Database) As String
-        ' Ключ за потребителското свойство
-        Dim propKey As String = "BuildingName"
-        ' Стандартна стойност, ако не е намерено име
-        Dim bName As String = propKey
-        ' Editor за взаимодействие с потребителя
-        Dim ed As Editor = AcApp.DocumentManager.MdiActiveDocument.Editor
-        ' 1. Достъп до свойствата на чертежа (DWG PROPS)
-        Dim infoBuilder As New DatabaseSummaryInfoBuilder(acDb.SummaryInfo)
-        Dim customProps As System.Collections.IDictionary = infoBuilder.CustomPropertyTable
-        ' Проверка дали свойството вече съществува
-        If customProps.Contains(propKey) Then
-            bName = customProps(propKey).ToString().Trim()
-        End If
-        ' 2. Сглобяване на пояснителен текст за потребителя
+    ''' <param name="doc">Текущ документ (Document) на AutoCAD</param>
+    ''' <returns>Име на сградата като String</returns>
+    Private Function GetOrCreateBuildingName(doc As Document) As String
+        Dim buildingName As String = "BuildingName" ' Начална стойност
+        Try
+            Dim db As Database = doc.Database
+            Dim infoBuilder As New DatabaseSummaryInfoBuilder(db.SummaryInfo)
+            Dim customProps As System.Collections.IDictionary = infoBuilder.CustomPropertyTable
+            Dim propKey As String = "BuildingName"
+            ' Проверка дали ключът съществува
+            If customProps.Contains(propKey) Then
+                ' Вземаме вече съществуващото име
+                buildingName = customProps(propKey).ToString().Trim()
+            Else
+                ' Ако няма записано, създаваме свойството с начална стойност
+                customProps.Add(propKey, buildingName)
+                ' Записваме обратно в базата данни на чертежа
+                db.SummaryInfo = infoBuilder.ToDatabaseSummaryInfo()
+                doc.Editor.WriteMessage(vbLf & "Създадено свойство BuildingName със стойност: " & buildingName)
+            End If
+        Catch ex As Exception
+            ' В случай на грешка, връщаме стойността по подразбиране
+            doc.Editor.WriteMessage(vbLf & "Грешка при четене/създаване на BuildingName: " & ex.Message)
+        End Try
+        Return buildingName
+    End Function
+    ''' <summary>
+    ''' Връща името на сградата от DWG файла.
+    ''' Използва GetOrCreateBuildingName за автоматично създаване, ако няма property.
+    ''' След това пита потребителя дали иска промяна, като показва пояснителен текст за режима.
+    ''' Ако потребителят откаже или избере "Не", връща "CANCELLED".
+    ''' </summary>
+    ''' <param name="doc">Текущ документ (Document) на AutoCAD</param>
+    ''' <returns>Име на сградата като String или "CANCELLED" при отказ</returns>
+    Private Function GetBuildingName(doc As Document) As String
+        ' Взимаме Editor за съобщения и промпти
+        Dim ed As Editor = doc.Editor
+        Dim propKey As String = "BuildingName" ' Името на Custom Property, което следим
+        ' --- 1. Извикваме функцията, която проверява и създава BuildingName, ако липсва ---
+        ' GetOrCreateBuildingName гарантира, че property винаги съществува
+        Dim bName As String = GetOrCreateBuildingName(doc)
+        ' --- 2. Сглобяване на пояснителен текст за потребителя ---
+        ' Тук съобщаваме текущото име и режима на работа (Стандартен/Разширен)
         Dim msg As String = vbLf & "Текущ обект: [" & bName & "]"
         If bName.Equals(propKey, StringComparison.OrdinalIgnoreCase) Then
-            ' Ако стойността е стандартната -> едно име на сграда
+            ' Стойността е стандартната -> единична сграда
             msg &= " -> СТАНДАРТЕН РЕЖИМ (ЕДНА СГРАДА)."
         Else
             ' Иначе -> разширен режим с много сгради
             msg &= " -> РАЗШИРЕН РЕЖИМ (МНОГО СГРАДИ)."
         End If
-        msg &= " Желаете ли промяна? "
-        ' 3. Питане на потребителя с ключови думи Yes/No
+        msg &= " Желаете ли промяна? " ' Въпрос към потребителя
+        ' --- 3. Пита потребителя дали иска промяна ---
         Dim pko As New PromptKeywordOptions(msg)
         pko.Keywords.Add("Да")
         pko.Keywords.Add("Не")
         pko.Keywords.Default = "Не"
         Dim pkr As PromptResult = ed.GetKeywords(pko)
-        ' 4. Ако потребителят избере "Yes", питаме за ново име
-        If pkr.Status = PromptStatus.OK AndAlso pkr.StringResult = "Да" Then
-            Dim pso As New PromptStringOptions(vbLf & "Въведете име на сграда (или '" & propKey & "' за общ режим): ")
-            pso.AllowSpaces = True
-            Dim pr As PromptResult = ed.GetString(pso)
-            ' Ако потребителят натисне ESC или откаже -> прекратяваме
-            If pr.Status <> PromptStatus.OK Then Return "CANCELLED"
-            ' Вземаме въведеното име и премахваме излишните интервали
-            bName = pr.StringResult.Trim()
-            ' 5. Записваме новото или промененото име в свойствата на чертежа
-            If customProps.Contains(propKey) Then
-                customProps(propKey) = bName
-            Else
-                customProps.Add(propKey, bName)
-            End If
-            ' 6. Записваме промените в базата данни на чертежа
-            acDb.SummaryInfo = infoBuilder.ToDatabaseSummaryInfo()
-            ' Информация към потребителя
-            ed.WriteMessage(vbLf & "Параметърът е обновен на: " & bName)
+        ' --- 4. Обратна логика: ако НЕ избере "Да" или статус <> OK, връщаме "CANCELLED" ---
+        ' Това означава, че процесът може да спре или да се игнорира промяната
+        If pkr.Status <> PromptStatus.OK OrElse pkr.StringResult <> "Да" Then
+            Return "CANCELLED"
         End If
-        ' 7. Връщаме текущото или ново име
+        ' --- 5. Потребителят избра "Да" → въвежда ново име ---
+        Dim pso As New PromptStringOptions(vbLf & "Въведете ново име на сградата (или 'BuildingName' за общ режим): ")
+        pso.AllowSpaces = True
+        Dim pr As PromptResult = ed.GetString(pso)
+        ' Ако потребителят натисне ESC или не въведе валидно име, връщаме "CANCELLED"
+        If pr.Status <> PromptStatus.OK Then Return "CANCELLED"
+        ' Запазваме новото въведено име
+        bName = pr.StringResult.Trim()
+        ' --- 6. Обновяване на Custom Property в DWG ---
+        Try
+            Dim infoBuilder As New DatabaseSummaryInfoBuilder(doc.Database.SummaryInfo)
+            Dim customProps As System.Collections.IDictionary = infoBuilder.CustomPropertyTable
+            ' Просто присвояваме стойността, Add вече не е нужен, защото GetOrCreateBuildingName вече създава property
+            customProps(propKey) = bName
+            ' Записваме промените обратно в SummaryInfo на DWG
+            doc.Database.SummaryInfo = infoBuilder.ToDatabaseSummaryInfo()
+            ' Информираме потребителя за обновеното име
+            ed.WriteMessage(vbLf & "Параметърът е обновен на: " & bName)
+        Catch ex As Exception
+            ' В случай на грешка, показваме съобщение, но функцията продължава
+            ed.WriteMessage(vbLf & "Грешка при обновяване на BuildingName: " & ex.Message)
+        End Try
+        ' --- 7. Връщаме текущото име на сградата ---
         Return bName
     End Function
+
     ''' <summary>
     ''' Заключва или отключва дадена база данни на Sheet Set (AcSmDatabase).
     ''' </summary>

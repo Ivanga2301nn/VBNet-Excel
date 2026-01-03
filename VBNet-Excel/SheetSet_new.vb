@@ -8,6 +8,7 @@ Imports Autodesk.AutoCAD.ApplicationServices
 Imports Autodesk.AutoCAD.DatabaseServices
 Imports Autodesk.AutoCAD.EditorInput
 Imports Autodesk.AutoCAD.Runtime
+Imports Autodesk.AutoCAD.Windows.Data
 Imports Microsoft.Office.Interop.Excel
 
 ' Дефинирате AcApp като съкращение за AutoCAD Application
@@ -198,7 +199,6 @@ Public Class SheetSet_new
             Dim sheetsInFile As List(Of srtSheetSet) = GetSheetsFromDatabase(sheetSetDatabase)  ' Съществуващи Sheet-и
             sheetSet.SetName(Path_Name)                                                         ' Име на Sheet Set-а
             sheetSet.SetDesc(Set_Desc)                                                          ' Описание на Sheet Set-а
-
             ' Почистване на всички Sheet-и от текущия DWG и премахване на празни папки (Subsets) в Sheet Set базата данни.
             CleanOldSheetsFromCurrentDWG(sheetSetDatabase, name_file)
 
@@ -217,7 +217,6 @@ Public Class SheetSet_new
         Finally
             If sheetSetDatabase IsNot Nothing Then LockDatabase(sheetSetDatabase, False) ' Отключване на DST
         End Try
-        SetSheetCount()                                                          ' Обновяване на броя листове
         MsgBox("Sheet Set Name: " & sheetSetDatabase.GetSheetSet().GetName() & vbCrLf &
            "Sheet Set Description: " & sheetSetDatabase.GetSheetSet().GetDesc())
     End Sub
@@ -448,14 +447,29 @@ Public Class SheetSet_new
     ''' "ByInstallation"- LIS кодове, формат XXX-01-00
     ''' </summary>
     ''' <param name="acDoc">Активният AutoCAD документ</param>
-    ''' <param name="sheetSetDatabase">DST базата данни, в която ще се създават Subset-и и листове</param>
-    Public Sub GenerateSheetNumbers(acDoc As Document, sheetSetDatabase As AcSmDatabase)
+    ''' <param name="sheetSetDatabase">DST базата данни, в която ще се номерират листоете</param>
+    Public Sub GenerateSheetNumbers(acDoc As Document, dstDatabase As AcSmDatabase)
         ' --- 1. Получаваме списъка с листове от DST ---
-        Dim dstSheets As List(Of srtSheetSet) = GetSheetsFromDatabase(sheetSetDatabase)
+        Dim dstSheets As List(Of srtSheetSet) = GetSheetsFromDatabase(dstDatabase)
         ' --- 2. Взимаме BuildingName от активния DWG ---
         Dim buildingName As String = GetOrCreateBuildingName(acDoc)
         ' --- 3. Генериране на номерация според режима ---
         Try
+            Dim sheetSet As IAcSmSheetSet = dstDatabase.GetSheetSet()
+
+
+
+
+
+
+
+
+
+
+
+
+            If True Then SetSheetCount()
+            Exit Sub
             If buildingName = "BuildingName" Then
                 ' -----------------------------
                 ' СТАНДАРТЕН РЕЖИМ - > една сграда
@@ -550,7 +564,7 @@ Public Class SheetSet_new
                     currentSubset = mainSubset
                 End If
                 ' --- Импортиране на листа ---
-                ImportASheet(currentSubset, current.nameLayoutForSheet, "", current.Number, current.nameFile, current.nameLayout)
+                ImportASheet(currentSubset, current.nameLayoutForSheet, "", (i + 1).ToString("D2"), current.nameFile, current.nameLayout)
             Next
             ' --- Съобщение за успешно записан DST ---
             MsgBox("Sheet Set файлът е запазен успешно!")
@@ -846,52 +860,52 @@ Public Class SheetSet_new
     ''' и записва резултата като персонализирано свойство "Общ брой листове".
     ''' </summary>
     Public Sub SetSheetCount()
-        ' 1. Инициализация на брояч за листовете
+        ' Инициализира брояч на листовете с 0
         Dim nSheetCount As Integer = 0
-        ' 2. Създаваме обект Sheet Set Manager за достъп до базите данни
+        ' Създава обект от тип IAcSmSheetSetMgr, който представлява Sheet Set Manager
         Dim sheetSetManager As IAcSmSheetSetMgr
         sheetSetManager = New AcSmSheetSetMgr
-        ' 3. Получаваме перечислител за всички заредени Sheet Set бази данни
+        ' Използва Sheet Set Manager за получаване на перечислител за заредените бази данни
         Dim enumDatabase As IAcSmEnumDatabase
         enumDatabase = sheetSetManager.GetDatabaseEnumerator()
-        ' 4. Получаваме първата отворена база данни
+        ' Получава първата отворена база данни
         Dim item As IAcSmPersist
         item = enumDatabase.Next()
         Dim sheetSetDatabase As AcSmDatabase
-        ' 5. Обхождаме всички отворени бази данни
+        ' Обхожда всички отворени бази данни
         Do While Not item Is Nothing
             sheetSetDatabase = item
-            ' 6. Опитваме се да заключим базата данни за редактиране
+            ' Опитва се да заключи базата данни за редактиране
             If LockDatabase(sheetSetDatabase, True) = True Then
-                On Error Resume Next ' Игнорира грешки при обхождане
-                ' 7. Получаваме перечислител за обектите в Sheet Set
+                On Error Resume Next
                 Dim enumerator As IAcSmEnumPersist
                 Dim itemSheetSet As IAcSmPersist
+                ' Получава перечислител за обектите в множеството листове
                 enumerator = sheetSetDatabase.GetEnumerator()
                 itemSheetSet = enumerator.Next()
-                ' 8. Обхождаме всички обекти в множеството листове
+                ' Обхожда всички обекти в множеството листове
                 Do While Not itemSheetSet Is Nothing
-                    ' Ако обектът е лист (AcSmSheet), увеличаваме брояча
+                    ' Увеличава брояча, ако обектът е лист
                     If itemSheetSet.GetTypeName() = "AcSmSheet" Then
                         nSheetCount = nSheetCount + 1
                     End If
-                    ' Взимаме следващия обект
+                    ' Получава следващия обект
                     itemSheetSet = enumerator.Next()
                 Loop
-                ' 9. Записваме броя листове като персонализирано свойство на Sheet Set
+                ' Създава персонализирано свойство на множеството листове
                 SetCustomProperty(sheetSetDatabase.GetSheetSet(),
                               "Общ брой листове",
                               CStr(nSheetCount),
                               PropertyFlags.CUSTOM_SHEETSET_PROP)
-                ' 10. Отключваме базата данни след обработката
+                ' Отключва базата данни
                 LockDatabase(sheetSetDatabase, False)
-                ' 11. Нулираме брояча за следващата база данни
+                ' Нулира брояча на листовете за следващата база данни
                 nSheetCount = 0
             Else
-                ' 12. Ако не успеем да заключим базата, показваме съобщение
+                ' Показва съобщение за грешка, ако не успее да заключи базата данни
                 MsgBox("Unable to access " & sheetSetDatabase.GetSheetSet().GetName())
             End If
-            ' 13. Продължаваме към следващата отворена база данни
+            ' Проверява за следваща отворена база данни
             item = enumDatabase.Next
         Loop
     End Sub

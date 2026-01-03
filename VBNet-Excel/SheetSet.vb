@@ -678,7 +678,6 @@ Public Class SheetSet
                               "Общ брой листове",
                               CStr(nSheetCount),
                               PropertyFlags.CUSTOM_SHEETSET_PROP)
-
                 ' Отключва базата данни
                 LockDatabase(sheetSetDatabase, False)
 
@@ -692,7 +691,6 @@ Public Class SheetSet
             item = enumDatabase.Next
         Loop
     End Sub
-
     ' Обход на всички отворени набори от листове
     <CommandMethod("ADSK_StepThroughTheOpenSheetSets")>
     Public Sub StepThroughTheOpenSheetSets()

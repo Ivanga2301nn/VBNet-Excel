@@ -139,8 +139,7 @@ Public Class SheetSet_new
     {"Оповестителна инсталация", "PAS"},  ' Public Address System
     {"Сигнално-охранителна инсталация", "SEC"},  ' Security / Охрана
     {"Пожароизвестителна инсталация", "FIR"},  ' Fire alarm / Пожар
-    {"Домофона инсталация", "DIC"},  ' Door Intercom Communication / Система с табло на входа, звънци по апартаменти/офиси, отваряне на врата
-    {"Инсталации интернет и кабелна телевизия", "HOM"}  ' Home installations / Къщи
+    {"Домофона инсталация", "DIC"}  ' Door Intercom Communication / Система с табло на входа, звънци по апартаменти/офиси, отваряне на врата
     }
     ' ГЛАВНИ ПАПКИ: Име (Key) и Пореден номер/Индекс (Value)
     Dim MainSubsets As New Dictionary(Of String, Integer) From {
@@ -206,16 +205,13 @@ Public Class SheetSet_new
             sheetsInFile = GetSheetsFromDatabase(sheetSetDatabase)  ' Съществуващи Sheet-и
             'Обхожда Layout-ите в чертежа и анализира имената им спрямо зададените речници.
             listSheetSet = CollectLayoutsData(acDoc, name_file, sheetsInFile)
-
             ' --- 5. СОРТИРАНЕ ---
             Dim sortedList As New List(Of srtSheetSet)
             sortedList = BuildSortedSheetList(listSheetSet)
-
-            Dim a As Integer = 1
-            a = a + 1
             ' --- 6. ЗАПИС В DST ---
-            saveDST(acDoc, sheetSetDatabase, File_DST, sortedList, name_file)
-
+            saveDST(acDoc, sheetSetDatabase, sortedList, name_file)
+            ' --- 7. ГЕНЕРИРАНЕ НА НОМЕРАЦИЯТА ---
+            GenerateSheetNumbers(acDoc, sheetSetDatabase)
         Catch ex As Exception
             MsgBox("Грешка: " & ex.Message)
         Finally
@@ -395,19 +391,106 @@ Public Class SheetSet_new
                 returnList.AddRange(sortedSubGroup)
             Next
         Next
+        ' === Преномериране на сортираните листове от 1 до N (Structure-safe) ===
+        Dim idx As Integer = 1
+        For i As Integer = 0 To returnList.Count - 1
+            Dim s As srtSheetSet = returnList(i)
+            s.Number = idx
+            returnList(i) = s
+            idx += 1
+        Next
         ' Връщаме напълно подредения списък
         Return returnList
     End Function
     ''' <summary>
+    ''' Команда за AutoCAD: Генерира номерата на листовете в DST файла
+    ''' Извиква основния метод GenerateSheetNumbers.
+    ''' </summary>
+    <CommandMethod("GenerateSheetNumbers")>
+    Public Sub GenerateSheetNumbersCommand()
+        ' --- 1. Взимаме активния документ и базата данни ---
+        Dim acDoc As Document = AcApp.DocumentManager.MdiActiveDocument
+        Dim acDb As Database = acDoc.Database
+        ' --- 2. Взимаме името на сградата от DWG ---
+        Dim buildingName As String = GetBuildingName(acDoc)
+        ' Ако потребителят е отказал да въведе име, прекратяваме процедурата
+        If buildingName = "CANCELLED" Then
+            acDoc.Editor.WriteMessage(vbLf & "Потребителят отказа операцията.")
+            Return
+        End If
+        ' --- 3. Определяме пътя до DST файла ---
+        Dim dwgFolder As String = Path.GetDirectoryName(acDb.Filename)  ' Папката на DWG файла
+        Dim projectName As String = Path.GetFileName(dwgFolder)        ' Име на проекта (папката)
+        Dim dstPath As String = Path.Combine(dwgFolder, projectName & ".dst") ' Пълен път до DST файла
+        ' --- 4. Инициализираме Sheet Set Manager ---
+        Dim sheetSetManager As IAcSmSheetSetMgr = New AcSmSheetSetMgr()
+        Dim sheetSetDatabase As AcSmDatabase
+        ' --- 5. Проверяваме дали DST файлът съществува ---
+        If System.IO.File.Exists(dstPath) Then            ' Отваряме съществуващ DST файл
+            sheetSetDatabase = sheetSetManager.OpenDatabase(dstPath, False)
+        Else
+            ' Ако DST файлът не съществува, извеждаме съобщение и спираме
+            MsgBox("DST файлът не съществува: " & dstPath, MsgBoxStyle.Exclamation, "Внимание")
+            Return
+        End If
+        ' --- 6. Извикваме основната логика за генериране на номера на листовете ---
+        GenerateSheetNumbers(acDoc, sheetSetDatabase)
+    End Sub
+    ''' <summary>
+    ''' Генерира номерата на листовете в DST според избрания режим.
+    ''' "Global"        - всички листове последователно (01…N)
+    ''' "ByBuilding"    - всяка сграда има собствен пореден брояч (01…N)
+    ''' "ByInstallation"- LIS кодове, формат XXX-01-00
+    ''' </summary>
+    ''' <param name="acDoc">Активният AutoCAD документ</param>
+    ''' <param name="sheetSetDatabase">DST базата данни, в която ще се създават Subset-и и листове</param>
+    Public Sub GenerateSheetNumbers(acDoc As Document, sheetSetDatabase As AcSmDatabase)
+        ' --- 1. Получаваме списъка с листове от DST ---
+        Dim dstSheets As List(Of srtSheetSet) = GetSheetsFromDatabase(sheetSetDatabase)
+        ' --- 2. Взимаме BuildingName от активния DWG ---
+        Dim buildingName As String = GetOrCreateBuildingName(acDoc)
+        ' --- 3. Генериране на номерация според режима ---
+        Try
+            If buildingName = "BuildingName" Then
+                ' -----------------------------
+                ' СТАНДАРТЕН РЕЖИМ - > една сграда
+                '------------------------------
+                Dim pko As New PromptKeywordOptions(vbLf & "Изберете начин на номериране на листовете:")
+                pko.Keywords.Add("Последователно 01, 02, ... , N")          ' за нас → Global
+                pko.Keywords.Add("По кодове формат XXX-01-00")              ' за нас → ByInstallation
+                pko.Keywords.Default = "Последователно 01, 02, ... , N"
+
+                Dim pkr As PromptResult = acDoc.Editor.GetKeywords(pko)
+
+                Dim numberingMode As String
+                If pkr.Status = PromptStatus.OK Then
+                    If pkr.StringResult = "Последователно 01, 02, ... , N" Then
+                        numberingMode = "Global"
+                    Else
+                        numberingMode = "ByInstallation"
+                    End If
+                Else
+                    MsgBox("Номерирането е прекъснато.")
+                    Exit Sub
+                End If
+            Else
+                ' -----------------------------
+                ' РАЗШИРЕН РЕЖИМ - > много сгради
+                '------------------------------
+            End If
+        Catch ex As Exception
+            ' 7. Ако възникне грешка, показваме съобщение
+            MsgBox("Грешка при номериране на Sheet Set файла: " & ex.Message)
+        End Try
+    End Sub
+    ''' <summary>
     ''' Създава Sheet Set файл (DST) и добавя листовете според подадения сортиран списък.
     ''' </summary>
     ''' <param name="sheetSetDatabase">Отворената Sheet Set база данни (DST)</param>
-    ''' <param name="dstPath">Път, където ще се запази DST файлът</param>
     ''' <param name="sortedList">Списък от листове (srtSheetSet), сортирани по групи</param>
     ''' <param name="name_file">DWG файл, който се добавя към листовете</param>
     Public Sub saveDST(acDoc As Document,
                        sheetSetDatabase As AcSmDatabase,
-                       dstPath As String,
                        sortedList As List(Of srtSheetSet),
                        name_file As String)
         Try
@@ -430,7 +513,6 @@ Public Class SheetSet_new
                 rootSubset = CreateSubset(sheetSetDatabase, buildingName, "", "", "", "", True)
                 useBuildingRoot = True
             End If
-
             ' --- Променливи за текущата и главната папка (Subset) ---
             Dim mainSubset As AcSmSubset = Nothing
             Dim currentSubset As AcSmSubset = Nothing
@@ -1065,12 +1147,12 @@ Public Class SheetSet_new
     ''' <param name="fileName">DWG файл за импортиране</param>
     ''' <param name="layout">Layout в DWG файла</param>
     ''' <returns>Връща импортирания AcSmSheet</returns>
-    Private Function ImportASheet(component As IAcSmComponent,
+    Private Sub ImportASheet(component As IAcSmComponent,
                                   title As String,
                                   description As String,
                                   number As String,
                                   fileName As String,
-                                  layout As String) As AcSmSheet
+                                  layout As String)
         Try
             ' Ако заглавието е празно, използваме името на Layout-а
             If IsNothing(title) Then title = layout
@@ -1101,10 +1183,9 @@ Public Class SheetSet_new
             sheet.SetTitle(title)
             sheet.SetNumber(number)
             ' 5. Връщаме импортирания лист
-            ImportASheet = sheet
         Catch ex As Exception
             ' Показваме съобщение при възникнала грешка
             MsgBox("Възникна грешка: " & ex.Message & vbCrLf & vbCrLf & ex.StackTrace.ToString)
         End Try
-    End Function
+    End Sub
 End Class

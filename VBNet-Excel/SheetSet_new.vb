@@ -402,6 +402,33 @@ Public Class SheetSet_new
         Return returnList
     End Function
     ''' <summary>
+    ''' Връща всички компоненти (листове, subsets и др.) от дадена SheetSet база данни.
+    ''' </summary>
+    ''' <param name="db">SheetSet база данни (AcSmDatabase)</param>
+    ''' <returns>Списък с всички IAcSmComponent обекти в базата</returns>
+    Public Function FindAllComponents(db As AcSmDatabase) As List(Of IAcSmComponent)
+        Dim comps As New List(Of IAcSmComponent)
+        Try
+            ' Получаваме итератор за всички обекти в базата
+            Dim iter As IAcSmEnumPersist = db.GetEnumerator()
+            Dim obj As IAcSmPersist = iter.Next()
+
+            ' Обхождаме всички обекти
+            While obj IsNot Nothing
+                ' Проверка дали обектът е компонент
+                If TypeOf obj Is IAcSmComponent Then
+                    comps.Add(DirectCast(obj, IAcSmComponent))
+                End If
+
+                obj = iter.Next()
+            End While
+        Catch ex As Exception
+            ' Показваме грешка (може да се заменя с логиране)
+            MsgBox($"Грешка при обхождане на компонентите: {ex.Message}")
+        End Try
+        Return comps
+    End Function
+    ''' <summary>
     ''' Команда за AutoCAD: Генерира номерата на листовете в DST файла
     ''' Извиква основния метод GenerateSheetNumbers.
     ''' </summary>
@@ -418,7 +445,6 @@ Public Class SheetSet_new
             Dim dstPath As String = Path.Combine(dwgFolder, projectName & ".dst") ' Пълен път до DST файла
             ' --- 4. Инициализираме Sheet Set Manager ---
             Dim sheetSetManager As IAcSmSheetSetMgr = New AcSmSheetSetMgr()
-
             ' --- 5. Проверяваме дали DST файлът съществува ---
             If System.IO.File.Exists(dstPath) Then            ' Отваряме съществуващ DST файл
                 sheetSetDatabase = sheetSetManager.OpenDatabase(dstPath, False)
@@ -427,7 +453,6 @@ Public Class SheetSet_new
                 MsgBox("DST файлът не съществува: " & dstPath, MsgBoxStyle.Exclamation, "Внимание")
                 Return
             End If
-
             If LockDatabase(sheetSetDatabase, True) = False Then                 ' Заключване за запис
                 MsgBox("Sheet set не може да бъде отворен за четене.")
                 Exit Sub
@@ -468,8 +493,15 @@ Public Class SheetSet_new
 
 
 
-            If True Then SetSheetCount()
+
+
+
+
+
+
             Exit Sub
+            If True Then SetSheetCount()
+            Dim werwer = FindAllComponents(sheetSet)
             If buildingName = "BuildingName" Then
                 ' -----------------------------
                 ' СТАНДАРТЕН РЕЖИМ - > една сграда
@@ -969,6 +1001,7 @@ Public Class SheetSet_new
     ''' <param name="sheetSetDatabase">Sheet Set база данни, от която се извличат листовете</param>
     ''' <returns>Списък от структури srtSheetSet с информация за всеки Sheet</returns>
     Public Function GetSheetsFromDatabase(sheetSetDatabase As AcSmDatabase) As List(Of srtSheetSet)
+
         ' 1. Създаваме празен списък за съхраняване на вече съществуващите листове
         Dim existingSheets As New List(Of srtSheetSet)
         ' 2. Получаваме enumerator за всички persist обекти в DST файла

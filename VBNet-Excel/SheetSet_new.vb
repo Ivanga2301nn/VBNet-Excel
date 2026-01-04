@@ -1,6 +1,7 @@
 ﻿Imports System.ComponentModel
 Imports System.IO
 Imports System.Runtime.InteropServices
+Imports System.Security.Cryptography
 Imports System.Text.RegularExpressions
 Imports ACSMCOMPONENTS24Lib
 Imports Autodesk.AutoCAD
@@ -412,14 +413,12 @@ Public Class SheetSet_new
             ' Получаваме итератор за всички обекти в базата
             Dim iter As IAcSmEnumPersist = db.GetEnumerator()
             Dim obj As IAcSmPersist = iter.Next()
-
             ' Обхождаме всички обекти
             While obj IsNot Nothing
                 ' Проверка дали обектът е компонент
                 If TypeOf obj Is IAcSmComponent Then
                     comps.Add(DirectCast(obj, IAcSmComponent))
                 End If
-
                 obj = iter.Next()
             End While
         Catch ex As Exception
@@ -457,6 +456,17 @@ Public Class SheetSet_new
                 MsgBox("Sheet set не може да бъде отворен за четене.")
                 Exit Sub
             End If
+
+
+            ' 2. ИЗВИКВАМЕ рекурсивната процедура за четене
+            ' Започваме от корена (level 0)
+            GetFullSheetSetStructure(sheetSetDatabase)
+
+
+
+
+
+
             ' --- 6. Извикваме основната логика за генериране на номера на листовете ---
             GenerateSheetNumbers(acDoc, sheetSetDatabase)
         Catch ex As Exception
@@ -481,15 +491,9 @@ Public Class SheetSet_new
         ' --- 3. Генериране на номерация според режима ---
         Try
             Dim sheetSet As IAcSmSheetSet = dstDatabase.GetSheetSet()
+            Dim werwer = FindAllComponents(dstDatabase)
 
-
-
-
-
-
-
-
-
+            Dim asdasd = GetFullSheetSetStructure(dstDatabase)
 
 
 
@@ -501,7 +505,7 @@ Public Class SheetSet_new
 
             Exit Sub
             If True Then SetSheetCount()
-            Dim werwer = FindAllComponents(sheetSet)
+            'Dim werwer = FindAllComponents(sheetSet)
             If buildingName = "BuildingName" Then
                 ' -----------------------------
                 ' СТАНДАРТЕН РЕЖИМ - > една сграда
@@ -1001,7 +1005,6 @@ Public Class SheetSet_new
     ''' <param name="sheetSetDatabase">Sheet Set база данни, от която се извличат листовете</param>
     ''' <returns>Списък от структури srtSheetSet с информация за всеки Sheet</returns>
     Public Function GetSheetsFromDatabase(sheetSetDatabase As AcSmDatabase) As List(Of srtSheetSet)
-
         ' 1. Създаваме празен списък за съхраняване на вече съществуващите листове
         Dim existingSheets As New List(Of srtSheetSet)
         ' 2. Получаваме enumerator за всички persist обекти в DST файла
@@ -1240,4 +1243,68 @@ Public Class SheetSet_new
             MsgBox("Възникна грешка: " & ex.Message & vbCrLf & vbCrLf & ex.StackTrace.ToString)
         End Try
     End Sub
+    ''' <summary>
+    ''' Стартира рекурсивното обхождане на подадената Sheet Set база данни.
+    ''' </summary>
+    ''' <param name="sheetSetDatabase">Обектът на самия Sheet Set (IAcSmSheetSet).</param>
+    Public Sub GetFullSheetSetStructure(sheetSetDatabase As IAcSmSheetSet)
+        Try
+            ' Проверяваме дали обекта е валиден
+            If sheetSetDatabase Is Nothing Then Return
+            ' Стартираме рекурсията директно от подадения обект
+            ' Започваме от ниво 0 и името на основния Sheet Set
+            ProcessComponents(DirectCast(sheetSetDatabase, IAcSmPersist), 0, sheetSetDatabase.GetName())
+        Catch ex As Exception
+            MsgBox("Грешка при рекурсивното обхождане: " & ex.Message)
+        End Try
+    End Sub
+    ''' <summary>
+    ''' Рекурсивна под-процедура за преминаване през папки (Subsets) и листове.
+    ''' </summary>
+    Private Sub ProcessComponents(parent As IAcSmPersist, level As Integer, folderName As String)
+        Dim iter As IAcSmEnumPersist = Nothing
+
+        ' Разпознаване на типа за извличане на енумератор
+        If TypeOf parent Is IAcSmSubset Then
+            iter = DirectCast(parent, IAcSmSubset).GetEnumerator()
+        ElseIf TypeOf parent Is IAcSmSheetSet Then
+            iter = DirectCast(parent, IAcSmSheetSet).GetEnumerator()
+        End If
+        If iter Is Nothing Then Return
+        Dim item As IAcSmPersist = iter.Next()
+        While item IsNot Nothing
+            ' СЛУЧАЙ 1: Намираме ПОДПАПКА (Subset)
+            If TypeOf item Is IAcSmSubset Then
+                Dim subFolder As IAcSmSubset = DirectCast(item, IAcSmSubset)
+                ' Логика за папка (запис в Excel/Debug)
+                Debug.Print(New String(" "c, level * 2) & "Folder: " & subFolder.GetName())
+
+                ' РЕКУРСИЯ: Влизаме в дълбочина в подпапката
+                ProcessComponents(subFolder, level + 1, subFolder.GetName())
+                ' СЛУЧАЙ 2: Намираме ЛИСТ (Sheet)
+            ElseIf TypeOf item Is IAcSmSheet Then
+                Dim sheet As IAcSmSheet = DirectCast(item, IAcSmSheet)
+                Dim layoutRef As IAcSmAcDbLayoutReference = sheet.GetLayout()
+                ' Вземаме данните от интерфейсите
+                Dim sNo As String = sheet.GetNumber()
+                Dim sTitle As String = sheet.GetTitle()
+                Dim sPath As String = If(layoutRef IsNot Nothing, layoutRef.ResolveFileName(), "")
+                ' Логика за лист (запис в Excel/Word)
+                ' Тук поставяш твоя код за попълване на таблицата
+                Debug.Print(New String(" "c, level * 2) & "Sheet: " & sNo & " - " & sTitle)
+            End If
+            ' Преминаваме към следващия компонент на текущото ниво
+            item = iter.Next()
+        End While
+    End Sub
+
+
+
+
+
+
+
+
+
+
 End Class

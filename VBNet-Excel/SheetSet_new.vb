@@ -10,7 +10,6 @@ Imports Autodesk.AutoCAD.DatabaseServices
 Imports Autodesk.AutoCAD.EditorInput
 Imports Autodesk.AutoCAD.Runtime
 Imports Autodesk.AutoCAD.Windows.Data
-Imports Microsoft.Office.Interop.Excel
 
 ' Дефинирате AcApp като съкращение за AutoCAD Application
 Imports AcApp = Autodesk.AutoCAD.ApplicationServices.Application
@@ -493,7 +492,7 @@ Public Class SheetSet_new
             Dim sheetSet As IAcSmSheetSet = dstDatabase.GetSheetSet()
             Dim werwer = FindAllComponents(dstDatabase)
 
-            Dim asdasd = GetFullSheetSetStructure(dstDatabase)
+            GetFullSheetSetStructure(dstDatabase)
 
 
 
@@ -1263,12 +1262,15 @@ Public Class SheetSet_new
     ''' </summary>
     Private Sub ProcessComponents(parent As IAcSmPersist, level As Integer, folderName As String)
         Dim iter As IAcSmEnumPersist = Nothing
-
-        ' Разпознаване на типа за извличане на енумератор
+        ' Поправка за грешка BC30456
         If TypeOf parent Is IAcSmSubset Then
-            iter = DirectCast(parent, IAcSmSubset).GetEnumerator()
+            ' Вместо директно към Subset, кастваме към Container
+            Dim container As IAcSmContainer = DirectCast(parent, IAcSmContainer)
+            iter = container.GetEnumerator()
         ElseIf TypeOf parent Is IAcSmSheetSet Then
-            iter = DirectCast(parent, IAcSmSheetSet).GetEnumerator()
+            ' SheetSet също е контейнер
+            Dim container As IAcSmContainer = DirectCast(parent, IAcSmContainer)
+            iter = container.GetEnumerator()
         End If
         If iter Is Nothing Then Return
         Dim item As IAcSmPersist = iter.Next()
@@ -1297,14 +1299,4 @@ Public Class SheetSet_new
             item = iter.Next()
         End While
     End Sub
-
-
-
-
-
-
-
-
-
-
 End Class

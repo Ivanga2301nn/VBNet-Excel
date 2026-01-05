@@ -10,6 +10,7 @@ Imports Autodesk.AutoCAD.DatabaseServices
 Imports Autodesk.AutoCAD.EditorInput
 Imports Autodesk.AutoCAD.Runtime
 Imports Autodesk.AutoCAD.Windows.Data
+Imports Autodesk.AutoCAD.Interop.Common
 
 ' Дефинирате AcApp като съкращение за AutoCAD Application
 Imports AcApp = Autodesk.AutoCAD.ApplicationServices.Application
@@ -480,7 +481,7 @@ Public Class SheetSet_new
         Try
             Dim sheetSet As IAcSmSheetSet = dstDatabase.GetSheetSet()
             Dim werwer = FindAllComponents(dstDatabase)
-            DumpComponents(werwer)
+            DumpComponentsToLog(werwer)
 
 
 
@@ -1231,32 +1232,39 @@ Public Class SheetSet_new
         End Try
     End Sub
 
-    ''' <summary>
-    ''' Визуализира съдържанието на списък от IAcSmComponent
-    ''' като показва типа и името (ако има).
-    ''' </summary>
-    ''' <param name="comps">Списък с компоненти</param>
-    Public Sub DumpComponents(comps As List(Of IAcSmComponent))
-        Debug.Print("===== COMPONENT DUMP =====")
-        For Each c As IAcSmComponent In comps
-            Dim line As String = ""
-            If TypeOf c Is IAcSmSheetSet Then
-                Dim ss = DirectCast(c, IAcSmSheetSet)
-                line = "[SheetSet] " & ss.GetName()
-            ElseIf TypeOf c Is IAcSmSubset Then
-                Dim subSet =
-                DirectCast(c, IAcSmSubset)
-                line = "[Subset] " & subSet.GetName()
-            ElseIf TypeOf c Is IAcSmSheet Then
-                Dim sh = DirectCast(c, IAcSmSheet)
-                line = "[Sheet] " & sh.GetName()
-            ElseIf TypeOf c Is IAcSmCustomPropertyBag Then
-                line = "[CustomPropertyBag]"
-            Else
-                line = "[Component] (unknown type)"
-            End If
-            Debug.Print(line)
-        Next
-        Debug.Print("===== END DUMP =====")
+    Public Sub DumpComponentsToLog(comps As List(Of IAcSmComponent))
+        ' Логваме в папката Documents на текущия потребител
+        Dim logPath As String = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+            "ComponentDump.log"
+        )
+        Using writer As New StreamWriter(logPath, True)
+            writer.WriteLine("===== COMPONENT DUMP ===== " & DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
+
+            For Each c As IAcSmComponent In comps
+                Dim line As String = ""
+
+                If TypeOf c Is IAcSmSheetSet Then
+                    Dim ss = DirectCast(c, IAcSmSheetSet)
+                    line = "[SheetSet] " & ss.GetName()
+                ElseIf TypeOf c Is IAcSmSubset Then
+                    Dim subSet = DirectCast(c, IAcSmSubset)
+                    line = "[Subset] " & subSet.GetName()
+                ElseIf TypeOf c Is IAcSmSheet Then
+                    Dim sh = DirectCast(c, IAcSmSheet)
+                    line = "[Sheet] " & sh.GetName()
+                ElseIf TypeOf c Is IAcSmCustomPropertyBag Then
+                    line = "[CustomPropertyBag]"
+                Else
+                    line = "[Component] (unknown type)"
+                End If
+
+                writer.WriteLine(line)
+            Next
+
+            writer.WriteLine("===== END DUMP =====")
+            writer.WriteLine()
+        End Using
     End Sub
+
 End Class

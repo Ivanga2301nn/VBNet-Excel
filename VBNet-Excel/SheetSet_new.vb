@@ -26,7 +26,7 @@ Public Class SheetSet_new
         Dim nameSubSheet As String          ' Името на подлист (Sub-subset)
         Dim nameLayoutForSheet As String    ' Името, което ще се вижда в Sheet Set (Title)
         Dim nameLayout As String            ' Името на Layout в Autocad
-        Dim Number As Double                ' Номерът на етажа/котата за сортиране
+        Dim Number As String                ' Номерът на етажа/котата за сортиране
         Dim nameFile As String              ' Пътят до DWG файла
         Dim objectType As String            ' Типът на обекта
         Dim objectID As Object              ' Променено от IAcSmObjectId на Object
@@ -584,17 +584,13 @@ Public Class SheetSet_new
                 pko.Keywords.Add("Последователно")          ' за нас → Global
                 pko.Keywords.Add("Формат")              ' за нас → ByInstallation
                 pko.Keywords.Default = "Последователно"
-
-
-
                 Dim pkr As PromptResult = acDoc.Editor.GetKeywords(pko)
-
                 Dim numberingMode As String = ""
                 If pkr.Status = PromptStatus.OK Then
                     If pkr.StringResult = "Последователно" Then
-                        IterateAndNumber(sheetSet, 1, "Global", "")
+                        IterateAndNumber(sheetSet, 1, "Global", "currentPrefix")
                     Else
-                        IterateAndNumber(sheetSet, 1, "ByInstallation", "")
+                        IterateAndNumber(sheetSet, 1, "ByInstallation", "currentPrefix")
                     End If
                 Else
                     MsgBox("Номерирането е прекъснато.")
@@ -1316,45 +1312,27 @@ Public Class SheetSet_new
         End Try
     End Sub
 
-
-    '' --- Основен метод за стартиране на нумерацията на Sheet Set ---
-    'Public Sub ProcessSheetSetContent(db As AcSmDatabase, ByRef currentNumber As Integer)
-    '    ' Ако базата данни е нищо, излизаме
-    '    If db Is Nothing Then Exit Sub
-    '    ' Вземаме главния SheetSet от базата
-    '    Dim ss As IAcSmSheetSet = db.GetSheetSet()
-    '    ' Стартираме рекурсивното обхождане от корена (SheetSet)
-    '    IterateAndNumber(ss, currentNumber)
-    'End Sub
-
-
-    ''' <param name="comp">Текущият компонент (SheetSet, Subset или Sheet)</param>
-    ''' <param name="number">Глобален брояч (1..N). ByRef, за да расте непрекъснато в целия проект.</param>
-    ''' <param name="numberingMode">Режим: "Global" или "ByInstallation". ByVal, защото не се променя.</param>
-    ''' <param name="subGroupCount">Средното число (##). ByRef, за да се помни между различните папки.</param>
-    ''' <param name="sheetCount">Пореден номер на лист (00). ByRef, за да се вдига за всеки нов лист.</param>
-    ''' <param name="currentPrefix">Текущ код (напр. TEL). ByVal, за да се предава автоматично на листовете вътре в папката.</param>
-    ''' Private Sub IterateAndNumber(comp As IAcSmComponent,
-    '''                         ByRef number As Integer,
-    '''                         Optional ByVal numberingMode As String = "Global",
-    '''                         Optional ByRef subGroupCount As Integer = 0,
-    '''                         Optional ByRef sheetCount As Integer = 0,
-    '''                         Optional ByVal currentPrefix As String = "")
-    ''' --- Рекурсивна процедура за обход и нумерация ---
+    ''' <summary>
+    ''' Рекурсивно обхожда SheetSet йерархията и номерира листовете (Sheets).
+    ''' </summary>
+    ''' <param name="comp">Текущият компонент (Subset, Sheet или SheetSet), който се обработва.</param>
+    ''' <param name="number">Глобалният брояч за номерация на листовете. Променя се при всяко извикване.</param>
+    ''' <param name="numberingMode">Режим на номерация: например "ByInstallation", който използва префикс за групите (Subset-и).</param>
+    ''' <param name="currentPrefix">Текущият префикс за номерация, използван при "ByInstallation" режим.</param>
     Private Sub IterateAndNumber(comp As IAcSmComponent,
-                                 ByRef number As Integer,
-                                 ByVal currentPrefix As String,
-                                 ByVal numberingMode As String
-                                 )
-        ' Проверка за нищо
+                             ByRef number As Integer,
+                             ByVal numberingMode As String,
+                             ByVal currentPrefix As String)
+        ' Проверка за нищо – ако компонентът е Nothing, функцията приключва.
         If comp Is Nothing Then Return
-
-        ' --- Определяме типа за лог ---
+        ' Определя типа на компонента за логика и справка: [Subset], [Sheet] или [Component].
         Dim typeLabel As String = ""
         Select Case True
             Case TypeOf comp Is IAcSmSubset
                 typeLabel = "[Subset]"
                 Dim subset As IAcSmSubset = CType(comp, IAcSmSubset)
+                ' Проверка за промяна на префикса при режим "ByInstallation".
+                ' Ако префиксът се е променил, броячът се нулира.
                 If currentPrefix <> GetCurrentPrefix(subset.GetName()) Then
                     If numberingMode = "ByInstallation" Then
                         currentPrefix = GetCurrentPrefix(subset.GetName())
@@ -1365,6 +1343,9 @@ Public Class SheetSet_new
                 typeLabel = "[Sheet]"
                 Dim sheet As IAcSmSheet = CType(comp, IAcSmSheet)
                 Dim finalNumber As String
+                ' Определя номера на листа.
+                ' В режим "ByInstallation" комбинира префикс и номер: Prefix-номер-00
+                ' В стандартен режим използва двуцифрен номер "01", "02", ...
                 If numberingMode = "ByInstallation" AndAlso Not String.IsNullOrEmpty(currentPrefix) Then
                     finalNumber = String.Format("{0}-{1:D2}-00", currentPrefix, number)
                 Else
@@ -1375,41 +1356,36 @@ Public Class SheetSet_new
             Case Else
                 typeLabel = "[Component]"
         End Select
-
-
-        ' --- Рекурсивно обработваме Subset-и и SheetSet-и ---
+        ' Рекурсивно обхождане на Subset-и и SheetSet-и.
         Try
-            ' Ако компонентът е Subset
             If TypeOf comp Is IAcSmSubset Then
                 Dim subset As IAcSmSubset = CType(comp, IAcSmSubset)
-                ' Вземаме Enumerator за листовете в Subset
+                ' Вземаме Enumerator за листовете/подкомпонентите в Subset
                 Dim iter As IAcSmEnumComponent = subset.GetSheetEnumerator()
                 Dim child As IAcSmComponent = iter.Next()
-                ' Обхождаме всички листове/подкомпоненти в Subset
+                ' Рекурсивно обхождаме всички подкомпоненти
                 While child IsNot Nothing
-                    IterateAndNumber(child, number, currentPrefix, numberingMode)
+                    IterateAndNumber(child, number, numberingMode, currentPrefix)
                     child = iter.Next()
                 End While
-                ' Ако компонентът е SheetSet (корен на йерархията)
             ElseIf TypeOf comp Is IAcSmSheetSet Then
                 Dim sheetSet As IAcSmSheetSet = CType(comp, IAcSmSheetSet)
                 Dim children As Array = Nothing
                 ' Вземаме директно собствените обекти на SheetSet
                 sheetSet.GetDirectlyOwnedObjects(children)
-                ' Ако има такива, обхождаме ги един по един
+                ' Ако има обекти, обхождаме ги рекурсивно
                 If children IsNot Nothing Then
                     For Each childObj In children
                         Dim child As IAcSmComponent = TryCast(childObj, IAcSmComponent)
-                        If child IsNot Nothing Then IterateAndNumber(child, number, currentPrefix, numberingMode)
+                        If child IsNot Nothing Then
+                            IterateAndNumber(child, number, numberingMode, currentPrefix)
+                        End If
                     Next
                 End If
             End If
         Catch
-            ' Ако има грешка при достъп до компонентите, игнорираме за момента
-            ' Може да се добави лог или съобщение
         End Try
     End Sub
-
     ''' <summary>
     ''' Определя currentPrefix за даден Subset на база LisAll.
     ''' </summary>
@@ -1435,9 +1411,4 @@ Public Class SheetSet_new
             Return cleanName.ToUpper()
         End If
     End Function
-
-
-
-
-
 End Class

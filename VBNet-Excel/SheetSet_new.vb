@@ -577,8 +577,8 @@ Public Class SheetSet_new
         Try
             Dim sheetSet As IAcSmSheetSet = dstDatabase.GetSheetSet()
             Dim werwer = FindAllComponents(dstDatabase)
-            Exit Sub
-            If True Then SetSheetCount()
+
+            ' If True Then SetSheetCount()
             'Dim werwer = FindAllComponents(sheetSet)
             If buildingName = "BuildingName" Then
                 ' -----------------------------

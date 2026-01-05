@@ -214,14 +214,14 @@ Public Class SheetSet_new
             ' --- 7. ГЕНЕРИРАНЕ НА НОМЕРАЦИЯТА ---
             GenerateSheetNumbers(acDoc, sheetSetDatabase)
 
-            LogSheetSetContent(sheetSetDatabase)
+            'LogSheetSetContent(sheetSetDatabase)
 
-            ProcessSheetSetContent(sheetSetDatabase, 1)
+            'ProcessSheetSetContent(sheetSetDatabase, 1)
 
         Catch ex As Exception
-        MsgBox("Грешка: " & ex.Message)
+            MsgBox("Грешка: " & ex.Message)
         Finally
-        If sheetSetDatabase IsNot Nothing Then LockDatabase(sheetSetDatabase, False) ' Отключване на DST
+            If sheetSetDatabase IsNot Nothing Then LockDatabase(sheetSetDatabase, False) ' Отключване на DST
         End Try
         MsgBox("Sheet Set Name: " & sheetSetDatabase.GetSheetSet().GetName() & vbCrLf &
            "Sheet Set Description: " & sheetSetDatabase.GetSheetSet().GetDesc())
@@ -441,11 +441,9 @@ Public Class SheetSet_new
     ''' </summary>
     Public Sub LogSheetSetContent(db As AcSmDatabase)
         If db Is Nothing Then Exit Sub
-
         ' 1. Определяне на пътя за лог файла (същата папка, където е DST)
         Dim dstPath As String = db.GetFileName()
         Dim logPath As String = Path.ChangeExtension(dstPath, ".log")
-
         Try
             ' 2. Записване на лога с UTF8 кодировка за правилна кирилица
             Using writer As New StreamWriter(logPath, False, System.Text.Encoding.UTF8)
@@ -453,24 +451,18 @@ Public Class SheetSet_new
                 writer.WriteLine("Файл: " & Path.GetFileName(dstPath))
                 writer.WriteLine("Дата: " & DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
                 writer.WriteLine(New String("-"c, 40))
-
                 ' Вземаме основния проект (корена)
                 Dim ss As IAcSmSheetSet = db.GetSheetSet()
-
                 ' Стартираме рекурсивното обхождане
                 WriteComponentToLog(ss, writer, 0)
-
                 writer.WriteLine(New String("-"c, 40))
                 writer.WriteLine("===== КРАЙ НА ЛОГА =====")
             End Using
-
             ' По желание: MsgBox("Логът е готов: " & logPath)
-
         Catch ex As Exception
             MsgBox("Грешка при запис в лог файла: " & ex.Message)
         End Try
     End Sub
-
     ''' <summary>
     ''' Рекурсивна процедура за обхождане на компонентите на SheetSet и запис в лог файл.
     ''' </summary>
@@ -1325,7 +1317,6 @@ Public Class SheetSet_new
             MsgBox("Възникна грешка: " & ex.Message & vbCrLf & vbCrLf & ex.StackTrace.ToString)
         End Try
     End Sub
-
     ' --- Основен метод за стартиране на нумерацията на Sheet Set ---
     Public Sub ProcessSheetSetContent(db As AcSmDatabase, ByRef currentNumber As Integer)
         ' Ако базата данни е нищо, излизаме
@@ -1335,7 +1326,6 @@ Public Class SheetSet_new
         ' Стартираме рекурсивното обхождане от корена (SheetSet)
         IterateAndNumber(ss, currentNumber)
     End Sub
-
     ' --- Рекурсивна процедура за обход и нумерация ---
     Private Sub IterateAndNumber(comp As IAcSmComponent, ByRef number As Integer)
         ' Проверка за нищо
@@ -1379,14 +1369,4 @@ Public Class SheetSet_new
             ' Може да се добави лог или съобщение
         End Try
     End Sub
-
-
-
-
-
-
-
-
-
-
 End Class

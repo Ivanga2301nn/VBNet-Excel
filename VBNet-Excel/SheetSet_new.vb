@@ -598,10 +598,10 @@ Public Class SheetSet_new
                     If pkr.StringResult = "Последователно" Then
                         numberingMode = "Global"
                         IterateAndNumber(sheetSet, 1)
+                        'ProcessSheetSetContent(dstDatabase, 1)
                     Else
                         numberingMode = "ByInstallation"
                     End If
-
                 Else
                     MsgBox("Номерирането е прекъснато.")
                     Exit Sub

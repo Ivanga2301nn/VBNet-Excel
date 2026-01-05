@@ -213,10 +213,13 @@ Public Class SheetSet_new
             saveDST(acDoc, sheetSetDatabase, sortedList, name_file)
             ' --- 7. ГЕНЕРИРАНЕ НА НОМЕРАЦИЯТА ---
             GenerateSheetNumbers(acDoc, sheetSetDatabase)
+
+            LogSheetSetContent(sheetSetDatabase)
+
         Catch ex As Exception
-            MsgBox("Грешка: " & ex.Message)
+        MsgBox("Грешка: " & ex.Message)
         Finally
-            If sheetSetDatabase IsNot Nothing Then LockDatabase(sheetSetDatabase, False) ' Отключване на DST
+        If sheetSetDatabase IsNot Nothing Then LockDatabase(sheetSetDatabase, False) ' Отключване на DST
         End Try
         MsgBox("Sheet Set Name: " & sheetSetDatabase.GetSheetSet().GetName() & vbCrLf &
            "Sheet Set Description: " & sheetSetDatabase.GetSheetSet().GetDesc())
@@ -427,6 +430,132 @@ Public Class SheetSet_new
         End Try
         Return comps
     End Function
+
+    ''  UpdateSSM
+
+    ''' <summary>
+    ''' Рекурсивна процедура за запис на йерархията на Sheet Set в лог файл.
+    ''' Предполага се, че базата данни (db) е отворена и заключена от външния код.
+    ''' </summary>
+    Public Sub LogSheetSetContent(db As AcSmDatabase)
+        If db Is Nothing Then Exit Sub
+
+        ' 1. Определяне на пътя за лог файла (същата папка, където е DST)
+        Dim dstPath As String = db.GetFileName()
+        Dim logPath As String = Path.ChangeExtension(dstPath, ".log")
+
+        Try
+            ' 2. Записване на лога с UTF8 кодировка за правилна кирилица
+            Using writer As New StreamWriter(logPath, False, System.Text.Encoding.UTF8)
+                writer.WriteLine("===== ДЪМП НА КОМПОНЕНТИ =====")
+                writer.WriteLine("Файл: " & Path.GetFileName(dstPath))
+                writer.WriteLine("Дата: " & DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
+                writer.WriteLine(New String("-"c, 40))
+
+                ' Вземаме основния проект (корена)
+                Dim ss As IAcSmSheetSet = db.GetSheetSet()
+
+                ' Стартираме рекурсивното обхождане
+                WriteComponentToLog(ss, writer, 0)
+
+                writer.WriteLine(New String("-"c, 40))
+                writer.WriteLine("===== КРАЙ НА ЛОГА =====")
+            End Using
+
+            ' По желание: MsgBox("Логът е готов: " & logPath)
+
+        Catch ex As Exception
+            MsgBox("Грешка при запис в лог файла: " & ex.Message)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' Рекурсивна процедура за обхождане на компонентите на SheetSet и запис в лог файл.
+    ''' </summary>
+    ''' <param name="comp">Компонент (SheetSet, Subset, Sheet или друг)</param>
+    ''' <param name="writer">StreamWriter за записване на лог</param>
+    ''' <param name="indent">Ниво на отстъп за визуализация на дървото</param>
+    Private Sub WriteComponentToLog(comp As IAcSmComponent, writer As StreamWriter, indent As Integer)
+        If comp Is Nothing Then Return
+
+        Const IndentSize As Integer = 4
+        Dim prefix As String = New String(" "c, indent * IndentSize)
+        Dim name As String = ""
+
+        ' --- Опитваме се да вземем името ---
+        Try
+            name = comp.GetName()
+        Catch
+            name = "Unknown Name"
+        End Try
+
+        ' --- Определяме типа за лог ---
+        Dim typeLabel As String
+        If TypeOf comp Is IAcSmSheetSet Then
+            typeLabel = "[SheetSet]"
+        ElseIf TypeOf comp Is IAcSmSubset Then
+            typeLabel = "[Subset]"
+        ElseIf TypeOf comp Is IAcSmSheet Then
+            typeLabel = "[Sheet]"
+        Else
+            typeLabel = "[Component]"
+        End If
+
+        ' --- Записваме реда в лог ---
+        writer.WriteLine($"{prefix}{typeLabel} {name}")
+
+        ' --- Обхождаме децата ---
+        Try
+            If TypeOf comp Is IAcSmSubset Then
+                ' Subset: листовете
+                Dim subset As IAcSmSubset = CType(comp, IAcSmSubset)
+                Dim iter As IAcSmEnumComponent = subset.GetSheetEnumerator()
+                If iter IsNot Nothing Then
+                    Dim child As IAcSmComponent = iter.Next()
+                    While child IsNot Nothing
+                        WriteComponentToLog(child, writer, indent + 1)
+                        child = iter.Next()
+                    End While
+                End If
+
+            ElseIf TypeOf comp Is IAcSmSheetSet Then
+                ' SheetSet: директни деца (Subset-и и Sheet-и)
+                Dim sheetSet As IAcSmSheetSet = CType(comp, IAcSmSheetSet)
+                Dim children As Array = Nothing
+                sheetSet.GetDirectlyOwnedObjects(children)
+                If children IsNot Nothing Then
+                    For Each childObj In children
+                        Dim child As IAcSmComponent = TryCast(childObj, IAcSmComponent)
+                        If child IsNot Nothing Then
+                            WriteComponentToLog(child, writer, indent + 1)
+                        End If
+                    Next
+                End If
+            End If
+        Catch ex As Exception
+            writer.WriteLine(prefix & "    ! Грешка при обхождане на децата: " & ex.Message)
+        End Try
+    End Sub
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     ''' <summary>
     ''' Команда за AutoCAD: Генерира номерата на листовете в DST файла
     ''' Извиква основния метод GenerateSheetNumbers.
@@ -481,7 +610,6 @@ Public Class SheetSet_new
         Try
             Dim sheetSet As IAcSmSheetSet = dstDatabase.GetSheetSet()
             Dim werwer = FindAllComponents(dstDatabase)
-            DumpComponentsToLog(werwer)
 
 
 
@@ -493,8 +621,8 @@ Public Class SheetSet_new
 
             Exit Sub
         If True Then SetSheetCount()
-        'Dim werwer = FindAllComponents(sheetSet)
-        If buildingName = "BuildingName" Then
+            'Dim werwer = FindAllComponents(sheetSet)
+            If buildingName = "BuildingName" Then
             ' -----------------------------
             ' СТАНДАРТЕН РЕЖИМ - > една сграда
             '------------------------------
@@ -1232,39 +1360,5 @@ Public Class SheetSet_new
         End Try
     End Sub
 
-    Public Sub DumpComponentsToLog(comps As List(Of IAcSmComponent))
-        ' Логваме в папката Documents на текущия потребител
-        Dim logPath As String = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-            "ComponentDump.log"
-        )
-        Using writer As New StreamWriter(logPath, True)
-            writer.WriteLine("===== COMPONENT DUMP ===== " & DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
-
-            For Each c As IAcSmComponent In comps
-                Dim line As String = ""
-
-                If TypeOf c Is IAcSmSheetSet Then
-                    Dim ss = DirectCast(c, IAcSmSheetSet)
-                    line = "[SheetSet] " & ss.GetName()
-                ElseIf TypeOf c Is IAcSmSubset Then
-                    Dim subSet = DirectCast(c, IAcSmSubset)
-                    line = "[Subset] " & subSet.GetName()
-                ElseIf TypeOf c Is IAcSmSheet Then
-                    Dim sh = DirectCast(c, IAcSmSheet)
-                    line = "[Sheet] " & sh.GetName()
-                ElseIf TypeOf c Is IAcSmCustomPropertyBag Then
-                    line = "[CustomPropertyBag]"
-                Else
-                    line = "[Component] (unknown type)"
-                End If
-
-                writer.WriteLine(line)
-            Next
-
-            writer.WriteLine("===== END DUMP =====")
-            writer.WriteLine()
-        End Using
-    End Sub
 
 End Class

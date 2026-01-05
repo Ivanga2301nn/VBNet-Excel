@@ -539,11 +539,6 @@ Public Class SheetSet_new
         End Try
     End Sub
 
-
-
-
-
-
     ''' <summary>
     ''' Команда за AutoCAD: Генерира номерата на листовете в DST файла
     ''' Извиква основния метод GenerateSheetNumbers.
@@ -581,7 +576,6 @@ Public Class SheetSet_new
             If sheetSetDatabase IsNot Nothing Then LockDatabase(sheetSetDatabase, False) ' Отключване на DST
         End Try
     End Sub
-
     Public Sub GenerateSheetNumbers(acDoc As Document, dstDatabase As AcSmDatabase)
         ' --- 1. Получаваме списъка с листове от DST ---
         Dim dstSheets As List(Of srtSheetSet) = GetSheetsFromDatabase(dstDatabase)
@@ -591,10 +585,6 @@ Public Class SheetSet_new
         Try
             Dim sheetSet As IAcSmSheetSet = dstDatabase.GetSheetSet()
             Dim werwer = FindAllComponents(dstDatabase)
-
-
-
-
             Exit Sub
             If True Then SetSheetCount()
             'Dim werwer = FindAllComponents(sheetSet)
@@ -1336,41 +1326,47 @@ Public Class SheetSet_new
         End Try
     End Sub
 
-
-
-    ' Самата процедура:
+    ' --- Основен метод за стартиране на нумерацията на Sheet Set ---
     Public Sub ProcessSheetSetContent(db As AcSmDatabase, ByRef currentNumber As Integer)
+        ' Ако базата данни е нищо, излизаме
         If db Is Nothing Then Exit Sub
-
+        ' Вземаме главния SheetSet от базата
         Dim ss As IAcSmSheetSet = db.GetSheetSet()
-        ' Стартираме рекурсията от корена (Sheet Set)
+        ' Стартираме рекурсивното обхождане от корена (SheetSet)
         IterateAndNumber(ss, currentNumber)
     End Sub
 
+    ' --- Рекурсивна процедура за обход и нумерация ---
     Private Sub IterateAndNumber(comp As IAcSmComponent, ByRef number As Integer)
+        ' Проверка за нищо
         If comp Is Nothing Then Return
-
-        ' Ако компонентът е лист (Sheet) - номерираме го
+        ' --- Ако компонентът е Sheet (лист) ---
         If TypeOf comp Is IAcSmSheet Then
             Dim sheet As IAcSmSheet = CType(comp, IAcSmSheet)
-            sheet.SetNumber(number.ToString("D2")) ' Формат "01", "02" и т.н.
+            ' Задаваме номер с формат D2 (01, 02, 03 …)
+            sheet.SetNumber(number.ToString("D2"))
             number += 1
         End If
-
-        ' Продължаваме рекурсивно надолу
+        ' --- Рекурсивно обработваме Subset-и и SheetSet-и ---
         Try
+            ' Ако компонентът е Subset
             If TypeOf comp Is IAcSmSubset Then
                 Dim subset As IAcSmSubset = CType(comp, IAcSmSubset)
+                ' Вземаме Enumerator за листовете в Subset
                 Dim iter As IAcSmEnumComponent = subset.GetSheetEnumerator()
                 Dim child As IAcSmComponent = iter.Next()
+                ' Обхождаме всички листове/подкомпоненти в Subset
                 While child IsNot Nothing
                     IterateAndNumber(child, number)
                     child = iter.Next()
                 End While
+                ' Ако компонентът е SheetSet (корен на йерархията)
             ElseIf TypeOf comp Is IAcSmSheetSet Then
                 Dim sheetSet As IAcSmSheetSet = CType(comp, IAcSmSheetSet)
                 Dim children As Array = Nothing
+                ' Вземаме директно собствените обекти на SheetSet
                 sheetSet.GetDirectlyOwnedObjects(children)
+                ' Ако има такива, обхождаме ги един по един
                 If children IsNot Nothing Then
                     For Each childObj In children
                         Dim child As IAcSmComponent = TryCast(childObj, IAcSmComponent)
@@ -1379,9 +1375,11 @@ Public Class SheetSet_new
                 End If
             End If
         Catch
-            ' Тук можеш да добавиш грешка, ако се провали достъпът
+            ' Ако има грешка при достъп до компонентите, игнорираме за момента
+            ' Може да се добави лог или съобщение
         End Try
     End Sub
+
 
 
 

@@ -216,6 +216,8 @@ Public Class SheetSet_new
 
             LogSheetSetContent(sheetSetDatabase)
 
+            ProcessSheetSetContent(sheetSetDatabase, 1)
+
         Catch ex As Exception
         MsgBox("Грешка: " & ex.Message)
         Finally
@@ -542,20 +544,6 @@ Public Class SheetSet_new
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     ''' <summary>
     ''' Команда за AutoCAD: Генерира номерата на листовете в DST файла
     ''' Извиква основния метод GenerateSheetNumbers.
@@ -593,14 +581,7 @@ Public Class SheetSet_new
             If sheetSetDatabase IsNot Nothing Then LockDatabase(sheetSetDatabase, False) ' Отключване на DST
         End Try
     End Sub
-    ''' <summary>
-    ''' Генерира номерата на листовете в DST според избрания режим.
-    ''' "Global"        - всички листове последователно (01…N)
-    ''' "ByBuilding"    - всяка сграда има собствен пореден брояч (01…N)
-    ''' "ByInstallation"- LIS кодове, формат XXX-01-00
-    ''' </summary>
-    ''' <param name="acDoc">Активният AutoCAD документ</param>
-    ''' <param name="sheetSetDatabase">DST базата данни, в която ще се номерират листоете</param>
+
     Public Sub GenerateSheetNumbers(acDoc As Document, dstDatabase As AcSmDatabase)
         ' --- 1. Получаваме списъка с листове от DST ---
         Dim dstSheets As List(Of srtSheetSet) = GetSheetsFromDatabase(dstDatabase)
@@ -614,44 +595,39 @@ Public Class SheetSet_new
 
 
 
-
-
-
-
-
             Exit Sub
-        If True Then SetSheetCount()
+            If True Then SetSheetCount()
             'Dim werwer = FindAllComponents(sheetSet)
             If buildingName = "BuildingName" Then
-            ' -----------------------------
-            ' СТАНДАРТЕН РЕЖИМ - > една сграда
-            '------------------------------
-            Dim pko As New PromptKeywordOptions(vbLf & "Изберете начин на номериране на листовете:")
-            pko.Keywords.Add("Последователно 01, 02, ... , N")          ' за нас → Global
-            pko.Keywords.Add("По кодове формат XXX-01-00")              ' за нас → ByInstallation
-            pko.Keywords.Default = "Последователно 01, 02, ... , N"
+                ' -----------------------------
+                ' СТАНДАРТЕН РЕЖИМ - > една сграда
+                '------------------------------
+                Dim pko As New PromptKeywordOptions(vbLf & "Изберете начин на номериране на листовете:")
+                pko.Keywords.Add("Последователно 01, 02, ... , N")          ' за нас → Global
+                pko.Keywords.Add("По кодове формат XXX-01-00")              ' за нас → ByInstallation
+                pko.Keywords.Default = "Последователно 01, 02, ... , N"
 
-            Dim pkr As PromptResult = acDoc.Editor.GetKeywords(pko)
+                Dim pkr As PromptResult = acDoc.Editor.GetKeywords(pko)
 
-            Dim numberingMode As String
-            If pkr.Status = PromptStatus.OK Then
-                If pkr.StringResult = "Последователно 01, 02, ... , N" Then
-                    numberingMode = "Global"
+                Dim numberingMode As String
+                If pkr.Status = PromptStatus.OK Then
+                    If pkr.StringResult = "Последователно 01, 02, ... , N" Then
+                        numberingMode = "Global"
+                    Else
+                        numberingMode = "ByInstallation"
+                    End If
                 Else
-                    numberingMode = "ByInstallation"
+                    MsgBox("Номерирането е прекъснато.")
+                    Exit Sub
                 End If
             Else
-                MsgBox("Номерирането е прекъснато.")
-                Exit Sub
+                ' -----------------------------
+                ' РАЗШИРЕН РЕЖИМ - > много сгради
+                '------------------------------
             End If
-        Else
-            ' -----------------------------
-            ' РАЗШИРЕН РЕЖИМ - > много сгради
-            '------------------------------
-        End If
         Catch ex As Exception
-        ' 7. Ако възникне грешка, показваме съобщение
-        MsgBox("Грешка при номериране на Sheet Set файла: " & ex.Message)
+            ' 7. Ако възникне грешка, показваме съобщение
+            MsgBox("Грешка при номериране на Sheet Set файла: " & ex.Message)
         End Try
     End Sub
     ''' <summary>
@@ -1359,6 +1335,60 @@ Public Class SheetSet_new
             MsgBox("Възникна грешка: " & ex.Message & vbCrLf & vbCrLf & ex.StackTrace.ToString)
         End Try
     End Sub
+
+
+
+    ' Самата процедура:
+    Public Sub ProcessSheetSetContent(db As AcSmDatabase, ByRef currentNumber As Integer)
+        If db Is Nothing Then Exit Sub
+
+        Dim ss As IAcSmSheetSet = db.GetSheetSet()
+        ' Стартираме рекурсията от корена (Sheet Set)
+        IterateAndNumber(ss, currentNumber)
+    End Sub
+
+    Private Sub IterateAndNumber(comp As IAcSmComponent, ByRef number As Integer)
+        If comp Is Nothing Then Return
+
+        ' Ако компонентът е лист (Sheet) - номерираме го
+        If TypeOf comp Is IAcSmSheet Then
+            Dim sheet As IAcSmSheet = CType(comp, IAcSmSheet)
+            sheet.SetNumber(number.ToString("D2")) ' Формат "01", "02" и т.н.
+            number += 1
+        End If
+
+        ' Продължаваме рекурсивно надолу
+        Try
+            If TypeOf comp Is IAcSmSubset Then
+                Dim subset As IAcSmSubset = CType(comp, IAcSmSubset)
+                Dim iter As IAcSmEnumComponent = subset.GetSheetEnumerator()
+                Dim child As IAcSmComponent = iter.Next()
+                While child IsNot Nothing
+                    IterateAndNumber(child, number)
+                    child = iter.Next()
+                End While
+            ElseIf TypeOf comp Is IAcSmSheetSet Then
+                Dim sheetSet As IAcSmSheetSet = CType(comp, IAcSmSheetSet)
+                Dim children As Array = Nothing
+                sheetSet.GetDirectlyOwnedObjects(children)
+                If children IsNot Nothing Then
+                    For Each childObj In children
+                        Dim child As IAcSmComponent = TryCast(childObj, IAcSmComponent)
+                        If child IsNot Nothing Then IterateAndNumber(child, number)
+                    Next
+                End If
+            End If
+        Catch
+            ' Тук можеш да добавиш грешка, ако се провали достъпът
+        End Try
+    End Sub
+
+
+
+
+
+
+
 
 
 End Class

@@ -585,19 +585,23 @@ Public Class SheetSet_new
                 ' СТАНДАРТЕН РЕЖИМ - > една сграда
                 '------------------------------
                 Dim pko As New PromptKeywordOptions(vbLf & "Изберете начин на номериране на листовете:")
-                pko.Keywords.Add("Последователно 01, 02, ... , N")          ' за нас → Global
-                pko.Keywords.Add("По кодове формат XXX-01-00")              ' за нас → ByInstallation
-                pko.Keywords.Default = "Последователно 01, 02, ... , N"
+                pko.Keywords.Add("Последователно")          ' за нас → Global
+                pko.Keywords.Add("Формат")              ' за нас → ByInstallation
+                pko.Keywords.Default = "Последователно"
+
+
 
                 Dim pkr As PromptResult = acDoc.Editor.GetKeywords(pko)
 
                 Dim numberingMode As String
                 If pkr.Status = PromptStatus.OK Then
-                    If pkr.StringResult = "Последователно 01, 02, ... , N" Then
+                    If pkr.StringResult = "Последователно" Then
                         numberingMode = "Global"
+                        IterateAndNumber(sheetSet, 1)
                     Else
                         numberingMode = "ByInstallation"
                     End If
+
                 Else
                     MsgBox("Номерирането е прекъснато.")
                     Exit Sub
@@ -608,8 +612,8 @@ Public Class SheetSet_new
                 '------------------------------
             End If
         Catch ex As Exception
-            ' 7. Ако възникне грешка, показваме съобщение
-            MsgBox("Грешка при номериране на Sheet Set файла: " & ex.Message)
+        ' 7. Ако възникне грешка, показваме съобщение
+        MsgBox("Грешка при номериране на Sheet Set файла: " & ex.Message)
         End Try
     End Sub
     ''' <summary>
@@ -1327,7 +1331,7 @@ Public Class SheetSet_new
         IterateAndNumber(ss, currentNumber)
     End Sub
     ' --- Рекурсивна процедура за обход и нумерация ---
-    Private Sub IterateAndNumber(comp As IAcSmComponent, ByRef number As Integer)
+    Private Sub IterateAndNumber(comp As IAcSmComponent, number As Integer)
         ' Проверка за нищо
         If comp Is Nothing Then Return
         ' --- Ако компонентът е Sheet (лист) ---

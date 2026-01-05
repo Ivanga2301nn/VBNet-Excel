@@ -455,17 +455,6 @@ Public Class SheetSet_new
                 MsgBox("Sheet set не може да бъде отворен за четене.")
                 Exit Sub
             End If
-
-
-            ' 2. ИЗВИКВАМЕ рекурсивната процедура за четене
-            ' Започваме от корена (level 0)
-            GetFullSheetSetStructure(sheetSetDatabase)
-
-
-
-
-
-
             ' --- 6. Извикваме основната логика за генериране на номера на листовете ---
             GenerateSheetNumbers(acDoc, sheetSetDatabase)
         Catch ex As Exception
@@ -491,8 +480,7 @@ Public Class SheetSet_new
         Try
             Dim sheetSet As IAcSmSheetSet = dstDatabase.GetSheetSet()
             Dim werwer = FindAllComponents(dstDatabase)
-
-            GetFullSheetSetStructure(dstDatabase)
+            DumpComponents(werwer)
 
 
 
@@ -503,38 +491,38 @@ Public Class SheetSet_new
 
 
             Exit Sub
-            If True Then SetSheetCount()
-            'Dim werwer = FindAllComponents(sheetSet)
-            If buildingName = "BuildingName" Then
-                ' -----------------------------
-                ' СТАНДАРТЕН РЕЖИМ - > една сграда
-                '------------------------------
-                Dim pko As New PromptKeywordOptions(vbLf & "Изберете начин на номериране на листовете:")
-                pko.Keywords.Add("Последователно 01, 02, ... , N")          ' за нас → Global
-                pko.Keywords.Add("По кодове формат XXX-01-00")              ' за нас → ByInstallation
-                pko.Keywords.Default = "Последователно 01, 02, ... , N"
+        If True Then SetSheetCount()
+        'Dim werwer = FindAllComponents(sheetSet)
+        If buildingName = "BuildingName" Then
+            ' -----------------------------
+            ' СТАНДАРТЕН РЕЖИМ - > една сграда
+            '------------------------------
+            Dim pko As New PromptKeywordOptions(vbLf & "Изберете начин на номериране на листовете:")
+            pko.Keywords.Add("Последователно 01, 02, ... , N")          ' за нас → Global
+            pko.Keywords.Add("По кодове формат XXX-01-00")              ' за нас → ByInstallation
+            pko.Keywords.Default = "Последователно 01, 02, ... , N"
 
-                Dim pkr As PromptResult = acDoc.Editor.GetKeywords(pko)
+            Dim pkr As PromptResult = acDoc.Editor.GetKeywords(pko)
 
-                Dim numberingMode As String
-                If pkr.Status = PromptStatus.OK Then
-                    If pkr.StringResult = "Последователно 01, 02, ... , N" Then
-                        numberingMode = "Global"
-                    Else
-                        numberingMode = "ByInstallation"
-                    End If
+            Dim numberingMode As String
+            If pkr.Status = PromptStatus.OK Then
+                If pkr.StringResult = "Последователно 01, 02, ... , N" Then
+                    numberingMode = "Global"
                 Else
-                    MsgBox("Номерирането е прекъснато.")
-                    Exit Sub
+                    numberingMode = "ByInstallation"
                 End If
             Else
-                ' -----------------------------
-                ' РАЗШИРЕН РЕЖИМ - > много сгради
-                '------------------------------
+                MsgBox("Номерирането е прекъснато.")
+                Exit Sub
             End If
+        Else
+            ' -----------------------------
+            ' РАЗШИРЕН РЕЖИМ - > много сгради
+            '------------------------------
+        End If
         Catch ex As Exception
-            ' 7. Ако възникне грешка, показваме съобщение
-            MsgBox("Грешка при номериране на Sheet Set файла: " & ex.Message)
+        ' 7. Ако възникне грешка, показваме съобщение
+        MsgBox("Грешка при номериране на Sheet Set файла: " & ex.Message)
         End Try
     End Sub
     ''' <summary>
@@ -1242,61 +1230,33 @@ Public Class SheetSet_new
             MsgBox("Възникна грешка: " & ex.Message & vbCrLf & vbCrLf & ex.StackTrace.ToString)
         End Try
     End Sub
-    ''' <summary>
-    ''' Стартира рекурсивното обхождане на подадената Sheet Set база данни.
-    ''' </summary>
-    ''' <param name="sheetSetDatabase">Обектът на самия Sheet Set (IAcSmSheetSet).</param>
-    Public Sub GetFullSheetSetStructure(sheetSetDatabase As IAcSmSheetSet)
-        Try
-            ' Проверяваме дали обекта е валиден
-            If sheetSetDatabase Is Nothing Then Return
-            ' Стартираме рекурсията директно от подадения обект
-            ' Започваме от ниво 0 и името на основния Sheet Set
-            ProcessComponents(DirectCast(sheetSetDatabase, IAcSmPersist), 0, sheetSetDatabase.GetName())
-        Catch ex As Exception
-            MsgBox("Грешка при рекурсивното обхождане: " & ex.Message)
-        End Try
-    End Sub
-    ''' <summary>
-    ''' Рекурсивна под-процедура за преминаване през папки (Subsets) и листове.
-    ''' </summary>
-    Private Sub ProcessComponents(parent As IAcSmPersist, level As Integer, folderName As String)
-        Dim iter As IAcSmEnumPersist = Nothing
-        ' Поправка за грешка BC30456
-        If TypeOf parent Is IAcSmSubset Then
-            ' Вместо директно към Subset, кастваме към Container
-            Dim container As IAcSmContainer = DirectCast(parent, IAcSmContainer)
-            iter = container.GetEnumerator()
-        ElseIf TypeOf parent Is IAcSmSheetSet Then
-            ' SheetSet също е контейнер
-            Dim container As IAcSmContainer = DirectCast(parent, IAcSmContainer)
-            iter = container.GetEnumerator()
-        End If
-        If iter Is Nothing Then Return
-        Dim item As IAcSmPersist = iter.Next()
-        While item IsNot Nothing
-            ' СЛУЧАЙ 1: Намираме ПОДПАПКА (Subset)
-            If TypeOf item Is IAcSmSubset Then
-                Dim subFolder As IAcSmSubset = DirectCast(item, IAcSmSubset)
-                ' Логика за папка (запис в Excel/Debug)
-                Debug.Print(New String(" "c, level * 2) & "Folder: " & subFolder.GetName())
 
-                ' РЕКУРСИЯ: Влизаме в дълбочина в подпапката
-                ProcessComponents(subFolder, level + 1, subFolder.GetName())
-                ' СЛУЧАЙ 2: Намираме ЛИСТ (Sheet)
-            ElseIf TypeOf item Is IAcSmSheet Then
-                Dim sheet As IAcSmSheet = DirectCast(item, IAcSmSheet)
-                Dim layoutRef As IAcSmAcDbLayoutReference = sheet.GetLayout()
-                ' Вземаме данните от интерфейсите
-                Dim sNo As String = sheet.GetNumber()
-                Dim sTitle As String = sheet.GetTitle()
-                Dim sPath As String = If(layoutRef IsNot Nothing, layoutRef.ResolveFileName(), "")
-                ' Логика за лист (запис в Excel/Word)
-                ' Тук поставяш твоя код за попълване на таблицата
-                Debug.Print(New String(" "c, level * 2) & "Sheet: " & sNo & " - " & sTitle)
+    ''' <summary>
+    ''' Визуализира съдържанието на списък от IAcSmComponent
+    ''' като показва типа и името (ако има).
+    ''' </summary>
+    ''' <param name="comps">Списък с компоненти</param>
+    Public Sub DumpComponents(comps As List(Of IAcSmComponent))
+        Debug.Print("===== COMPONENT DUMP =====")
+        For Each c As IAcSmComponent In comps
+            Dim line As String = ""
+            If TypeOf c Is IAcSmSheetSet Then
+                Dim ss = DirectCast(c, IAcSmSheetSet)
+                line = "[SheetSet] " & ss.GetName()
+            ElseIf TypeOf c Is IAcSmSubset Then
+                Dim subSet =
+                DirectCast(c, IAcSmSubset)
+                line = "[Subset] " & subSet.GetName()
+            ElseIf TypeOf c Is IAcSmSheet Then
+                Dim sh = DirectCast(c, IAcSmSheet)
+                line = "[Sheet] " & sh.GetName()
+            ElseIf TypeOf c Is IAcSmCustomPropertyBag Then
+                line = "[CustomPropertyBag]"
+            Else
+                line = "[Component] (unknown type)"
             End If
-            ' Преминаваме към следващия компонент на текущото ниво
-            item = iter.Next()
-        End While
+            Debug.Print(line)
+        Next
+        Debug.Print("===== END DUMP =====")
     End Sub
 End Class

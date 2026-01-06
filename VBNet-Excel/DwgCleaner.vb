@@ -536,4 +536,5 @@ Public Class DwgCleaner
             ed.WriteMessage(vbLf & "Грешка в FindMylniq: " & ex.Message)
         End Try
     End Sub
+
 End Class

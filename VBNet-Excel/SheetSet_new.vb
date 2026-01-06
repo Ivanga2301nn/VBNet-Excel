@@ -10,15 +10,13 @@ Imports Autodesk.AutoCAD.DatabaseServices
 Imports Autodesk.AutoCAD.EditorInput
 Imports Autodesk.AutoCAD.Runtime
 Imports Autodesk.AutoCAD.Windows.Data
-Imports Autodesk.AutoCAD.Interop.Common
-
+'Imports Autodesk.AutoCAD.Interop.Common
 ' Дефинирате AcApp като съкращение за AutoCAD Application
 Imports AcApp = Autodesk.AutoCAD.ApplicationServices.Application
 Public Class SheetSet_new
     ' Постоянни данни от твоята информация
     Private Const Set_Desc As String = "Създадено от Бат Генчо"
     Private Const DefaultProjectName As String = "Project"
-
     ' Пътят до нашия DST файл (за тестовете приемаме, че е до DWG файла)
     Private dstPath As String = ""
     Structure srtSheetSet
@@ -202,7 +200,6 @@ Public Class SheetSet_new
             sheetSet.SetDesc(Set_Desc)                                                          ' Описание на Sheet Set-а
             ' Почистване на всички Sheet-и от текущия DWG и премахване на празни папки (Subsets) в Sheet Set базата данни.
             CleanOldSheetsFromCurrentDWG(sheetSetDatabase, name_file)
-
             sheetsInFile = GetSheetsFromDatabase(sheetSetDatabase)  ' Съществуващи Sheet-и
             'Обхожда Layout-ите в чертежа и анализира имената им спрямо зададените речници.
             listSheetSet = CollectLayoutsData(acDoc, name_file, sheetsInFile)
@@ -213,11 +210,8 @@ Public Class SheetSet_new
             saveDST(acDoc, sheetSetDatabase, sortedList, name_file)
             ' --- 7. ГЕНЕРИРАНЕ НА НОМЕРАЦИЯТА ---
             GenerateSheetNumbers(acDoc, sheetSetDatabase)
-
             LogSheetSetContent(sheetSetDatabase)
-
             'ProcessSheetSetContent(sheetSetDatabase, 1)
-
         Catch ex As Exception
             MsgBox("Грешка: " & ex.Message)
         Finally
@@ -432,9 +426,6 @@ Public Class SheetSet_new
         End Try
         Return comps
     End Function
-
-    ''  UpdateSSM
-
     ''' <summary>
     ''' Рекурсивна процедура за запис на йерархията на Sheet Set в лог файл.
     ''' Предполага се, че базата данни (db) е отворена и заключена от външния код.
@@ -480,7 +471,6 @@ Public Class SheetSet_new
         Catch
             name = "Unknown Name"
         End Try
-
         ' --- Определяме типа за лог ---
         Dim typeLabel As String
         If TypeOf comp Is IAcSmSheetSet Then
@@ -492,7 +482,6 @@ Public Class SheetSet_new
         Else
             typeLabel = "[Component]"
         End If
-
         ' --- Записваме реда в лог ---
         writer.WriteLine($"{prefix}{typeLabel} {name}")
         ' --- Обхождаме децата ---
@@ -526,7 +515,6 @@ Public Class SheetSet_new
             writer.WriteLine(prefix & "    ! Грешка при обхождане на децата: " & ex.Message)
         End Try
     End Sub
-
     ''' <summary>
     ''' Команда за AutoCAD: Генерира номерата на листовете в DST файла
     ''' Извиква основния метод GenerateSheetNumbers.
@@ -573,7 +561,6 @@ Public Class SheetSet_new
         Try
             Dim sheetSet As IAcSmSheetSet = dstDatabase.GetSheetSet()
             Dim werwer = FindAllComponents(dstDatabase)
-
             ' If True Then SetSheetCount()
             'Dim werwer = FindAllComponents(sheetSet)
             If buildingName = "BuildingName" Then
@@ -1311,7 +1298,6 @@ Public Class SheetSet_new
             MsgBox("Възникна грешка: " & ex.Message & vbCrLf & vbCrLf & ex.StackTrace.ToString)
         End Try
     End Sub
-
     ''' <summary>
     ''' Рекурсивно обхожда SheetSet йерархията и номерира листовете (Sheets).
     ''' </summary>

@@ -46,25 +46,25 @@ Public Class DwgCleaner
             ' СТЪПКА 1: Изтриване на листове "настройки"
             ' ===============================
             sw.WriteLine("1. Премахване на излишни листове...")
-            DeleteSettingsLayouts(doc)
+            DeleteSettingsLayouts(db)
             ' ===============================
             ' СТЪПКА 2: Почистване на обекти в ModelSpace по координати
             ' ===============================
             sw.WriteLine("2. Почистване на обекти извън работната зона...")
-            WipeModelSpaceByArea(doc)
+            WipeModelSpaceByArea(db)
             ' ===============================
             ' СТЪПКА 3: Изчистване съдържанието на динамични блокове "Качване"
             ' ===============================
             sw.WriteLine("3. Изчистване съдържанието на блокове 'Качване'...")
-            ClearAttributesInDynamicBlocks(doc, "Качване")
-            FindMylniq(doc)
+            ClearAttributesInDynamicBlocks(db, "Качване")
+            FindMylniq(db)
             ' ===============================
             ' СТЪПКА 4: Native BURST (разбиване на блокове)
             ' ===============================
             sw.WriteLine("4: Native BURST (разбиване на блокове) ...")
-            NativeBurst(doc)
-            ExplodeAllArrays(doc)
-            NativeBurst(doc)
+            NativeBurst(db)
+            ExplodeAllArrays(db)
+            NativeBurst(db)
             ' ===============================
             ' СТЪПКА 4a: Bind на всички Xref-и
             ' ===============================
@@ -116,7 +116,7 @@ Public Class DwgCleaner
     ''' - Изтрива оригиналния блок
     ''' </summary>
     ''' <param name="doc">Текущият AutoCAD документ</param>
-    Private Sub NativeBurst(doc As Document)
+    Private Sub NativeBurst(db As Database)
         ' 1. Списък с имена на блокове, които НЕ трябва да бъдат разбивани (Skip List)
         Dim protectedBlocks As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase) From {
         "s_c60_circ_break",
@@ -136,8 +136,8 @@ Public Class DwgCleaner
         "Мълниезащита вертикално"
         }
         ' Вземаме базата данни и редактора на текущия документ
-        Dim db As Database = doc.Database
-        Dim ed As Editor = doc.Editor
+        'Dim db As Database = doc.Database
+        'Dim ed As Editor = doc.Editor
         ' Създаваме транзакция за безопасна работа с обекти
         Using tr As Transaction = db.TransactionManager.StartTransaction()
             ' Отваряме текущото пространство за писане (ModelSpace или PaperSpace)
@@ -150,7 +150,6 @@ Public Class DwgCleaner
                                   New TypedValue(0, "INSERT"),
                                   New TypedValue(CInt(DxfCode.LayerName), "EL*")
                                               })
-
             Dim selRes As PromptSelectionResult = ed.SelectAll(filter)
             ' Ако има блокове за обработка
             If selRes.Status = PromptStatus.OK Then
@@ -247,10 +246,10 @@ Public Class DwgCleaner
     ''' Изтрива всички Layout-и, съдържащи "настройки" в името, с изключение на "Model".
     ''' </summary>
     ''' <param name="doc">Текущият AutoCAD документ</param>
-    Private Sub DeleteSettingsLayouts(doc As Document)
+    Private Sub DeleteSettingsLayouts(db As Database)
         ' Вземаме базата данни и редактора на текущия документ
-        Dim db As Database = doc.Database
-        Dim ed As Editor = doc.Editor
+        'Dim db As Database = doc.Database
+        'Dim ed As Editor = doc.Editor
         ' Създаваме транзакция за безопасна работа с обекти
         Using tr As Transaction = db.TransactionManager.StartTransaction()
             ' Отваряме LayoutDictionary за четене
@@ -289,10 +288,10 @@ Public Class DwgCleaner
     ''' Изтрива всички обекти в Model Space, чиито центрови точки попадат в зададената зона (xMin, xMax, yMin, yMax).
     ''' </summary>
     ''' <param name="doc">Текущият AutoCAD документ</param>
-    Private Sub WipeModelSpaceByArea(doc As Document)
+    Private Sub WipeModelSpaceByArea(db As Database)
         ' Вземаме базата данни и редактора на текущия документ
-        Dim db As Database = doc.Database
-        Dim ed As Editor = doc.Editor
+        'Dim db As Database = doc.Database
+        'Dim ed As Editor = doc.Editor
         ' Създаваме транзакция за безопасна работа с обекти
         Using tr As Transaction = db.TransactionManager.StartTransaction()
             ' Отваряме BlockTable и ModelSpace за четене/писане
@@ -335,10 +334,10 @@ Public Class DwgCleaner
     ''' </summary>
     ''' <param name="doc">Текущият AutoCAD документ</param>
     ''' <param name="targetName">Името на блока, чийто атрибути ще бъдат изчистени (пример: "Качване")</param>
-    Private Sub ClearAttributesInDynamicBlocks(doc As Document, targetName As String)
+    Private Sub ClearAttributesInDynamicBlocks(doc As Database, targetName As String)
         ' Вземаме базата данни и редактора на текущия документ
-        Dim db As Database = doc.Database
-        Dim ed As Editor = doc.Editor
+        'Dim db As Database = doc.Database
+        'Dim ed As Editor = doc.Editor
         ' Създаваме транзакция за безопасна работа с обекти
         Using tr As Transaction = db.TransactionManager.StartTransaction()
             ' Вземаме BlockTable и ModelSpace за четене/писане
@@ -382,9 +381,9 @@ Public Class DwgCleaner
     ''' Разбива всички масиви (BlockReference масиви) в ModelSpace
     ''' без да пипа реалните блокове и атрибути.
     ''' </summary>
-    Public Sub ExplodeAllArrays(doc As Document)
-        Dim db As Database = doc.Database
-        Dim ed As Editor = doc.Editor
+    Public Sub ExplodeAllArrays(db As Database)
+        'Dim db As Database = doc.Database
+        'Dim ed As Editor = doc.Editor
         ' Стартираме транзакция за безопасна работа с обекти
         Using tr As Transaction = db.TransactionManager.StartTransaction()
             Dim bt As BlockTable = CType(tr.GetObject(db.BlockTableId, OpenMode.ForRead), BlockTable)
@@ -431,13 +430,13 @@ Public Class DwgCleaner
     ''' като използва параметри и атрибути от съответния блок „Мълниезащита вертикално“.
     ''' </summary>
     ''' <param name="doc">Текущият AutoCAD документ</param>
-    Private Sub FindMylniq(doc As Document)
+    Private Sub FindMylniq(db As Database)
         ' Списъци за съхранение на намерените обекти (ID-та)
         Dim mylniqTextIds As New List(Of ObjectId)
         Dim mylniqBlockIds As New List(Of ObjectId)
         ' Референции към базата данни и Editor-а
-        Dim db As Database = doc.Database
-        Dim ed As Editor = doc.Editor
+        'Dim db As Database = doc.Database
+        'Dim ed As Editor = doc.Editor
         ' Променливи за стойности, извлечени от блока
         Dim valTip As String = ""
         Dim valH As String = ""
@@ -582,10 +581,84 @@ Public Class DwgCleaner
         End Try
     End Sub
     ''' <summary>
-    ''' Записва съобщение в лог файл веднага (append mode), без да губи данни
+    ''' Дълбоко почистване на неизползвани блокове, слоеве, линии и стилове.
     ''' </summary>
-    ''' <param name="logFilePath">Пълен път до лог файла</param>
-    ''' <param name="message">Съобщението за запис</param>
-
-
+    Private Sub NativePurge(db As Database)
+        Dim changed As Boolean = True
+        ' Въртим цикъла докато спрем да намираме излишни неща (заради вложените зависимости)
+        While changed
+            changed = False
+            Using tr As Transaction = db.TransactionManager.StartTransaction()
+                ' Колекция за всички кандидати за триене
+                Dim idsToCheck As New ObjectIdCollection()
+                ' 1. Добавяме Блоковете
+                Dim bt As BlockTable = tr.GetObject(db.BlockTableId, OpenMode.ForRead)
+                For Each id As ObjectId In bt
+                    idsToCheck.Add(id)
+                Next
+                ' 2. Добавяме Слоевете
+                Dim lt As LayerTable = tr.GetObject(db.LayerTableId, OpenMode.ForRead)
+                For Each id As ObjectId In lt
+                    idsToCheck.Add(id)
+                Next
+                ' 3. Добавяме Текстовите стилове
+                Dim tst As TextStyleTable = tr.GetObject(db.TextStyleTableId, OpenMode.ForRead)
+                For Each id As ObjectId In tst
+                    idsToCheck.Add(id)
+                Next
+                ' 4. Добавяме Linetypes (Типове линии)
+                Dim ltt As LinetypeTable = tr.GetObject(db.LinetypeTableId, OpenMode.ForRead)
+                For Each id As ObjectId In ltt
+                    idsToCheck.Add(id)
+                Next
+                ' 5. Добавяме DimStyles (Размерни стилове)
+                Dim dst As DimStyleTable = tr.GetObject(db.DimStyleTableId, OpenMode.ForRead)
+                For Each id As ObjectId In dst
+                    idsToCheck.Add(id)
+                Next
+                ' --- МАГИЯТА: db.Purge ---
+                ' Този метод премахва от списъка всичко, което СЕ ПОЛЗВА.
+                ' В idsToCheck остават само ненужните.
+                db.Purge(idsToCheck)
+                ' Ако има останали обекти, ги трием
+                If idsToCheck.Count > 0 Then
+                    For Each id As ObjectId In idsToCheck
+                        Dim obj As DBObject = tr.GetObject(id, OpenMode.ForWrite)
+                        obj.Erase()
+                    Next
+                    changed = True ' Намерихме нещо, значи въртим цикъла пак
+                End If
+                tr.Commit()
+            End Using
+        End While
+    End Sub
+    ''' <summary>
+    ''' Вгражда всички Xref-ове като локални блокове (стил Insert).
+    ''' </summary>
+    Private Sub NativeBind(db As Database)
+        Dim xrefsCollection As New ObjectIdCollection()
+        ' Стъпка 1: Събираме ID-тата на всички Xref-ове
+        Using tr As Transaction = db.TransactionManager.StartTransaction()
+            Dim bt As BlockTable = tr.GetObject(db.BlockTableId, OpenMode.ForRead)
+            For Each btrId As ObjectId In bt
+                Dim btr As BlockTableRecord = tr.GetObject(btrId, OpenMode.ForRead)
+                ' Проверяваме дали е Xref и дали не е разкачен (Unloaded)
+                If btr.IsFromExternalReference AndAlso Not btr.IsUnloaded Then
+                    xrefsCollection.Add(btrId)
+                End If
+            Next
+            tr.Commit()
+        End Using
+        ' Стъпка 2: Изпълняваме Bind директно върху базата
+        If xrefsCollection.Count > 0 Then
+            Try
+                ' Вторият параметър (True) означава "Insert" метод (сливане на слоеве).
+                ' Ако искаш класически "Bind" (с префикси), направи го False.
+                db.BindXrefs(xrefsCollection, True)
+            Catch ex As Exception
+                ' Тук можеш да запишеш в лог файл, ако някой Xref гръмне
+                Debug.WriteLine("Грешка при NativeBind: " & ex.Message)
+            End Try
+        End If
+    End Sub
 End Class

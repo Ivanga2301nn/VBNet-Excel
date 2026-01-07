@@ -8,6 +8,7 @@ Imports Autodesk.AutoCAD.DatabaseServices
 Imports Autodesk.AutoCAD.EditorInput
 Imports Autodesk.AutoCAD.Geometry
 Imports Autodesk.AutoCAD.Runtime
+Imports iTextSharp.text.pdf.parser
 
 Public Class DwgCleaner
     ' Координати за пълно изтриване
@@ -15,6 +16,8 @@ Public Class DwgCleaner
     Private ReadOnly xMax As Double = 19797.1499
     Private ReadOnly yMin As Double = -58162.2524
     Private ReadOnly yMax As Double = 126580.8506
+    ' В класа, преди всички методи
+    Private sw As IO.StreamWriter
 
     ''' <summary>
     ''' Главна процедура за почистване на DWG файл.
@@ -29,26 +32,30 @@ Public Class DwgCleaner
         Dim db As Database = doc.Database
         Dim ed As Editor = doc.Editor
         Dim filePath As String = db.Filename
+        Dim dwgFolder As String = IO.Path.GetDirectoryName(filePath)
+        Dim logFile As String = IO.Path.Combine(dwgFolder, "DwgCleaner.txt")
+        sw = New IO.StreamWriter(logFile, True)
+        sw.AutoFlush = True
         ' --- Проверка: Файлът трябва да е в папка "документация" ---
         If filePath.IndexOf("документация", StringComparison.OrdinalIgnoreCase) = -1 Then
-            ed.WriteMessage(vbLf & "ОТКАЗ: Командата е разрешена само за файлове в папка 'документация'!")
+            sw.WriteLine("ОТКАЗ: Командата е разрешена само за файлове в папка 'документация'!")
             Return
         End If
         Try
             ' ===============================
             ' СТЪПКА 1: Изтриване на листове "настройки"
             ' ===============================
-            ed.WriteMessage(vbLf & "1. Премахване на излишни листове...")
+            sw.WriteLine("1. Премахване на излишни листове...")
             DeleteSettingsLayouts(doc)
             ' ===============================
             ' СТЪПКА 2: Почистване на обекти в ModelSpace по координати
             ' ===============================
-            ed.WriteMessage(vbLf & "2. Почистване на обекти извън работната зона...")
+            sw.WriteLine("2. Почистване на обекти извън работната зона...")
             WipeModelSpaceByArea(doc)
             ' ===============================
             ' СТЪПКА 3: Изчистване съдържанието на динамични блокове "Качване"
             ' ===============================
-            ed.WriteMessage(vbLf & "3. Изчистване съдържанието на блокове 'Качване'...")
+            sw.WriteLine("3. Изчистване съдържанието на блокове 'Качване'...")
             ClearAttributesInDynamicBlocks(doc, "Качване")
             FindMylniq(doc)
             ' ===============================
@@ -57,30 +64,36 @@ Public Class DwgCleaner
             NativeBurst(doc)
             ExplodeAllArrays(doc)
             NativeBurst(doc)
+            '' ===============================
+            ' СТЪПКА 4a: Bind на всички Xref-и
+            ' ===============================
+            ed.Command("-XREF", "_BIND", "*", "")
+            ed.Command("-XREF", "_Detach", "*", "")
+            'BindAllXrefs(db, ed)
             ' ===============================
             ' СТЪПКА 5: OVERKILL (оптимизация на геометрията)
             ' ===============================
-            ed.WriteMessage(vbLf & "5. Изпълнение на OVERKILL...")
+            sw.WriteLine("5. Изпълнение на OVERKILL...")
             Try
                 ' Избираме всичко и изпълняваме Overkill
                 ed.Command("-OVERKILL", "_All", "", "")
-                ed.WriteMessage(vbLf & "Overkill приключи.")
+                sw.WriteLine("Overkill приключи.")
             Catch ex As System.Exception
-                ed.WriteMessage(vbLf & "(!) OVERKILL грешка: " & ex.Message)
+                sw.WriteLine("(!) OVERKILL грешка: " & ex.Message)
             End Try
             ' ===============================
             ' СТЪПКА 6: AUDIT (проверка и поправка на базата данни)
             ' ===============================
-            ed.WriteMessage(vbLf & "6. Проверка на файла (Audit)...")
+            sw.WriteLine("6. Проверка на файла (Audit)...")
             Try
                 ed.Command("._AUDIT", "_Yes")
             Catch
-                ed.WriteMessage(vbLf & "(!) Грешка при Audit.")
+                sw.WriteLine("(!) Грешка при Audit.")
             End Try
             ' ===============================
             ' СТЪПКА 7: PURGE (пълно почистване на неизползвани елементи)
             ' ===============================
-            ed.WriteMessage(vbLf & "7. Пълно почистване на неизползвани слоеве и блокове...")
+            sw.WriteLine("7. Пълно почистване на неизползвани слоеве и блокове...")
             ' Повтаряме няколко пъти заради вложени зависимости
             For i As Integer = 1 To 4
                 ed.Command("-PURGE", "_All", "*", "_No")
@@ -91,17 +104,21 @@ Public Class DwgCleaner
             ' СТЪПКА 8: Финален запис на файла
             ' ===============================
             db.SaveAs(db.Filename, True, DwgVersion.Current, Nothing)
-            ed.WriteMessage(vbLf & "8. Файлът е успешно записан.")
+            sw.WriteLine("8. Файлът е успешно записан.")
             ' ===============================
             ' СТЪПКА 9: Финален изглед на чертежа
             ' ===============================
             ed.Command("_.ZOOM", "_E")
             ' Крайно съобщение за успешна процедура
-            ed.WriteMessage(vbLf & "--- [УСПЕХ] Процедурата 'DwgCleaner' приключи! ---")
+            sw.WriteLine("--- [УСПЕХ] Процедурата 'DwgCleaner' приключи! ---")
         Catch ex As System.Exception
             ' Грешка в главния цикъл
-            ed.WriteMessage(vbLf & "Критична грешка в главния цикъл: " & ex.Message)
+            sw.WriteLine("Критична грешка в главния цикъл: " & ex.Message)
         End Try
+        If sw IsNot Nothing Then
+            sw.Close()
+            sw.Dispose()
+        End If
     End Sub
     ''' <summary>
     ''' Реализира Native BURST поведение:
@@ -163,54 +180,62 @@ Public Class DwgCleaner
                     ' ===============================
                     ' СТЪПКА 1: Превръщаме атрибутите на блока в DBText
                     ' ===============================
-                    For Each attId As ObjectId In br.AttributeCollection
-                        Dim attRef As AttributeReference = tr.GetObject(attId, OpenMode.ForRead)
-                        ' Пропускаме празни атрибути
-                        If Not String.IsNullOrWhiteSpace(attRef.TextString) Then
-                            Dim newText As New DBText()
-                            newText.SetDatabaseDefaults()
-                            ' Копираме свойствата на атрибута
-                            newText.TextString = attRef.TextString
-                            newText.Position = attRef.Position
-                            newText.Height = attRef.Height
-                            newText.Rotation = attRef.Rotation
-                            newText.TextStyleId = attRef.TextStyleId
-                            ' Ако атрибутът е в слой "0", наследява слоя и цвета на блока
-                            If attRef.Layer = "0" Then
-                                newText.Layer = br.Layer
-                                newText.Color = br.Color
-                            Else
-                                ' Иначе запазваме оригиналния слой и цвят на атрибута
-                                newText.Layer = attRef.Layer
-                                newText.Color = attRef.Color
+                    Try
+                        For Each attId As ObjectId In br.AttributeCollection
+                            Dim attRef As AttributeReference = tr.GetObject(attId, OpenMode.ForRead)
+                            ' Пропускаме празни атрибути
+                            If Not String.IsNullOrWhiteSpace(attRef.TextString) Then
+                                Dim newText As New DBText()
+                                newText.SetDatabaseDefaults()
+                                ' Копираме свойствата на атрибута
+                                newText.TextString = attRef.TextString
+                                newText.Position = attRef.Position
+                                newText.Height = attRef.Height
+                                newText.Rotation = attRef.Rotation
+                                newText.TextStyleId = attRef.TextStyleId
+                                ' Ако атрибутът е в слой "0", наследява слоя и цвета на блока
+                                If attRef.Layer = "0" Then
+                                    newText.Layer = br.Layer
+                                    newText.Color = br.Color
+                                Else
+                                    ' Иначе запазваме оригиналния слой и цвят на атрибута
+                                    newText.Layer = attRef.Layer
+                                    newText.Color = attRef.Color
+                                End If
+                                ' Добавяме новия текст в текущото пространство
+                                btrCurrent.AppendEntity(newText)
+                                tr.AddNewlyCreatedDBObject(newText, True)
                             End If
-                            ' Добавяме новия текст в текущото пространство
-                            btrCurrent.AppendEntity(newText)
-                            tr.AddNewlyCreatedDBObject(newText, True)
-                        End If
-                    Next
+                        Next
+                    Catch ex As Exception
+                        sw.WriteLine("Критична грешка NativeBurst - СТЪПКА 1: " & ex.Message)
+                    End Try
                     ' ===============================
                     ' СТЪПКА 2: Explode (разбиване) на геометрията на блока
                     ' ===============================
-                    Dim explodedObjects As New DBObjectCollection()
-                    br.Explode(explodedObjects)
-                    For Each obj As DBObject In explodedObjects
-                        ' Пропускаме атрибутите, защото вече са конвертирани в текст
-                        If TypeOf obj Is AttributeReference OrElse TypeOf obj Is AttributeDefinition Then
-                            Continue For
-                        End If
-                        Dim ent As Entity = DirectCast(obj, Entity)
-                        ' Наследяване на слой и цвят, ако е необходимо
-                        If ent.Layer = "0" Then
-                            ent.Layer = blockLayer
-                        End If
-                        If ent.Color.ColorMethod = ColorMethod.ByBlock Then
-                            ent.Color = blockColor
-                        End If
-                        ' Добавяме обекта в текущото пространство
-                        btrCurrent.AppendEntity(ent)
-                        tr.AddNewlyCreatedDBObject(ent, True)
-                    Next
+                    Try
+                        Dim explodedObjects As New DBObjectCollection()
+                        br.Explode(explodedObjects)
+                        For Each obj As DBObject In explodedObjects
+                            ' Пропускаме атрибутите, защото вече са конвертирани в текст
+                            If TypeOf obj Is AttributeReference OrElse TypeOf obj Is AttributeDefinition Then
+                                Continue For
+                            End If
+                            Dim ent As Entity = DirectCast(obj, Entity)
+                            ' Наследяване на слой и цвят, ако е необходимо
+                            If ent.Layer = "0" Then
+                                ent.Layer = blockLayer
+                            End If
+                            If ent.Color.ColorMethod = ColorMethod.ByBlock Then
+                                ent.Color = blockColor
+                            End If
+                            ' Добавяме обекта в текущото пространство
+                            btrCurrent.AppendEntity(ent)
+                            tr.AddNewlyCreatedDBObject(ent, True)
+                        Next
+                    Catch ex As Exception
+                        sw.WriteLine("Критична грешка NativeBurst - СТЪПКА 2: " & ex.Message)
+                    End Try
                     ' ===============================
                     ' СТЪПКА 3: Изтриваме оригиналния блок
                     ' ===============================
@@ -218,7 +243,7 @@ Public Class DwgCleaner
                     count += 1
                 Next
                 ' Съобщение в редактора за брой обработени блокове
-                ed.WriteMessage(vbLf & "Native BURST: Обработени " & count & " блока.")
+                sw.WriteLine("Native BURST: Обработени " & count & " блока.")
             End If
             ' Потвърждаваме всички промени
             tr.Commit()
@@ -259,7 +284,7 @@ Public Class DwgCleaner
                 ' Записваме файла след изтриването на листовете
                 db.SaveAs(db.Filename, True, DwgVersion.Current, Nothing)
                 ' Извеждаме съобщение с броя изтрити Layout-и
-                ed.WriteMessage(vbLf & "Изтрити листове: " & deletedCount & ". Файлът е записан.")
+                sw.WriteLine("Изтрити листове: " & deletedCount & ". Файлът е записан.")
             Else
                 ' Ако няма какво да се изтрива, прекратяваме транзакцията
                 tr.Abort()
@@ -307,7 +332,7 @@ Public Class DwgCleaner
             ' Ако има изтрити обекти, записваме документа и извеждаме съобщение
             If deletedCount > 0 Then
                 db.SaveAs(db.Filename, True, DwgVersion.Current, Nothing)
-                ed.WriteMessage(vbLf & "Изтрити обекти от Model Space: " & deletedCount & ". Файлът е записан.")
+                sw.WriteLine("Изтрити обекти от Model Space: " & deletedCount & ". Файлът е записан.")
             End If
         End Using
     End Sub
@@ -356,7 +381,7 @@ Public Class DwgCleaner
             ' Потвърждаваме промените
             tr.Commit()
             ' Извеждаме съобщение с броя на обработените блокове
-            ed.WriteMessage(vbLf & "Изчистени атрибути в динамичен блок '" & targetName & "': " & count)
+            sw.WriteLine("Изчистени атрибути в динамичен блок '" & targetName & "': " & count)
         End Using
     End Sub
     ''' <summary>
@@ -404,7 +429,7 @@ Public Class DwgCleaner
             Next
             tr.Commit()
         End Using
-        ed.WriteMessage(vbLf & "Всички масиви са разбити успешно (BlockReference запазени).")
+        sw.WriteLine("Всички масиви са разбити успешно (BlockReference запазени).")
     End Sub
     ''' <summary>
     ''' Търси в текущия чертеж текстове и блокове, свързани с мълниезащита.
@@ -533,8 +558,55 @@ Public Class DwgCleaner
             End Using
         Catch ex As Exception
             ' Изписване на грешка в командния ред
-            ed.WriteMessage(vbLf & "Грешка в FindMylniq: " & ex.Message)
+            sw.WriteLine("Грешка в FindMylniq: " & ex.Message)
         End Try
     End Sub
-
+    ''' <summary>
+    ''' Вгражда (Bind) всички външни референции (Xref) в текущия чертеж.
+    ''' </summary>
+    ''' <param name="db">Текущата база данни (Database) на чертежа.</param>
+    ''' <param name="ed">Editor за извеждане на съобщения в командния ред.</param>
+    Private Sub BindAllXrefs(ByVal db As Database,
+                             ByVal ed As Editor)
+        sw.WriteLine("4a. Вграждане на всички Xref-и (BIND)...")
+        Try
+            ' Отваряме BlockTable
+            Using bt As BlockTable = db.BlockTableId.GetObject(OpenMode.ForRead)
+                For Each btrId As ObjectId In bt
+                    Using btr As BlockTableRecord = btrId.GetObject(OpenMode.ForRead)
+                        ' Проверка дали BlockTableRecord е Xref
+                        If btr.IsFromExternalReference Then
+                            ' Изпълняваме BIND чрез командния ред
+                            ed.Command("-XREF", "BIND", "*", "")
+                            sw.WriteLine(" - Xref '" & btr.Name & "' е вграден.")
+                        End If
+                    End Using
+                Next
+            End Using
+        Catch ex As System.Exception
+            sw.WriteLine("(!) Грешка при BIND: " & ex.Message)
+        End Try
+    End Sub
+    ''' <summary>
+    ''' Записва съобщение в лог файл веднага (append mode), без да губи данни
+    ''' </summary>
+    ''' <param name="logFilePath">Пълен път до лог файла</param>
+    ''' <param name="message">Съобщението за запис</param>
+    Public Sub WriteLog(ByVal logFilePath As String, ByVal message As String)
+        Try
+            ' Създаваме директорията, ако не съществува
+            Dim dir = IO.Path.GetDirectoryName(logFilePath)
+            If Not IO.Directory.Exists(dir) Then
+                IO.Directory.CreateDirectory(dir)
+            End If
+            ' Форматираме ред с timestamp
+            Dim line As String = String.Format("{0:yyyy-MM-dd HH:mm:ss} | {1}", DateTime.Now, message)
+            ' Записваме веднага в края на файла (append)
+            Using sw As New IO.StreamWriter(logFilePath, True)
+                sw.WriteLine(line)
+            End Using
+        Catch ex As Exception
+            ' Ако не успее да пише, просто игнорира (не спира програмата)
+        End Try
+    End Sub
 End Class

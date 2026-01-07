@@ -34,7 +34,7 @@ Public Class DwgCleaner
         Dim filePath As String = db.Filename
         Dim dwgFolder As String = IO.Path.GetDirectoryName(filePath)
         Dim logFile As String = IO.Path.Combine(dwgFolder, "DwgCleaner.txt")
-        sw = New IO.StreamWriter(logFile, True)
+        sw = New IO.StreamWriter(logFile, False)
         sw.AutoFlush = True
         ' --- Проверка: Файлът трябва да е в папка "документация" ---
         If filePath.IndexOf("документация", StringComparison.OrdinalIgnoreCase) = -1 Then
@@ -61,34 +61,26 @@ Public Class DwgCleaner
             ' ===============================
             ' СТЪПКА 4: Native BURST (разбиване на блокове)
             ' ===============================
+            sw.WriteLine("4: Native BURST (разбиване на блокове) ...")
             NativeBurst(doc)
             ExplodeAllArrays(doc)
             NativeBurst(doc)
-            '' ===============================
+            ' ===============================
             ' СТЪПКА 4a: Bind на всички Xref-и
             ' ===============================
+            sw.WriteLine("4a: Bind на всички Xref-и ...")
             ed.Command("-XREF", "_BIND", "*", "")
             ed.Command("-XREF", "_Detach", "*", "")
-            'BindAllXrefs(db, ed)
             ' ===============================
             ' СТЪПКА 5: OVERKILL (оптимизация на геометрията)
             ' ===============================
-            sw.WriteLine("5. Изпълнение на OVERKILL...")
+            sw.WriteLine("5.  на OVERKILL...")
             Try
                 ' Избираме всичко и изпълняваме Overkill
                 ed.Command("-OVERKILL", "_All", "", "")
                 sw.WriteLine("Overkill приключи.")
             Catch ex As System.Exception
                 sw.WriteLine("(!) OVERKILL грешка: " & ex.Message)
-            End Try
-            ' ===============================
-            ' СТЪПКА 6: AUDIT (проверка и поправка на базата данни)
-            ' ===============================
-            sw.WriteLine("6. Проверка на файла (Audit)...")
-            Try
-                ed.Command("._AUDIT", "_Yes")
-            Catch
-                sw.WriteLine("(!) Грешка при Audit.")
             End Try
             ' ===============================
             ' СТЪПКА 7: PURGE (пълно почистване на неизползвани елементи)
@@ -105,10 +97,6 @@ Public Class DwgCleaner
             ' ===============================
             db.SaveAs(db.Filename, True, DwgVersion.Current, Nothing)
             sw.WriteLine("8. Файлът е успешно записан.")
-            ' ===============================
-            ' СТЪПКА 9: Финален изглед на чертежа
-            ' ===============================
-            ed.Command("_.ZOOM", "_E")
             ' Крайно съобщение за успешна процедура
             sw.WriteLine("--- [УСПЕХ] Процедурата 'DwgCleaner' приключи! ---")
         Catch ex As System.Exception
@@ -155,7 +143,14 @@ Public Class DwgCleaner
             ' Отваряме текущото пространство за писане (ModelSpace или PaperSpace)
             Dim btrCurrent As BlockTableRecord = tr.GetObject(db.CurrentSpaceId, OpenMode.ForWrite)
             ' Създаваме филтър за селекция само на блокови референции (INSERT)
-            Dim filter As New SelectionFilter({New TypedValue(0, "INSERT")})
+            'Dim filter As New SelectionFilter({New TypedValue(0, "INSERT")},
+            '                                  {New TypedValue(CInt(DxfCode.LayerName), "EL*")})
+
+            Dim filter As New SelectionFilter({
+                                  New TypedValue(0, "INSERT"),
+                                  New TypedValue(CInt(DxfCode.LayerName), "EL*")
+                                              })
+
             Dim selRes As PromptSelectionResult = ed.SelectAll(filter)
             ' Ако има блокове за обработка
             If selRes.Status = PromptStatus.OK Then
@@ -167,8 +162,7 @@ Public Class DwgCleaner
                     ' --- НОВАТА ПРОВЕРКА ТУК ---
                     ' Вземаме името на блока (поддържа и динамични блокове)
                     Dim blockName As String = If(br.IsDynamicBlock,
-                    DirectCast(tr.GetObject(br.DynamicBlockTableRecord, OpenMode.ForRead), BlockTableRecord).Name,
-                    br.Name)
+                        DirectCast(tr.GetObject(br.DynamicBlockTableRecord, OpenMode.ForRead), BlockTableRecord).Name, br.Name)
                     ' Ако името е в списъка, прескачаме този блок
                     If protectedBlocks.Contains(blockName) Then
                         Continue For
@@ -592,21 +586,6 @@ Public Class DwgCleaner
     ''' </summary>
     ''' <param name="logFilePath">Пълен път до лог файла</param>
     ''' <param name="message">Съобщението за запис</param>
-    Public Sub WriteLog(ByVal logFilePath As String, ByVal message As String)
-        Try
-            ' Създаваме директорията, ако не съществува
-            Dim dir = IO.Path.GetDirectoryName(logFilePath)
-            If Not IO.Directory.Exists(dir) Then
-                IO.Directory.CreateDirectory(dir)
-            End If
-            ' Форматираме ред с timestamp
-            Dim line As String = String.Format("{0:yyyy-MM-dd HH:mm:ss} | {1}", DateTime.Now, message)
-            ' Записваме веднага в края на файла (append)
-            Using sw As New IO.StreamWriter(logFilePath, True)
-                sw.WriteLine(line)
-            End Using
-        Catch ex As Exception
-            ' Ако не успее да пише, просто игнорира (не спира програмата)
-        End Try
-    End Sub
+
+
 End Class

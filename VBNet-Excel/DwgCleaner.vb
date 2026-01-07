@@ -135,16 +135,10 @@ Public Class DwgCleaner
         "s_vigi_res",
         "Мълниезащита вертикално"
         }
-        ' Вземаме базата данни и редактора на текущия документ
-        'Dim db As Database = doc.Database
-        'Dim ed As Editor = doc.Editor
         ' Създаваме транзакция за безопасна работа с обекти
         Using tr As Transaction = db.TransactionManager.StartTransaction()
             ' Отваряме текущото пространство за писане (ModelSpace или PaperSpace)
             Dim btrCurrent As BlockTableRecord = tr.GetObject(db.CurrentSpaceId, OpenMode.ForWrite)
-            ' Създаваме филтър за селекция само на блокови референции (INSERT)
-            'Dim filter As New SelectionFilter({New TypedValue(0, "INSERT")},
-            '                                  {New TypedValue(CInt(DxfCode.LayerName), "EL*")})
 
             Dim filter As New SelectionFilter({
                                   New TypedValue(0, "INSERT"),
@@ -334,7 +328,7 @@ Public Class DwgCleaner
     ''' </summary>
     ''' <param name="doc">Текущият AutoCAD документ</param>
     ''' <param name="targetName">Името на блока, чийто атрибути ще бъдат изчистени (пример: "Качване")</param>
-    Private Sub ClearAttributesInDynamicBlocks(doc As Database, targetName As String)
+    Private Sub ClearAttributesInDynamicBlocks(db As Database, targetName As String)
         ' Вземаме базата данни и редактора на текущия документ
         'Dim db As Database = doc.Database
         'Dim ed As Editor = doc.Editor
@@ -450,6 +444,7 @@ Public Class DwgCleaner
                 })
                 ' Избираме всички обекти в чертежа, които отговарят на филтъра
                 Dim selRes As PromptSelectionResult = ed.SelectAll(filter)
+
                 If selRes.Status = PromptStatus.OK Then
                     ' Търсена уникална фраза в текстовете
                     Dim searchPhrase As String =
@@ -457,7 +452,6 @@ Public Class DwgCleaner
                     ' Обхождаме всички намерени обекти
                     For Each id As ObjectId In selRes.Value.GetObjectIds()
                         Dim ent As Entity = tr.GetObject(id, OpenMode.ForRead)
-
                         ' === 1. Обработка на текстове (MText и DBText) ===
                         If TypeOf ent Is MText OrElse TypeOf ent Is DBText Then
                             ' Извличаме съдържанието според типа текст
@@ -492,7 +486,6 @@ Public Class DwgCleaner
                         If attRef.Tag.ToUpper() = "H" Then valH = attRef.TextString
                         If attRef.Tag.ToUpper() = "RA" Then valRa = attRef.TextString
                     Next
-
                     ' Четене на динамичните параметри (ако блокът е динамичен)
                     If brMyl.IsDynamicBlock Then
                         For Each prop As DynamicBlockReferenceProperty _
@@ -502,7 +495,6 @@ Public Class DwgCleaner
                         Next
                     End If
                 End If
-
                 ' === 4. Замяна на стария текст с нов ===
                 If mylniqTextIds.Count > 0 Then
                     ' Отваряме стария текст за редакция

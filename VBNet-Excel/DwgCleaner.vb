@@ -440,43 +440,37 @@ Public Class DwgCleaner
         Dim valRa As String = ""
         Try
             Using tr As Transaction = db.TransactionManager.StartTransaction()
-                ' Създаваме филтър за INSERT (блокове), MTEXT и TEXT
-                Dim filter As New SelectionFilter({
-                    New TypedValue(0, "INSERT,MTEXT,TEXT")
-                })
-                ' Избираме всички обекти в чертежа, които отговарят на филтъра
-                Dim selRes As PromptSelectionResult = ed.SelectAll(filter)
+                ' Взимаме ModelSpace (или текущото пространство)
+                Dim btrCurrent As BlockTableRecord = tr.GetObject(db.CurrentSpaceId, OpenMode.ForRead)
 
-                If selRes.Status = PromptStatus.OK Then
-                    ' Търсена уникална фраза в текстовете
-                    Dim searchPhrase As String =
-                        "За защита от мълнии да се монтира мълниеприемник с изпреварващо действие"
-                    ' Обхождаме всички намерени обекти
-                    For Each id As ObjectId In selRes.Value.GetObjectIds()
-                        Dim ent As Entity = tr.GetObject(id, OpenMode.ForRead)
-                        ' === 1. Обработка на текстове (MText и DBText) ===
-                        If TypeOf ent Is MText OrElse TypeOf ent Is DBText Then
-                            ' Извличаме съдържанието според типа текст
-                            Dim content As String = If(TypeOf ent Is MText,
-                                DirectCast(ent, MText).Contents,
-                                DirectCast(ent, DBText).TextString)
-                            ' Ако текстът съдържа търсената фраза, запомняме ID-то
-                            If content.IndexOf(searchPhrase, StringComparison.OrdinalIgnoreCase) >= 0 Then
-                                mylniqTextIds.Add(id)
-                            End If
-                            ' === 2. Обработка на блокове ===
-                        ElseIf TypeOf ent Is BlockReference Then
-                            Dim br As BlockReference = DirectCast(ent, BlockReference)
-                            Dim btr As BlockTableRecord =
-                                tr.GetObject(br.DynamicBlockTableRecord, OpenMode.ForRead)
-                            ' Проверяваме името на блока
-                            If btr.Name.Trim().Equals("Мълниезащита вертикално",
-                                                       StringComparison.OrdinalIgnoreCase) Then
-                                mylniqBlockIds.Add(id)
-                            End If
+                ' Обхождаме всички обекти
+                For Each id As ObjectId In btrCurrent
+                    If id.IsErased Then Continue For
+                    Dim ent As Entity = TryCast(tr.GetObject(id, OpenMode.ForRead), Entity)
+                    If ent Is Nothing Then Continue For
+                    ' --- Точен текст ---
+                    If TypeOf ent Is MText OrElse TypeOf ent Is DBText Then
+                        Dim content As String = If(TypeOf ent Is MText,
+                                                   DirectCast(ent, MText).Contents,
+                                                   DirectCast(ent, DBText).TextString)
+
+                        ' Търсим **точната фраза**
+                        If content.IndexOf("За защита от мълнии да се монтира мълниеприемник с изпреварващо действие", StringComparison.OrdinalIgnoreCase) >= 0 Then
+                            mylniqTextIds.Add(id)
                         End If
-                    Next
-                End If
+                        ' --- Точен блок ---
+                    ElseIf TypeOf ent Is BlockReference Then
+                        Dim br As BlockReference = DirectCast(ent, BlockReference)
+                        Dim btr As BlockTableRecord = TryCast(tr.GetObject(br.DynamicBlockTableRecord, OpenMode.ForRead), BlockTableRecord)
+
+                        ' Пропускаме Xref
+                        If btr.IsFromExternalReference AndAlso Not btr.IsUnloaded Then Continue For
+                        ' Търсим **точния блок**
+                        If btr.Name.Trim().Equals("Мълниезащита вертикално", StringComparison.OrdinalIgnoreCase) Then
+                            mylniqBlockIds.Add(id)
+                        End If
+                    End If
+                Next
                 ' === 3. Извличане на атрибути и динамични параметри от блока ===
                 If mylniqBlockIds.Count > 0 Then
                     Dim brMyl As BlockReference =

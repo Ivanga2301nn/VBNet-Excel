@@ -34,16 +34,16 @@ Public Class DwgCleaner
         Dim filePath As String = db.Filename
         Dim dwgFolder As String = IO.Path.GetDirectoryName(filePath)
         Dim logFile As String = IO.Path.Combine(dwgFolder, "DwgCleaner.txt")
-        sw = New IO.StreamWriter(logFile, False)
+        Dim sw = New IO.StreamWriter(logFile, False)
         sw.AutoFlush = True
         ' --- Проверка: Файлът трябва да е в папка "документация" ---
         If filePath.IndexOf("документация", StringComparison.OrdinalIgnoreCase) = -1 Then
+            ' Ако не е там, пускаме BatchCleaner за масова обработка
+            ReadAndProcessFiles(dwgFolder)
+        Else
             sw.WriteLine("ОТКАЗ: Командата е разрешена само за файлове в папка 'документация'!")
             ' Ако е в папката, пускаме RunCleaner за единичен файл
             RunCleaner(filePath)
-        Else
-            ' Ако не е там, пускаме BatchCleaner за масова обработка
-            BatchCleaner(filePath)
         End If
     End Sub
     Public Sub RunCleaner(filePath As String)
@@ -53,8 +53,6 @@ Public Class DwgCleaner
         'Dim filePath As String = db.Filename
         Dim dwgFolder As String = IO.Path.GetDirectoryName(filePath)
         Dim logFile As String = IO.Path.Combine(dwgFolder, "DwgCleaner.txt")
-        sw = New IO.StreamWriter(logFile, False)
-        sw.AutoFlush = True
         ' --- Проверка: Файлът трябва да е в папка "документация" ---
         If filePath.IndexOf("документация", StringComparison.OrdinalIgnoreCase) = -1 Then
             sw.WriteLine("ОТКАЗ: Командата е разрешена само за файлове в папка 'документация'!")
@@ -289,8 +287,6 @@ Public Class DwgCleaner
                 Next
                 ' Потвърждаваме транзакцията
                 tr.Commit()
-                ' Записваме файла след изтриването на листовете
-                db.SaveAs(db.Filename, True, DwgVersion.Current, Nothing)
                 ' Извеждаме съобщение с броя изтрити Layout-и
                 sw.WriteLine("Изтрити листове: " & deletedCount & ". Файлът е записан.")
             Else
@@ -339,7 +335,6 @@ Public Class DwgCleaner
             tr.Commit()
             ' Ако има изтрити обекти, записваме документа и извеждаме съобщение
             If deletedCount > 0 Then
-                db.SaveAs(db.Filename, True, DwgVersion.Current, Nothing)
                 sw.WriteLine("Изтрити обекти от Model Space: " & deletedCount & ". Файлът е записан.")
             End If
         End Using

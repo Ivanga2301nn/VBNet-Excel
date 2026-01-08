@@ -30,7 +30,7 @@ Public Class DwgCleaner
         ' Вземаме текущия активен документ
         Dim doc As Document = Application.DocumentManager.MdiActiveDocument
         Dim db As Database = doc.Database
-        Dim ed As Editor = doc.Editor
+        'Dim ed As Editor = doc.Editor
         Dim filePath As String = db.Filename
         Dim dwgFolder As String = IO.Path.GetDirectoryName(filePath)
         Dim logFile As String = IO.Path.Combine(dwgFolder, "DwgCleaner.txt")
@@ -75,14 +75,14 @@ Public Class DwgCleaner
             ' ===============================
             ' СТЪПКА 5: OVERKILL (оптимизация на геометрията)
             ' ===============================
-            sw.WriteLine("5.  на OVERKILL...")
-            Try
-                ' Избираме всичко и изпълняваме Overkill
-                ed.Command("-OVERKILL", "_All", "", "")
-                sw.WriteLine("Overkill приключи.")
-            Catch ex As System.Exception
-                sw.WriteLine("(!) OVERKILL грешка: " & ex.Message)
-            End Try
+            'sw.WriteLine("5.  на OVERKILL...")
+            'Try
+            '    ' Избираме всичко и изпълняваме Overkill
+            '    ed.Command("-OVERKILL", "_All", "", "")
+            '    sw.WriteLine("Overkill приключи.")
+            'Catch ex As System.Exception
+            '    sw.WriteLine("(!) OVERKILL грешка: " & ex.Message)
+            'End Try
             ' ===============================
             ' СТЪПКА 7: PURGE (пълно почистване на неизползвани елементи)
             ' ===============================
@@ -540,32 +540,6 @@ Public Class DwgCleaner
         Catch ex As Exception
             ' Изписване на грешка в командния ред
             sw.WriteLine("Грешка в FindMylniq: " & ex.Message)
-        End Try
-    End Sub
-    ''' <summary>
-    ''' Вгражда (Bind) всички външни референции (Xref) в текущия чертеж.
-    ''' </summary>
-    ''' <param name="db">Текущата база данни (Database) на чертежа.</param>
-    ''' <param name="ed">Editor за извеждане на съобщения в командния ред.</param>
-    Private Sub BindAllXrefs(ByVal db As Database,
-                             ByVal ed As Editor)
-        sw.WriteLine("4a. Вграждане на всички Xref-и (BIND)...")
-        Try
-            ' Отваряме BlockTable
-            Using bt As BlockTable = db.BlockTableId.GetObject(OpenMode.ForRead)
-                For Each btrId As ObjectId In bt
-                    Using btr As BlockTableRecord = btrId.GetObject(OpenMode.ForRead)
-                        ' Проверка дали BlockTableRecord е Xref
-                        If btr.IsFromExternalReference Then
-                            ' Изпълняваме BIND чрез командния ред
-                            ed.Command("-XREF", "BIND", "*", "")
-                            sw.WriteLine(" - Xref '" & btr.Name & "' е вграден.")
-                        End If
-                    End Using
-                Next
-            End Using
-        Catch ex As System.Exception
-            sw.WriteLine("(!) Грешка при BIND: " & ex.Message)
         End Try
     End Sub
     ''' <summary>

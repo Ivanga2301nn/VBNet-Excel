@@ -26,12 +26,31 @@ Public Class DwgCleaner
     ''' </summary>
     <CommandMethod("DwgCleaner")>
     <CommandMethod("ДВГСЛЕАНЕР")>
-    Public Sub RunCleaner()
+    Public Sub ProcessFile()
         ' Вземаме текущия активен документ
         Dim doc As Document = Application.DocumentManager.MdiActiveDocument
         Dim db As Database = doc.Database
         'Dim ed As Editor = doc.Editor
         Dim filePath As String = db.Filename
+        Dim dwgFolder As String = IO.Path.GetDirectoryName(filePath)
+        Dim logFile As String = IO.Path.Combine(dwgFolder, "DwgCleaner.txt")
+        sw = New IO.StreamWriter(logFile, False)
+        sw.AutoFlush = True
+        ' --- Проверка: Файлът трябва да е в папка "документация" ---
+        If filePath.IndexOf("документация", StringComparison.OrdinalIgnoreCase) = -1 Then
+            sw.WriteLine("ОТКАЗ: Командата е разрешена само за файлове в папка 'документация'!")
+            ' Ако е в папката, пускаме RunCleaner за единичен файл
+            RunCleaner(filePath)
+        Else
+            ' Ако не е там, пускаме BatchCleaner за масова обработка
+            BatchCleaner(filePath)
+        End If
+    End Sub
+    Public Sub RunCleaner(filePath As String)
+        ' Вземаме текущия активен документ
+        Dim doc As Document = Application.DocumentManager.MdiActiveDocument
+        Dim db As Database = doc.Database
+        'Dim filePath As String = db.Filename
         Dim dwgFolder As String = IO.Path.GetDirectoryName(filePath)
         Dim logFile As String = IO.Path.Combine(dwgFolder, "DwgCleaner.txt")
         sw = New IO.StreamWriter(logFile, False)
@@ -623,4 +642,12 @@ Public Class DwgCleaner
             End Try
         End If
     End Sub
+
+    Private Sub BatchCleaner(filePath As String)
+
+    End Sub
+
+
+
+
 End Class

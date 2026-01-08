@@ -642,12 +642,57 @@ Public Class DwgCleaner
             End Try
         End If
     End Sub
-
-    Private Sub BatchCleaner(filePath As String)
-
+    Public Sub BatchCleaner(filePath As String)
+        ' 1. Определяне и създаване на папка "Документация"
+        Dim currentDirectory As String = IO.Path.GetDirectoryName(filePath)
+        Dim docFolder As String = IO.Path.Combine(currentDirectory, "Документация")
+        If Not IO.Directory.Exists(docFolder) Then
+            IO.Directory.CreateDirectory(docFolder)
+        End If
+        ' Път за запис на новия файл
+        ' 2. Работа с базата данни на чертежа
+        ' Използваме Side-Database (False, True) за работа без отваряне на чертежа на екран
+        Using db As New Database(False, True)
+            ' Прочитане на файла
+            db.ReadDwgFile(filePath, FileOpenMode.OpenForReadAndWriteNoShare, True, "")
+            ' Важно за стабилност при Side-Database операции
+            Dim oldDb As Database = HostApplicationServices.WorkingDatabase
+            HostApplicationServices.WorkingDatabase = db
+            Using tr As Transaction = db.TransactionManager.StartTransaction()
+                ' --- Твоите под-процедури за обработка ---
+                DeleteSettingsLayouts(db)
+                WipeModelSpaceByArea(db)
+                ClearAttributesInDynamicBlocks(db, "Качване")
+                NativeBurst(db)
+                ExplodeAllArrays(db)
+                NativeBurst(db)
+                NativePurge(db)
+                tr.Commit()
+            End Using
+            ' Връщаме старата работна база данни
+            HostApplicationServices.WorkingDatabase = oldDb
+            ' 3. Запис в папката "Документация"
+            ' Път за запис на новия файл
+            Dim newFileName As String = IO.Path.Combine(docFolder, IO.Path.GetFileName(filePath))
+            db.SaveAs(newFileName, DwgVersion.Current)
+        End Using
     End Sub
-
-
-
-
+    Public Sub ReadAndProcessFiles(folderPath As String)
+        ' Взимаме списък с всички DWG файлове в текущата папка
+        Dim dwgFiles() As String = IO.Directory.GetFiles(folderPath, "*.dwg")
+        ' Брояч за успешно обработени файлове
+        Dim successCount As Integer = 0
+        For Each filePath In dwgFiles
+            Try
+                ' Извикваме основния почистващ механизъм
+                BatchCleaner(filePath)
+                successCount += 1
+            Catch ex As Exception
+                ' Ако даден файл е зает (например отворения в момента), 
+                ' той ще бъде прескочен и ще продължи със следващия.
+                Debug.Print("Грешка при файл " & filePath & ": " & ex.Message)
+            End Try
+        Next
+        MsgBox($"Обработката завърши! Успешно обработени: {successCount} от {dwgFiles.Length} файла.")
+    End Sub
 End Class

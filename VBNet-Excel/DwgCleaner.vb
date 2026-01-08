@@ -423,234 +423,128 @@ Public Class DwgCleaner
         End Using
         sw.WriteLine("Всички масиви са разбити успешно (BlockReference запазени).")
     End Sub
-    '''' <summary>
-    '''' Търси в текущия чертеж текстове и блокове, свързани с мълниезащита.
-    '''' При намиране на конкретен текст го заменя с нов MText,
-    '''' като използва параметри и атрибути от съответния блок „Мълниезащита вертикално“.
-    '''' </summary>
-    '''' <param name="doc">Текущият AutoCAD документ</param>
-    'Private Sub FindMylniq(db As Database)
-    '    ' Списъци за съхранение на намерените обекти (ID-та)
-    '    Dim mylniqTextIds As New List(Of ObjectId)
-    '    Dim mylniqBlockIds As New List(Of ObjectId)
-    '    ' Променливи за стойности, извлечени от блока
-    '    Dim valTip As String = ""
-    '    Dim valH As String = ""
-    '    Dim valKategoria As String = ""
-    '    Dim valRa As String = ""
-    '    Try
-    '        Using tr As Transaction = db.TransactionManager.StartTransaction()
-    '            ' Създаваме филтър за INSERT (блокове), MTEXT и TEXT
-    '            Dim filter As New SelectionFilter({
-    '                New TypedValue(0, "INSERT,MTEXT,TEXT")
-    '            })
-    '            ' Избираме всички обекти в чертежа, които отговарят на филтъра
-    '            Dim selRes As PromptSelectionResult = ed.SelectAll(filter)
-
-    '            If selRes.Status = PromptStatus.OK Then
-    '                ' Търсена уникална фраза в текстовете
-    '                Dim searchPhrase As String =
-    '                    "За защита от мълнии да се монтира мълниеприемник с изпреварващо действие"
-    '                ' Обхождаме всички намерени обекти
-    '                For Each id As ObjectId In selRes.Value.GetObjectIds()
-    '                    Dim ent As Entity = tr.GetObject(id, OpenMode.ForRead)
-    '                    ' === 1. Обработка на текстове (MText и DBText) ===
-    '                    If TypeOf ent Is MText OrElse TypeOf ent Is DBText Then
-    '                        ' Извличаме съдържанието според типа текст
-    '                        Dim content As String = If(TypeOf ent Is MText,
-    '                            DirectCast(ent, MText).Contents,
-    '                            DirectCast(ent, DBText).TextString)
-    '                        ' Ако текстът съдържа търсената фраза, запомняме ID-то
-    '                        If content.IndexOf(searchPhrase, StringComparison.OrdinalIgnoreCase) >= 0 Then
-    '                            mylniqTextIds.Add(id)
-    '                        End If
-    '                        ' === 2. Обработка на блокове ===
-    '                    ElseIf TypeOf ent Is BlockReference Then
-    '                        Dim br As BlockReference = DirectCast(ent, BlockReference)
-    '                        Dim btr As BlockTableRecord =
-    '                            tr.GetObject(br.DynamicBlockTableRecord, OpenMode.ForRead)
-    '                        ' Проверяваме името на блока
-    '                        If btr.Name.Trim().Equals("Мълниезащита вертикално",
-    '                                                   StringComparison.OrdinalIgnoreCase) Then
-    '                            mylniqBlockIds.Add(id)
-    '                        End If
-    '                    End If
-    '                Next
-    '            End If
-    '            ' === 3. Извличане на атрибути и динамични параметри от блока ===
-    '            If mylniqBlockIds.Count > 0 Then
-    '                Dim brMyl As BlockReference =
-    '                    tr.GetObject(mylniqBlockIds(0), OpenMode.ForRead)
-    '                ' Четене на атрибутите H и RA
-    '                For Each attId As ObjectId In brMyl.AttributeCollection
-    '                    Dim attRef As AttributeReference =
-    '                        tr.GetObject(attId, OpenMode.ForRead)
-    '                    If attRef.Tag.ToUpper() = "H" Then valH = attRef.TextString
-    '                    If attRef.Tag.ToUpper() = "RA" Then valRa = attRef.TextString
-    '                Next
-    '                ' Четене на динамичните параметри (ако блокът е динамичен)
-    '                If brMyl.IsDynamicBlock Then
-    '                    For Each prop As DynamicBlockReferenceProperty _
-    '                        In brMyl.DynamicBlockReferencePropertyCollection
-    '                        If prop.PropertyName.ToUpper() = "КАТЕГОРИЯ" Then valKategoria = prop.Value.ToString()
-    '                        If prop.PropertyName.ToUpper() = "ТИП" Then valTip = prop.Value.ToString()
-    '                    Next
-    '                End If
-    '            End If
-    '            ' === 4. Замяна на стария текст с нов ===
-    '            If mylniqTextIds.Count > 0 Then
-    '                ' Отваряме стария текст за редакция
-    '                Using oldEnt As Entity =
-    '                    tr.GetObject(mylniqTextIds(0), OpenMode.ForWrite)
-    '                    Dim oldMt As MText = TryCast(oldEnt, MText)
-    '                    If oldMt IsNot Nothing Then
-    '                        ' А. Запазваме параметрите на стария текст
-    '                        Dim layer As String = oldMt.Layer
-    '                        Dim position As Point3d = oldMt.Location
-    '                        Dim textStyle As ObjectId = oldMt.TextStyleId
-    '                        Dim textHeight As Double = oldMt.TextHeight
-    '                        ' Б. Създаваме нов MText със същите параметри
-    '                        Dim newMt As New MText()
-    '                        newMt.Layer = layer
-    '                        newMt.Location = position
-    '                        newMt.TextStyleId = textStyle
-    '                        newMt.TextHeight = textHeight
-    '                        ' В. Сглобяване на финалния текст
-    '                        Dim finalText As String =
-    '                            "{\LЗабележки:\P}" &
-    '                            "       1. За защита от мълнии да се монтира мълниеприемник с изпреварващо действие PREVECTRON®3, Millenium модел " & valTip & ", или подобен.\P" &
-    '                            "       2. Фактическата височина на монтажа на мълниеприемника h над повърхнината, която трябва да бъде защитавана да бъде " & valH & " m.\P" &
-    '                            "       3. За присъединяване на мълниеприемника към мълниезащитния прът да се използва детайл съгласно спецификация на производителя.\P" &
-    '                            "       4. Радиус на защита за ниво на защита " & valKategoria & "при h(m) = " & valH & " m е Rз = " & valRa & " m\P" &
-    '                            "       5. Мълниезащитните отводи да се изпълнят от екструдиран проводник Ф8мм.\P" &
-    '                            "       6. Минимален радиус на огъване на мълниезащитните отводи R 200.\P" &
-    '                            "       7. Токоотвода да се постави на вертикална противопожарна ивица с ширина 0,50m, с клас по реакция на огън А2."
-
-    '                        newMt.Contents = finalText
-    '                        newMt.Width = 0
-    '                        ' Г. Добавяме новия текст в чертежа
-    '                        Dim btr As BlockTableRecord =
-    '                            tr.GetObject(oldMt.OwnerId, OpenMode.ForWrite)
-    '                        btr.AppendEntity(newMt)
-    '                        tr.AddNewlyCreatedDBObject(newMt, True)
-    '                        ' Д. Изтриваме стария текст
-    '                        oldMt.Erase(True)
-    '                        ' Потвърждаваме промените
-    '                        tr.Commit()
-    '                        ' Обновяваме екрана
-    '                        Application.DocumentManager.MdiActiveDocument.Editor.Regen()
-    '                    End If
-    '                End Using
-    '            End If
-    '        End Using
-    '    Catch ex As Exception
-    '        ' Изписване на грешка в командния ред
-    '        sw.WriteLine("Грешка в FindMylniq: " & ex.Message)
-    '    End Try
-    'End Sub
-
     ''' <summary>
-    ''' Търси в текущия DWG текстове и блокове, свързани с мълниезащита.
-    ''' При намиране на съответния текст, създава нов MText с детайлна информация,
-    ''' използвайки атрибутите и динамичните свойства на блока "Мълниезащита вертикално".
-    ''' Работи директно с Database, без да използва Editor.
+    ''' Търси в текущия чертеж текстове и блокове, свързани с мълниезащита.
+    ''' При намиране на конкретен текст го заменя с нов MText,
+    ''' като използва параметри и атрибути от съответния блок „Мълниезащита вертикално“.
     ''' </summary>
-    ''' <param name="db">Обект Database на активния DWG файл</param>
+    ''' <param name="doc">Текущият AutoCAD документ</param>
     Private Sub FindMylniq(db As Database)
-        ' Списъци за съхранение на ObjectId-та на намерените текстове и блокове
+        ' Списъци за съхранение на намерените обекти (ID-та)
         Dim mylniqTextIds As New List(Of ObjectId)
         Dim mylniqBlockIds As New List(Of ObjectId)
-        ' Променливи за извлечените атрибути/параметри от блока
+        ' Променливи за стойности, извлечени от блока
         Dim valTip As String = ""
         Dim valH As String = ""
         Dim valKategoria As String = ""
         Dim valRa As String = ""
         Try
-            ' Стартираме транзакция за работа с DWG обекти
             Using tr As Transaction = db.TransactionManager.StartTransaction()
-                ' Взимаме таблицата с блокове
-                Dim bt As BlockTable = tr.GetObject(db.BlockTableId, OpenMode.ForRead)
-                ' Взимаме ModelSpace (основната област с геометрия)
-                Dim btrModel As BlockTableRecord = tr.GetObject(bt(BlockTableRecord.ModelSpace), OpenMode.ForRead)
-                ' === 1. Обхождаме всички обекти в ModelSpace ===
-                For Each id As ObjectId In btrModel
-                    ' Опитваме се да вземем обекта като Entity
-                    Dim ent As Entity = TryCast(tr.GetObject(id, OpenMode.ForRead), Entity)
-                    If ent Is Nothing Then Continue For
-                    ' === 2. Обработка на текстове (MText и DBText) ===
-                    If TypeOf ent Is MText OrElse TypeOf ent Is DBText Then
-                        ' Вземаме съдържанието на текста
-                        Dim content As String = If(TypeOf ent Is MText,
-                                               DirectCast(ent, MText).Contents,
-                                               DirectCast(ent, DBText).TextString)
-                        ' Фразата, която търсим
-                        Dim searchPhrase As String = "За защита от мълнии да се монтира мълниеприемник с изпреварващо действие"
-                        ' Ако текстът съдържа тази фраза, добавяме ObjectId в списъка
-                        If content.IndexOf(searchPhrase, StringComparison.OrdinalIgnoreCase) >= 0 Then
-                            mylniqTextIds.Add(id)
+                ' Създаваме филтър за INSERT (блокове), MTEXT и TEXT
+                Dim filter As New SelectionFilter({
+                    New TypedValue(0, "INSERT,MTEXT,TEXT")
+                })
+                ' Избираме всички обекти в чертежа, които отговарят на филтъра
+                Dim selRes As PromptSelectionResult = ed.SelectAll(filter)
+
+                If selRes.Status = PromptStatus.OK Then
+                    ' Търсена уникална фраза в текстовете
+                    Dim searchPhrase As String =
+                        "За защита от мълнии да се монтира мълниеприемник с изпреварващо действие"
+                    ' Обхождаме всички намерени обекти
+                    For Each id As ObjectId In selRes.Value.GetObjectIds()
+                        Dim ent As Entity = tr.GetObject(id, OpenMode.ForRead)
+                        ' === 1. Обработка на текстове (MText и DBText) ===
+                        If TypeOf ent Is MText OrElse TypeOf ent Is DBText Then
+                            ' Извличаме съдържанието според типа текст
+                            Dim content As String = If(TypeOf ent Is MText,
+                                DirectCast(ent, MText).Contents,
+                                DirectCast(ent, DBText).TextString)
+                            ' Ако текстът съдържа търсената фраза, запомняме ID-то
+                            If content.IndexOf(searchPhrase, StringComparison.OrdinalIgnoreCase) >= 0 Then
+                                mylniqTextIds.Add(id)
+                            End If
+                            ' === 2. Обработка на блокове ===
+                        ElseIf TypeOf ent Is BlockReference Then
+                            Dim br As BlockReference = DirectCast(ent, BlockReference)
+                            Dim btr As BlockTableRecord =
+                                tr.GetObject(br.DynamicBlockTableRecord, OpenMode.ForRead)
+                            ' Проверяваме името на блока
+                            If btr.Name.Trim().Equals("Мълниезащита вертикално",
+                                                       StringComparison.OrdinalIgnoreCase) Then
+                                mylniqBlockIds.Add(id)
+                            End If
                         End If
-                        ' === 3. Обработка на блокове (BlockReference) ===
-                    ElseIf TypeOf ent Is BlockReference Then
-                        Dim br As BlockReference = DirectCast(ent, BlockReference)
-                        ' Вземаме таблицата с блоковете на този BlockReference
-                        Dim btr As BlockTableRecord = TryCast(tr.GetObject(br.DynamicBlockTableRecord, OpenMode.ForRead), BlockTableRecord)
-                        If btr IsNot Nothing AndAlso btr.Name.Trim().Equals("Мълниезащита вертикално", StringComparison.OrdinalIgnoreCase) Then
-                            ' Добавяме блока в списъка за обработка
-                            mylniqBlockIds.Add(id)
-                        End If
-                    End If
-                Next
-                ' === 4. Извличане на атрибути от първия намерен блок ===
+                    Next
+                End If
+                ' === 3. Извличане на атрибути и динамични параметри от блока ===
                 If mylniqBlockIds.Count > 0 Then
-                    ' Взимаме първия блок от списъка
-                    Dim brMyl As BlockReference = tr.GetObject(mylniqBlockIds(0), OpenMode.ForRead)
-                    ' Обхождаме всички атрибути на блока
+                    Dim brMyl As BlockReference =
+                        tr.GetObject(mylniqBlockIds(0), OpenMode.ForRead)
+                    ' Четене на атрибутите H и RA
                     For Each attId As ObjectId In brMyl.AttributeCollection
-                        Dim attRef As AttributeReference = tr.GetObject(attId, OpenMode.ForRead)
+                        Dim attRef As AttributeReference =
+                            tr.GetObject(attId, OpenMode.ForRead)
                         If attRef.Tag.ToUpper() = "H" Then valH = attRef.TextString
                         If attRef.Tag.ToUpper() = "RA" Then valRa = attRef.TextString
                     Next
-                    ' Ако блокът е динамичен, взимаме параметрите му
+                    ' Четене на динамичните параметри (ако блокът е динамичен)
                     If brMyl.IsDynamicBlock Then
-                        For Each prop As DynamicBlockReferenceProperty In brMyl.DynamicBlockReferencePropertyCollection
+                        For Each prop As DynamicBlockReferenceProperty _
+                            In brMyl.DynamicBlockReferencePropertyCollection
                             If prop.PropertyName.ToUpper() = "КАТЕГОРИЯ" Then valKategoria = prop.Value.ToString()
                             If prop.PropertyName.ToUpper() = "ТИП" Then valTip = prop.Value.ToString()
                         Next
                     End If
-                    ' === 5. Създаване на нов MText с оригиналния текст от GitHub ===
-                    If mylniqTextIds.Count > 0 Then
-                        ' Взимаме стария MText за презаписване
-                        Dim oldMt As MText = TryCast(tr.GetObject(mylniqTextIds(0), OpenMode.ForWrite), MText)
-                        If oldMt IsNot Nothing Then
-                            Dim newMt As New MText()
-                            newMt.Layer = oldMt.Layer
-                            newMt.Location = oldMt.Location
-                            newMt.TextStyleId = oldMt.TextStyleId
-                            newMt.TextHeight = oldMt.TextHeight
-                            ' --- ОРИГИНАЛНИЯТ СТИЛИЗИРАН ТЕКСТ (7 точки) ---
-                            newMt.Contents = "{\LЗабележки:\P}" &
-                                         " 1. За защита от мълнии да се монтира мълниеприемник с изпреварващо действие PREVECTRON®3, Millenium модел " & valTip & ", или подобен.\P" &
-                                         " 2. Фактическата височина на монтажа на мълниеприемника h над повърхнината, която трябва да бъде защитавана да бъде " & valH & " m.\P" &
-                                         " 3. За присъединяване на мълниеприемника към мълниезащитния прът да се използва детайл съгласно спецификация на производителя.\P" &
-                                         " 4. Радиус на защита за ниво на защита " & valKategoria & " при h(m) = " & valH & " m е Rз = " & valRa & " m\P" &
-                                         " 5. Мълниезащитните отводи да се изпълнят от екструдиран проводник Ф8мм.\P" &
-                                         " 6. Минимален радиус на огъване на мълниезащитните отводи R 200.\P" &
-                                         " 7. Токоотвода да се постави на вертикална противопожарна ивица с ширина 0,50m, с клас по реакция на огън А2."
-                            newMt.Width = 0
-                            ' Добавяме новия MText в същия BlockTableRecord
-                            Dim ownerBtr As BlockTableRecord = tr.GetObject(oldMt.OwnerId, OpenMode.ForWrite)
-                            ownerBtr.AppendEntity(newMt)
-                            tr.AddNewlyCreatedDBObject(newMt, True)
-                            ' Изтриваме стария MText
-                            oldMt.Erase(True)
-                        End If
-                    End If
                 End If
-                ' --- 6. Записваме всички промени ---
-                tr.Commit()
+                ' === 4. Замяна на стария текст с нов ===
+                If mylniqTextIds.Count > 0 Then
+                    ' Отваряме стария текст за редакция
+                    Using oldEnt As Entity =
+                        tr.GetObject(mylniqTextIds(0), OpenMode.ForWrite)
+                        Dim oldMt As MText = TryCast(oldEnt, MText)
+                        If oldMt IsNot Nothing Then
+                            ' А. Запазваме параметрите на стария текст
+                            Dim layer As String = oldMt.Layer
+                            Dim position As Point3d = oldMt.Location
+                            Dim textStyle As ObjectId = oldMt.TextStyleId
+                            Dim textHeight As Double = oldMt.TextHeight
+                            ' Б. Създаваме нов MText със същите параметри
+                            Dim newMt As New MText()
+                            newMt.Layer = layer
+                            newMt.Location = position
+                            newMt.TextStyleId = textStyle
+                            newMt.TextHeight = textHeight
+                            ' В. Сглобяване на финалния текст
+                            Dim finalText As String =
+                                "{\LЗабележки:\P}" &
+                                "       1. За защита от мълнии да се монтира мълниеприемник с изпреварващо действие PREVECTRON®3, Millenium модел " & valTip & ", или подобен.\P" &
+                                "       2. Фактическата височина на монтажа на мълниеприемника h над повърхнината, която трябва да бъде защитавана да бъде " & valH & " m.\P" &
+                                "       3. За присъединяване на мълниеприемника към мълниезащитния прът да се използва детайл съгласно спецификация на производителя.\P" &
+                                "       4. Радиус на защита за ниво на защита " & valKategoria & "при h(m) = " & valH & " m е Rз = " & valRa & " m\P" &
+                                "       5. Мълниезащитните отводи да се изпълнят от екструдиран проводник Ф8мм.\P" &
+                                "       6. Минимален радиус на огъване на мълниезащитните отводи R 200.\P" &
+                                "       7. Токоотвода да се постави на вертикална противопожарна ивица с ширина 0,50m, с клас по реакция на огън А2."
+
+                            newMt.Contents = finalText
+                            newMt.Width = 0
+                            ' Г. Добавяме новия текст в чертежа
+                            Dim btr As BlockTableRecord =
+                                tr.GetObject(oldMt.OwnerId, OpenMode.ForWrite)
+                            btr.AppendEntity(newMt)
+                            tr.AddNewlyCreatedDBObject(newMt, True)
+                            ' Д. Изтриваме стария текст
+                            oldMt.Erase(True)
+                            ' Потвърждаваме промените
+                            tr.Commit()
+                            ' Обновяваме екрана
+                            Application.DocumentManager.MdiActiveDocument.Editor.Regen()
+                        End If
+                    End Using
+                End If
             End Using
         Catch ex As Exception
-            ' Логваме грешката
+            ' Изписване на грешка в командния ред
             sw.WriteLine("Грешка в FindMylniq: " & ex.Message)
         End Try
     End Sub

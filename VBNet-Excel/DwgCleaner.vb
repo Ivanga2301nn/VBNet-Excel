@@ -34,7 +34,7 @@ Public Class DwgCleaner
         Dim filePath As String = db.Filename
         Dim dwgFolder As String = IO.Path.GetDirectoryName(filePath)
         Dim logFile As String = IO.Path.Combine(dwgFolder, "DwgCleaner.txt")
-        Dim sw = New IO.StreamWriter(logFile, False)
+        sw = New IO.StreamWriter(logFile, False)
         sw.AutoFlush = True
         ' --- Проверка: Файлът трябва да е в папка "документация" ---
         If filePath.IndexOf("документация", StringComparison.OrdinalIgnoreCase) = -1 Then
@@ -51,13 +51,18 @@ Public Class DwgCleaner
         Dim doc As Document = Application.DocumentManager.MdiActiveDocument
         Dim db As Database = doc.Database
         'Dim filePath As String = db.Filename
-        Dim dwgFolder As String = IO.Path.GetDirectoryName(filePath)
-        Dim logFile As String = IO.Path.Combine(dwgFolder, "DwgCleaner.txt")
+        'Dim dwgFolder As String = IO.Path.GetDirectoryName(filePath)
+        'Dim logFile As String = IO.Path.Combine(dwgFolder, "DwgCleaner.txt")
         ' --- Проверка: Файлът трябва да е в папка "документация" ---
         If filePath.IndexOf("документация", StringComparison.OrdinalIgnoreCase) = -1 Then
             sw.WriteLine("ОТКАЗ: Командата е разрешена само за файлове в папка 'документация'!")
             Return
         End If
+
+        sw.WriteLine("===============================")
+        sw.WriteLine("         ОБРАБОТВАМ ФАЙЛ       ")
+        sw.WriteLine(filePath)
+        sw.WriteLine("===============================")
         Try
             ' ===============================
             ' СТЪПКА 1: Изтриване на листове "настройки"

@@ -646,9 +646,9 @@ Public Class DwgCleaner
         ' 1. Определяне и създаване на папка "Документация"
         Dim currentDirectory As String = IO.Path.GetDirectoryName(filePath)
         Dim docFolder As String = IO.Path.Combine(currentDirectory, "Документация")
-        If Not IO.Directory.Exists(docFolder) Then
-            IO.Directory.CreateDirectory(docFolder)
-        End If
+        'If Not IO.Directory.Exists(docFolder) Then
+        '    IO.Directory.CreateDirectory(docFolder)
+        'End If
         ' Път за запис на новия файл
         ' 2. Работа с базата данни на чертежа
         ' Използваме Side-Database (False, True) за работа без отваряне на чертежа на екран
@@ -690,7 +690,39 @@ Public Class DwgCleaner
             Catch ex As Exception
                 ' Ако даден файл е зает (например отворения в момента), 
                 ' той ще бъде прескочен и ще продължи със следващия.
-                Debug.Print("Грешка при файл " & filePath & ": " & ex.Message)
+                Try
+                    sw.WriteLine("========================================")
+                    sw.WriteLine("Дата/час: " & DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
+                    sw.WriteLine("Файл: " & filePath)
+                    sw.WriteLine("Грешка: " & ex.Message)
+                    ' Източник
+                    sw.WriteLine("Source: " & ex.Source)
+                    ' HResult
+                    sw.WriteLine("HResult: " & ex.HResult)
+                    ' StackTrace
+                    sw.WriteLine("StackTrace: ")
+                    sw.WriteLine(ex.StackTrace)
+                    ' Опит за извличане на реда от StackTrace (първия ред)
+                    Dim lines() As String = ex.StackTrace.Split({vbCrLf}, StringSplitOptions.RemoveEmptyEntries)
+                    If lines.Length > 0 Then
+                        sw.WriteLine("Ред: " & lines(0))
+                    End If
+                    ' InnerException (ако има)
+                    Dim inner As Exception = ex.InnerException
+                    Dim level As Integer = 1
+                    While inner IsNot Nothing
+                        sw.WriteLine($"InnerException ниво {level}: {inner.Message}")
+                        sw.WriteLine($"StackTrace: {inner.StackTrace}")
+                        inner = inner.InnerException
+                        level += 1
+                    End While
+                    sw.WriteLine("========================================")
+                    sw.Flush()
+                Finally
+                    sw.Close()
+                End Try
+                ' За удобство в Debug също
+                Debug.Print($"Грешка при {filePath}: {ex.Message}")
             End Try
         Next
         MsgBox($"Обработката завърши! Успешно обработени: {successCount} от {dwgFiles.Length} файла.")

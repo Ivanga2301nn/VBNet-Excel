@@ -41,7 +41,6 @@ Public Class DwgCleaner
             ' Ако не е там, пускаме BatchCleaner за масова обработка
             ReadAndProcessFiles(dwgFolder)
         Else
-            sw.WriteLine("ОТКАЗ: Командата е разрешена само за файлове в папка 'документация'!")
             ' Ако е в папката, пускаме RunCleaner за единичен файл
             RunCleaner(filePath)
         End If
@@ -58,7 +57,6 @@ Public Class DwgCleaner
             sw.WriteLine("ОТКАЗ: Командата е разрешена само за файлове в папка 'документация'!")
             Return
         End If
-
         sw.WriteLine("===============================")
         sw.WriteLine("         ОБРАБОТВАМ ФАЙЛ       ")
         sw.WriteLine(filePath)
@@ -67,54 +65,37 @@ Public Class DwgCleaner
             ' ===============================
             ' СТЪПКА 1: Изтриване на листове "настройки"
             ' ===============================
-            sw.WriteLine("1. Премахване на излишни листове...")
             DeleteSettingsLayouts(db)
             ' ===============================
             ' СТЪПКА 2: Почистване на обекти в ModelSpace по координати
             ' ===============================
-            sw.WriteLine("2. Почистване на обекти извън работната зона...")
             WipeModelSpaceByArea(db)
             ' ===============================
             ' СТЪПКА 3: Изчистване съдържанието на динамични блокове "Качване"
             ' ===============================
-            sw.WriteLine("3. Изчистване съдържанието на блокове 'Качване'...")
             ClearAttributesInDynamicBlocks(db, "Качване")
+            ' ===============================
+            ' СТЪПКА 4: Изчистване съдържанието на динамични блокове "Качване"
+            ' ===============================
             FindMylniq(db)
             ' ===============================
-            ' СТЪПКА 4: Native BURST (разбиване на блокове)
+            ' СТЪПКА 5: Native BURST (разбиване на блокове)
             ' ===============================
-            sw.WriteLine("4: Native BURST (разбиване на блокове) ...")
+            sw.WriteLine("5: Native BURST (разбиване на блокове) ...")
             NativeBurst(db)
             ExplodeAllArrays(db)
             NativeBurst(db)
             ' ===============================
-            ' СТЪПКА 4a: Bind на всички Xref-и
+            ' СТЪПКА 6: Bind на всички Xref-и
             ' ===============================
-            'sw.WriteLine("4a: Bind на всички Xref-и ...")
-            'ed.Command("-XREF", "_BIND", "*", "")
-            'ed.Command("-XREF", "_Detach", "*", "")
             NativeBind(db)
             ' ===============================
             ' СТЪПКА 5: OVERKILL (оптимизация на геометрията)
             ' ===============================
-            'sw.WriteLine("5.  на OVERKILL...")
-            'Try
-            '    ' Избираме всичко и изпълняваме Overkill
-            '    ed.Command("-OVERKILL", "_All", "", "")
-            '    sw.WriteLine("Overkill приключи.")
-            'Catch ex As System.Exception
-            '    sw.WriteLine("(!) OVERKILL грешка: " & ex.Message)
-            'End Try
+
             ' ===============================
             ' СТЪПКА 7: PURGE (пълно почистване на неизползвани елементи)
             ' ===============================
-            sw.WriteLine("7. Пълно почистване на неизползвани слоеве и блокове...")
-            '' Повтаряме няколко пъти заради вложени зависимости
-            'For i As Integer = 1 To 4
-            '    ed.Command("-PURGE", "_All", "*", "_No")
-            'Next
-            '' Почистваме и RegApps (често източник на тежки файлове)
-            'ed.Command("-PURGE", "_Reg", "*", "_No")
             NativePurge(db)
             ' ===============================
             ' СТЪПКА 8: Финален запис на файла
@@ -122,10 +103,40 @@ Public Class DwgCleaner
             db.SaveAs(db.Filename, True, DwgVersion.Current, Nothing)
             sw.WriteLine("8. Файлът е успешно записан.")
             ' Крайно съобщение за успешна процедура
+            sw.WriteLine("===============================")
+            sw.WriteLine("         ФАЙЛ ОБРАБОТЕН        ")
+            sw.WriteLine(filePath)
+            sw.WriteLine("Дата/час: " & DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
+            sw.WriteLine("===============================")
             sw.WriteLine("--- [УСПЕХ] Процедурата 'DwgCleaner' приключи! ---")
         Catch ex As System.Exception
             ' Грешка в главния цикъл
             sw.WriteLine("Критична грешка в главния цикъл: " & ex.Message)
+            ' Ако даден файл е зает (например отворения в момента), 
+            ' той ще бъде прескочен и ще продължи със следващия.
+            ' Логика за записване на грешката в текстов файл
+            Try
+                Dim logPath As String = "\\MONIKA\Monika\_НАСТРОЙКИ\Нова папка\ErrorLog.txt" ' Увери се, че пътят е правилен
+                ' Използваме 'Using', за да сме сигурни, че файлът се отваря и затваря правилно
+                Using swError As New IO.StreamWriter(logPath, True)
+                    swError.WriteLine("========================================")
+                    swError.WriteLine("Дата/час: " & DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
+                    swError.WriteLine("Файл: " & filePath)
+                    swError.WriteLine("Грешка: " & ex.Message)
+                    swError.WriteLine("Source: " & ex.Source)
+                    swError.WriteLine("HResult: " & ex.HResult.ToString())
+                    swError.WriteLine("StackTrace: ")
+                    swError.WriteLine(ex.StackTrace)
+                    ' Извличане на първия ред от StackTrace (както си го замислил)
+                    Dim lines() As String = ex.StackTrace.Split({vbCrLf}, StringSplitOptions.RemoveEmptyEntries)
+                    If lines.Length > 0 Then
+                        swError.WriteLine("Ред: " & lines(0).Trim())
+                    End If
+                    swError.WriteLine("========================================")
+                End Using
+            Finally
+                sw.Close()
+            End Try
         End Try
         If sw IsNot Nothing Then
             sw.Close()
@@ -141,6 +152,7 @@ Public Class DwgCleaner
     ''' </summary>
     ''' <param name="doc">Текущият AutoCAD документ</param>
     Private Sub NativeBurst(db As Database)
+        sw.WriteLine("5: Native BURST (разбиване на блокове) ...")
         ' 1. Списък с имена на блокове, които НЕ трябва да бъдат разбивани (Skip List)
         Dim protectedBlocks As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase) From {
         "s_c60_circ_break",
@@ -265,9 +277,7 @@ Public Class DwgCleaner
     ''' </summary>
     ''' <param name="doc">Текущият AutoCAD документ</param>
     Private Sub DeleteSettingsLayouts(db As Database)
-        ' Вземаме базата данни и редактора на текущия документ
-        'Dim db As Database = doc.Database
-        'Dim ed As Editor = doc.Editor
+        sw.WriteLine("1. Премахване на излишни листове...")
         ' Създаваме транзакция за безопасна работа с обекти
         Using tr As Transaction = db.TransactionManager.StartTransaction()
             ' Отваряме LayoutDictionary за четене
@@ -305,9 +315,7 @@ Public Class DwgCleaner
     ''' </summary>
     ''' <param name="doc">Текущият AutoCAD документ</param>
     Private Sub WipeModelSpaceByArea(db As Database)
-        ' Вземаме базата данни и редактора на текущия документ
-        'Dim db As Database = doc.Database
-        'Dim ed As Editor = doc.Editor
+        sw.WriteLine("2. Почистване на обекти извън работната зона...")
         ' Създаваме транзакция за безопасна работа с обекти
         Using tr As Transaction = db.TransactionManager.StartTransaction()
             ' Отваряме BlockTable и ModelSpace за четене/писане
@@ -350,9 +358,7 @@ Public Class DwgCleaner
     ''' <param name="doc">Текущият AutoCAD документ</param>
     ''' <param name="targetName">Името на блока, чийто атрибути ще бъдат изчистени (пример: "Качване")</param>
     Private Sub ClearAttributesInDynamicBlocks(db As Database, targetName As String)
-        ' Вземаме базата данни и редактора на текущия документ
-        'Dim db As Database = doc.Database
-        'Dim ed As Editor = doc.Editor
+        sw.WriteLine("3. Изчистване съдържанието на блокове 'Качване'...")
         ' Създаваме транзакция за безопасна работа с обекти
         Using tr As Transaction = db.TransactionManager.StartTransaction()
             ' Вземаме BlockTable и ModelSpace за четене/писане
@@ -397,8 +403,7 @@ Public Class DwgCleaner
     ''' без да пипа реалните блокове и атрибути.
     ''' </summary>
     Public Sub ExplodeAllArrays(db As Database)
-        'Dim db As Database = doc.Database
-        'Dim ed As Editor = doc.Editor
+        sw.WriteLine("6: Разбиване на блокове) ...")
         ' Стартираме транзакция за безопасна работа с обекти
         Using tr As Transaction = db.TransactionManager.StartTransaction()
             Dim bt As BlockTable = CType(tr.GetObject(db.BlockTableId, OpenMode.ForRead), BlockTable)
@@ -449,6 +454,7 @@ Public Class DwgCleaner
     ''' </summary>
     ''' <param name="doc">Текущият AutoCAD документ</param>
     Private Sub FindMylniq(db As Database)
+        sw.WriteLine("3. Изчистване съдържанието на блокове 'МЪЛНИЯ'...")
         ' Списъци за съхранение на намерените обекти (ID-та)
         Dim mylniqTextIds As New List(Of ObjectId)
         Dim mylniqBlockIds As New List(Of ObjectId)
@@ -566,7 +572,9 @@ Public Class DwgCleaner
     ''' </summary>
     Private Sub NativePurge(db As Database)
         Dim changed As Boolean = True
+        sw.WriteLine("7. Пълно почистване на неизползвани слоеве и блокове...")
         ' Въртим цикъла докато спрем да намираме излишни неща (заради вложените зависимости)
+        Dim count As Integer = 0
         While changed
             changed = False
             Using tr As Transaction = db.TransactionManager.StartTransaction()
@@ -611,7 +619,9 @@ Public Class DwgCleaner
                 End If
                 tr.Commit()
             End Using
+            count += 1
         End While
+        sw.WriteLine("ExplodeAllArrays: Обработени " & count & " масива.")
     End Sub
     ''' <summary>
     ''' Вгражда всички Xref-ове като локални блокове (стил Insert).
@@ -646,9 +656,9 @@ Public Class DwgCleaner
         ' 1. Определяне и създаване на папка "Документация"
         Dim currentDirectory As String = IO.Path.GetDirectoryName(filePath)
         Dim docFolder As String = IO.Path.Combine(currentDirectory, "Документация")
-        'If Not IO.Directory.Exists(docFolder) Then
-        '    IO.Directory.CreateDirectory(docFolder)
-        'End If
+        If Not IO.Directory.Exists(docFolder) Then
+            IO.Directory.CreateDirectory(docFolder)
+        End If
         ' Път за запис на новия файл
         ' 2. Работа с базата данни на чертежа
         ' Използваме Side-Database (False, True) за работа без отваряне на чертежа на екран
@@ -659,15 +669,25 @@ Public Class DwgCleaner
             Dim oldDb As Database = HostApplicationServices.WorkingDatabase
             HostApplicationServices.WorkingDatabase = db
             Using tr As Transaction = db.TransactionManager.StartTransaction()
-                ' --- Твоите под-процедури за обработка ---
+                sw.WriteLine("===============================")
+                sw.WriteLine("         ОБРАБОТВАМ ФАЙЛ       ")
+                sw.WriteLine(filePath)
+                sw.WriteLine("Дата/час: " & DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
+                sw.WriteLine("===============================")
                 DeleteSettingsLayouts(db)
                 WipeModelSpaceByArea(db)
                 ClearAttributesInDynamicBlocks(db, "Качване")
+                FindMylniq(db)
                 NativeBurst(db)
                 ExplodeAllArrays(db)
                 NativeBurst(db)
                 NativePurge(db)
                 tr.Commit()
+                sw.WriteLine("===============================")
+                sw.WriteLine("         ФАЙЛ ОБРАБОТЕН        ")
+                sw.WriteLine(filePath)
+                sw.WriteLine("Дата/час: " & DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
+                sw.WriteLine("===============================")
             End Using
             ' Връщаме старата работна база данни
             HostApplicationServices.WorkingDatabase = oldDb
@@ -690,34 +710,26 @@ Public Class DwgCleaner
             Catch ex As Exception
                 ' Ако даден файл е зает (например отворения в момента), 
                 ' той ще бъде прескочен и ще продължи със следващия.
+                ' Логика за записване на грешката в текстов файл
                 Try
-                    sw.WriteLine("========================================")
-                    sw.WriteLine("Дата/час: " & DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
-                    sw.WriteLine("Файл: " & filePath)
-                    sw.WriteLine("Грешка: " & ex.Message)
-                    ' Източник
-                    sw.WriteLine("Source: " & ex.Source)
-                    ' HResult
-                    sw.WriteLine("HResult: " & ex.HResult)
-                    ' StackTrace
-                    sw.WriteLine("StackTrace: ")
-                    sw.WriteLine(ex.StackTrace)
-                    ' Опит за извличане на реда от StackTrace (първия ред)
-                    Dim lines() As String = ex.StackTrace.Split({vbCrLf}, StringSplitOptions.RemoveEmptyEntries)
-                    If lines.Length > 0 Then
-                        sw.WriteLine("Ред: " & lines(0))
-                    End If
-                    ' InnerException (ако има)
-                    Dim inner As Exception = ex.InnerException
-                    Dim level As Integer = 1
-                    While inner IsNot Nothing
-                        sw.WriteLine($"InnerException ниво {level}: {inner.Message}")
-                        sw.WriteLine($"StackTrace: {inner.StackTrace}")
-                        inner = inner.InnerException
-                        level += 1
-                    End While
-                    sw.WriteLine("========================================")
-                    sw.Flush()
+                    Dim logPath As String = "\\MONIKA\Monika\_НАСТРОЙКИ\Нова папка\ErrorLog.txt" ' Увери се, че пътят е правилен
+                    ' Използваме 'Using', за да сме сигурни, че файлът се отваря и затваря правилно
+                    Using swError As New IO.StreamWriter(logPath, True)
+                        swError.WriteLine("========================================")
+                        swError.WriteLine("Дата/час: " & DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
+                        swError.WriteLine("Файл: " & filePath)
+                        swError.WriteLine("Грешка: " & ex.Message)
+                        swError.WriteLine("Source: " & ex.Source)
+                        swError.WriteLine("HResult: " & ex.HResult.ToString())
+                        swError.WriteLine("StackTrace: ")
+                        swError.WriteLine(ex.StackTrace)
+                        ' Извличане на първия ред от StackTrace (както си го замислил)
+                        Dim lines() As String = ex.StackTrace.Split({vbCrLf}, StringSplitOptions.RemoveEmptyEntries)
+                        If lines.Length > 0 Then
+                            swError.WriteLine("Ред: " & lines(0).Trim())
+                        End If
+                        swError.WriteLine("========================================")
+                    End Using
                 Finally
                     sw.Close()
                 End Try

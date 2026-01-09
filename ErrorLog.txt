@@ -1,0 +1,48 @@
+========================================
+Дата/час: 2026-01-08 18:13:24
+Файл: \\MONIKA\Monika\_НАСТРОЙКИ\Нова папка\Block – Копие.dwg
+Грешка: eFilerError
+Source: Acdbmgd
+HResult: -2146233088
+StackTrace: 
+   at Autodesk.AutoCAD.DatabaseServices.Database.SaveAs(String fileName, DwgVersion version)
+   at VBNet_Excel.DwgCleaner.BatchCleaner(String filePath)
+   at VBNet_Excel.DwgCleaner.ReadAndProcessFiles(String folderPath)
+Ред: at Autodesk.AutoCAD.DatabaseServices.Database.SaveAs(String fileName, DwgVersion version)
+========================================
+========================================
+Дата/час: 2026-01-08 18:13:27
+Файл: \\MONIKA\Monika\_НАСТРОЙКИ\Нова папка\Block.dwg
+Грешка: eFileSharingViolation
+Source: Acdbmgd
+HResult: -2146233088
+StackTrace: 
+   at Autodesk.AutoCAD.DatabaseServices.Database.ReadDwgFile(String fileName, FileOpenMode mode, Boolean allowCPConversion, String password)
+   at VBNet_Excel.DwgCleaner.BatchCleaner(String filePath)
+   at VBNet_Excel.DwgCleaner.ReadAndProcessFiles(String folderPath)
+Ред: at Autodesk.AutoCAD.DatabaseServices.Database.ReadDwgFile(String fileName, FileOpenMode mode, Boolean allowCPConversion, String password)
+========================================
+========================================
+Дата/час: 2026-01-08 18:14:15
+Файл: \\MONIKA\Monika\_НАСТРОЙКИ\Нова папка\Block – Копие.dwg
+Грешка: eFilerError
+Source: Acdbmgd
+HResult: -2146233088
+StackTrace: 
+   at Autodesk.AutoCAD.DatabaseServices.Database.SaveAs(String fileName, DwgVersion version)
+   at VBNet_Excel.DwgCleaner.BatchCleaner(String filePath)
+   at VBNet_Excel.DwgCleaner.ReadAndProcessFiles(String folderPath)
+Ред: at Autodesk.AutoCAD.DatabaseServices.Database.SaveAs(String fileName, DwgVersion version)
+========================================
+========================================
+Дата/час: 2026-01-08 18:14:19
+Файл: \\MONIKA\Monika\_НАСТРОЙКИ\Нова папка\Block.dwg
+Грешка: eFileSharingViolation
+Source: Acdbmgd
+HResult: -2146233088
+StackTrace: 
+   at Autodesk.AutoCAD.DatabaseServices.Database.ReadDwgFile(String fileName, FileOpenMode mode, Boolean allowCPConversion, String password)
+   at VBNet_Excel.DwgCleaner.BatchCleaner(String filePath)
+   at VBNet_Excel.DwgCleaner.ReadAndProcessFiles(String folderPath)
+Ред: at Autodesk.AutoCAD.DatabaseServices.Database.ReadDwgFile(String fileName, FileOpenMode mode, Boolean allowCPConversion, String password)
+========================================

@@ -711,32 +711,33 @@ Public Class DwgCleaner
                 ' Ако даден файл е зает (например отворения в момента), 
                 ' той ще бъде прескочен и ще продължи със следващия.
                 ' Логика за записване на грешката в текстов файл
-                Try
-                    Dim logPath As String = "\\MONIKA\Monika\_НАСТРОЙКИ\Нова папка\ErrorLog.txt" ' Увери се, че пътят е правилен
-                    ' Използваме 'Using', за да сме сигурни, че файлът се отваря и затваря правилно
-                    Using swError As New IO.StreamWriter(logPath, True)
-                        swError.WriteLine("========================================")
-                        swError.WriteLine("Дата/час: " & DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
-                        swError.WriteLine("Файл: " & filePath)
-                        swError.WriteLine("Грешка: " & ex.Message)
-                        swError.WriteLine("Source: " & ex.Source)
-                        swError.WriteLine("HResult: " & ex.HResult.ToString())
-                        swError.WriteLine("StackTrace: ")
-                        swError.WriteLine(ex.StackTrace)
-                        ' Извличане на първия ред от StackTrace (както си го замислил)
-                        Dim lines() As String = ex.StackTrace.Split({vbCrLf}, StringSplitOptions.RemoveEmptyEntries)
-                        If lines.Length > 0 Then
-                            swError.WriteLine("Ред: " & lines(0).Trim())
-                        End If
-                        swError.WriteLine("========================================")
-                    End Using
-                Finally
-                    sw.Close()
-                End Try
+
+                Dim logPath As String = "\\MONIKA\Monika\_НАСТРОЙКИ\Нова папка\ErrorLog.txt" ' Увери се, че пътят е правилен
+                ' Използваме 'Using', за да сме сигурни, че файлът се отваря и затваря правилно
+                Using swError As New IO.StreamWriter(logPath, True)
+                    swError.WriteLine("========================================")
+                    swError.WriteLine("Дата/час: " & DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
+                    swError.WriteLine("Файл: " & filePath)
+                    swError.WriteLine("Грешка: " & ex.Message)
+                    swError.WriteLine("Source: " & ex.Source)
+                    swError.WriteLine("HResult: " & ex.HResult.ToString())
+                    swError.WriteLine("StackTrace: ")
+                    swError.WriteLine(ex.StackTrace)
+                    ' Извличане на първия ред от StackTrace (както си го замислил)
+                    Dim lines() As String = ex.StackTrace.Split({vbCrLf}, StringSplitOptions.RemoveEmptyEntries)
+                    If lines.Length > 0 Then
+                        swError.WriteLine("Ред: " & lines(0).Trim())
+                    End If
+                    swError.WriteLine("========================================")
+                End Using
                 ' За удобство в Debug също
                 Debug.Print($"Грешка при {filePath}: {ex.Message}")
             End Try
         Next
         MsgBox($"Обработката завърши! Успешно обработени: {successCount} от {dwgFiles.Length} файла.")
+        If sw IsNot Nothing Then
+            sw.Close()
+            sw.Dispose()
+        End If
     End Sub
 End Class

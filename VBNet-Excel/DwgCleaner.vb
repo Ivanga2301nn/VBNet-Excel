@@ -650,27 +650,25 @@ Public Class DwgCleaner
         End If
     End Sub
     Public Sub BatchCleaner(filePath As String)
-        ' 1. Определяне и създаване на папка "Документация"
-        Dim currentDirectory As String = IO.Path.GetDirectoryName(filePath)
-        Dim docFolder As String = IO.Path.Combine(currentDirectory, "Документация")
-        If Not IO.Directory.Exists(docFolder) Then
-            IO.Directory.CreateDirectory(docFolder)
-        End If
-        ' Път за запис на новия файл
-        ' 2. Работа с базата данни на чертежа
-        ' Използваме Side-Database (False, True) за работа без отваряне на чертежа на екран
-        Using db As New Database(False, True)
-            ' Прочитане на файла
-            db.ReadDwgFile(filePath, FileOpenMode.OpenForReadAndWriteNoShare, True, "")
-            ' Важно за стабилност при Side-Database операции
-            Dim oldDb As Database = HostApplicationServices.WorkingDatabase
-            HostApplicationServices.WorkingDatabase = db
-            Using tr As Transaction = db.TransactionManager.StartTransaction()
-                sw.WriteLine("===============================")
-                sw.WriteLine("         ОБРАБОТВАМ ФАЙЛ       ")
-                sw.WriteLine(filePath)
-                sw.WriteLine("Дата/час: " & DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
-                sw.WriteLine("===============================")
+        Dim db As Database = Nothing
+        Try
+            ' ===== Проверка за активния DWG =====
+            ' Ако файлът е текущият активен документ, използваме db директно
+            ' В противен случай отваряме DWG с ReadDwgFile
+            If filePath.Equals(Application.DocumentManager.MdiActiveDocument.Database.Filename, StringComparison.OrdinalIgnoreCase) Then
+                db = Application.DocumentManager.MdiActiveDocument.Database
+            Else
+                ' Създаваме нова база данни за другите DWG
+                db = New Database(False, True)
+                db.ReadDwgFile(filePath, FileOpenMode.OpenForReadAndWriteNoShare, True, "")
+            End If
+            ' ===== Лог на започване =====
+            sw.WriteLine("===============================================")
+            sw.WriteLine("         ОБРАБОТВАМ ФАЙЛ       ")
+            sw.WriteLine(filePath)
+            sw.WriteLine("Дата/час: " & DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
+            sw.WriteLine("===============================================")
+            Using trans As Transaction = db.TransactionManager.StartTransaction()
                 DeleteSettingsLayouts(db)
                 WipeModelSpaceByArea(db)
                 ClearAttributesInDynamicBlocks(db, "Качване")
@@ -679,20 +677,37 @@ Public Class DwgCleaner
                 ExplodeAllArrays(db)
                 NativeBurst(db)
                 NativePurge(db)
-                tr.Commit()
-                sw.WriteLine("===============================")
-                sw.WriteLine("         ФАЙЛ ОБРАБОТЕН        ")
-                sw.WriteLine(filePath)
-                sw.WriteLine("Дата/час: " & DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
-                sw.WriteLine("===============================")
+                trans.Commit()
             End Using
-            ' Връщаме старата работна база данни
-            HostApplicationServices.WorkingDatabase = oldDb
-            ' 3. Запис в папката "Документация"
-            ' Път за запис на новия файл
-            Dim newFileName As String = IO.Path.Combine(docFolder, IO.Path.GetFileName(filePath))
-            db.SaveAs(newFileName, DwgVersion.Current)
-        End Using
+            sw.WriteLine("===============================")
+            sw.WriteLine("         ФАЙЛ ОБРАБОТЕН        ")
+            sw.WriteLine(filePath)
+            sw.WriteLine("Дата/час: " & DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
+            sw.WriteLine("===============================")
+        Catch ex As Exception
+            ' ===== Лог на грешка =====
+            Using swError As New IO.StreamWriter("\\MONIKA\Monika\_НАСТРОЙКИ\Нова папка\ErrorLog.txt", True)
+                swError.WriteLine("========================================")
+                swError.WriteLine("Дата/час: " & DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
+                swError.WriteLine("Файл: " & filePath)
+                swError.WriteLine("Грешка: " & ex.Message)
+                swError.WriteLine("Source: " & ex.Source)
+                swError.WriteLine("HResult: " & ex.HResult.ToString())
+                swError.WriteLine("StackTrace: ")
+                swError.WriteLine(ex.StackTrace)
+                swError.WriteLine("========================================")
+            End Using
+            Debug.Print($"Грешка при {filePath}: {ex.StackTrace}")
+        Finally
+            ' ===== Освобождаваме ресурси =====
+            ' Не освобождаваме активния DWG
+            If Not filePath.Equals(Application.DocumentManager.MdiActiveDocument.Database.Filename, StringComparison.OrdinalIgnoreCase) Then
+                If db IsNot Nothing Then
+                    db.Dispose()
+                    db = Nothing
+                End If
+            End If
+        End Try
     End Sub
     Public Sub ReadAndProcessFiles(folderPath As String)
         ' Взимаме списък с всички DWG файлове в текущата папка

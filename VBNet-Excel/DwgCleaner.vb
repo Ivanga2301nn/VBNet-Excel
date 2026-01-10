@@ -280,19 +280,32 @@ Public Class DwgCleaner
             ' Отваряме LayoutDictionary за четене
             Dim layoutDict As DBDictionary = tr.GetObject(db.LayoutDictionaryId, OpenMode.ForRead)
             Dim deletedCount As Integer = 0
+            Dim layMgr As LayoutManager = LayoutManager.Current
+            layMgr.CreateLayout("Layout1")
             ' Събираме имената на Layout-и, които трябва да изтрием
             Dim toDelete As New List(Of String)
+            Dim NotDelete As Integer = 0
             For Each entry As DictionaryEntry In layoutDict
                 Dim name As String = entry.Key.ToString()
                 ' Ако името съдържа "настройки" и не е "Model"
                 If name.ToLower().Contains("настройки") AndAlso name.ToLower() <> "model" Then
                     toDelete.Add(name)
+                Else
+                    NotDelete += 1
                 End If
             Next
+            ' Превключваме на Model за безопасно триене
+            layMgr.CurrentLayout = "Model"
+            If NotDelete = 0 Then
+                layMgr.CreateLayout("Layout1")
+                sw.WriteLine("Създаден нов Layout1, за да можем да изтрием всички останали.")
+            End If
+
             ' Ако има Layout-и за изтриване
-            If toDelete.Count > 0 Then
-                Dim layMgr As LayoutManager = LayoutManager.Current
+            If toDelete.Count > 0 And NotDelete > 0 Then
+                layMgr = LayoutManager.Current
                 For Each name As String In toDelete
+                    If layoutDict.Count - 1 <= 1 Then Continue For
                     ' Изтриваме Layout-а
                     layMgr.DeleteLayout(name)
                     deletedCount += 1

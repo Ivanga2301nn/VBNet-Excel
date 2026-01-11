@@ -275,47 +275,55 @@ Public Class DwgCleaner
     ''' <param name="doc">Текущият AutoCAD документ</param>
     Private Sub DeleteSettingsLayouts(db As Database)
         sw.WriteLine("1. Премахване на излишни листове...")
-        ' Създаваме транзакция за безопасна работа с обекти
         Using tr As Transaction = db.TransactionManager.StartTransaction()
-            ' Отваряме LayoutDictionary за четене
             Dim layoutDict As DBDictionary = tr.GetObject(db.LayoutDictionaryId, OpenMode.ForRead)
-            Dim deletedCount As Integer = 0
             Dim layMgr As LayoutManager = LayoutManager.Current
-            layMgr.CreateLayout("Layout1")
-            ' Събираме имената на Layout-и, които трябва да изтрием
             Dim toDelete As New List(Of String)
-            Dim NotDelete As Integer = 0
+            Dim notDeleteCount As Integer = 0
+            ' 1. Първо преброяваме какво имаме
             For Each entry As DictionaryEntry In layoutDict
                 Dim name As String = entry.Key.ToString()
-                ' Ако името съдържа "настройки" и не е "Model"
-                If name.ToLower().Contains("настройки") AndAlso name.ToLower() <> "model" Then
-                    toDelete.Add(name)
-                Else
-                    NotDelete += 1
+                If name.ToLower() <> "model" Then
+                    ' Проверяваме дали името съдържа "настройки"
+                    If name.ToLower().Contains("настройки") Then
+                        toDelete.Add(name)
+                    Else
+                        ' Броим листовете, които ще останат (напр. ако вече има Layout1)
+                        notDeleteCount += 1
+                    End If
                 End If
             Next
-            ' Превключваме на Model за безопасно триене
+            ' 2. Превключваме на Model, за да можем да трием безопасно
             layMgr.CurrentLayout = "Model"
-            If NotDelete = 0 Then
-                layMgr.CreateLayout("Layout1")
-                sw.WriteLine("Създаден нов Layout1, за да можем да изтрием всички останали.")
+            ' 3. ПРОВЕРКА: Ако всички листове са за триене (както на снимката)
+            If notDeleteCount = 0 Then
+                ' Проверяваме дали случайно "Layout1" вече не съществува
+                If Not layoutDict.Contains("Layout1") Then
+                    layMgr.CreateLayout("Layout1")
+                    sw.WriteLine("Създаден нов 'Layout1', за да не остане базата празна.")
+                End If
+                notDeleteCount = 1 ' Вече имаме един лист, който ще остане
             End If
-
-            ' Ако има Layout-и за изтриване
-            If toDelete.Count > 0 And NotDelete > 0 Then
-                layMgr = LayoutManager.Current
+            ' 4. Трием само ако имаме поне един лист, който ще оцелее
+            If toDelete.Count > 0 And notDeleteCount > 0 Then
+                Dim deletedCount As Integer = 0
                 For Each name As String In toDelete
-                    If layoutDict.Count - 1 <= 1 Then Continue For
-                    ' Изтриваме Layout-а
-                    layMgr.DeleteLayout(name)
-                    deletedCount += 1
+                    ' Допълнителна защита: AutoCAD изисква поне 1 Layout + Model (общо 2 в речника)
+                    If layoutDict.Count > 2 Then
+                        Try
+                            layMgr.DeleteLayout(name)
+                            deletedCount += 1
+                        Catch ex As System.Exception
+                            sw.WriteLine("Грешка при триене на " & name & ": " & ex.Message)
+                        End Try
+                    End If
                 Next
-                ' Потвърждаваме транзакцията
+                ' ВАЖНО: Тук е мястото за актуализация на връзките, ако е нужно
+                ' Преди записа на файла
                 tr.Commit()
-                ' Извеждаме съобщение с броя изтрити Layout-и
-                sw.WriteLine("Изтрити листове: " & deletedCount & ". Файлът е записан.")
+                sw.WriteLine("Изтрити листове: " & deletedCount)
             Else
-                ' Ако няма какво да се изтрива, прекратяваме транзакцията
+                ' Ако нищо не е променено
                 tr.Abort()
             End If
         End Using
@@ -689,6 +697,7 @@ Public Class DwgCleaner
                 NativeBurst(db)
                 ExplodeAllArrays(db)
                 NativeBurst(db)
+                NativeBind(db)
                 NativePurge(db)
                 trans.Commit()
             End Using
@@ -697,6 +706,7 @@ Public Class DwgCleaner
             sw.WriteLine(filePath)
             sw.WriteLine("Дата/час: " & DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
             sw.WriteLine("===============================")
+
         Catch ex As Exception
             ' ===== Лог на грешка =====
             Using swError As New IO.StreamWriter("\\MONIKA\Monika\_НАСТРОЙКИ\Нова папка\ErrorLog.txt", True)
@@ -712,10 +722,35 @@ Public Class DwgCleaner
             End Using
             Debug.Print($"Грешка при {filePath}: {ex.StackTrace}")
         Finally
-            ' ===== Освобождаваме ресурси =====
-            ' Не освобождаваме активния DWG
-            If Not filePath.Equals(Application.DocumentManager.MdiActiveDocument.Database.Filename, StringComparison.OrdinalIgnoreCase) Then
-                If db IsNot Nothing Then
+            If db IsNot Nothing Then
+                ' 1. Вземаме пълния път на текущия файл
+                Dim originalPath As String = db.Filename
+                ' 2. Извличаме директорията, в която се намира файлът
+                Dim currentDirectory As String = System.IO.Path.GetDirectoryName(originalPath)
+                ' 3. Дефинираме пътя към новата подпапка "Документация"
+                Dim subfolderPath As String = System.IO.Path.Combine(currentDirectory, "Документация")
+                ' 4. Проверяваме дали папката съществува, ако не - я създаваме
+                If Not System.IO.Directory.Exists(subfolderPath) Then
+                    System.IO.Directory.CreateDirectory(subfolderPath)
+                End If
+                ' 5. Вземаме само името на файла и сглобяваме новия път за запис
+                Dim fileName As String = System.IO.Path.GetFileName(originalPath)
+                Dim newSavePath As String = System.IO.Path.Combine(subfolderPath, fileName)
+                ' ПРЕДИ ЗАПИС: Тук трябва да се актуализират всички връзки (Excel/Word)
+                ' Както е посочено в инструкциите ти: ВСИЧКИ връзки трябва да се актуализират.
+                ' 6. Записваме базата данни в новата подпапка
+                Try
+                    db.SaveAs(newSavePath, DwgVersion.Current)
+                    sw.WriteLine("Файлът е записан успешно в: " & newSavePath)
+                Catch ex As System.Exception
+                    sw.WriteLine("Грешка при запис на " & fileName & ": " & ex.Message)
+                End Try
+                ' 7. Освобождаваме базата данни, ако не е активният документ
+                Dim activeDocPath As String = ""
+                If Application.DocumentManager.MdiActiveDocument IsNot Nothing Then
+                    activeDocPath = Application.DocumentManager.MdiActiveDocument.Database.Filename
+                End If
+                If Not String.Equals(originalPath, activeDocPath, StringComparison.OrdinalIgnoreCase) Then
                     db.Dispose()
                     db = Nothing
                 End If

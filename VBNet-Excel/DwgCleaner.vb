@@ -58,9 +58,14 @@ Public Class DwgCleaner
             ' Стартираме масова обработка на всички DWG файлове в папката
             ReadAndProcessFiles(dwgFolder)
         Else
+            ' --- Проверка: Файлът трябва да е в папка "документация" ---
+            If filePath.IndexOf("документация", StringComparison.OrdinalIgnoreCase) = -1 Then
+                sw.WriteLine("ОТКАЗ: Командата е разрешена само за файлове в папка 'документация'!")
+                Return
+            End If
             ' Файлът Е в "документация":
             ' Стартираме обработка само на текущия DWG файл
-            RunCleaner(filePath)
+            RunCleaner(doc)
         End If
         ' --- ЗАТВАРЯНЕ И ПОЧИСТВАНЕ НА ЛОГ ФАЙЛА ---
         If sw IsNot Nothing Then
@@ -75,16 +80,12 @@ Public Class DwgCleaner
             End If
         End If
     End Sub
-
-    Public Sub RunCleaner(filePath As String)
-        ' Вземаме текущия активен документ
-        Dim doc As Document = Application.DocumentManager.MdiActiveDocument
+    Public Sub RunCleaner(doc As Document)
+        ' Взимаме базата данни от документа
         Dim db As Database = doc.Database
-        ' --- Проверка: Файлът трябва да е в папка "документация" ---
-        If filePath.IndexOf("документация", StringComparison.OrdinalIgnoreCase) = -1 Then
-            sw.WriteLine("ОТКАЗ: Командата е разрешена само за файлове в папка 'документация'!")
-            Return
-        End If
+        ' Вземаме пълния път на файла от Document
+        Dim filePath As String = doc.Name
+
         sw.WriteLine("===============================")
         sw.WriteLine("         ОБРАБОТВАМ ФАЙЛ       ")
         sw.WriteLine(filePath)

@@ -56,13 +56,8 @@ Public Class DwgCleaner
         If filePath.IndexOf("документация", StringComparison.OrdinalIgnoreCase) = -1 Then
             ' Файлът НЕ е в "документация":
             ' Стартираме масова обработка на всички DWG файлове в папката
-            ReadAndProcessFiles(dwgFolder)
+            BatchCleaner(dwgFolder)
         Else
-            ' --- Проверка: Файлът трябва да е в папка "документация" ---
-            If filePath.IndexOf("документация", StringComparison.OrdinalIgnoreCase) = -1 Then
-                sw.WriteLine("ОТКАЗ: Командата е разрешена само за файлове в папка 'документация'!")
-                Return
-            End If
             ' Файлът Е в "документация":
             ' Стартираме обработка само на текущия DWG файл
             RunCleaner(doc)
@@ -714,6 +709,25 @@ Public Class DwgCleaner
         End Try
     End Sub
     Public Sub BatchCleaner(filePath As String)
+        ' Взимаме списък с всички DWG файлове в текущата папка
+        Dim dwgFiles() As String = IO.Directory.GetFiles(filePath, "*.dwg")
+        ' Брояч за успешно обработени файлове
+        Dim successCount As Integer = 0
+        For Each filePath In dwgFiles
+
+
+
+
+
+
+
+
+
+
+
+        Next
+
+
         Dim db As Database = Nothing
         Try
             ' ===== Проверка за активния DWG =====
@@ -786,22 +800,6 @@ Public Class DwgCleaner
                 End If
             End If
         End Try
-    End Sub
-    Public Sub ReadAndProcessFiles(folderPath As String)
-        ' Взимаме списък с всички DWG файлове в текущата папка
-        Dim dwgFiles() As String = IO.Directory.GetFiles(folderPath, "*.dwg")
-        ' Брояч за успешно обработени файлове
-        Dim successCount As Integer = 0
-        For Each filePath In dwgFiles
-            Try
-                ' Извикваме основния почистващ механизъм
-                BatchCleaner(filePath)
-                successCount += 1
-            Catch ex As Exception
-                SaveError(ex, filePath)
-            End Try
-        Next
-        MsgBox($"Обработката завърши! Успешно обработени: {successCount} от {dwgFiles.Length} файла.")
     End Sub
     Private Sub SaveError(ex As Exception, filePath As String)
         Dim logPath As String = "\\MONIKA\Monika\_НАСТРОЙКИ\Нова папка\ErrorLog.txt"

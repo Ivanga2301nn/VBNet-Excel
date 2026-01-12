@@ -708,99 +708,56 @@ Public Class DwgCleaner
             SaveError(ex, db.Filename)
         End Try
     End Sub
-    Public Sub BatchCleaner(filePath As String)
+    Public Sub BatchCleaner(folderPath As String)
         ' Взимаме списък с всички DWG файлове в текущата папка
-        Dim dwgFiles() As String = IO.Directory.GetFiles(filePath, "*.dwg")
-        ' Брояч за успешно обработени файлове
+        Dim dwgFiles() As String = IO.Directory.GetFiles(folderPath, "*.dwg")
         Dim successCount As Integer = 0
-        For Each filePath In dwgFiles
 
-
-
-
-
-
-
-
-
-
-
+        For Each dwgPath In dwgFiles
+            Dim doc As Document = Nothing
+            Try
+                ' Проверка дали файлът е активният документ
+                If Application.DocumentManager.MdiActiveDocument IsNot Nothing AndAlso
+               dwgPath.Equals(Application.DocumentManager.MdiActiveDocument.Database.Filename, StringComparison.OrdinalIgnoreCase) Then
+                    doc = Application.DocumentManager.MdiActiveDocument
+                Else
+                    ' Отваряме DWG като скрит Document
+                    doc = Application.DocumentManager.Open(dwgPath, False)
+                End If
+                ' ===== Тук извикваме RunCleaner(doc) =====
+                RunCleaner(doc)
+            Catch ex As Exception
+                SaveError(ex, dwgPath)
+            Finally
+                If doc IsNot Nothing Then
+                    Try
+                        ' Път за безопасно записване
+                        Dim originalPath As String = doc.Database.Filename
+                        Dim currentDirectory As String = System.IO.Path.GetDirectoryName(originalPath)
+                        Dim subfolderPath As String = System.IO.Path.Combine(currentDirectory, "Документация")
+                        If Not System.IO.Directory.Exists(subfolderPath) Then
+                            System.IO.Directory.CreateDirectory(subfolderPath)
+                        End If
+                        Dim fileName As String = System.IO.Path.GetFileName(originalPath)
+                        Dim newSavePath As String = System.IO.Path.Combine(subfolderPath, fileName)
+                        ' Записваме документа
+                        doc.Database.SaveAs(newSavePath, DwgVersion.Current)
+                        sw.WriteLine($"Файлът е записан успешно в: {newSavePath}")
+                        successCount += 1
+                    Catch saveEx As Exception
+                        SaveError(saveEx, dwgPath)
+                    Finally
+                        ' Затваряме документа, ако не е активният
+                        If Not dwgPath.Equals(Application.DocumentManager.MdiActiveDocument.Database.Filename, StringComparison.OrdinalIgnoreCase) Then
+                            doc.CloseAndDiscard()
+                        End If
+                    End Try
+                End If
+            End Try
         Next
-
-
-        Dim db As Database = Nothing
-        Try
-            ' ===== Проверка за активния DWG =====
-            ' Ако файлът е текущият активен документ, използваме db директно
-            ' В противен случай отваряме DWG с ReadDwgFile
-            If filePath.Equals(Application.DocumentManager.MdiActiveDocument.Database.Filename, StringComparison.OrdinalIgnoreCase) Then
-                db = Application.DocumentManager.MdiActiveDocument.Database
-            Else
-                ' Създаваме нова база данни за другите DWG
-                db = New Database(False, True)
-                db.ReadDwgFile(filePath, FileOpenMode.OpenForReadAndWriteNoShare, True, "")
-            End If
-            ' ===== Лог на започване =====
-            sw.WriteLine("===============================================")
-            sw.WriteLine("         ОБРАБОТВАМ ФАЙЛ       ")
-            sw.WriteLine(filePath)
-            sw.WriteLine("Дата/час: " & DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
-            sw.WriteLine("===============================================")
-            Using trans As Transaction = db.TransactionManager.StartTransaction()
-                NativeBind(db)
-                DeleteSettingsLayouts(db)
-                WipeModelSpaceByArea(db)
-                ClearAttributesInDynamicBlocks(db, "Качване")
-                FindMylniq(db)
-                NativeBurst(db)
-                ExplodeAllArrays(db)
-                NativeBurst(db)
-                NativePurge(db)
-                trans.Commit()
-            End Using
-            sw.WriteLine("===============================")
-            sw.WriteLine("         ФАЙЛ ОБРАБОТЕН        ")
-            sw.WriteLine(filePath)
-            sw.WriteLine("Дата/час: " & DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
-            sw.WriteLine("===============================")
-        Catch ex As Exception
-            SaveError(ex, filePath)
-        Finally
-            If db IsNot Nothing Then
-                ' 1. Вземаме пълния път на текущия файл
-                Dim originalPath As String = db.Filename
-                ' 2. Извличаме директорията, в която се намира файлът
-                Dim currentDirectory As String = System.IO.Path.GetDirectoryName(originalPath)
-                ' 3. Дефинираме пътя към новата подпапка "Документация"
-                Dim subfolderPath As String = System.IO.Path.Combine(currentDirectory, "Документация")
-                ' 4. Проверяваме дали папката съществува, ако не - я създаваме
-                If Not System.IO.Directory.Exists(subfolderPath) Then
-                    System.IO.Directory.CreateDirectory(subfolderPath)
-                End If
-                ' 5. Вземаме само името на файла и сглобяваме новия път за запис
-                Dim fileName As String = System.IO.Path.GetFileName(originalPath)
-                Dim newSavePath As String = System.IO.Path.Combine(subfolderPath, fileName)
-                ' ПРЕДИ ЗАПИС: Тук трябва да се актуализират всички връзки (Excel/Word)
-                ' Както е посочено в инструкциите ти: ВСИЧКИ връзки трябва да се актуализират.
-                ' 6. Записваме базата данни в новата подпапка
-                Try
-                    db.SaveAs(newSavePath, DwgVersion.Current)
-                    sw.WriteLine("Файлът е записан успешно в: " & newSavePath)
-                Catch ex As System.Exception
-                    sw.WriteLine("Грешка при запис на " & fileName & ": " & ex.Message)
-                End Try
-                ' 7. Освобождаваме базата данни, ако не е активният документ
-                Dim activeDocPath As String = ""
-                If Application.DocumentManager.MdiActiveDocument IsNot Nothing Then
-                    activeDocPath = Application.DocumentManager.MdiActiveDocument.Database.Filename
-                End If
-                If Not String.Equals(originalPath, activeDocPath, StringComparison.OrdinalIgnoreCase) Then
-                    db.Dispose()
-                    db = Nothing
-                End If
-            End If
-        End Try
+        sw.WriteLine($"BatchCleaner: успешно обработени {successCount} от {dwgFiles.Length} файла.")
     End Sub
+
     Private Sub SaveError(ex As Exception, filePath As String)
         Dim logPath As String = "\\MONIKA\Monika\_НАСТРОЙКИ\Нова папка\ErrorLog.txt"
         Using swError As New IO.StreamWriter(logPath, True)

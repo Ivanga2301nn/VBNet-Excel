@@ -66,6 +66,18 @@ Public Class DwgCleaner
             ' Файлът Е в "документация":
             ' Стартираме обработка само на текущия DWG файл
             RunCleaner(doc)
+            ' ===============================
+            ' СТЪПКА 8: Финален запис на файла
+            ' ===============================
+            db.SaveAs(db.Filename, True, DwgVersion.Current, Nothing)
+            sw.WriteLine("8. Файлът е успешно записан.")
+            ' Крайно съобщение за успешна процедура
+            sw.WriteLine("===============================")
+            sw.WriteLine("         ФАЙЛ ОБРАБОТЕН        ")
+            sw.WriteLine(filePath)
+            sw.WriteLine("Дата/час: " & DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
+            sw.WriteLine("===============================")
+            sw.WriteLine("--- [УСПЕХ] Процедурата 'DwgCleaner' приключи! ---")
         End If
         ' --- ЗАТВАРЯНЕ И ПОЧИСТВАНЕ НА ЛОГ ФАЙЛА ---
         If sw IsNot Nothing Then
@@ -81,8 +93,6 @@ Public Class DwgCleaner
         End If
     End Sub
     Public Sub RunCleaner(doc As Document)
-        ' Взимаме базата данни от документа
-        Dim db As Database = doc.Database
         ' Вземаме пълния път на файла от Document
         Dim filePath As String = doc.Name
 
@@ -94,30 +104,30 @@ Public Class DwgCleaner
             ' ===============================
             ' СТЪПКА 1: Изтриване на листове "настройки"
             ' ===============================
-            DeleteSettingsLayouts(db)
+            DeleteSettingsLayouts(doc)
             ' ===============================
             ' СТЪПКА 2: Почистване на обекти в ModelSpace по координати
             ' ===============================
-            WipeModelSpaceByArea(db)
+            WipeModelSpaceByArea(doc)
             ' ===============================
             ' СТЪПКА 3: Изчистване съдържанието на динамични блокове "Качване"
             ' ===============================
-            ClearAttributesInDynamicBlocks(db, "Качване")
+            ClearAttributesInDynamicBlocks(doc, "Качване")
             ' ===============================
             ' СТЪПКА 4: Изчистване съдържанието на динамични блокове "Качване"
             ' ===============================
-            FindMylniq(db)
+            FindMylniq(doc)
             ' ===============================
             ' СТЪПКА 5: Native BURST (разбиване на блокове)
             ' ===============================
             sw.WriteLine("5: Native BURST (разбиване на блокове) ...")
-            NativeBurst(db)
-            ExplodeAllArrays(db)
-            NativeBurst(db)
+            NativeBurst(doc)
+            ExplodeAllArrays(doc)
+            NativeBurst(doc)
             ' ===============================
             ' СТЪПКА 6: Bind на всички Xref-и
             ' ===============================
-            NativeBind(db)
+            NativeBind(doc)
             ' ===============================
             ' СТЪПКА 5: OVERKILL (оптимизация на геометрията)
             ' ===============================
@@ -125,19 +135,7 @@ Public Class DwgCleaner
             ' ===============================
             ' СТЪПКА 7: PURGE (пълно почистване на неизползвани елементи)
             ' ===============================
-            NativePurge(db)
-            ' ===============================
-            ' СТЪПКА 8: Финален запис на файла
-            ' ===============================
-            db.SaveAs(db.Filename, True, DwgVersion.Current, Nothing)
-            sw.WriteLine("8. Файлът е успешно записан.")
-            ' Крайно съобщение за успешна процедура
-            sw.WriteLine("===============================")
-            sw.WriteLine("         ФАЙЛ ОБРАБОТЕН        ")
-            sw.WriteLine(filePath)
-            sw.WriteLine("Дата/час: " & DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
-            sw.WriteLine("===============================")
-            sw.WriteLine("--- [УСПЕХ] Процедурата 'DwgCleaner' приключи! ---")
+            NativePurge(doc)
         Catch ex As System.Exception
             ' Грешка в главния цикъл
             sw.WriteLine("Критична грешка в главния цикъл: " & ex.Message)
@@ -172,7 +170,8 @@ Public Class DwgCleaner
     ''' - Изтрива оригиналния блок
     ''' </summary>
     ''' <param name="doc">Текущият AutoCAD документ</param>
-    Private Sub NativeBurst(db As Database)
+    Private Sub NativeBurst(doc As Document)
+        Dim db As Database = doc.Database
         sw.WriteLine("5: Native BURST (разбиване на блокове) ...")
         ' 1. Списък с имена на блокове, които НЕ трябва да бъдат разбивани (Skip List)
         Dim protectedBlocks As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase) From {
@@ -290,8 +289,10 @@ Public Class DwgCleaner
     ''' Изтрива всички Layout-и, съдържащи "настройки" в името, с изключение на "Model".
     ''' </summary>
     ''' <param name="doc">Текущият AutoCAD документ</param>
-    Private Sub DeleteSettingsLayouts(db As Database)
+    Private Sub DeleteSettingsLayouts(doc As Document)
         sw.WriteLine("1. Премахване на излишни листове...")
+        ' Взимаме базата данни от документа
+        Dim db As Database = doc.Database
         Try
             Using tr As Transaction = db.TransactionManager.StartTransaction()
                 Dim layoutDict As DBDictionary = tr.GetObject(db.LayoutDictionaryId, OpenMode.ForRead)
@@ -353,7 +354,8 @@ Public Class DwgCleaner
     ''' Изтрива всички обекти в Model Space, чиито центрови точки попадат в зададената зона (xMin, xMax, yMin, yMax).
     ''' </summary>
     ''' <param name="doc">Текущият AutoCAD документ</param>
-    Private Sub WipeModelSpaceByArea(db As Database)
+    Private Sub WipeModelSpaceByArea(doc As Document)
+        Dim db As Database = doc.Database
         sw.WriteLine("2. Почистване на обекти извън работната зона...")
         Try
             ' Създаваме транзакция за безопасна работа с обекти
@@ -400,7 +402,8 @@ Public Class DwgCleaner
     ''' </summary>
     ''' <param name="doc">Текущият AutoCAD документ</param>
     ''' <param name="targetName">Името на блока, чийто атрибути ще бъдат изчистени (пример: "Качване")</param>
-    Private Sub ClearAttributesInDynamicBlocks(db As Database, targetName As String)
+    Private Sub ClearAttributesInDynamicBlocks(doc As Document, targetName As String)
+        Dim db As Database = doc.Database
         sw.WriteLine("3. Изчистване съдържанието на блокове 'Качване'...")
         ' Създаваме транзакция за безопасна работа с обекти
         Using tr As Transaction = db.TransactionManager.StartTransaction()
@@ -445,7 +448,8 @@ Public Class DwgCleaner
     ''' Разбива всички масиви (BlockReference масиви) в ModelSpace
     ''' без да пипа реалните блокове и атрибути.
     ''' </summary>
-    Public Sub ExplodeAllArrays(db As Database)
+    Public Sub ExplodeAllArrays(doc As Document)
+        Dim db As Database = doc.Database
         Try
             sw.WriteLine("6: Разбиване на блокове) ...")
             ' Стартираме транзакция за безопасна работа с обекти
@@ -499,7 +503,8 @@ Public Class DwgCleaner
     ''' като използва параметри и атрибути от съответния блок „Мълниезащита вертикално“.
     ''' </summary>
     ''' <param name="doc">Текущият AutoCAD документ</param>
-    Private Sub FindMylniq(db As Database)
+    Private Sub FindMylniq(doc As Document)
+        Dim db As Database = doc.Database
         sw.WriteLine("3. Изчистване съдържанието на блокове 'МЪЛНИЯ'...")
         ' Списъци за съхранение на намерените обекти (ID-та)
         Dim mylniqTextIds As New List(Of ObjectId)
@@ -615,7 +620,8 @@ Public Class DwgCleaner
     ''' <summary>
     ''' Дълбоко почистване на неизползвани блокове, слоеве, линии и стилове.
     ''' </summary>
-    Private Sub NativePurge(db As Database)
+    Private Sub NativePurge(doc As Document)
+        Dim db As Database = doc.Database
         Try
             Dim changed As Boolean = True
             sw.WriteLine("--- Пълно почистване на неизползвани слоеве и блокове...")
@@ -675,7 +681,8 @@ Public Class DwgCleaner
     ''' <summary>
     ''' Вгражда всички Xref-ове като локални блокове (стил Insert).
     ''' </summary>
-    Private Sub NativeBind(db As Database)
+    Private Sub NativeBind(doc As Document)
+        Dim db As Database = doc.Database
         sw.WriteLine("---Native BIND на Xref-ове ...")
         Try
             Dim xrefsCollection As New ObjectIdCollection()

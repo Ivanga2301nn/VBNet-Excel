@@ -708,78 +708,33 @@ Public Class DwgCleaner
             SaveError(ex, db.Filename)
         End Try
     End Sub
-    ''' <summary>
-    ''' Масова обработка на всички DWG файлове в дадена папка.
-    ''' </summary>
-    ''' <param name="folderPath">Папката с DWG файлове</param>
     Public Sub BatchCleaner(folderPath As String)
         Dim dwgFiles() As String = IO.Directory.GetFiles(folderPath, "*.dwg")
-        Dim successCount As Integer = 0
-        Dim prevActiveDoc As Document = Application.DocumentManager.MdiActiveDocument
-
+        ' --- ПРОВЕРКА ЗА СЪЩЕСТВУВАНЕ ---
+        Dim currentDirectory As String = System.IO.Path.GetDirectoryName(folderPath)
+        Dim subfolderPath As String = System.IO.Path.Combine(folderPath, "Документация")
+        If Not System.IO.Directory.Exists(subfolderPath) Then
+            System.IO.Directory.CreateDirectory(subfolderPath)
+        End If
         For Each dwgPath In dwgFiles
-            Dim doc As Document = Nothing
-            Try
-                ' Проверка дали файлът е активният документ
-                If prevActiveDoc IsNot Nothing AndAlso
-               dwgPath.Equals(prevActiveDoc.Database.Filename, StringComparison.OrdinalIgnoreCase) Then
-                    doc = prevActiveDoc
-                Else
-                    ' Отваряме DWG като скрит Document
-                    doc = Application.DocumentManager.Open(dwgPath, False)
-                    Application.DocumentManager.MdiActiveDocument = doc
-                End If
-
-                ' ===== Обработваме документа =====
-                RunCleaner(doc)
-
-            Catch ex As Exception
-                SaveError(ex, dwgPath)
-            Finally
-                If doc IsNot Nothing AndAlso doc IsNot prevActiveDoc Then
-                    Try
-                        Dim originalPath As String = doc.Database.Filename
-                        Dim currentDirectory As String = System.IO.Path.GetDirectoryName(originalPath)
-                        Dim subfolderPath As String = System.IO.Path.Combine(currentDirectory, "Документация")
-                        If Not System.IO.Directory.Exists(subfolderPath) Then
-                            System.IO.Directory.CreateDirectory(subfolderPath)
-                        End If
-                        Dim fileName As String = System.IO.Path.GetFileName(originalPath)
-                        Dim newSavePath As String = System.IO.Path.Combine(subfolderPath, fileName)
-                        doc.Database.SaveAs(newSavePath, DwgVersion.Current)
-                        sw.WriteLine($"Файлът е записан успешно в: {newSavePath}")
-                        successCount += 1
-                    Catch saveEx As Exception
-                        SaveError(saveEx, dwgPath)
-                    Finally
-                        ' Връщаме предишния активен документ
-                        If prevActiveDoc IsNot Nothing Then
-                            Application.DocumentManager.MdiActiveDocument = prevActiveDoc
-                        End If
-                        Dim closed As Boolean = False
-                        Dim waited As Integer = 0
-                        Dim sleepStep As Integer = 200       ' пауза между опитите в ms
-                        Dim maxWait As Integer = 20000       ' максимум 20 секунди за изчакване
-                        Do While Not closed AndAlso waited < maxWait
-                            Try
-                                doc.CloseAndDiscard()
-                                closed = True
-                            Catch ex As System.Runtime.InteropServices.COMException
-                                ' Документът все още се използва, изчакваме малко и пробваме отново
-                                System.Threading.Thread.Sleep(sleepStep)
-                                waited += sleepStep
-                            End Try
-                        Loop
-                        If Not closed Then
-                            ' Ако след maxWait документът не се затвори, записваме предупреждение
-                            sw.WriteLine($"Внимание: Файлът не можа да се затвори автоматично след {maxWait / 1000} секунди: {doc.Name}")
-                        End If
-                    End Try
-                End If
-            End Try
+            Using db As New Database(False, True)
+                Try
+                    ' 1. Прочитаме файла
+                    db.ReadDwgFile(dwgPath, FileOpenMode.OpenForReadAndWriteNoShare, True, "")
+                    Dim fileName As String = System.IO.Path.GetFileName(dwgPath)
+                    Dim newSavePath As String = System.IO.Path.Combine(subfolderPath, fileName)
+                    '' 2. Записваме файла обратно (Презаписване)
+                    '' Използваме SaveAs, като запазваме версията на файла
+                    db.SaveAs(newSavePath, DwgVersion.Current)
+                Catch ex As Exception
+                    MsgBox("Грешка: " & ex.Message)
+                End Try
+            End Using
         Next
-        ' Финален лог
-        sw.WriteLine($"BatchCleaner: успешно обработени {successCount} от {dwgFiles.Length} файла.")
+
+
+
+
     End Sub
 
     Private Sub SaveError(ex As Exception, filePath As String)

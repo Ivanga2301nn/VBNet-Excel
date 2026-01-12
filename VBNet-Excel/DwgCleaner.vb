@@ -23,39 +23,63 @@ Public Class DwgCleaner
     ''' Главна процедура за почистване на DWG файл.
     ''' Изпълнява серия от стъпки за премахване на излишни листове, обекти, атрибути, разбиване на блокове,
     ''' оптимизация на чертежа чрез OVERKILL, AUDIT и PURGE и финално записване.
+    ''' Основна входна процедура за обработка на DWG файл.
+    ''' Определя дали текущият чертеж се намира в папка "документация".
+    ''' - Ако НЕ е → стартира масова обработка на всички файлове в папката (Batch режим).
+    ''' - Ако Е → стартира обработка само на текущия файл.
+    ''' Създава лог файл DwgCleaner.txt в папката на DWG файла
+    ''' и проверява за наличие на грешки в ErrorLog.txt.
     ''' </summary>
     <CommandMethod("DwgCleaner")>
     <CommandMethod("ДВГСЛЕАНЕР")>
     Public Sub ProcessFile()
-        ' Вземаме текущия активен документ
+        ' Вземаме текущия активен AutoCAD документ
         Dim doc As Document = Application.DocumentManager.MdiActiveDocument
         Dim db As Database = doc.Database
-        'Dim ed As Editor = doc.Editor
+        ' Пълен път до текущия DWG файл
         Dim filePath As String = db.Filename
+        ' Папката, в която се намира DWG файлът
         Dim dwgFolder As String = IO.Path.GetDirectoryName(filePath)
+        ' Път до основния лог файл (в папката на DWG)
         Dim logFile As String = IO.Path.Combine(dwgFolder, "DwgCleaner.txt")
+        ' Създаваме StreamWriter за логване (презаписва файла)
         sw = New IO.StreamWriter(logFile, False)
         sw.AutoFlush = True
-        ' --- Проверка: Файлът трябва да е в папка "документация" ---
+        ' Път до файл за грешки (централен ErrorLog)
+        Dim errorLogFile As String = "\\MONIKA\Monika\_НАСТРОЙКИ\Нова папка\ErrorLog.txt"
+        ' Ако има стар ErrorLog – изтриваме го, за да започнем начисто
+        If IO.File.Exists(errorLogFile) Then
+            IO.File.Delete(errorLogFile)
+        End If
+        ' --- ЛОГИКА ЗА ИЗБОР НА РЕЖИМ НА РАБОТА ---
+        ' Проверяваме дали DWG файлът се намира в папка "документация"
         If filePath.IndexOf("документация", StringComparison.OrdinalIgnoreCase) = -1 Then
-            ' Ако не е там, пускаме BatchCleaner за масова обработка
+            ' Файлът НЕ е в "документация":
+            ' Стартираме масова обработка на всички DWG файлове в папката
             ReadAndProcessFiles(dwgFolder)
         Else
-            ' Ако е в папката, пускаме RunCleaner за единичен файл
+            ' Файлът Е в "документация":
+            ' Стартираме обработка само на текущия DWG файл
             RunCleaner(filePath)
         End If
+        ' --- ЗАТВАРЯНЕ И ПОЧИСТВАНЕ НА ЛОГ ФАЙЛА ---
         If sw IsNot Nothing Then
             sw.Close()
             sw.Dispose()
         End If
+        ' --- ПРОВЕРКА ЗА ГРЕШКИ ---
+        ' Ако ErrorLog.txt съществува и не е празен – уведомяваме потребителя
+        If IO.File.Exists(errorLogFile) Then
+            If New IO.FileInfo(errorLogFile).Length > 0 Then
+                Application.ShowAlertDialog("Има записани грешки в ErrorLog.txt!")
+            End If
+        End If
     End Sub
+
     Public Sub RunCleaner(filePath As String)
         ' Вземаме текущия активен документ
         Dim doc As Document = Application.DocumentManager.MdiActiveDocument
         Dim db As Database = doc.Database
-        'Dim filePath As String = db.Filename
-        'Dim dwgFolder As String = IO.Path.GetDirectoryName(filePath)
-        'Dim logFile As String = IO.Path.Combine(dwgFolder, "DwgCleaner.txt")
         ' --- Проверка: Файлът трябва да е в папка "документация" ---
         If filePath.IndexOf("документация", StringComparison.OrdinalIgnoreCase) = -1 Then
             sw.WriteLine("ОТКАЗ: Командата е разрешена само за файлове в папка 'документация'!")
@@ -119,7 +143,6 @@ Public Class DwgCleaner
             ' Ако даден файл е зает (например отворения в момента), 
             ' той ще бъде прескочен и ще продължи със следващия.
             ' Логика за записване на грешката в текстов файл
-
             Dim logPath As String = "\\MONIKA\Monika\_НАСТРОЙКИ\Нова папка\ErrorLog.txt" ' Увери се, че пътят е правилен
             ' Използваме 'Using', за да сме сигурни, че файлът се отваря и затваря правилно
             Using swError As New IO.StreamWriter(logPath, True)
@@ -168,49 +191,46 @@ Public Class DwgCleaner
         "s_vigi_res",
         "Мълниезащита вертикално"
         }
-        ' Създаваме транзакция за безопасна работа с обекти
-        Using tr As Transaction = db.TransactionManager.StartTransaction()
-            ' Отваряме текущото пространство за писане (ModelSpace или PaperSpace)
-            Dim btrCurrent As BlockTableRecord = tr.GetObject(db.CurrentSpaceId, OpenMode.ForWrite)
-
-            Dim count As Integer = 0
-            ' Обхождаме всички избрани блокови референции
-            For Each id As ObjectId In btrCurrent
-                If id.IsErased Then Continue For
-                Dim ent As Entity = TryCast(tr.GetObject(id, OpenMode.ForRead), Entity)
-                If ent Is Nothing Then Continue For
-                ' === еквивалент на TypedValue(0, "INSERT") ===
-                If Not TypeOf ent Is BlockReference Then Continue For
-                ' === еквивалент на TypedValue(LayerName, "EL*") ===
-                If Not ent.Layer.StartsWith("EL", StringComparison.OrdinalIgnoreCase) Then Continue For
-
-                Dim br As BlockReference = DirectCast(ent, BlockReference)
-                Dim btr As BlockTableRecord = TryCast(tr.GetObject(br.BlockTableRecord, OpenMode.ForRead), BlockTableRecord)
-                ' Ако този BTR е от друга база (Xref), пропусни
-                If btr.IsFromExternalReference AndAlso Not btr.IsUnloaded Then
-                    sw.WriteLine("Пропуснат Xref: " & br.Name)
-                    Continue For
-                End If
-
-                ' Вземаме името на блока (поддържа и динамични блокове)
-                Dim blockName As String = If(br.IsDynamicBlock,
-                    DirectCast(tr.GetObject(br.DynamicBlockTableRecord, OpenMode.ForRead), BlockTableRecord).Name, br.Name)
-                ' Ако името е в списъка, прескачаме този блок
-                If protectedBlocks.Contains(blockName) Then Continue For
-                ' ---------------------------
-                ' Запазваме оригиналния слой и цвят на блока
-                Dim blockLayer As String = br.Layer
-                Dim blockColor As Color = br.Color
-                ' ===============================
-                ' СТЪПКА 1: Превръщаме атрибутите на блока в DBText
-                ' ===============================
-                Try
+        Try
+            ' Създаваме транзакция за безопасна работа с обекти
+            Using tr As Transaction = db.TransactionManager.StartTransaction()
+                ' Отваряме текущото пространство за писане (ModelSpace или PaperSpace)
+                Dim btrCurrent As BlockTableRecord = tr.GetObject(db.CurrentSpaceId, OpenMode.ForWrite)
+                Dim count As Integer = 0
+                ' Обхождаме всички избрани блокови референции
+                For Each id As ObjectId In btrCurrent
+                    If id.IsErased Then Continue For
+                    Dim ent As Entity = TryCast(tr.GetObject(id, OpenMode.ForRead), Entity)
+                    If ent Is Nothing Then Continue For
+                    ' === еквивалент на TypedValue(0, "INSERT") ===
+                    If Not TypeOf ent Is BlockReference Then Continue For
+                    ' === еквивалент на TypedValue(LayerName, "EL*") ===
+                    If Not ent.Layer.StartsWith("EL", StringComparison.OrdinalIgnoreCase) Then Continue For
+                    Dim br As BlockReference = DirectCast(ent, BlockReference)
+                    Dim btr As BlockTableRecord = TryCast(tr.GetObject(br.BlockTableRecord, OpenMode.ForRead), BlockTableRecord)
+                    ' Ако този BTR е от друга база (Xref), пропусни
+                    If btr.IsFromExternalReference AndAlso Not btr.IsUnloaded Then
+                        sw.WriteLine("Пропуснат Xref: " & br.Name)
+                        Continue For
+                    End If
+                    ' Вземаме името на блока (поддържа и динамични блокове)
+                    Dim blockName As String = If(br.IsDynamicBlock,
+                        DirectCast(tr.GetObject(br.DynamicBlockTableRecord, OpenMode.ForRead), BlockTableRecord).Name, br.Name)
+                    ' Ако името е в списъка, прескачаме този блок
+                    If protectedBlocks.Contains(blockName) Then Continue For
+                    ' ---------------------------
+                    ' Запазваме оригиналния слой и цвят на блока
+                    Dim blockLayer As String = br.Layer
+                    Dim blockColor As Color = br.Color
+                    ' ===============================
+                    ' СТЪПКА 1: Превръщаме атрибутите на блока в DBText
+                    ' ===============================
                     For Each attId As ObjectId In br.AttributeCollection
                         Dim attRef As AttributeReference = tr.GetObject(attId, OpenMode.ForRead)
                         ' Пропускаме празни атрибути
                         If Not String.IsNullOrWhiteSpace(attRef.TextString) Then
                             Dim newText As New DBText()
-                            newText.SetDatabaseDefaults()
+                            newText.SetDatabaseDefaults(db)
                             ' Копираме свойствата на атрибута
                             newText.TextString = attRef.TextString
                             newText.Position = attRef.Position
@@ -231,13 +251,9 @@ Public Class DwgCleaner
                             tr.AddNewlyCreatedDBObject(newText, True)
                         End If
                     Next
-                Catch ex As Exception
-                    sw.WriteLine("Критична грешка NativeBurst - СТЪПКА 1: " & ex.Message)
-                End Try
-                ' ===============================
-                ' СТЪПКА 2: Explode (разбиване) на геометрията на блока
-                ' ===============================
-                Try
+                    ' ===============================
+                    ' СТЪПКА 2: Explode (разбиване) на геометрията на блока
+                    ' ===============================
                     Dim explodedObjects As New DBObjectCollection()
                     br.Explode(explodedObjects)
                     For Each obj As DBObject In explodedObjects
@@ -253,21 +269,21 @@ Public Class DwgCleaner
                         btrCurrent.AppendEntity(subEnt)
                         tr.AddNewlyCreatedDBObject(subEnt, True)
                     Next
-                Catch ex As Exception
-                    sw.WriteLine("Критична грешка NativeBurst - СТЪПКА 2: " & ex.Message)
-                End Try
-                ' ===============================
-                ' СТЪПКА 3: Изтриваме оригиналния блок
-                ' ===============================
-                br.UpgradeOpen()
-                br.Erase()
-                count += 1
-            Next
-            ' Съобщение в редактора за брой обработени блокове
-            sw.WriteLine("Native BURST: Обработени " & count & " блока.")
-            ' Потвърждаваме всички промени
-            tr.Commit()
-        End Using
+                    ' ===============================
+                    ' СТЪПКА 3: Изтриваме оригиналния блок
+                    ' ===============================
+                    br.UpgradeOpen()
+                    br.Erase()
+                    count += 1
+                Next
+                ' Съобщение в редактора за брой обработени блокове
+                sw.WriteLine("Native BURST: Обработени " & count & " блока.")
+                ' Потвърждаваме всички промени
+                tr.Commit()
+            End Using
+        Catch ex As Exception
+            SaveError(ex, db.Filename)
+        End Try
     End Sub
     ''' <summary>
     ''' Изтрива всички Layout-и, съдържащи "настройки" в името, с изключение на "Model".
@@ -275,58 +291,62 @@ Public Class DwgCleaner
     ''' <param name="doc">Текущият AutoCAD документ</param>
     Private Sub DeleteSettingsLayouts(db As Database)
         sw.WriteLine("1. Премахване на излишни листове...")
-        Using tr As Transaction = db.TransactionManager.StartTransaction()
-            Dim layoutDict As DBDictionary = tr.GetObject(db.LayoutDictionaryId, OpenMode.ForRead)
-            Dim layMgr As LayoutManager = LayoutManager.Current
-            Dim toDelete As New List(Of String)
-            Dim notDeleteCount As Integer = 0
-            ' 1. Първо преброяваме какво имаме
-            For Each entry As DictionaryEntry In layoutDict
-                Dim name As String = entry.Key.ToString()
-                If name.ToLower() <> "model" Then
-                    ' Проверяваме дали името съдържа "настройки"
-                    If name.ToLower().Contains("настройки") Then
-                        toDelete.Add(name)
-                    Else
-                        ' Броим листовете, които ще останат (напр. ако вече има Layout1)
-                        notDeleteCount += 1
-                    End If
-                End If
-            Next
-            ' 2. Превключваме на Model, за да можем да трием безопасно
-            layMgr.CurrentLayout = "Model"
-            ' 3. ПРОВЕРКА: Ако всички листове са за триене (както на снимката)
-            If notDeleteCount = 0 Then
-                ' Проверяваме дали случайно "Layout1" вече не съществува
-                If Not layoutDict.Contains("Layout1") Then
-                    layMgr.CreateLayout("Layout1")
-                    sw.WriteLine("Създаден нов 'Layout1', за да не остане базата празна.")
-                End If
-                notDeleteCount = 1 ' Вече имаме един лист, който ще остане
-            End If
-            ' 4. Трием само ако имаме поне един лист, който ще оцелее
-            If toDelete.Count > 0 And notDeleteCount > 0 Then
-                Dim deletedCount As Integer = 0
-                For Each name As String In toDelete
-                    ' Допълнителна защита: AutoCAD изисква поне 1 Layout + Model (общо 2 в речника)
-                    If layoutDict.Count > 2 Then
-                        Try
-                            layMgr.DeleteLayout(name)
-                            deletedCount += 1
-                        Catch ex As System.Exception
-                            sw.WriteLine("Грешка при триене на " & name & ": " & ex.Message)
-                        End Try
+        Try
+            Using tr As Transaction = db.TransactionManager.StartTransaction()
+                Dim layoutDict As DBDictionary = tr.GetObject(db.LayoutDictionaryId, OpenMode.ForRead)
+                Dim layMgr As LayoutManager = LayoutManager.Current
+                Dim toDelete As New List(Of String)
+                Dim notDeleteCount As Integer = 0
+                ' 1. Първо преброяваме какво имаме
+                For Each entry As DictionaryEntry In layoutDict
+                    Dim name As String = entry.Key.ToString()
+                    If name.ToLower() <> "model" Then
+                        ' Проверяваме дали името съдържа "настройки"
+                        If name.ToLower().Contains("настройки") Then
+                            toDelete.Add(name)
+                        Else
+                            ' Броим листовете, които ще останат (напр. ако вече има Layout1)
+                            notDeleteCount += 1
+                        End If
                     End If
                 Next
-                ' ВАЖНО: Тук е мястото за актуализация на връзките, ако е нужно
-                ' Преди записа на файла
-                tr.Commit()
-                sw.WriteLine("Изтрити листове: " & deletedCount)
-            Else
-                ' Ако нищо не е променено
-                tr.Abort()
-            End If
-        End Using
+                ' 2. Превключваме на Model, за да можем да трием безопасно
+                layMgr.CurrentLayout = "Model"
+                ' 3. ПРОВЕРКА: Ако всички листове са за триене (както на снимката)
+                If notDeleteCount = 0 Then
+                    ' Проверяваме дали случайно "Layout1" вече не съществува
+                    If Not layoutDict.Contains("Layout1") Then
+                        layMgr.CreateLayout("Layout1")
+                        sw.WriteLine("Създаден нов 'Layout1', за да не остане базата празна.")
+                    End If
+                    notDeleteCount = 1 ' Вече имаме един лист, който ще остане
+                End If
+                ' 4. Трием само ако имаме поне един лист, който ще оцелее
+                If toDelete.Count > 0 And notDeleteCount > 0 Then
+                    Dim deletedCount As Integer = 0
+                    For Each name As String In toDelete
+                        ' Допълнителна защита: AutoCAD изисква поне 1 Layout + Model (общо 2 в речника)
+                        If layoutDict.Count > 2 Then
+                            Try
+                                layMgr.DeleteLayout(name)
+                                deletedCount += 1
+                            Catch ex As System.Exception
+                                sw.WriteLine("Грешка при триене на " & name & ": " & ex.Message)
+                            End Try
+                        End If
+                    Next
+                    ' ВАЖНО: Тук е мястото за актуализация на връзките, ако е нужно
+                    ' Преди записа на файла
+                    tr.Commit()
+                    sw.WriteLine("Изтрити листове: " & deletedCount)
+                Else
+                    ' Ако нищо не е променено
+                    tr.Abort()
+                End If
+            End Using
+        Catch ex As Exception
+            SaveError(ex, db.Filename)
+        End Try
     End Sub
     ''' <summary>
     ''' Изтрива всички обекти в Model Space, чиито центрови точки попадат в зададената зона (xMin, xMax, yMin, yMax).
@@ -334,41 +354,45 @@ Public Class DwgCleaner
     ''' <param name="doc">Текущият AutoCAD документ</param>
     Private Sub WipeModelSpaceByArea(db As Database)
         sw.WriteLine("2. Почистване на обекти извън работната зона...")
-        ' Създаваме транзакция за безопасна работа с обекти
-        Using tr As Transaction = db.TransactionManager.StartTransaction()
-            ' Отваряме BlockTable и ModelSpace за четене/писане
-            Dim bt As BlockTable = tr.GetObject(db.BlockTableId, OpenMode.ForRead)
-            Dim ms As BlockTableRecord = tr.GetObject(bt(BlockTableRecord.ModelSpace), OpenMode.ForWrite)
-            Dim deletedCount As Integer = 0
-            ' Обхождаме всички обекти в ModelSpace
-            For Each id As ObjectId In ms
-                Dim ent As Entity = tr.GetObject(id, OpenMode.ForRead)
-                Try
-                    ' Опитваме се да вземем геометричните граници на обекта
-                    Dim ext As Extents3d = ent.GeometricExtents
-                    ' Изчисляваме центъра на обекта
-                    Dim midX As Double = (ext.MinPoint.X + ext.MaxPoint.X) / 2
-                    Dim midY As Double = (ext.MinPoint.Y + ext.MaxPoint.Y) / 2
-                    ' Ако центърът попада в зададения правоъгълник
-                    If midX >= xMin And midX <= xMax And midY >= yMin And midY <= yMax Then
-                        ' Отваряме обекта за писане
-                        ent.UpgradeOpen()
-                        ' Изтриваме обекта и увеличаваме броя
-                        ent.Erase(True)
-                        deletedCount += 1
-                    End If
-                Catch
-                    ' Ако обектът няма GeometricExtents или възникне грешка, го пропускаме
-                    Continue For
-                End Try
-            Next
-            ' Потвърждаваме промените в транзакцията
-            tr.Commit()
-            ' Ако има изтрити обекти, записваме документа и извеждаме съобщение
-            If deletedCount > 0 Then
-                sw.WriteLine("Изтрити обекти от Model Space: " & deletedCount & ". Файлът е записан.")
-            End If
-        End Using
+        Try
+            ' Създаваме транзакция за безопасна работа с обекти
+            Using tr As Transaction = db.TransactionManager.StartTransaction()
+                ' Отваряме BlockTable и ModelSpace за четене/писане
+                Dim bt As BlockTable = tr.GetObject(db.BlockTableId, OpenMode.ForRead)
+                Dim ms As BlockTableRecord = tr.GetObject(bt(BlockTableRecord.ModelSpace), OpenMode.ForWrite)
+                Dim deletedCount As Integer = 0
+                ' Обхождаме всички обекти в ModelSpace
+                For Each id As ObjectId In ms
+                    Dim ent As Entity = tr.GetObject(id, OpenMode.ForRead)
+                    Try
+                        ' Опитваме се да вземем геометричните граници на обекта
+                        Dim ext As Extents3d = ent.GeometricExtents
+                        ' Изчисляваме центъра на обекта
+                        Dim midX As Double = (ext.MinPoint.X + ext.MaxPoint.X) / 2
+                        Dim midY As Double = (ext.MinPoint.Y + ext.MaxPoint.Y) / 2
+                        ' Ако центърът попада в зададения правоъгълник
+                        If midX >= xMin And midX <= xMax And midY >= yMin And midY <= yMax Then
+                            ' Отваряме обекта за писане
+                            ent.UpgradeOpen()
+                            ' Изтриваме обекта и увеличаваме броя
+                            ent.Erase(True)
+                            deletedCount += 1
+                        End If
+                    Catch
+                        ' Ако обектът няма GeometricExtents или възникне грешка, го пропускаме
+                        Continue For
+                    End Try
+                Next
+                ' Потвърждаваме промените в транзакцията
+                tr.Commit()
+                ' Ако има изтрити обекти, записваме документа и извеждаме съобщение
+                If deletedCount > 0 Then
+                    sw.WriteLine("Изтрити обекти от Model Space: " & deletedCount & ". Файлът е записан.")
+                End If
+            End Using
+        Catch ex As Exception
+            SaveError(ex, db.Filename)
+        End Try
     End Sub
     ''' <summary>
     ''' Изчиства съдържанието на всички атрибути в динамични или обикновени блокове с дадено име.
@@ -421,49 +445,52 @@ Public Class DwgCleaner
     ''' без да пипа реалните блокове и атрибути.
     ''' </summary>
     Public Sub ExplodeAllArrays(db As Database)
-        sw.WriteLine("6: Разбиване на блокове) ...")
-        ' Стартираме транзакция за безопасна работа с обекти
-        Using tr As Transaction = db.TransactionManager.StartTransaction()
-            Dim bt As BlockTable = CType(tr.GetObject(db.BlockTableId, OpenMode.ForRead), BlockTable)
-            Dim ms As BlockTableRecord = CType(tr.GetObject(bt(BlockTableRecord.ModelSpace), OpenMode.ForWrite), BlockTableRecord)
-            Dim idsToErase As New List(Of ObjectId)
-            ' Обхождаме всички обекти в ModelSpace
-            Dim count As Integer = 0
-            For Each id As ObjectId In ms
-                Dim ent As Entity = TryCast(tr.GetObject(id, OpenMode.ForRead), Entity)
-                If ent Is Nothing Then Continue For
-                ' Проверка дали е BlockReference
-                If TypeOf ent Is BlockReference Then
-                    Dim br As BlockReference = CType(ent, BlockReference)
-                    ' Проверяваме само дали е DynamicBlock
-                    If br.IsDynamicBlock Then
-                        Dim objs As New DBObjectCollection()
-                        br.Explode(objs) ' Разбиваме масива / DynamicBlock
-                        ' Добавяме всички обекти от Explode в ModelSpace
-                        For Each o As DBObject In objs
-                            Dim e As Entity = TryCast(o, Entity)
-                            If e IsNot Nothing Then
-                                ms.AppendEntity(e)
-                                tr.AddNewlyCreatedDBObject(e, True)
-                            End If
-                        Next
-                        ' Добавяме оригиналния BlockReference за изтриване
-                        idsToErase.Add(br.ObjectId)
+        Try
+            sw.WriteLine("6: Разбиване на блокове) ...")
+            ' Стартираме транзакция за безопасна работа с обекти
+            Using tr As Transaction = db.TransactionManager.StartTransaction()
+                Dim bt As BlockTable = CType(tr.GetObject(db.BlockTableId, OpenMode.ForRead), BlockTable)
+                Dim ms As BlockTableRecord = CType(tr.GetObject(bt(BlockTableRecord.ModelSpace), OpenMode.ForWrite), BlockTableRecord)
+                Dim idsToErase As New List(Of ObjectId)
+                ' Обхождаме всички обекти в ModelSpace
+                Dim count As Integer = 0
+                For Each id As ObjectId In ms
+                    Dim ent As Entity = TryCast(tr.GetObject(id, OpenMode.ForRead), Entity)
+                    If ent Is Nothing Then Continue For
+                    ' Проверка дали е BlockReference
+                    If TypeOf ent Is BlockReference Then
+                        Dim br As BlockReference = CType(ent, BlockReference)
+                        ' Проверяваме само дали е DynamicBlock
+                        If br.IsDynamicBlock Then
+                            Dim objs As New DBObjectCollection()
+                            br.Explode(objs) ' Разбиваме масива / DynamicBlock
+                            ' Добавяме всички обекти от Explode в ModelSpace
+                            For Each o As DBObject In objs
+                                Dim e As Entity = TryCast(o, Entity)
+                                If e IsNot Nothing Then
+                                    ms.AppendEntity(e)
+                                    tr.AddNewlyCreatedDBObject(e, True)
+                                End If
+                            Next
+                            ' Добавяме оригиналния BlockReference за изтриване
+                            idsToErase.Add(br.ObjectId)
+                        End If
                     End If
-                End If
-                count += 1
-            Next
-            ' Изтриваме оригиналните BlockReference масиви
-            For Each id As ObjectId In idsToErase
-                Dim e As Entity = TryCast(tr.GetObject(id, OpenMode.ForWrite), Entity)
-                If e IsNot Nothing Then
-                    e.Erase()
-                End If
-            Next
-            tr.Commit()
-            sw.WriteLine("ExplodeAllArrays: Обработени " & count & " масива.")
-        End Using
-        sw.WriteLine("Всички масиви са разбити успешно (BlockReference запазени).")
+                    count += 1
+                Next
+                ' Изтриваме оригиналните BlockReference масиви
+                For Each id As ObjectId In idsToErase
+                    Dim e As Entity = TryCast(tr.GetObject(id, OpenMode.ForWrite), Entity)
+                    If e IsNot Nothing Then
+                        e.Erase()
+                    End If
+                Next
+                tr.Commit()
+                sw.WriteLine("ExplodeAllArrays: Обработени " & count & " масива.")
+            End Using
+        Catch ex As Exception
+            SaveError(ex, db.Filename)
+        End Try
     End Sub
     ''' <summary>
     ''' Търси в текущия чертеж текстове и блокове, свързани с мълниезащита.
@@ -485,7 +512,6 @@ Public Class DwgCleaner
             Using tr As Transaction = db.TransactionManager.StartTransaction()
                 ' Взимаме ModelSpace (или текущото пространство)
                 Dim btrCurrent As BlockTableRecord = tr.GetObject(db.CurrentSpaceId, OpenMode.ForRead)
-
                 ' Обхождаме всички обекти
                 For Each id As ObjectId In btrCurrent
                     If id.IsErased Then Continue For
@@ -589,86 +615,95 @@ Public Class DwgCleaner
     ''' Дълбоко почистване на неизползвани блокове, слоеве, линии и стилове.
     ''' </summary>
     Private Sub NativePurge(db As Database)
-        Dim changed As Boolean = True
-        sw.WriteLine("7. Пълно почистване на неизползвани слоеве и блокове...")
-        ' Въртим цикъла докато спрем да намираме излишни неща (заради вложените зависимости)
-        Dim count As Integer = 0
-        While changed
-            changed = False
-            Using tr As Transaction = db.TransactionManager.StartTransaction()
-                ' Колекция за всички кандидати за триене
-                Dim idsToCheck As New ObjectIdCollection()
-                ' 1. Добавяме Блоковете
-                Dim bt As BlockTable = tr.GetObject(db.BlockTableId, OpenMode.ForRead)
-                For Each id As ObjectId In bt
-                    idsToCheck.Add(id)
-                Next
-                ' 2. Добавяме Слоевете
-                Dim lt As LayerTable = tr.GetObject(db.LayerTableId, OpenMode.ForRead)
-                For Each id As ObjectId In lt
-                    idsToCheck.Add(id)
-                Next
-                ' 3. Добавяме Текстовите стилове
-                Dim tst As TextStyleTable = tr.GetObject(db.TextStyleTableId, OpenMode.ForRead)
-                For Each id As ObjectId In tst
-                    idsToCheck.Add(id)
-                Next
-                ' 4. Добавяме Linetypes (Типове линии)
-                Dim ltt As LinetypeTable = tr.GetObject(db.LinetypeTableId, OpenMode.ForRead)
-                For Each id As ObjectId In ltt
-                    idsToCheck.Add(id)
-                Next
-                ' 5. Добавяме DimStyles (Размерни стилове)
-                Dim dst As DimStyleTable = tr.GetObject(db.DimStyleTableId, OpenMode.ForRead)
-                For Each id As ObjectId In dst
-                    idsToCheck.Add(id)
-                Next
-                ' --- МАГИЯТА: db.Purge ---
-                ' Този метод премахва от списъка всичко, което СЕ ПОЛЗВА.
-                ' В idsToCheck остават само ненужните.
-                db.Purge(idsToCheck)
-                ' Ако има останали обекти, ги трием
-                If idsToCheck.Count > 0 Then
-                    For Each id As ObjectId In idsToCheck
-                        Dim obj As DBObject = tr.GetObject(id, OpenMode.ForWrite)
-                        obj.Erase()
+        Try
+            Dim changed As Boolean = True
+            sw.WriteLine("--- Пълно почистване на неизползвани слоеве и блокове...")
+            ' Въртим цикъла докато спрем да намираме излишни неща (заради вложените зависимости)
+            Dim count As Integer = 0
+            While changed
+                changed = False
+                Using tr As Transaction = db.TransactionManager.StartTransaction()
+                    ' Колекция за всички кандидати за триене
+                    Dim idsToCheck As New ObjectIdCollection()
+                    ' 1. Добавяме Блоковете
+                    Dim bt As BlockTable = tr.GetObject(db.BlockTableId, OpenMode.ForRead)
+                    For Each id As ObjectId In bt
+                        idsToCheck.Add(id)
                     Next
-                    changed = True ' Намерихме нещо, значи въртим цикъла пак
-                End If
-                tr.Commit()
-            End Using
-            count += 1
-        End While
-        sw.WriteLine("ExplodeAllArrays: Обработени " & count & " масива.")
+                    ' 2. Добавяме Слоевете
+                    Dim lt As LayerTable = tr.GetObject(db.LayerTableId, OpenMode.ForRead)
+                    For Each id As ObjectId In lt
+                        idsToCheck.Add(id)
+                    Next
+                    ' 3. Добавяме Текстовите стилове
+                    Dim tst As TextStyleTable = tr.GetObject(db.TextStyleTableId, OpenMode.ForRead)
+                    For Each id As ObjectId In tst
+                        idsToCheck.Add(id)
+                    Next
+                    ' 4. Добавяме Linetypes (Типове линии)
+                    Dim ltt As LinetypeTable = tr.GetObject(db.LinetypeTableId, OpenMode.ForRead)
+                    For Each id As ObjectId In ltt
+                        idsToCheck.Add(id)
+                    Next
+                    ' 5. Добавяме DimStyles (Размерни стилове)
+                    Dim dst As DimStyleTable = tr.GetObject(db.DimStyleTableId, OpenMode.ForRead)
+                    For Each id As ObjectId In dst
+                        idsToCheck.Add(id)
+                    Next
+                    ' --- МАГИЯТА: db.Purge ---
+                    ' Този метод премахва от списъка всичко, което СЕ ПОЛЗВА.
+                    ' В idsToCheck остават само ненужните.
+                    db.Purge(idsToCheck)
+                    ' Ако има останали обекти, ги трием
+                    If idsToCheck.Count > 0 Then
+                        For Each id As ObjectId In idsToCheck
+                            Dim obj As DBObject = tr.GetObject(id, OpenMode.ForWrite)
+                            obj.Erase()
+                        Next
+                        changed = True ' Намерихме нещо, значи въртим цикъла пак
+                    End If
+                    tr.Commit()
+                End Using
+                count += 1
+            End While
+            sw.WriteLine("ExplodeAllArrays: Обработени " & count & " масива.")
+        Catch ex As Exception
+            SaveError(ex, db.Filename)
+        End Try
     End Sub
     ''' <summary>
     ''' Вгражда всички Xref-ове като локални блокове (стил Insert).
     ''' </summary>
     Private Sub NativeBind(db As Database)
-        Dim xrefsCollection As New ObjectIdCollection()
-        ' Стъпка 1: Събираме ID-тата на всички Xref-ове
-        Using tr As Transaction = db.TransactionManager.StartTransaction()
-            Dim bt As BlockTable = tr.GetObject(db.BlockTableId, OpenMode.ForRead)
-            For Each btrId As ObjectId In bt
-                Dim btr As BlockTableRecord = tr.GetObject(btrId, OpenMode.ForRead)
-                ' Проверяваме дали е Xref и дали не е разкачен (Unloaded)
-                If btr.IsFromExternalReference AndAlso Not btr.IsUnloaded Then
-                    xrefsCollection.Add(btrId)
-                End If
-            Next
-            tr.Commit()
-        End Using
-        ' Стъпка 2: Изпълняваме Bind директно върху базата
-        If xrefsCollection.Count > 0 Then
-            Try
-                ' Вторият параметър (True) означава "Insert" метод (сливане на слоеве).
-                ' Ако искаш класически "Bind" (с префикси), направи го False.
-                db.BindXrefs(xrefsCollection, True)
-            Catch ex As Exception
-                ' Тук можеш да запишеш в лог файл, ако някой Xref гръмне
-                Debug.WriteLine("Грешка при NativeBind: " & ex.Message)
-            End Try
-        End If
+        sw.WriteLine("---Native BIND на Xref-ове ...")
+        Try
+            Dim xrefsCollection As New ObjectIdCollection()
+            ' Стъпка 1: Събираме ID-тата на всички Xref-ове
+            Using tr As Transaction = db.TransactionManager.StartTransaction()
+                Dim bt As BlockTable = tr.GetObject(db.BlockTableId, OpenMode.ForRead)
+                For Each btrId As ObjectId In bt
+                    Dim btr As BlockTableRecord = tr.GetObject(btrId, OpenMode.ForRead)
+                    ' Проверяваме дали е Xref и дали не е разкачен (Unloaded)
+                    If btr.IsFromExternalReference AndAlso Not btr.IsUnloaded Then
+                        xrefsCollection.Add(btrId)
+                    End If
+                Next
+                tr.Commit()
+            End Using
+            ' Стъпка 2: Изпълняваме Bind директно върху базата
+            If xrefsCollection.Count > 0 Then
+                Try
+                    ' Вторият параметър (True) означава "Insert" метод (сливане на слоеве).
+                    ' Ако искаш класически "Bind" (с префикси), направи го False.
+                    db.BindXrefs(xrefsCollection, True)
+                Catch ex As Exception
+                    ' Тук можеш да запишеш в лог файл, ако някой Xref гръмне
+                    Debug.WriteLine("Грешка при NativeBind: " & ex.Message)
+                End Try
+            End If
+        Catch ex As Exception
+            SaveError(ex, db.Filename)
+        End Try
     End Sub
     Public Sub BatchCleaner(filePath As String)
         Dim db As Database = Nothing
@@ -690,6 +725,7 @@ Public Class DwgCleaner
             sw.WriteLine("Дата/час: " & DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
             sw.WriteLine("===============================================")
             Using trans As Transaction = db.TransactionManager.StartTransaction()
+                NativeBind(db)
                 DeleteSettingsLayouts(db)
                 WipeModelSpaceByArea(db)
                 ClearAttributesInDynamicBlocks(db, "Качване")
@@ -697,7 +733,6 @@ Public Class DwgCleaner
                 NativeBurst(db)
                 ExplodeAllArrays(db)
                 NativeBurst(db)
-                NativeBind(db)
                 NativePurge(db)
                 trans.Commit()
             End Using
@@ -706,21 +741,8 @@ Public Class DwgCleaner
             sw.WriteLine(filePath)
             sw.WriteLine("Дата/час: " & DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
             sw.WriteLine("===============================")
-
         Catch ex As Exception
-            ' ===== Лог на грешка =====
-            Using swError As New IO.StreamWriter("\\MONIKA\Monika\_НАСТРОЙКИ\Нова папка\ErrorLog.txt", True)
-                swError.WriteLine("========================================")
-                swError.WriteLine("Дата/час: " & DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
-                swError.WriteLine("Файл: " & filePath)
-                swError.WriteLine("Грешка: " & ex.Message)
-                swError.WriteLine("Source: " & ex.Source)
-                swError.WriteLine("HResult: " & ex.HResult.ToString())
-                swError.WriteLine("StackTrace: ")
-                swError.WriteLine(ex.StackTrace)
-                swError.WriteLine("========================================")
-            End Using
-            Debug.Print($"Грешка при {filePath}: {ex.StackTrace}")
+            SaveError(ex, filePath)
         Finally
             If db IsNot Nothing Then
                 ' 1. Вземаме пълния път на текущия файл
@@ -768,32 +790,35 @@ Public Class DwgCleaner
                 BatchCleaner(filePath)
                 successCount += 1
             Catch ex As Exception
-                ' Ако даден файл е зает (например отворения в момента), 
-                ' той ще бъде прескочен и ще продължи със следващия.
-                ' Логика за записване на грешката в текстов файл
-
-                Dim logPath As String = "\\MONIKA\Monika\_НАСТРОЙКИ\Нова папка\ErrorLog.txt" ' Увери се, че пътят е правилен
-                ' Използваме 'Using', за да сме сигурни, че файлът се отваря и затваря правилно
-                Using swError As New IO.StreamWriter(logPath, True)
-                    swError.WriteLine("========================================")
-                    swError.WriteLine("Дата/час: " & DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
-                    swError.WriteLine("Файл: " & filePath)
-                    swError.WriteLine("Грешка: " & ex.Message)
-                    swError.WriteLine("Source: " & ex.Source)
-                    swError.WriteLine("HResult: " & ex.HResult.ToString())
-                    swError.WriteLine("StackTrace: ")
-                    swError.WriteLine(ex.StackTrace)
-                    ' Извличане на първия ред от StackTrace (както си го замислил)
-                    Dim lines() As String = ex.StackTrace.Split({vbCrLf}, StringSplitOptions.RemoveEmptyEntries)
-                    If lines.Length > 0 Then
-                        swError.WriteLine("Ред: " & lines(0).Trim())
-                    End If
-                    swError.WriteLine("========================================")
-                End Using
-                ' За удобство в Debug също
-                Debug.Print($"Грешка при {filePath}: {ex.Message}")
+                SaveError(ex, filePath)
             End Try
         Next
         MsgBox($"Обработката завърши! Успешно обработени: {successCount} от {dwgFiles.Length} файла.")
+    End Sub
+    Private Sub SaveError(ex As Exception, filePath As String)
+        Dim logPath As String = "\\MONIKA\Monika\_НАСТРОЙКИ\Нова папка\ErrorLog.txt"
+        Using swError As New IO.StreamWriter(logPath, True)
+            ' 1. Създаваме StackTrace обект, който чете .pdb файла (True)
+            Dim st As New System.Diagnostics.StackTrace(ex, True)
+            ' 2. Вземаме първия фрейм (където е станала грешката)
+            Dim frame As System.Diagnostics.StackFrame = st.GetFrame(0)
+            ' 3. Извличаме номера на реда и името на метода
+            Dim line As Integer = frame.GetFileLineNumber()
+            Dim methodName As String = frame.GetMethod().Name
+            swError.WriteLine("========================================")
+            swError.WriteLine("Дата/час: " & DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
+            swError.WriteLine("Файл (DWG): " & filePath)
+            swError.WriteLine("Грешка: " & ex.Message)
+            If line > 0 Then
+                swError.WriteLine("ГРЕШКА В КОДА НА РЕД: " & line)
+                swError.WriteLine("МЕТОД: " & methodName)
+            Else
+                swError.WriteLine("Ред: Не е открит (Увери се, че .pdb файлът е в папката на AutoCAD)")
+            End If
+            swError.WriteLine("Source: " & ex.Source)
+            swError.WriteLine("Full StackTrace: ")
+            swError.WriteLine(ex.StackTrace)
+            swError.WriteLine("========================================")
+        End Using
     End Sub
 End Class

@@ -122,7 +122,9 @@ Public Class DwgCleaner
             ' ===============================
             ' СТЪПКА 6: Bind на всички Xref-и
             ' ===============================
-            NativeBind(doc)
+            Using docLock As DocumentLock = doc.LockDocument()
+                NativeBind(doc.Database)
+            End Using
             ' ===============================
             ' СТЪПКА 5: OVERKILL (оптимизация на геометрията)
             ' ===============================
@@ -676,8 +678,8 @@ Public Class DwgCleaner
     ''' <summary>
     ''' Вгражда всички Xref-ове като локални блокове (стил Insert).
     ''' </summary>
-    Private Sub NativeBind(doc As Document)
-        Dim db As Database = doc.Database
+    Private Sub NativeBind(db As Database)
+        ' Dim db As Database = doc.Database
         sw.WriteLine("---Native BIND на Xref-ове ...")
         Try
             Dim xrefsCollection As New ObjectIdCollection()
@@ -709,6 +711,12 @@ Public Class DwgCleaner
         End Try
     End Sub
     Public Sub BatchCleaner(folderPath As String)
+        Dim activeDoc As Document = Application.DocumentManager.MdiActiveDocument
+        ' Вземаме пътя на текущия отворен чертеж, за да го прескочим
+        Dim activeDocPath As String = ""
+        If Application.DocumentManager.MdiActiveDocument IsNot Nothing Then
+            activeDocPath = Application.DocumentManager.MdiActiveDocument.Name
+        End If
         Dim dwgFiles() As String = IO.Directory.GetFiles(folderPath, "*.dwg")
         ' --- ПРОВЕРКА ЗА СЪЩЕСТВУВАНЕ ---
         Dim currentDirectory As String = System.IO.Path.GetDirectoryName(folderPath)
@@ -717,25 +725,46 @@ Public Class DwgCleaner
             System.IO.Directory.CreateDirectory(subfolderPath)
         End If
         For Each dwgPath In dwgFiles
+            Dim fileName As String = System.IO.Path.GetFileName(dwgPath)
+            Dim newSavePath As String = System.IO.Path.Combine(subfolderPath, fileName)
+            ' --- ПРОВЕРКА: Дали това е активният файл ---
+            If String.Equals(dwgPath, activeDocPath, StringComparison.OrdinalIgnoreCase) Then
+                ' Обработваме активния файл по специален начин (DocumentLock)
+                Try
+                    Using docLock As DocumentLock = activeDoc.LockDocument()
+                        ' Използваме директно базата на отворения документ
+                        NativeBind(activeDoc.Database)
+                        activeDoc.Database.SaveAs(newSavePath, DwgVersion.Current)
+                    End Using
+                Catch ex As Exception
+                    Debug.Print("Грешка при запис на активния файл: " & ex.Message)
+                End Try
+                Continue For
+            End If
             Using db As New Database(False, True)
                 Try
-                    ' 1. Прочитаме файла
-                    db.ReadDwgFile(dwgPath, FileOpenMode.OpenForReadAndWriteNoShare, True, "")
-                    Dim fileName As String = System.IO.Path.GetFileName(dwgPath)
-                    Dim newSavePath As String = System.IO.Path.Combine(subfolderPath, fileName)
-                    '' 2. Записваме файла обратно (Презаписване)
-                    '' Използваме SaveAs, като запазваме версията на файла
+                    db.ReadDwgFile(dwgPath, IO.FileShare.ReadWrite, True, "")
+                    NativeBind(db)
                     db.SaveAs(newSavePath, DwgVersion.Current)
                 Catch ex As Exception
-                    MsgBox("Грешка: " & ex.Message)
+                    MsgBox("Грешка при " & fileName & ": " & ex.Message)
                 End Try
             End Using
         Next
-
-
-
-
     End Sub
+
+
+
+
+    Sub MyProcess(db As Database)
+        ' Всичко се прави през db
+        Using tr = db.TransactionManager.StartTransaction()
+            ' ... твоята логика ...
+            tr.Commit()
+        End Using
+    End Sub
+
+
 
     Private Sub SaveError(ex As Exception, filePath As String)
         Dim logPath As String = "\\MONIKA\Monika\_НАСТРОЙКИ\Нова папка\ErrorLog.txt"

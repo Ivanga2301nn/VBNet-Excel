@@ -9,6 +9,8 @@ Imports Autodesk.AutoCAD.EditorInput
 Imports Autodesk.AutoCAD.Geometry
 Imports Autodesk.AutoCAD.Runtime
 Imports iTextSharp.text.pdf.parser
+Imports System.Collections
+Imports System.Collections.Generic
 
 Public Class DwgCleaner
     ' Координати за пълно изтриване
@@ -165,10 +167,17 @@ Public Class DwgCleaner
     ''' - Изтрива оригиналния блок
     ''' </summary>
     ''' <param name="doc">Текущият AutoCAD документ</param>
+    ''' <summary>
+    ''' Изпълнява "Native BURST" върху блокове в текущото пространство.
+    ''' Разбива блокове, конвертира атрибути в DBText, наследява слой и цвят
+    ''' и пропуска защитени и Xref блокове.
+    ''' </summary>
+    ''' <param name="doc">Активният AutoCAD документ</param>
     Private Sub NativeBurst(doc As Document)
         Dim db As Database = doc.Database
         sw.WriteLine("5: Native BURST (разбиване на блокове) ...")
-        ' 1. Списък с имена на блокове, които НЕ трябва да бъдат разбивани (Skip List)
+
+        ' Списък с имена на блокове, които НЕ трябва да бъдат разбивани
         Dim protectedBlocks As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase) From {
         "s_c60_circ_break",
         "s_ct_cont_no",
@@ -185,102 +194,110 @@ Public Class DwgCleaner
         "s_tl",
         "s_vigi_res",
         "Мълниезащита вертикално"
-        }
+    }
+
         Try
-            ' Създаваме транзакция за безопасна работа с обекти
             Using tr As Transaction = db.TransactionManager.StartTransaction()
-                ' Отваряме текущото пространство за писане (ModelSpace или PaperSpace)
                 Dim btrCurrent As BlockTableRecord = tr.GetObject(db.CurrentSpaceId, OpenMode.ForWrite)
                 Dim count As Integer = 0
-                ' Обхождаме всички избрани блокови референции
+
                 For Each id As ObjectId In btrCurrent
                     If id.IsErased Then Continue For
+
                     Dim ent As Entity = TryCast(tr.GetObject(id, OpenMode.ForRead), Entity)
                     If ent Is Nothing Then Continue For
-                    ' === еквивалент на TypedValue(0, "INSERT") ===
                     If Not TypeOf ent Is BlockReference Then Continue For
-                    ' === еквивалент на TypedValue(LayerName, "EL*") ===
+
+                    ' Филтър по слой: само "EL*"
                     If Not ent.Layer.StartsWith("EL", StringComparison.OrdinalIgnoreCase) Then Continue For
+
                     Dim br As BlockReference = DirectCast(ent, BlockReference)
+
+                    ' Пропускаме Xref блокове (освен ако не са unloaded — но те нямат геометрия)
                     Dim btr As BlockTableRecord = TryCast(tr.GetObject(br.BlockTableRecord, OpenMode.ForRead), BlockTableRecord)
-                    ' Ако този BTR е от друга база (Xref), пропусни
-                    If btr.IsFromExternalReference AndAlso Not btr.IsUnloaded Then
+                    If btr?.IsFromExternalReference AndAlso Not btr.IsUnloaded Then
                         sw.WriteLine("Пропуснат Xref: " & br.Name)
                         Continue For
                     End If
-                    ' Вземаме името на блока (поддържа и динамични блокове)
-                    Dim blockName As String = If(br.IsDynamicBlock,
-                        DirectCast(tr.GetObject(br.DynamicBlockTableRecord, OpenMode.ForRead), BlockTableRecord).Name, br.Name)
-                    ' Ако името е в списъка, прескачаме този блок
+
+                    ' Вземаме истинското име на блока (поддържа динамични блокове)
+                    Dim blockName As String = If(
+                    br.IsDynamicBlock,
+                    DirectCast(tr.GetObject(br.DynamicBlockTableRecord, OpenMode.ForRead), BlockTableRecord).Name,
+                    br.Name
+                )
+
                     If protectedBlocks.Contains(blockName) Then Continue For
-                    ' ---------------------------
+
                     ' Запазваме оригиналния слой и цвят на блока
                     Dim blockLayer As String = br.Layer
                     Dim blockColor As Color = br.Color
+
                     ' ===============================
-                    ' СТЪПКА 1: Превръщаме атрибутите на блока в DBText
+                    ' СТЪПКА 1: Конвертиране на атрибути в DBText
                     ' ===============================
                     For Each attId As ObjectId In br.AttributeCollection
                         Dim attRef As AttributeReference = tr.GetObject(attId, OpenMode.ForRead)
-                        ' Пропускаме празни атрибути
-                        If Not String.IsNullOrWhiteSpace(attRef.TextString) Then
-                            Dim newText As New DBText()
-                            newText.SetDatabaseDefaults(db)
-                            ' Копираме свойствата на атрибута
-                            newText.TextString = attRef.TextString
-                            newText.Position = attRef.Position
-                            newText.Height = attRef.Height
-                            newText.Rotation = attRef.Rotation
-                            newText.TextStyleId = attRef.TextStyleId
-                            ' Ако атрибутът е в слой "0", наследява слоя и цвета на блока
-                            If attRef.Layer = "0" Then
-                                newText.Layer = br.Layer
-                                newText.Color = br.Color
-                            Else
-                                ' Иначе запазваме оригиналния слой и цвят на атрибута
-                                newText.Layer = attRef.Layer
-                                newText.Color = attRef.Color
-                            End If
-                            ' Добавяме новия текст в текущото пространство
-                            btrCurrent.AppendEntity(newText)
-                            tr.AddNewlyCreatedDBObject(newText, True)
+                        If String.IsNullOrWhiteSpace(attRef.TextString) Then Continue For
+
+                        Dim newText As New DBText()
+                        newText.SetDatabaseDefaults(db)
+
+                        newText.TextString = attRef.TextString
+                        newText.Position = attRef.Position
+                        newText.Height = attRef.Height
+                        newText.Rotation = attRef.Rotation
+                        newText.TextStyleId = attRef.TextStyleId
+
+                        ' Наследяване на слой и цвят
+                        If attRef.Layer = "0" Then
+                            newText.Layer = blockLayer
+                            newText.Color = blockColor
+                        Else
+                            newText.Layer = attRef.Layer
+                            newText.Color = attRef.Color
                         End If
+
+                        btrCurrent.AppendEntity(newText)
+                        tr.AddNewlyCreatedDBObject(newText, True)
                     Next
                     ' ===============================
-                    ' СТЪПКА 2: Explode (разбиване) на геометрията на блока
+                    ' СТЪПКА 2: Explode и добавяне на геометрията
                     ' ===============================
                     Dim explodedObjects As New DBObjectCollection()
                     br.Explode(explodedObjects)
                     For Each obj As DBObject In explodedObjects
-                        ' Пропускаме атрибутите, защото вече са конвертирани в текст
-                        If TypeOf obj Is AttributeReference OrElse TypeOf obj Is AttributeDefinition Then
+                        Dim subEnt As Entity = TryCast(obj, Entity)
+                        If subEnt Is Nothing Then Continue For
+                        ' Пропускаме атрибути
+                        If TypeOf subEnt Is AttributeReference OrElse TypeOf subEnt Is AttributeDefinition Then
                             Continue For
                         End If
-                        Dim subEnt As Entity = DirectCast(obj, Entity)
-                        ' Наследяване на слой и цвят, ако е необходимо
-                        If subEnt.Layer = "0" Then subEnt.Layer = blockLayer
-                        If subEnt.Color.ColorMethod = ColorMethod.ByBlock Then subEnt.Color = blockColor
-                        ' Добавяме обекта в текущото пространство
+                        ' Наследяване на слой и цвят
+                        If subEnt.Layer = "0" Then
+                            subEnt.Layer = blockLayer
+                        End If
+                        If subEnt.Color.ColorMethod = ColorMethod.ByBlock Then
+                            subEnt.Color = blockColor
+                        End If
+                        ' Добавяме в текущото пространство
                         btrCurrent.AppendEntity(subEnt)
                         tr.AddNewlyCreatedDBObject(subEnt, True)
                     Next
                     ' ===============================
-                    ' СТЪПКА 3: Изтриваме оригиналния блок
+                    ' СТЪПКА 3: Изтриване на оригиналния блок
                     ' ===============================
                     br.UpgradeOpen()
                     br.Erase()
                     count += 1
                 Next
-                ' Съобщение в редактора за брой обработени блокове
-                sw.WriteLine("Native BURST: Обработени " & count & " блока.")
-                ' Потвърждаваме всички промени
+                sw.WriteLine($"Native BURST: Обработени {count} блока.")
                 tr.Commit()
             End Using
         Catch ex As Exception
             SaveError(ex, db.Filename)
         End Try
-    End Sub
-    ''' <summary>
+    End Sub    ''' <summary>
     ''' Изтрива всички Layout-и, съдържащи "настройки" в името, с изключение на "Model".
     ''' </summary>
     ''' <param name="doc">Текущият AutoCAD документ</param>
@@ -735,68 +752,110 @@ Public Class DwgCleaner
                 SaveError(ex, dwgPath)
             End Try
         Next
-        'OpenProcessedFiles(subfolderPath)
+        OpenProcessedFiles(subfolderPath)
     End Sub
-
     ' ================================
     ' OpenProcessedFiles – отваряне на копията и пускане на RunCleaner
     ' ================================
     Private Sub OpenProcessedFiles(targetFolder As String)
         Dim filesToOpen() As String = IO.Directory.GetFiles(targetFolder, "*.dwg")
         For Each filePath In filesToOpen
+            Dim doc As Document = Nothing
             Try
                 ' Отваряме DWG като жив документ
-                Dim doc As Document = Application.DocumentManager.Open(filePath, False)
+                doc = Application.DocumentManager.Open(filePath, False)
                 Application.DocumentManager.MdiActiveDocument = doc
                 ' Заключваме документа за безопасност
                 Using doc.LockDocument()
                     RunCleaner(doc)  ' Тук всички Native операции са безопасни
                 End Using
-                ' Записваме и затваряме
-                doc.Database.SaveAs(doc.Name, DwgVersion.Current)
-                doc.CloseAndSave(doc.Name)
+                ' Записваме и затваряме файла
+                ' CloseAndSave автоматично записва промените и затваря документа
+                doc.CloseAndSave(filePath)
             Catch ex As Exception
                 SaveError(ex, filePath)
+                ' При грешка опитваме да затворим файла без запис, за да не остане отворен
+                If doc IsNot Nothing Then
+                    Try
+                        If Not doc.IsDisposed Then
+                            doc.CloseAndDiscard()
+                        End If
+                    Catch
+                        ' Ако не може да се затвори, поне опитахме
+                    End Try
+                End If
             End Try
         Next
     End Sub
 
-
-
-
-
-
-
-
-
-
-
-
-
+    ''' <summary>
+    ''' Записва информация за грешка в централен ErrorLog файл.
+    ''' Използва се при обработка на изключения в различни методи на класа.
+    ''' </summary>
+    ''' <param name="ex">Обектът изключение, съдържащ информация за грешката</param>
+    ''' <param name="filePath">Пътят до DWG файла, при обработката на който е възникнала грешката</param>
     Private Sub SaveError(ex As Exception, filePath As String)
+        ' Определяне на пътя до лог файла за грешки
+        ' Използва се константата ERROR_LOG_PATH, дефинирана в началото на класа
         Dim logPath As String = ERROR_LOG_PATH
+        ' Отваряне на StreamWriter за записване в лог файла
+        ' Параметърът True означава append mode - новите записи се добавят в края на файла
+        ' Using statement гарантира автоматично затваряне и освобождаване на ресурсите
         Using swError As New IO.StreamWriter(logPath, True)
-            ' 1. Създаваме StackTrace обект, който чете .pdb файла (True)
+            ' ========================================
+            ' ИЗВЛЕЧВАНЕ НА ДЕТАЙЛНА ИНФОРМАЦИЯ ЗА ГРЕШКАТА
+            ' ========================================
+            ' Създаване на StackTrace обект от изключението
+            ' Параметърът True указва да се зарежда информация от .pdb файла (debug symbols)
+            ' Това позволява да се получи точния номер на реда, където е възникнала грешката
             Dim st As New System.Diagnostics.StackTrace(ex, True)
-            ' 2. Вземаме първия фрейм (където е станала грешката)
+            ' Вземане на първия фрейм от стека на извикванията
+            ' GetFrame(0) връща фрейма, където е хвърлено изключението
+            ' Това е най-важният фрейм, защото показва точното място на грешката
             Dim frame As System.Diagnostics.StackFrame = st.GetFrame(0)
-            ' 3. Извличаме номера на реда и името на метода
+            ' Извличане на номера на реда от изходния код
+            ' GetFileLineNumber() връща номера на реда, ако .pdb файлът е наличен
+            ' Ако няма .pdb файл, връща 0
             Dim line As Integer = frame.GetFileLineNumber()
+            ' Извличане на името на метода, в който е възникнала грешката
+            ' GetMethod().Name връща името на метода като низ
             Dim methodName As String = frame.GetMethod().Name
+            ' ========================================
+            ' ЗАПИСВАНЕ НА ИНФОРМАЦИЯТА В ЛОГ ФАЙЛА
+            ' ========================================
+            ' Разделителна линия за по-добра четимост в лог файла
             swError.WriteLine("========================================")
+            ' Записване на датата и часа на възникване на грешката
+            ' Форматът е yyyy-MM-dd HH:mm:ss за стандартизиран вид
             swError.WriteLine("Дата/час: " & DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
+            ' Записване на пътя до DWG файла, който се обработваше при грешката
+            ' Това помага да се идентифицира проблемния файл
             swError.WriteLine("Файл (DWG): " & filePath)
+            ' Записване на съобщението за грешка от изключението
+            ' Това е основното описание на проблема
             swError.WriteLine("Грешка: " & ex.Message)
+            ' Проверка дали е наличен номер на реда (т.е. дали има .pdb файл)
             If line > 0 Then
+                ' Ако има .pdb файл, записваме точния номер на реда и името на метода
+                ' Това е много полезно за бързо намиране на проблемния код
                 swError.WriteLine("ГРЕШКА В КОДА НА РЕД: " & line)
                 swError.WriteLine("МЕТОД: " & methodName)
             Else
+                ' Ако няма .pdb файл, записваме предупреждение
+                ' Без .pdb файл не може да се определи точният ред на грешката
                 swError.WriteLine("Ред: Не е открит (Увери се, че .pdb файлът е в папката на AutoCAD)")
             End If
+            ' Записване на Source - името на приложението или обекта, който е причинил грешката
+            ' Полезно за идентифициране дали грешката идва от AutoCAD API, .NET Framework и т.н.
             swError.WriteLine("Source: " & ex.Source)
+            ' Записване на пълния StackTrace
+            ' Това показва целия път на извикванията от началото до мястото на грешката
+            ' Много полезно за проследяване на сложни проблеми
             swError.WriteLine("Full StackTrace: ")
             swError.WriteLine(ex.StackTrace)
+            ' Затваряща разделителна линия
             swError.WriteLine("========================================")
         End Using
+        ' Тук StreamWriter автоматично се затваря и освобождава благодарение на Using statement
     End Sub
 End Class

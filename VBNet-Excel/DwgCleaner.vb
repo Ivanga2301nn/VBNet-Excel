@@ -18,6 +18,8 @@ Public Class DwgCleaner
     Private ReadOnly yMax As Double = 126580.8506
     ' В класа, преди всички методи
     Private sw As IO.StreamWriter
+    ' Константа за път до ErrorLog файл
+    Private Const ERROR_LOG_PATH As String = "\\MONIKA\Monika\_НАСТРОЙКИ\Нова папка\ErrorLog.txt"
 
     ''' <summary>
     ''' Главна процедура за почистване на DWG файл.
@@ -46,7 +48,7 @@ Public Class DwgCleaner
         sw = New IO.StreamWriter(logFile, False)
         sw.AutoFlush = True
         ' Път до файл за грешки (централен ErrorLog)
-        Dim errorLogFile As String = "\\MONIKA\Monika\_НАСТРОЙКИ\Нова папка\ErrorLog.txt"
+        Dim errorLogFile As String = ERROR_LOG_PATH
         ' Ако има стар ErrorLog – изтриваме го, за да започнем начисто
         If IO.File.Exists(errorLogFile) Then
             IO.File.Delete(errorLogFile)
@@ -126,10 +128,6 @@ Public Class DwgCleaner
                 NativeBind(doc.Database)
             End Using
             ' ===============================
-            ' СТЪПКА 5: OVERKILL (оптимизация на геометрията)
-            ' ===============================
-
-            ' ===============================
             ' СТЪПКА 7: PURGE (пълно почистване на неизползвани елементи)
             ' ===============================
             NativePurge(doc)
@@ -139,7 +137,7 @@ Public Class DwgCleaner
             ' Ако даден файл е зает (например отворения в момента), 
             ' той ще бъде прескочен и ще продължи със следващия.
             ' Логика за записване на грешката в текстов файл
-            Dim logPath As String = "\\MONIKA\Monika\_НАСТРОЙКИ\Нова папка\ErrorLog.txt" ' Увери се, че пътят е правилен
+            Dim logPath As String = ERROR_LOG_PATH
             ' Използваме 'Using', за да сме сигурни, че файлът се отваря и затваря правилно
             Using swError As New IO.StreamWriter(logPath, True)
                 swError.WriteLine("========================================")
@@ -476,9 +474,9 @@ Public Class DwgCleaner
                             Next
                             ' Добавяме оригиналния BlockReference за изтриване
                             idsToErase.Add(br.ObjectId)
+                            count += 1
                         End If
                     End If
-                    count += 1
                 Next
                 ' Изтриваме оригиналните BlockReference масиви
                 For Each id As ObjectId In idsToErase
@@ -710,64 +708,73 @@ Public Class DwgCleaner
             SaveError(ex, db.Filename)
         End Try
     End Sub
+    ' ================================
+    ' BatchCleaner – само копиране в Документация
+    ' ================================
     Public Sub BatchCleaner(folderPath As String)
-        Dim activeDoc As Document = Application.DocumentManager.MdiActiveDocument
-        ' Вземаме пътя на текущия отворен чертеж, за да го прескочим
-        Dim activeDocPath As String = ""
-        If Application.DocumentManager.MdiActiveDocument IsNot Nothing Then
-            activeDocPath = Application.DocumentManager.MdiActiveDocument.Name
-        End If
         Dim dwgFiles() As String = IO.Directory.GetFiles(folderPath, "*.dwg")
-        ' --- ПРОВЕРКА ЗА СЪЩЕСТВУВАНЕ ---
-        Dim currentDirectory As String = System.IO.Path.GetDirectoryName(folderPath)
-        Dim subfolderPath As String = System.IO.Path.Combine(folderPath, "Документация")
-        If Not System.IO.Directory.Exists(subfolderPath) Then
-            System.IO.Directory.CreateDirectory(subfolderPath)
+        Dim subfolderPath As String = IO.Path.Combine(folderPath, "Документация")
+        ' Създаваме папка, ако не съществува
+        If Not IO.Directory.Exists(subfolderPath) Then
+            IO.Directory.CreateDirectory(subfolderPath)
         End If
+        ' Презаписваме всички DWG във „Документация“
         For Each dwgPath In dwgFiles
-            Dim fileName As String = System.IO.Path.GetFileName(dwgPath)
-            Dim newSavePath As String = System.IO.Path.Combine(subfolderPath, fileName)
-            ' --- ПРОВЕРКА: Дали това е активният файл ---
-            If String.Equals(dwgPath, activeDocPath, StringComparison.OrdinalIgnoreCase) Then
-                ' Обработваме активния файл по специален начин (DocumentLock)
-                Try
-                    Using docLock As DocumentLock = activeDoc.LockDocument()
-                        ' Използваме директно базата на отворения документ
-                        NativeBind(activeDoc.Database)
-                        activeDoc.Database.SaveAs(newSavePath, DwgVersion.Current)
-                    End Using
-                Catch ex As Exception
-                    Debug.Print("Грешка при запис на активния файл: " & ex.Message)
-                End Try
-                Continue For
-            End If
-            Using db As New Database(False, True)
-                Try
+            Dim fileName As String = IO.Path.GetFileName(dwgPath)
+            Dim newSavePath As String = IO.Path.Combine(subfolderPath, fileName)
+            Try
+                ' Отваряме DWG само като Database (offline)
+                Using db As New Database(False, True)
                     db.ReadDwgFile(dwgPath, IO.FileShare.ReadWrite, True, "")
+                    ' NativeBind може да се вика тук – но ако решим, може да го пропуснем
                     NativeBind(db)
+                    ' Записваме копие в Документация
                     db.SaveAs(newSavePath, DwgVersion.Current)
-                Catch ex As Exception
-                    MsgBox("Грешка при " & fileName & ": " & ex.Message)
-                End Try
-            End Using
+                End Using
+            Catch ex As Exception
+                SaveError(ex, dwgPath)
+            End Try
+        Next
+        'OpenProcessedFiles(subfolderPath)
+    End Sub
+
+    ' ================================
+    ' OpenProcessedFiles – отваряне на копията и пускане на RunCleaner
+    ' ================================
+    Private Sub OpenProcessedFiles(targetFolder As String)
+        Dim filesToOpen() As String = IO.Directory.GetFiles(targetFolder, "*.dwg")
+        For Each filePath In filesToOpen
+            Try
+                ' Отваряме DWG като жив документ
+                Dim doc As Document = Application.DocumentManager.Open(filePath, False)
+                Application.DocumentManager.MdiActiveDocument = doc
+                ' Заключваме документа за безопасност
+                Using doc.LockDocument()
+                    RunCleaner(doc)  ' Тук всички Native операции са безопасни
+                End Using
+                ' Записваме и затваряме
+                doc.Database.SaveAs(doc.Name, DwgVersion.Current)
+                doc.CloseAndSave(doc.Name)
+            Catch ex As Exception
+                SaveError(ex, filePath)
+            End Try
         Next
     End Sub
 
 
 
 
-    Sub MyProcess(db As Database)
-        ' Всичко се прави през db
-        Using tr = db.TransactionManager.StartTransaction()
-            ' ... твоята логика ...
-            tr.Commit()
-        End Using
-    End Sub
+
+
+
+
+
+
 
 
 
     Private Sub SaveError(ex As Exception, filePath As String)
-        Dim logPath As String = "\\MONIKA\Monika\_НАСТРОЙКИ\Нова папка\ErrorLog.txt"
+        Dim logPath As String = ERROR_LOG_PATH
         Using swError As New IO.StreamWriter(logPath, True)
             ' 1. Създаваме StackTrace обект, който чете .pdb файла (True)
             Dim st As New System.Diagnostics.StackTrace(ex, True)

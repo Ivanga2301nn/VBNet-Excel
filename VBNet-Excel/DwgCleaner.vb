@@ -198,7 +198,9 @@ Public Class DwgCleaner
 
         Try
             Using tr As Transaction = db.TransactionManager.StartTransaction()
-                Dim btrCurrent As BlockTableRecord = tr.GetObject(db.CurrentSpaceId, OpenMode.ForWrite)
+                Dim bt As BlockTable = tr.GetObject(db.BlockTableId, OpenMode.ForRead)
+                Dim btrCurrent As BlockTableRecord = tr.GetObject(bt(BlockTableRecord.ModelSpace), OpenMode.ForWrite)
+                'Dim btrCurrent As BlockTableRecord = tr.GetObject(db.CurrentSpaceId, OpenMode.ForWrite)
                 Dim count As Integer = 0
 
                 For Each id As ObjectId In btrCurrent
@@ -691,68 +693,110 @@ Public Class DwgCleaner
         End Try
     End Sub
     ''' <summary>
-    ''' Вгражда всички Xref-ове като локални блокове (стил Insert).
+    ''' Вгражда всички прикачени Xref-ове в чертежа като локални блокове
+    ''' чрез класически Bind с префикси.
     ''' </summary>
+    ''' <param name="db">Активната база данни на AutoCAD документа</param>
     Private Sub NativeBind(db As Database)
-        ' Dim db As Database = doc.Database
-        sw.WriteLine("---Native BIND на Xref-ове ...")
+
+        ''' <summary>
+        ''' Записваме информация за текущия файл в лог файла.
+        ''' </summary>
+        sw.WriteLine($"---Native BIND на Xref-ове за файл: {IO.Path.GetFileName(db.Filename)}")
         Try
+            ''' <summary>
+            ''' Колекция с ObjectId на всички Xref BlockTableRecord-и.
+            ''' </summary>
             Dim xrefsCollection As New ObjectIdCollection()
-            ' Стъпка 1: Събираме ID-тата на всички Xref-ове
+            ' ===============================
+            ' СТЪПКА 1: Събиране на Xref-ове
+            ' ===============================
+            ''' <summary>
+            ''' Обхождаме BlockTable и събираме всички заредени Xref-и.
+            ''' </summary>
             Using tr As Transaction = db.TransactionManager.StartTransaction()
                 Dim bt As BlockTable = tr.GetObject(db.BlockTableId, OpenMode.ForRead)
                 For Each btrId As ObjectId In bt
                     Dim btr As BlockTableRecord = tr.GetObject(btrId, OpenMode.ForRead)
-                    ' Проверяваме дали е Xref и дали не е разкачен (Unloaded)
+                    ''' <summary>
+                    ''' Проверяваме дали записът е Xref и дали не е Unloaded.
+                    ''' </summary>
                     If btr.IsFromExternalReference AndAlso Not btr.IsUnloaded Then
                         xrefsCollection.Add(btrId)
                     End If
                 Next
                 tr.Commit()
             End Using
-            ' Стъпка 2: Изпълняваме Bind директно върху базата
+            ' ===============================
+            ' СТЪПКА 2: Bind на Xref-овете
+            ' ===============================
+            ''' <summary>
+            ''' Ако има намерени Xref-ове, изпълняваме Bind директно върху базата.
+            ''' </summary>
             If xrefsCollection.Count > 0 Then
                 Try
-                    ' Вторият параметър (True) означава "Insert" метод (сливане на слоеве).
-                    ' Ако искаш класически "Bind" (с префикси), направи го False.
-                    db.BindXrefs(xrefsCollection, True)
+                    ''' <summary>
+                    ''' False = класически Bind с префикси (Bind, не Insert).
+                    ''' </summary>
+                    db.BindXrefs(xrefsCollection, False)
+                    sw.WriteLine($"--- Успешно вградени {xrefsCollection.Count} Xref-а.")
                 Catch ex As Exception
-                    ' Тук можеш да запишеш в лог файл, ако някой Xref гръмне
-                    Debug.WriteLine("Грешка при NativeBind: " & ex.Message)
+                    sw.WriteLine("--- Грешка при изпълнение на BindXrefs.")
+                    SaveError(ex, db.Filename)
                 End Try
+            Else
+                sw.WriteLine("--- Няма Xref-ове за вграждане.")
             End If
         Catch ex As Exception
             SaveError(ex, db.Filename)
         End Try
     End Sub
-    ' ================================
-    ' BatchCleaner – само копиране в Документация
-    ' ================================
+    ''' <summary>
+    ''' Batch обработка на DWG файлове в папка.
+    ''' Всеки файл се отваря скрито, изпълнява се NativeBind,
+    ''' и резултатът се записва в поддиректория "Документация".
+    ''' </summary>
+    ''' <param name="folderPath">Път до папката с DWG файлове</param>
     Public Sub BatchCleaner(folderPath As String)
+        ' Всички DWG файлове в подадената папка.
         Dim dwgFiles() As String = IO.Directory.GetFiles(folderPath, "*.dwg")
-        Dim subfolderPath As String = IO.Path.Combine(folderPath, "Документация")
-        ' Създаваме папка, ако не съществува
-        If Not IO.Directory.Exists(subfolderPath) Then
-            IO.Directory.CreateDirectory(subfolderPath)
+        ' Път до папката "Документация".
+        Dim subFolderPath As String = IO.Path.Combine(folderPath, "Документация")
+        ' Създаваме папката "Документация", ако не съществува.
+        If Not IO.Directory.Exists(subFolderPath) Then
+            IO.Directory.CreateDirectory(subFolderPath)
         End If
-        ' Презаписваме всички DWG във „Документация“
+        ' Обработваме последователно всички DWG файлове.
         For Each dwgPath In dwgFiles
             Dim fileName As String = IO.Path.GetFileName(dwgPath)
-            Dim newSavePath As String = IO.Path.Combine(subfolderPath, fileName)
+            Dim newSavePath As String = IO.Path.Combine(subFolderPath, fileName)
             Try
-                ' Отваряме DWG само като Database (offline)
-                Using db As New Database(False, True)
-                    db.ReadDwgFile(dwgPath, IO.FileShare.ReadWrite, True, "")
-                    ' NativeBind може да се вика тук – но ако решим, може да го пропуснем
-                    NativeBind(db)
-                    ' Записваме копие в Документация
-                    db.SaveAs(newSavePath, DwgVersion.Current)
+                ' ===============================
+                ' СТЪПКА 1: Тихо отваряне на файла
+                ' ===============================
+                Dim doc As Document = Nothing
+                Using lock As DocumentLock = Application.DocumentManager.MdiActiveDocument.LockDocument()
+                    ' Отваряме DWG файла без визуален интерфейс.
+                    doc = Application.DocumentManager.Open(dwgPath, False)
                 End Using
+                ' ===============================
+                ' СТЪПКА 2: Bind и запис
+                ' ===============================
+                Using docLock As DocumentLock = doc.LockDocument()
+                    ' Изпълняваме NativeBind върху отворения документ.
+                    NativeBind(doc.Database)
+                    ' Записваме файла в папка "Документация".
+                    doc.Database.SaveAs(newSavePath, DwgVersion.Current)
+                End Using
+                ' Затваряме документа без допълнително записване.
+                doc.CloseAndDiscard()
+                sw.WriteLine($"Обработен: {fileName}")
             Catch ex As Exception
                 SaveError(ex, dwgPath)
             End Try
         Next
-        OpenProcessedFiles(subfolderPath)
+        ' Тук може да се добави автоматично отваряне на обработените файлове.
+        'OpenProcessedFiles(subFolderPath)
     End Sub
     ' ================================
     ' OpenProcessedFiles – отваряне на копията и пускане на RunCleaner

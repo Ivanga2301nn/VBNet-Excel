@@ -483,7 +483,6 @@ Public Class Legend
         ' Ако обектът не е блок или текст, връщаме без промяна
         Return bottomRight
     End Function
-
     <CommandMethod("LegendaTablo")>
     Public Sub LegendaTablo()
         Dim acDoc As Document = Application.DocumentManager.MdiActiveDocument
@@ -510,17 +509,13 @@ Public Class Legend
             .AllowZero = True
             .AllowNegative = False
         End With
-
         Dim pKeyRes As PromptDoubleResult = acDoc.Editor.GetDouble(pDouOpts)
-
         Dim Брой_Колони As Integer
-
         If pKeyRes.Status = PromptStatus.Keyword Then
             Брой_Колони = CInt(pKeyRes.StringResult)
         Else
             Брой_Колони = CInt(pKeyRes.Value)
         End If
-
         Dim blkRecId As ObjectId = ObjectId.Null
         Dim index As Integer = 0
         Dim arrBlock = cu.GetAparati(SelectedSet)
@@ -531,13 +526,10 @@ Public Class Legend
         Dim InsertPoint As Point3d = pPtRes.Value
         Dim Tekst1 As String = ""
         Dim Tekst2 As String = ""
-
         ' Точка на вмъкване на текста
         Dim ipX As Double = pPtRes.Value.X
         Dim ipY As Double = pPtRes.Value.Y
-
         Dim extraRows As Double = 0     ' брой допълнителни редове
-
         ' Константи за положението на текста за таблата
         Dim ipY_Text As Double = 70
         Dim ipX_Text As Double = 50

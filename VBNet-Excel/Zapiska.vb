@@ -54,7 +54,6 @@ Public Class Zapiska
     <CommandMethod("Zapiska")>
     <CommandMethod("Записка")>
     Public Sub New_zapiska()
-
         Dim wordDoc As Word.Document
         Try
             Dim fullName As String = Application.DocumentManager.MdiActiveDocument.Name

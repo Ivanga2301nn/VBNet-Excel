@@ -698,46 +698,27 @@ Public Class DwgCleaner
     ''' </summary>
     ''' <param name="db">Активната база данни на AutoCAD документа</param>
     Private Sub NativeBind(db As Database)
-
-        ''' <summary>
-        ''' Записваме информация за текущия файл в лог файла.
-        ''' </summary>
+        ' Записваме информация за текущия файл в лог файла.
         sw.WriteLine($"---Native BIND на Xref-ове за файл: {IO.Path.GetFileName(db.Filename)}")
         Try
-            ''' <summary>
-            ''' Колекция с ObjectId на всички Xref BlockTableRecord-и.
-            ''' </summary>
+            ' Колекция с ObjectId на всички Xref BlockTableRecord-и.
             Dim xrefsCollection As New ObjectIdCollection()
-            ' ===============================
-            ' СТЪПКА 1: Събиране на Xref-ове
-            ' ===============================
-            ''' <summary>
-            ''' Обхождаме BlockTable и събираме всички заредени Xref-и.
-            ''' </summary>
+            ' Обхождаме BlockTable и събираме всички заредени Xref-и.
             Using tr As Transaction = db.TransactionManager.StartTransaction()
                 Dim bt As BlockTable = tr.GetObject(db.BlockTableId, OpenMode.ForRead)
                 For Each btrId As ObjectId In bt
                     Dim btr As BlockTableRecord = tr.GetObject(btrId, OpenMode.ForRead)
-                    ''' <summary>
-                    ''' Проверяваме дали записът е Xref и дали не е Unloaded.
-                    ''' </summary>
+                    ' Проверяваме дали записът е Xref и дали не е Unloaded.
                     If btr.IsFromExternalReference AndAlso Not btr.IsUnloaded Then
                         xrefsCollection.Add(btrId)
                     End If
                 Next
                 tr.Commit()
             End Using
-            ' ===============================
-            ' СТЪПКА 2: Bind на Xref-овете
-            ' ===============================
-            ''' <summary>
-            ''' Ако има намерени Xref-ове, изпълняваме Bind директно върху базата.
-            ''' </summary>
+            ' Ако има намерени Xref-ове, изпълняваме Bind директно върху базата.
             If xrefsCollection.Count > 0 Then
                 Try
-                    ''' <summary>
-                    ''' False = класически Bind с префикси (Bind, не Insert).
-                    ''' </summary>
+                    ' False = класически Bind с префикси (Bind, не Insert).
                     db.BindXrefs(xrefsCollection, False)
                     sw.WriteLine($"--- Успешно вградени {xrefsCollection.Count} Xref-а.")
                 Catch ex As Exception
@@ -796,7 +777,7 @@ Public Class DwgCleaner
             End Try
         Next
         ' Тук може да се добави автоматично отваряне на обработените файлове.
-        'OpenProcessedFiles(subFolderPath)
+        OpenProcessedFiles(subFolderPath)
     End Sub
     ' ================================
     ' OpenProcessedFiles – отваряне на копията и пускане на RunCleaner

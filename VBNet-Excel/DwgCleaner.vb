@@ -49,6 +49,9 @@ Public Class DwgCleaner
         ' Създаваме StreamWriter за логване (презаписва файла)
         sw = New IO.StreamWriter(logFile, False)
         sw.AutoFlush = True
+        sw.WriteLine("===============================")
+        sw.WriteLine($"--- КОДА СЕ Стартиране от ФАЙЛ -> {filePath}")
+        sw.WriteLine("===============================")
         ' Път до файл за грешки (централен ErrorLog)
         Dim errorLogFile As String = ERROR_LOG_PATH
         ' Ако има стар ErrorLog – изтриваме го, за да започнем начисто
@@ -94,7 +97,6 @@ Public Class DwgCleaner
     Public Sub RunCleaner(doc As Document)
         ' Вземаме пълния път на файла от Document
         Dim filePath As String = doc.Name
-
         sw.WriteLine("===============================")
         sw.WriteLine("         ОБРАБОТВАМ ФАЙЛ       ")
         sw.WriteLine(filePath)
@@ -160,14 +162,6 @@ Public Class DwgCleaner
         End Try
     End Sub
     ''' <summary>
-    ''' Реализира Native BURST поведение:
-    ''' - Превръща атрибутите в текст (без TAG)
-    ''' - Експлодира геометрията на блока
-    ''' - Наследява слой и цвят коректно
-    ''' - Изтрива оригиналния блок
-    ''' </summary>
-    ''' <param name="doc">Текущият AutoCAD документ</param>
-    ''' <summary>
     ''' Изпълнява "Native BURST" върху блокове в текущото пространство.
     ''' Разбива блокове, конвертира атрибути в DBText, наследява слой и цвят
     ''' и пропуска защитени и Xref блокове.
@@ -205,52 +199,41 @@ Public Class DwgCleaner
 
                 For Each id As ObjectId In btrCurrent
                     If id.IsErased Then Continue For
-
                     Dim ent As Entity = TryCast(tr.GetObject(id, OpenMode.ForRead), Entity)
                     If ent Is Nothing Then Continue For
                     If Not TypeOf ent Is BlockReference Then Continue For
-
                     ' Филтър по слой: само "EL*"
                     If Not ent.Layer.StartsWith("EL", StringComparison.OrdinalIgnoreCase) Then Continue For
-
                     Dim br As BlockReference = DirectCast(ent, BlockReference)
-
                     ' Пропускаме Xref блокове (освен ако не са unloaded — но те нямат геометрия)
                     Dim btr As BlockTableRecord = TryCast(tr.GetObject(br.BlockTableRecord, OpenMode.ForRead), BlockTableRecord)
                     If btr?.IsFromExternalReference AndAlso Not btr.IsUnloaded Then
                         sw.WriteLine("Пропуснат Xref: " & br.Name)
                         Continue For
                     End If
-
                     ' Вземаме истинското име на блока (поддържа динамични блокове)
                     Dim blockName As String = If(
                     br.IsDynamicBlock,
                     DirectCast(tr.GetObject(br.DynamicBlockTableRecord, OpenMode.ForRead), BlockTableRecord).Name,
                     br.Name
                 )
-
                     If protectedBlocks.Contains(blockName) Then Continue For
-
                     ' Запазваме оригиналния слой и цвят на блока
                     Dim blockLayer As String = br.Layer
                     Dim blockColor As Color = br.Color
-
                     ' ===============================
                     ' СТЪПКА 1: Конвертиране на атрибути в DBText
                     ' ===============================
                     For Each attId As ObjectId In br.AttributeCollection
                         Dim attRef As AttributeReference = tr.GetObject(attId, OpenMode.ForRead)
                         If String.IsNullOrWhiteSpace(attRef.TextString) Then Continue For
-
                         Dim newText As New DBText()
                         newText.SetDatabaseDefaults(db)
-
                         newText.TextString = attRef.TextString
                         newText.Position = attRef.Position
                         newText.Height = attRef.Height
                         newText.Rotation = attRef.Rotation
                         newText.TextStyleId = attRef.TextStyleId
-
                         ' Наследяване на слой и цвят
                         If attRef.Layer = "0" Then
                             newText.Layer = blockLayer
@@ -259,13 +242,12 @@ Public Class DwgCleaner
                             newText.Layer = attRef.Layer
                             newText.Color = attRef.Color
                         End If
-
                         btrCurrent.AppendEntity(newText)
                         tr.AddNewlyCreatedDBObject(newText, True)
                     Next
-                    ' ===============================
-                    ' СТЪПКА 2: Explode и добавяне на геометрията
-                    ' ===============================
+                    '===============================
+                    'СТЪПКА 2: Explode и добавяне на геометрията
+                    '===============================
                     Dim explodedObjects As New DBObjectCollection()
                     br.Explode(explodedObjects)
                     For Each obj As DBObject In explodedObjects
@@ -299,7 +281,8 @@ Public Class DwgCleaner
         Catch ex As Exception
             SaveError(ex, db.Filename)
         End Try
-    End Sub    ''' <summary>
+    End Sub
+    ''' <summary>
     ''' Изтрива всички Layout-и, съдържащи "настройки" в името, с изключение на "Model".
     ''' </summary>
     ''' <param name="doc">Текущият AutoCAD документ</param>
@@ -796,7 +779,10 @@ Public Class DwgCleaner
                 End Using
                 ' Записваме и затваряме файла
                 ' CloseAndSave автоматично записва промените и затваря документа
-                doc.CloseAndSave(filePath)
+                sw.WriteLine($"--- ОПИТВАМ СЕ ДА ЗАПИША ФАЙЛ -> {filePath}")
+                ' === ЗАПИСВАМЕ КОПИЕ БЕЗ ДА ЗАСЯГАМЕ ОРИГИНАЛА ===
+                doc.Database.SaveAs(filePath, DwgVersion.Current)
+                doc.CloseAndDiscard()
             Catch ex As Exception
                 SaveError(ex, filePath)
                 ' При грешка опитваме да затворим файла без запис, за да не остане отворен

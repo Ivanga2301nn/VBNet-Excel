@@ -94,6 +94,46 @@ Public Class DwgCleaner
             End If
         End If
     End Sub
+    ''' <summary>
+    ''' Премахва всички параметрични ограничения от подадената база данни.
+    ''' </summary>
+    Public Sub ClearAllConstraints(doc As Document)
+        Dim db As Database = doc.Database
+        Try
+            Using tr As Transaction = db.TransactionManager.StartTransaction()
+                ' 1. Достъп до Named Objects Dictionary (главния речник на чертежа)
+                Dim nod As DBDictionary = tr.GetObject(db.NamedObjectsDictionaryId, OpenMode.ForRead)
+                ' 2. Търсим речника "ACAD_ASSOCNETWORK"
+                ' Това е контейнерът, в който се държат всички параметрични връзки
+                If nod.Contains("ACAD_ASSOCNETWORK") Then
+                    nod.UpgradeOpen()
+                    ' Премахваме целия мрежов обект
+                    nod.Remove("ACAD_ASSOCNETWORK")
+                    ' По желание: може да изчистим и специфичните за обектите данни
+                    ' но премахването от NOD обикновено е достатъчно за "счупване" на връзките
+                End If
+                ' 3. Почистване на графичните маркери (иконите)
+                ' Тъй като работиш с AutoCAD, иконите понякога остават кеширани.
+                ' Дори след изтриване на данните, е добре да се обходят и изчистят Extension Dictionaries
+                ' на обектите в Model Space за по-сигурно.
+                Dim bt As BlockTable = tr.GetObject(db.BlockTableId, OpenMode.ForRead)
+                Dim btr As BlockTableRecord = tr.GetObject(bt(BlockTableRecord.ModelSpace), OpenMode.ForRead)
+                For Each objId As ObjectId In btr
+                    Dim ent As Entity = tr.GetObject(objId, OpenMode.ForRead)
+                    If ent.ExtensionDictionary <> ObjectId.Null Then
+                        Dim extDict As DBDictionary = tr.GetObject(ent.ExtensionDictionary, OpenMode.ForRead)
+                        If extDict.Contains("ACAD_ASSOCNETWORK") Then
+                            extDict.UpgradeOpen()
+                            extDict.Remove("ACAD_ASSOCNETWORK")
+                        End If
+                    End If
+                Next
+                tr.Commit()
+            End Using
+        Catch ex As System.Exception
+            SaveError(ex, db.Filename)
+        End Try
+    End Sub
     Public Sub RunCleaner(doc As Document)
         ' Вземаме пълния път на файла от Document
         Dim filePath As String = doc.Name
@@ -135,6 +175,10 @@ Public Class DwgCleaner
             ' СТЪПКА 7: PURGE (пълно почистване на неизползвани елементи)
             ' ===============================
             NativePurge(doc)
+
+            Using docLock As DocumentLock = doc.LockDocument()
+                ClearAllConstraints(doc)
+            End Using
         Catch ex As System.Exception
             ' Грешка в главния цикъл
             sw.WriteLine("Критична грешка в главния цикъл: " & ex.Message)

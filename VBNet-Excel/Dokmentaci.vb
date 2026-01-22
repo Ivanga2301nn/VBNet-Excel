@@ -117,10 +117,6 @@ Public Class Dokmentaci
         End If
 
 
-
-
-
-
         Exit Sub
         '' Копиране на файловете в папката "Документация"
         'CopyFile(dwgPath, dirPath, f1, doc)
@@ -188,77 +184,42 @@ Public Class Dokmentaci
     ''' Ако се подаде директория, автоматично се създава файл "CombinedImages.pdf" в нея.
     ''' </param>
     Public Sub ConvertImagesToSinglePdf_iTextSharp(imageFiles As IEnumerable(Of String), pdfPath As String)
-        ''' Сортираме изображенията по азбучен ред, за да бъдат добавени в PDF в правилната последователност.
+        ' Сортираме изображенията по азбучен ред, за да бъдат добавени в PDF в правилната последователност.
         Dim sortedFiles As List(Of String) = imageFiles.ToList()
         sortedFiles.Sort()
-        ''' Създаваме нов PDF документ.
-        ''' </summary>
+        ' Създаваме нов PDF документ.
         Dim pdfDoc As New iTextSharp.text.Document()
-
-        ''' <summary>
-        ''' Ако pdfPath сочи към директория, добавяме подразбиращо се име на файла.
-        ''' </summary>
+        ' Ако pdfPath сочи към директория, добавяме подразбиращо се име на файла.
         If Directory.Exists(pdfPath) Then
             pdfPath = Path.Combine(pdfPath, "CombinedImages.pdf")
         End If
-
-        ''' <summary>
-        ''' Създаваме поток за запис на PDF и PdfWriter за iTextSharp.
-        ''' </summary>
+        ' Създаваме поток за запис на PDF и PdfWriter за iTextSharp.
         Using stream As New FileStream(pdfPath, FileMode.Create, FileAccess.Write, FileShare.None)
-
             Dim writer As PdfWriter = PdfWriter.GetInstance(pdfDoc, stream)
             pdfDoc.Open()
-
-            ''' <summary>
-            ''' Обхождаме всяко изображение в сортирания списък.
-            ''' </summary>
+            ' Обхождаме всяко изображение в сортирания списък.
             For Each imgPath As String In sortedFiles
-
-                ''' <summary>
-                ''' Пропускаме файлове, които не съществуват.
-                ''' </summary>
+                ' Пропускаме файлове, които не съществуват.
                 If Not File.Exists(imgPath) Then Continue For
-
                 Dim ext As String = Path.GetExtension(imgPath).ToLower()
-                ''' <summary>
-                ''' Допустими формати за изображения.
-                ''' </summary>
+                ' Допустими формати за изображения.
                 If ext <> ".jpg" AndAlso ext <> ".jpeg" AndAlso ext <> ".png" AndAlso ext <> ".bmp" AndAlso ext <> ".tif" AndAlso ext <> ".tiff" Then
                     Continue For
                 End If
-
-                ''' <summary>
-                ''' Зареждаме изображението като iTextSharp Image.
-                ''' </summary>
+                ' Зареждаме изображението като iTextSharp Image.
                 Dim pdfImg As iTextSharp.text.Image = iTextSharp.text.Image.GetInstance(imgPath)
-
-                ''' <summary>
-                ''' Настройваме размера на страницата според размерите на изображението.
-                ''' </summary>
+                ' Настройваме размера на страницата според размерите на изображението.
                 pdfDoc.SetPageSize(New iTextSharp.text.Rectangle(pdfImg.Width, pdfImg.Height))
                 pdfDoc.NewPage()
-
-                ''' <summary>
-                ''' Поставяме изображението на страницата с абсолютни координати и скалиране.
-                ''' </summary>
+                ' Поставяме изображението на страницата с абсолютни координати и скалиране.
                 pdfImg.SetAbsolutePosition(0, 0)
                 pdfImg.ScaleAbsolute(pdfImg.Width, pdfImg.Height)
-
-                ''' <summary>
-                ''' Добавяме изображението към PDF документа.
-                ''' </summary>
+                ' Добавяме изображението към PDF документа.
                 pdfDoc.Add(pdfImg)
-
             Next
-
-            ''' <summary>
-            ''' Затваряме PDF документа след добавяне на всички изображения.
-            ''' </summary>
+            ' Затваряме PDF документа след добавяне на всички изображения.
             pdfDoc.Close()
-
         End Using
-
     End Sub
 
 

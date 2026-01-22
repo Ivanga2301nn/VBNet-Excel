@@ -10,6 +10,8 @@ Imports Autodesk.AutoCAD.DatabaseServices
 Imports Autodesk.AutoCAD.EditorInput
 Imports Autodesk.AutoCAD.Runtime
 Imports Autodesk.AutoCAD.Windows.Data
+Imports AXDBLib
+
 'Imports Autodesk.AutoCAD.Interop.Common
 ' Дефинирате AcApp като съкращение за AutoCAD Application
 Imports AcApp = Autodesk.AutoCAD.ApplicationServices.Application
@@ -167,6 +169,13 @@ Public Class SheetSet_new
     Public Sub RunUpdate()
         Dim acDoc As Document = AcApp.DocumentManager.MdiActiveDocument ' Активен документ
         Dim acDb As Database = acDoc.Database
+        Dim dbMod As Integer = Convert.ToInt32(AcApp.GetSystemVariable("DBMOD"))
+
+        If dbMod <> 0 Then
+            ' Ако има промени, но не искаш да записваш автоматично:
+            MsgBox("Внимание: Файлът има незаписани промени!", MsgBoxStyle.Information, "Инфо")
+            Exit Sub
+        End If
         ' 1. Взимаме пълния път на текущия DWG файл
         Dim dwgPath As String = acDb.Filename
         ' Извикваме процедурата за името
@@ -217,6 +226,7 @@ Public Class SheetSet_new
         Finally
             If sheetSetDatabase IsNot Nothing Then LockDatabase(sheetSetDatabase, False) ' Отключване на DST
         End Try
+
         MsgBox("Sheet Set Name: " & sheetSetDatabase.GetSheetSet().GetName() & vbCrLf &
            "Sheet Set Description: " & sheetSetDatabase.GetSheetSet().GetDesc())
     End Sub
@@ -657,8 +667,8 @@ Public Class SheetSet_new
                 ' --- Импортиране на листа ---
                 ImportASheet(currentSubset, current.nameLayoutForSheet, "", (i + 1).ToString("D2"), current.nameFile, current.nameLayout)
             Next
-            ' --- Съобщение за успешно записан DST ---
-            MsgBox("Sheet Set файлът е запазен успешно!")
+            '' --- Съобщение за успешно записан DST ---
+            'MsgBox("Sheet Set файлът е запазен успешно!")
         Catch ex As Exception
             ' 7. Ако възникне грешка, показваме съобщение
             MsgBox("Грешка при запазване на Sheet Set файла: " & ex.Message)
@@ -988,6 +998,7 @@ Public Class SheetSet_new
                               "Общ брой листове",
                               CStr(nSheetCount),
                               PropertyFlags.CUSTOM_SHEETSET_PROP)
+
                 ' Отключва базата данни
                 LockDatabase(sheetSetDatabase, False)
                 ' Нулира брояча на листовете за следващата база данни

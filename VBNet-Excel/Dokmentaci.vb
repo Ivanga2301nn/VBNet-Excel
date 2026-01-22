@@ -1,11 +1,17 @@
-﻿Imports System.IO
+﻿Imports System.Drawing
+Imports System.IO
+Imports System.Windows.Forms
 Imports Autodesk.AutoCAD.ApplicationServices
 Imports Autodesk.AutoCAD.DatabaseServices
 Imports Autodesk.AutoCAD.EditorInput
 Imports Autodesk.AutoCAD.Geometry
 Imports Autodesk.AutoCAD.Runtime
+Imports iTextSharp.text
+Imports iTextSharp.text.pdf
 Imports Excel = Microsoft.Office.Interop.Excel
+Imports Forms = System.Windows.Forms
 Imports Word = Microsoft.Office.Interop.Word
+
 
 ''' <summary>
 ''' Клас за създаване на финална документационна папка и копиране на файлове от текущия проект.
@@ -29,7 +35,11 @@ Public Class Dokmentaci
             Exit Sub
         End If
 
-        FillInsertSignatureAttributes(zapis)
+        If Not zapis.Any() Then
+            ' Тук кодът се изпълнява, когато речникът е ПРАЗЕН
+            FillInsertSignatureAttributes(zapis)
+        End If
+
 
         ' Взимаме пътя на текущия DWG файл
         Dim dwgPath = Path.GetDirectoryName(doc.Name)
@@ -44,19 +54,80 @@ Public Class Dokmentaci
             DeleteAllFiles(dirPath)
         End If
 
-        ' Файлове за копиране от текущата папка
         Dim f1 = "Обяснителна записка.docx"
-        Dim f2 = "KS__.xlsx"
+        Dim f2 = "Количествена сметка.xlsx"
         Dim f3 = "Block.dwg"
         Dim f4 = "Графична част.pdf"
         Dim f5 = "Светлотехнически.pdf"
 
-        ' Копиране на файловете в папката "Документация"
-        CopyFile(dwgPath, dirPath, f1, doc)
-        CopyFile(dwgPath, dirPath, f2, doc)
-        CopyFile(dwgPath, dirPath, f3, doc)
-        CopyFile(dwgPath, dirPath, f4, doc)
-        CopyFile(dwgPath, dirPath, f5, doc)
+
+        Dim openFileDialog As New Forms.OpenFileDialog()
+        ' Задаваме текущата папка на приложението като начална
+        openFileDialog.InitialDirectory = dwgPath
+        openFileDialog.Title = "Моля, изберете файлoве за копиране - СЪДЪРЖАЩИ ЧЕРТЕЖИТЕ "
+        ' Филтър за типовете файлове, които търсим
+        openFileDialog.Filter = "AutoCAD & Office Files|*.dwg"
+        'openFileDialog.Filter = "AutoCAD & Office Files|*.dwg;*.docx;*.xlsx;*.pdf|All files (*.*)|*.*"
+        openFileDialog.Multiselect = True ' ТОВА ПОЗВОЛЯВА МНОЖЕСТВЕН ИЗБОР
+        ' 3. Показваме диалога
+        If openFileDialog.ShowDialog() = Forms.DialogResult.OK Then
+            ' 3. Цикъл за копиране на всеки избран файл
+            For Each sourceFile As String In openFileDialog.FileNames
+                Dim fileNameOnly As String = System.IO.Path.GetFileName(sourceFile)
+                ' Копиране на файловете в папката "Документация"
+                CopyFile(dwgPath, dirPath, fileNameOnly, fileNameOnly, doc)
+            Next
+        End If
+        openFileDialog.Title = "Моля, изберете файл за копиране - СЪДЪРЖАЩ ОБЯСНИТЕЛНАТА ЗАПИСКА"
+        ' Филтър за типовете файлове, които търсим
+        openFileDialog.Multiselect = False ' ТОВА ВЕЧЕ ЗАБРАНЯВА МНОЖЕСТВЕН ИЗБОР
+        openFileDialog.Filter = "ОБЯСНИТЕЛНА ЗАПИСКА|*.docx"
+        If openFileDialog.ShowDialog() = Forms.DialogResult.OK Then
+            ' Вземаме пълния път на избрания файл
+            Dim sourceFilePath As String = openFileDialog.FileName
+            Dim fileNameOnly As String = System.IO.Path.GetFileName(sourceFilePath)
+            CopyFile(dwgPath, dirPath, fileNameOnly, f1, doc)
+        End If
+
+        openFileDialog.Title = "Моля, изберете файл за копиране - СЪДЪРЖАЩ КОЛИЧЕСТВЕНАТА СМЕТКА"
+        ' Филтър за типовете файлове, които търсим
+        openFileDialog.Multiselect = False ' ТОВА ВЕЧЕ ЗАБРАНЯВА МНОЖЕСТВЕН ИЗБОР
+        openFileDialog.Filter = "КОЛИЧЕСТВЕНА СМЕТКА|*.xlsx"
+        If openFileDialog.ShowDialog() = Forms.DialogResult.OK Then
+            ' Вземаме пълния път на избрания файл
+            Dim sourceFilePath As String = openFileDialog.FileName
+            Dim fileNameOnly As String = System.IO.Path.GetFileName(sourceFilePath)
+            CopyFile(dwgPath, dirPath, fileNameOnly, f2, doc)
+        End If
+
+        openFileDialog.Title = "Моля, изберете файл за копиране - СЪДЪРЖАЩ СТАНОВИЩЕТО"
+        ' Филтър за типовете файлове, които търсим
+        openFileDialog.Multiselect = True ' ТОВА ПОЗВОЛЯВА МНОЖЕСТВЕН ИЗБОР
+        openFileDialog.Filter = "Изображения|*.pdf,*.jpg;*.jpeg;*.png;*.bmp;*.tif;*.tiff|All files (*.*)|*.*"
+        ' 3. Показваме диалога
+        If openFileDialog.ShowDialog() = Forms.DialogResult.OK Then
+            Dim selectedFiles As String() = openFileDialog.FileNames
+            ' Проверка и обработка
+            Dim validFiles As List(Of String) = ValidateAndGetFiles(selectedFiles, dirPath)
+            ' Ако са PDF файлове, можеш да ги обработиш тук
+            If Path.GetExtension(validFiles(0)).ToLower() = ".pdf" Then
+                MessageBox.Show("Всички файлове са PDF. Може да се обработват.")
+                ' MergePdfFiles(validFiles, "C:\Result\Merged.pdf")
+            End If
+        End If
+
+
+
+
+
+
+        Exit Sub
+        '' Копиране на файловете в папката "Документация"
+        'CopyFile(dwgPath, dirPath, f1, doc)
+        'CopyFile(dwgPath, dirPath, f2, doc)
+        'CopyFile(dwgPath, dirPath, f3, doc)
+        'CopyFile(dwgPath, dirPath, f4, doc)
+        'CopyFile(dwgPath, dirPath, f5, doc)
 
         CopyStanovishteFile(dwgPath, dirPath, doc)
 
@@ -64,11 +135,133 @@ Public Class Dokmentaci
         ProcessWordFile(Path.Combine(dirPath, f1), doc)
         ' Генериране на PDF от Excel файла "KS__.xlsx"
         ProcessExcelFile(Path.Combine(dirPath, f2), doc)
-
-        Dim acVer As String = Application.Version.ToString()
         ' Експортираме останалите Layouts в един PDF
         MergeProjectPDFs(dirPath, doc)
     End Sub
+    ''' <summary>
+    ''' Проверява файловете и създава PDF, ако са само изображения.
+    ''' Ако файловете са смесени PDF и изображения, показва съобщение и връща Nothing.
+    ''' </summary>
+    ''' <param name="files">Масив с файлови пътища</param>
+    ''' <param name="outputPdfPath">Път за създаване на PDF от изображения</param>
+    ''' <returns>Списък с валидни файлове или Nothing при смесени типове</returns>
+    Public Function ValidateAndGetFiles(files As IEnumerable(Of String), outputPdfPath As String) As List(Of String)
+        Dim pdfFiles As New List(Of String)
+        Dim imageFiles As New List(Of String)
+        Dim validFiles As New List(Of String)
+        For Each f As String In files
+            Dim ext As String = Path.GetExtension(f).ToLower()
+            If ext = ".pdf" Then
+                pdfFiles.Add(f)
+            ElseIf ext = ".jpg" OrElse ext = ".jpeg" OrElse ext = ".png" OrElse ext = ".bmp" OrElse ext = ".tif" OrElse ext = ".tiff" Then
+                imageFiles.Add(f)
+            Else
+                ' Непознат формат → пропускаме
+            End If
+        Next
+        ' Ако има смесени типове
+        If pdfFiles.Count > 0 AndAlso imageFiles.Count > 0 Then
+            MessageBox.Show("Не може да се обработват PDF и картинки заедно. Моля изберете само PDF или само изображения.", "Невалиден избор", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            Return Nothing
+        End If
+        ' Всички файлове са PDF
+        If pdfFiles.Count > 0 Then
+            validFiles.AddRange(pdfFiles)
+            Return validFiles
+        End If
+        ' Всички файлове са изображения → създаваме PDF
+        If imageFiles.Count > 0 Then
+            validFiles.AddRange(imageFiles)
+            ' Създаваме PDF от изображения
+            ConvertImagesToSinglePdf_iTextSharp(validFiles, outputPdfPath)
+            MessageBox.Show("PDF файлът е създаден: " & outputPdfPath)
+            Return validFiles
+        End If
+        Return Nothing
+    End Function
+    ''' <summary>
+    ''' Конвертира множество изображения в един PDF файл, използвайки iTextSharp.
+    ''' </summary>
+    ''' <param name="imageFiles">Колекция от пътища към изображения (.jpg, .jpeg, .png, .bmp, .tif, .tiff)</param>
+    ''' <param name="pdfPath">
+    ''' Път до PDF файла за запис. 
+    ''' Ако се подаде директория, автоматично се създава файл "CombinedImages.pdf" в нея.
+    ''' </param>
+    Public Sub ConvertImagesToSinglePdf_iTextSharp(imageFiles As IEnumerable(Of String), pdfPath As String)
+        ''' Сортираме изображенията по азбучен ред, за да бъдат добавени в PDF в правилната последователност.
+        Dim sortedFiles As List(Of String) = imageFiles.ToList()
+        sortedFiles.Sort()
+        ''' Създаваме нов PDF документ.
+        ''' </summary>
+        Dim pdfDoc As New iTextSharp.text.Document()
+
+        ''' <summary>
+        ''' Ако pdfPath сочи към директория, добавяме подразбиращо се име на файла.
+        ''' </summary>
+        If Directory.Exists(pdfPath) Then
+            pdfPath = Path.Combine(pdfPath, "CombinedImages.pdf")
+        End If
+
+        ''' <summary>
+        ''' Създаваме поток за запис на PDF и PdfWriter за iTextSharp.
+        ''' </summary>
+        Using stream As New FileStream(pdfPath, FileMode.Create, FileAccess.Write, FileShare.None)
+
+            Dim writer As PdfWriter = PdfWriter.GetInstance(pdfDoc, stream)
+            pdfDoc.Open()
+
+            ''' <summary>
+            ''' Обхождаме всяко изображение в сортирания списък.
+            ''' </summary>
+            For Each imgPath As String In sortedFiles
+
+                ''' <summary>
+                ''' Пропускаме файлове, които не съществуват.
+                ''' </summary>
+                If Not File.Exists(imgPath) Then Continue For
+
+                Dim ext As String = Path.GetExtension(imgPath).ToLower()
+                ''' <summary>
+                ''' Допустими формати за изображения.
+                ''' </summary>
+                If ext <> ".jpg" AndAlso ext <> ".jpeg" AndAlso ext <> ".png" AndAlso ext <> ".bmp" AndAlso ext <> ".tif" AndAlso ext <> ".tiff" Then
+                    Continue For
+                End If
+
+                ''' <summary>
+                ''' Зареждаме изображението като iTextSharp Image.
+                ''' </summary>
+                Dim pdfImg As iTextSharp.text.Image = iTextSharp.text.Image.GetInstance(imgPath)
+
+                ''' <summary>
+                ''' Настройваме размера на страницата според размерите на изображението.
+                ''' </summary>
+                pdfDoc.SetPageSize(New iTextSharp.text.Rectangle(pdfImg.Width, pdfImg.Height))
+                pdfDoc.NewPage()
+
+                ''' <summary>
+                ''' Поставяме изображението на страницата с абсолютни координати и скалиране.
+                ''' </summary>
+                pdfImg.SetAbsolutePosition(0, 0)
+                pdfImg.ScaleAbsolute(pdfImg.Width, pdfImg.Height)
+
+                ''' <summary>
+                ''' Добавяме изображението към PDF документа.
+                ''' </summary>
+                pdfDoc.Add(pdfImg)
+
+            Next
+
+            ''' <summary>
+            ''' Затваряме PDF документа след добавяне на всички изображения.
+            ''' </summary>
+            pdfDoc.Close()
+
+        End Using
+
+    End Sub
+
+
     ''' <summary>
     ''' Търси първия файл в dwgPath, който съдържа "Становище" в името, и го копира в dirPath с ново име.
     ''' Новото име се генерира от стойностите на ключовете "SAP", "Ном.заявление" и "Дата_заявление" в речника.
@@ -97,7 +290,6 @@ Public Class Dokmentaci
         ' Информационно съобщение за успешно копиране
         doc.Editor.WriteMessage(vbLf & "Копиран файл: " & Path.GetFileName(srcFile) & " -> " & newName)
     End Sub
-
     ''' <summary>
     ''' Взема всички атрибути от всички блокови референции на блока "Insert_Signature"
     ''' и ги записва в речника 'zapis'.
@@ -106,7 +298,7 @@ Public Class Dokmentaci
     ''' <param name="zapis">Речникът за съхраняване на данните (ключ: Tag, стойност: TextString)</param>
     Private Sub FillInsertSignatureAttributes(zapis As Dictionary(Of String, String))
         ' Получаване на активния документ
-        Dim acDoc As Document = Application.DocumentManager.MdiActiveDocument
+        Dim acDoc As Autodesk.AutoCAD.ApplicationServices.Document = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument
         ' Получаване на базата данни на активния документ
         Dim acCurDb As Database = acDoc.Database
         ' Започване на транзакция
@@ -288,7 +480,6 @@ Public Class Dokmentaci
                             ' Параметър: filePath – пълният път към PDF файла
                             ' ----------------------------------------------------------
                             Dim pdfSource As New iTextSharp.text.pdf.PdfReader(filePath)
-
                             ' ----------------------------------------------------------
                             ' Обхождаме всички страници на текущия PDF файл
                             ' NumberOfPages връща броя на страниците в pdfSource
@@ -297,7 +488,6 @@ Public Class Dokmentaci
                                 ' Взимаме конкретната страница от pdfSource
                                 ' PdfImportedPage е представяне на страница, което pdfEngine може да добави
                                 Dim importedPage As iTextSharp.text.pdf.PdfImportedPage = pdfEngine.GetImportedPage(pdfSource, i)
-
                                 ' Добавяме страницата към новия PDF документ
                                 pdfEngine.AddPage(importedPage)
                             Next
@@ -324,14 +514,10 @@ Public Class Dokmentaci
     End Sub
     ''' <summary>
     ''' Копира файл от изходната папка към целевата папка.
-    ''' </summary>
-    ''' <summary>
     ''' Копира файл от една директория в друга.
-    ''' 
     ''' Процедурата сглобява пълните пътища до изходния и целевия файл,
     ''' проверява дали изходният файл съществува и ако да – го копира,
     ''' като презаписва съществуващ файл със същото име.
-    ''' 
     ''' Всички съобщения за успех или грешка се извеждат
     ''' в командния ред на AutoCAD.
     ''' </summary>
@@ -348,15 +534,15 @@ Public Class Dokmentaci
     ''' Активният AutoCAD документ, използван за извеждане
     ''' на съобщения към потребителя.
     ''' </param>
-    Private Sub CopyFile(dwgPath As String, dirPath As String, fn As String, doc As Autodesk.AutoCAD.ApplicationServices.Document)
+    Private Sub CopyFile(dwgPath As String, dirPath As String, FileName As String, newFile As String, doc As Autodesk.AutoCAD.ApplicationServices.Document)
         ' Сглобяване на пълния път до изходния файл
-        Dim src = Path.Combine(dwgPath, fn)
+        Dim src = Path.Combine(dwgPath, FileName)
         ' Сглобяване на пълния път до целевия файл
-        Dim dst = Path.Combine(dirPath, fn)
+        Dim dst = Path.Combine(dirPath, newFile)
         ' Проверка дали изходният файл съществува
         If File.Exists(src) = False Then
             ' Ако файлът липсва, извеждаме съобщение в командния ред на AutoCAD
-            doc.Editor.WriteMessage(vbLf & "Липсва файл: " & fn)
+            doc.Editor.WriteMessage(vbLf & "Липсва файл: " & FileName)
             ' Прекратяване на процедурата, защото няма какво да копираме
             Exit Sub
         End If
@@ -365,7 +551,7 @@ Public Class Dokmentaci
         ' ако вече съществува
         File.Copy(src, dst, True)
         ' Информационно съобщение за успешно копиране
-        doc.Editor.WriteMessage(vbLf & "Копиран файл: " & fn)
+        doc.Editor.WriteMessage(vbLf & "Копиран файл: " & newFile)
     End Sub
     ''' <summary>
     ''' Изтрива всички файлове в дадена папка, без да изтрива самата папка.

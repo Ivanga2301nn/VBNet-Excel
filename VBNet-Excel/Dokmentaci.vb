@@ -88,7 +88,6 @@ Public Class Dokmentaci
             Dim fileNameOnly As String = System.IO.Path.GetFileName(sourceFilePath)
             CopyFile(dwgPath, dirPath, fileNameOnly, f1, doc)
         End If
-
         openFileDialog.Title = "Моля, изберете файл за копиране - СЪДЪРЖАЩ КОЛИЧЕСТВЕНАТА СМЕТКА"
         ' Филтър за типовете файлове, които търсим
         openFileDialog.Multiselect = False ' ТОВА ВЕЧЕ ЗАБРАНЯВА МНОЖЕСТВЕН ИЗБОР
@@ -99,25 +98,20 @@ Public Class Dokmentaci
             Dim fileNameOnly As String = System.IO.Path.GetFileName(sourceFilePath)
             CopyFile(dwgPath, dirPath, fileNameOnly, f2, doc)
         End If
-
         openFileDialog.Title = "Моля, изберете файл за копиране - СЪДЪРЖАЩ СТАНОВИЩЕТО"
         ' Филтър за типовете файлове, които търсим
         openFileDialog.Multiselect = True ' ТОВА ПОЗВОЛЯВА МНОЖЕСТВЕН ИЗБОР
-        openFileDialog.Filter = "Изображения|*.pdf,*.jpg;*.jpeg;*.png;*.bmp;*.tif;*.tiff|All files (*.*)|*.*"
+        openFileDialog.Filter =
+            "PDF файлове (*.pdf)|*.pdf|" &
+            "Изображения (*.jpg;*.jpeg;*.png;*.bmp;*.tif;*.tiff)|*.jpg;*.jpeg;*.png;*.bmp;*.tif;*.tiff|" &
+            "Всички файлове (*.*)|*.*"
         ' 3. Показваме диалога
         If openFileDialog.ShowDialog() = Forms.DialogResult.OK Then
             Dim selectedFiles As String() = openFileDialog.FileNames
             ' Проверка и обработка
-            Dim validFiles As List(Of String) = ValidateAndGetFiles(selectedFiles, dirPath)
-            ' Ако са PDF файлове, можеш да ги обработиш тук
-            If Path.GetExtension(validFiles(0)).ToLower() = ".pdf" Then
-                MessageBox.Show("Всички файлове са PDF. Може да се обработват.")
-                ' MergePdfFiles(validFiles, "C:\Result\Merged.pdf")
-            End If
+            ValidateAndGetFiles(selectedFiles, dirPath)
         End If
 
-
-        Exit Sub
         '' Копиране на файловете в папката "Документация"
         'CopyFile(dwgPath, dirPath, f1, doc)
         'CopyFile(dwgPath, dirPath, f2, doc)
@@ -125,8 +119,7 @@ Public Class Dokmentaci
         'CopyFile(dwgPath, dirPath, f4, doc)
         'CopyFile(dwgPath, dirPath, f5, doc)
 
-        CopyStanovishteFile(dwgPath, dirPath, doc)
-
+        Exit Sub
         ' Генериране на два PDF файла от Word документа
         ProcessWordFile(Path.Combine(dirPath, f1), doc)
         ' Генериране на PDF от Excel файла "KS__.xlsx"
@@ -134,14 +127,7 @@ Public Class Dokmentaci
         ' Експортираме останалите Layouts в един PDF
         MergeProjectPDFs(dirPath, doc)
     End Sub
-    ''' <summary>
-    ''' Проверява файловете и създава PDF, ако са само изображения.
-    ''' Ако файловете са смесени PDF и изображения, показва съобщение и връща Nothing.
-    ''' </summary>
-    ''' <param name="files">Масив с файлови пътища</param>
-    ''' <param name="outputPdfPath">Път за създаване на PDF от изображения</param>
-    ''' <returns>Списък с валидни файлове или Nothing при смесени типове</returns>
-    Public Function ValidateAndGetFiles(files As IEnumerable(Of String), outputPdfPath As String) As List(Of String)
+    Public Sub ValidateAndGetFiles(files As IEnumerable(Of String), outputPdfPath As String)
         Dim pdfFiles As New List(Of String)
         Dim imageFiles As New List(Of String)
         Dim validFiles As New List(Of String)
@@ -158,23 +144,23 @@ Public Class Dokmentaci
         ' Ако има смесени типове
         If pdfFiles.Count > 0 AndAlso imageFiles.Count > 0 Then
             MessageBox.Show("Не може да се обработват PDF и картинки заедно. Моля изберете само PDF или само изображения.", "Невалиден избор", MessageBoxButtons.OK, MessageBoxIcon.Warning)
-            Return Nothing
         End If
         ' Всички файлове са PDF
         If pdfFiles.Count > 0 Then
-            validFiles.AddRange(pdfFiles)
-            Return validFiles
+            Dim newName As String = GenerateDocumentFileName()
+            ' Ако pdfPath сочи към директория, добавяме подразбиращо се име на файла.
+            If Directory.Exists(outputPdfPath) Then
+                newName = Path.Combine(outputPdfPath, newName)
+                MergePDFs(newName, pdfFiles)
+            End If
+            Return
         End If
         ' Всички файлове са изображения → създаваме PDF
         If imageFiles.Count > 0 Then
-            validFiles.AddRange(imageFiles)
             ' Създаваме PDF от изображения
             ConvertImagesToSinglePdf_iTextSharp(validFiles, outputPdfPath)
-            MessageBox.Show("PDF файлът е създаден: " & outputPdfPath)
-            Return validFiles
         End If
-        Return Nothing
-    End Function
+    End Sub
     ''' <summary>
     ''' Конвертира множество изображения в един PDF файл, използвайки iTextSharp.
     ''' </summary>
@@ -189,9 +175,10 @@ Public Class Dokmentaci
         sortedFiles.Sort()
         ' Създаваме нов PDF документ.
         Dim pdfDoc As New iTextSharp.text.Document()
+        Dim newName As String = GenerateDocumentFileName()
         ' Ако pdfPath сочи към директория, добавяме подразбиращо се име на файла.
         If Directory.Exists(pdfPath) Then
-            pdfPath = Path.Combine(pdfPath, "CombinedImages.pdf")
+            pdfPath = Path.Combine(pdfPath, newName)
         End If
         ' Създаваме поток за запис на PDF и PdfWriter за iTextSharp.
         Using stream As New FileStream(pdfPath, FileMode.Create, FileAccess.Write, FileShare.None)
@@ -221,36 +208,36 @@ Public Class Dokmentaci
             pdfDoc.Close()
         End Using
     End Sub
-
-
     ''' <summary>
-    ''' Търси първия файл в dwgPath, който съдържа "Становище" в името, и го копира в dirPath с ново име.
-    ''' Новото име се генерира от стойностите на ключовете "SAP", "Ном.заявление" и "Дата_заявление" в речника.
+    ''' Генерира име на файл въз основа на наличните данни в речника 'zapis'.
+    ''' Проверява приоритетно SAP номера и Името за валидност.
     ''' </summary>
-    ''' <param name="dwgPath">Папката, в която се търси файлът</param>
-    ''' <param name="dirPath">Целевата папка за копиране</param>
-    ''' <param name="doc">Активният документ на AutoCAD за съобщения</param>
-    Private Sub CopyStanovishteFile(dwgPath As String, dirPath As String, doc As Autodesk.AutoCAD.ApplicationServices.Document)
-        ' Генериране на новото име
-        Dim sap As String = If(zapis.ContainsKey("SAP"), zapis("SAP"), "нето")
-        Dim nomZayav As String = If(zapis.ContainsKey("Ном.заявление"), zapis("Ном.заявление"), "нето")
-        Dim dataZayav As String = If(zapis.ContainsKey("Дата_заявление"), zapis("Дата_заявление"), "нето")
-        Dim newName As String = String.Join("_", "Становище", sap, nomZayav, dataZayav) & ".pdf"
-        ' Търсим първия файл, който съдържа "Становище"
-        Dim srcFile As String = Directory.GetFiles(dwgPath).FirstOrDefault(Function(f) Path.GetFileName(f).Contains("Становище"))
-
-        ' Проверка дали файлът е намерен
-        If String.IsNullOrEmpty(srcFile) Then
-            doc.Editor.WriteMessage(vbLf & "Не е намерен файл съдържащ 'Становище' в папка: " & dwgPath)
-            Exit Sub
-        End If
-        ' Сглобяване на пълния път до целевия файл
-        Dim dstFile As String = Path.Combine(dirPath, newName)
-        ' Копиране на файла (презаписваме, ако съществува)
-        File.Copy(srcFile, dstFile, True)
-        ' Информационно съобщение за успешно копиране
-        doc.Editor.WriteMessage(vbLf & "Копиран файл: " & Path.GetFileName(srcFile) & " -> " & newName)
-    End Sub
+    Private Function GenerateDocumentFileName() As String
+        ' 1. Извличане и почистване на основните данни
+        Dim sap As String = If(zapis.ContainsKey("SAP"), zapis("SAP").Trim(), "")
+        Dim ime As String = If(zapis.ContainsKey("ИМЕ"), zapis("ИМЕ").Trim(), "")
+        Dim nomZayav As String = If(zapis.ContainsKey("Ном.заявление"), zapis("Ном.заявление").Trim(), "")
+        Dim dataZayav As String = If(zapis.ContainsKey("Дата_заявление"), zapis("Дата_заявление").Trim(), "")
+        Dim badValue As String = "#####"
+        Dim fileName As String = String.Empty
+        ' 2. Логика за определяне на типа документ и името му
+        Select Case True
+            ' Проверка за едновременно невалидни данни
+            Case sap.Contains(badValue) AndAlso ime.Contains(badValue)
+                MsgBox("Грешка: И SAP номерът, и ИМЕТО са невалидни (#####)!", MsgBoxStyle.Critical, "Невалидни данни")
+                Return String.Empty
+            ' Ако SAP е валиден (не съдържа #####) -> Становище
+            Case Not sap.Contains(badValue) AndAlso Not String.IsNullOrWhiteSpace(sap)
+                fileName = String.Join("_", "Становище", sap, nomZayav, dataZayav) & ".pdf"
+                ' Ако само ИМЕ е валидно (не съдържа #####) -> Удостоверение
+            Case Not ime.Contains(badValue) AndAlso Not String.IsNullOrWhiteSpace(ime)
+                ' Тук използваме името (напр. ЗМА) като идентификатор
+                fileName = String.Join("_", "Удостоверение", ime, nomZayav, dataZayav) & ".pdf"
+            Case Else
+                Return String.Empty
+        End Select
+        Return fileName
+    End Function
     ''' <summary>
     ''' Взема всички атрибути от всички блокови референции на блока "Insert_Signature"
     ''' и ги записва в речника 'zapis'.
@@ -354,22 +341,18 @@ Public Class Dokmentaci
             Dokuments.Add(Path.Combine(Path_Doc, "Обяснителна записка 1.pdf"))
             mainDoc.Editor.WriteMessage(vbLf & "Добавен файл: Обяснителна записка 1.pdf")
         End If
-
         If System.IO.File.Exists(Path.Combine(Path_Doc, pppFile)) Then
             Dokuments.Add(Path.Combine(Path_Doc, pppFile))
             mainDoc.Editor.WriteMessage(vbLf & "Добавен файл: " & pppFile)
         End If
-
         If System.IO.File.Exists(Path.Combine(targetSubFolder, "Застраховка.pdf")) Then
             Dokuments.Add(Path.Combine(targetSubFolder, "Застраховка.pdf"))
             mainDoc.Editor.WriteMessage(vbLf & "Добавен файл: " & targetSubFolder & "\Застраховка.pdf")
         End If
-
         If Not String.IsNullOrEmpty(stanovishteFile) Then
             Dokuments.Add(stanovishteFile)
             mainDoc.Editor.WriteMessage(vbLf & "Добавен файл: " & Path.GetFileName(stanovishteFile))
         End If
-
         If System.IO.File.Exists(Path.Combine(Path_Doc, "Обяснителна записка 2.pdf")) Then
             Dokuments.Add(Path.Combine(Path_Doc, "Обяснителна записка 2.pdf"))
             mainDoc.Editor.WriteMessage(vbLf & "Добавен файл: Обяснителна записка 2.pdf")
@@ -648,7 +631,6 @@ Public Class Dokmentaci
 
             ' Отваряне на Excel файла
             excelBook = excelApp.Workbooks.Open(filePath)
-
             ' Изтриване на всички листове с изключение на "Количествена сметка"
             For i As Integer = excelBook.Sheets.Count To 1 Step -1
                 Dim ws As Excel.Worksheet = excelBook.Sheets(i)
@@ -656,18 +638,14 @@ Public Class Dokmentaci
                     ws.Delete()
                 End If
             Next
-
             ' Записваме Excel файла, за да се запазят направените промени
             excelBook.Save()
-
             ' Път към PDF файла
             Dim folderPath As String = Path.GetDirectoryName(filePath)
             Dim pdfPath As String = Path.Combine(folderPath, "Количествена_сметка.pdf")
-
             ' Записваме листа "Количествена сметка" като PDF
             Dim wsSheet As Excel.Worksheet = excelBook.Sheets("Количествена сметка")
             wsSheet.ExportAsFixedFormat(Excel.XlFixedFormatType.xlTypePDF, pdfPath)
-
             ' Съобщение за успешно експортиране
             doc.Editor.WriteMessage(vbLf & "Excel файлът е обработен и PDF създаден: " & pdfPath)
 
@@ -696,7 +674,6 @@ Public Class Dokmentaci
         End Try
 
     End Sub
-
     ''' <summary>
     ''' Функция за интерактивно питане на потребителя с опции Да/Не.
     ''' </summary>

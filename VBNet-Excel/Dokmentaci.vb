@@ -651,7 +651,6 @@ Public Class Dokmentaci
                 doc.Editor.WriteMessage(vbLf & "Няма файл, започващ с 'свет'. Създаваме втори PDF...")
                 ' Вземаме общия брой страници в документа
                 Dim lastPage As Integer = wordDoc.ComputeStatistics(Word.WdStatistic.wdStatisticPages)
-
                 ' Втори PDF: от страница 3 до последната
                 If lastPage >= 3 Then
                     Dim pdf2Path As String = System.IO.Path.Combine(folderPath, "Обяснителна записка 2.pdf")

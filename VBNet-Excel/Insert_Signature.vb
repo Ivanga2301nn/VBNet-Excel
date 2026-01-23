@@ -1,15 +1,20 @@
-﻿Imports Autodesk.AutoCAD.ApplicationServices
+﻿Imports System.IO
+Imports System.Text
+Imports System.Text.RegularExpressions
+Imports System.Windows.Forms.VisualStyles.VisualStyleElement.TrackBar
+Imports Autodesk.AutoCAD.ApplicationServices
 Imports Autodesk.AutoCAD.DatabaseServices
-Imports Autodesk.AutoCAD.Runtime
+Imports Autodesk.AutoCAD.DatabaseServices.Filters
 Imports Autodesk.AutoCAD.EditorInput
 Imports Autodesk.AutoCAD.Geometry
-Imports System.IO
-Imports System.Text.RegularExpressions
-Imports System.Text
-Imports Autodesk.AutoCAD.DatabaseServices.Filters
-Imports System.Windows.Forms.VisualStyles.VisualStyleElement.TrackBar
+Imports Autodesk.AutoCAD.Runtime
+Imports Microsoft.Office.Interop
+Imports excel = Microsoft.Office.Interop.Excel
 Public Class Insert_Signature
     Dim cu As CommonUtil = New CommonUtil()
+    Dim Zapis(26) As String
+    Dim File_Path As String
+
     Public Shared Sub Set_Signature(blockNames As String())
         '
         ' Този код клонира блокове от един DWG файл в друг, като използва имената на блоковете, предоставени в масива blockNames.
@@ -115,11 +120,10 @@ Public Class Insert_Signature
     <CommandMethod("Insert_Signature")>
     Public Sub Insert_Signature()
         Dim name_file As String = Application.DocumentManager.MdiActiveDocument.Name
-        Dim File_Path As String = Path.GetDirectoryName(name_file)
+        File_Path = Path.GetDirectoryName(name_file)
         Dim File_name As String = Path.GetFileName(name_file)
         Dim Path_Name As String = Mid(File_Path, InStrRev(File_Path, "\") + 1, Len(File_Path))
 
-        Dim Zapis(26) As String
         Zapis(0) = cu.GetObjects_TEXT("Изберете Наименование на ОБЕКТА", vbFalse)
         If Zapis(0) = "  #####  " Then
             MsgBox("Няма избран текст Наименование на ОБЕКТА: ")
@@ -255,11 +259,95 @@ Public Class Insert_Signature
                 ' Приключване на транзакцията
                 actrans.Commit()
             End Using
+            SaveProjectDataToExcel()
         Catch ex As Exception
             MsgBox("Възникна грешка: " & ex.Message & vbCrLf & vbCrLf & ex.StackTrace.ToString)
         End Try
     End Sub
+    Private Sub SaveProjectDataToExcel()
+        Dim nameExcel As String = "\\MONIKA\Monika\_НАСТРОЙКИ\Обекти.xlsx"
+        Dim excel_App As excel.Application = Nothing
+        Dim excel_Workbook As excel.Workbook = Nothing
+        Dim wsObekri As excel.Worksheet = Nothing
+        Try
+            ' 1. Стартиране на Excel "тихо"
+            excel_App = New excel.Application
+            excel_App.Visible = False
+            excel_App.DisplayAlerts = False
+            ' 2. Отваряне на работната книга
+            excel_Workbook = excel_App.Workbooks.Open(nameExcel)
+            wsObekri = CType(excel_Workbook.Sheets("Обекти"), excel.Worksheet)
+            ' 3. Проверка дали таблицата "ОБЕКТИ" съществува
+            If wsObekri.ListObjects.Count = 0 Then
+                Throw New Exception("Няма дефинирани таблици в листа 'Обекти'.")
+            End If
+            Dim tblObekti As excel.ListObject = wsObekri.ListObjects("ОБЕКТИ")
+            ' --- ПРОВЕРКА ЗА ДУБЛИРАНЕ ---
+            Dim isDuplicate As Boolean = False
+            Try
+                ' Търсим съвпадение
+                Dim duplicateRow As Object = excel_App.WorksheetFunction.Match(Zapis(0), tblObekti.ListColumns("Обект").Range, 0)
+                isDuplicate = True ' Ако горният ред не даде грешка, значи има дубликат
+            Catch
+                ' Ако Match гръмне, значи е нов обект
+                isDuplicate = False
+            End Try
+            If isDuplicate Then
+                Dim result As MsgBoxResult = MsgBox("Обектът '" & Zapis(0) & "' вече съществува. Искате ли да го запишете отново?",
+                                                    MsgBoxStyle.YesNo + MsgBoxStyle.Question, "Дублиран запис")
+                ' Ако потребителят избере "НЕ", затваряме и излизаме чисто през Finally
+                If result = MsgBoxResult.No Then Return
+            End If
+            ' 5. Добавяне на нов ред в края на таблицата
+            ' Добавяме новия запис най-отгоре, за да са новите обекти винаги на видно място
+            Dim newRow As excel.ListRow = tblObekti.ListRows.Add(1)
+            newRow.Range.Cells(1, 1).Value = "НЕ"
+            ' Основни данни — по име на колона
 
+            newRow.Range.Cells(1, tblObekti.ListColumns("Платено").Index).Value = "НЕ Е ПЛАТЕНО"
+            newRow.Range.Cells(1, tblObekti.ListColumns("Обект").Index).Value = Zapis(0)
+            newRow.Range.Cells(1, tblObekti.ListColumns("Дата").Index).Value = Zapis(1)
+            newRow.Range.Cells(1, tblObekti.ListColumns("Местоположение").Index).Value = Zapis(2)
+            newRow.Range.Cells(1, tblObekti.ListColumns("Възложител").Index).Value = Zapis(3)
+            newRow.Range.Cells(1, tblObekti.ListColumns("Собственик").Index).Value = Zapis(4)
+            newRow.Range.Cells(1, tblObekti.ListColumns("Фаза").Index).Value = Zapis(5)
+            newRow.Range.Cells(1, tblObekti.ListColumns("Архитект").Index).Value = Zapis(6)
+            newRow.Range.Cells(1, tblObekti.ListColumns("Конструктор").Index).Value = Zapis(7)
+            newRow.Range.Cells(1, tblObekti.ListColumns("Технология").Index).Value = Zapis(8)
+            newRow.Range.Cells(1, tblObekti.ListColumns("ВиК").Index).Value = Zapis(9)
+            newRow.Range.Cells(1, tblObekti.ListColumns("ОВ").Index).Value = Zapis(10)
+            newRow.Range.Cells(1, tblObekti.ListColumns("Геодезия").Index).Value = Zapis(11)
+            newRow.Range.Cells(1, tblObekti.ListColumns("ВП").Index).Value = Zapis(12)
+            newRow.Range.Cells(1, tblObekti.ListColumns("ЕЕФ").Index).Value = Zapis(13)
+            newRow.Range.Cells(1, tblObekti.ListColumns("ПБ").Index).Value = Zapis(14)
+            newRow.Range.Cells(1, tblObekti.ListColumns("ПБЗ").Index).Value = Zapis(15)
+            newRow.Range.Cells(1, tblObekti.ListColumns("ПУСО").Index).Value = Zapis(16)
+            newRow.Range.Cells(1, tblObekti.ListColumns("Проектант").Index).Value = Zapis(17)
+            newRow.Range.Cells(1, tblObekti.ListColumns("Път").Index).Value = Zapis(18)
+        Catch ex As Exception
+            MsgBox("Грешка при запис в Excel: " & ex.Message, MsgBoxStyle.Critical)
+        Finally
+            ' 6. Запис
+            excel_Workbook.Save()
+            ' 7. Освобождаване на ресурсите
+            If Not wsObekri Is Nothing Then
+                System.Runtime.InteropServices.Marshal.ReleaseComObject(wsObekri)
+                wsObekri = Nothing
+            End If
+            If Not excel_Workbook Is Nothing Then
+                excel_Workbook.Close(SaveChanges:=False) ' вече сме запазили
+                System.Runtime.InteropServices.Marshal.ReleaseComObject(excel_Workbook)
+                excel_Workbook = Nothing
+            End If
+            If Not excel_App Is Nothing Then
+                excel_App.Quit()
+                System.Runtime.InteropServices.Marshal.ReleaseComObject(excel_App)
+                excel_App = Nothing
+            End If
+            GC.Collect()
+            GC.WaitForPendingFinalizers()
+        End Try
+    End Sub
 End Class
 Class SurroundingClass
     <CommandMethod("MyCmd")>

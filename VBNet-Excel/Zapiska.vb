@@ -1400,7 +1400,6 @@ Public Class Zapiska
                 Next
             Next
         End Using
-
         Dim stackTrace As New StackTrace()
         Dim callingMethod As StackFrame = stackTrace.GetFrame(1)
         Dim methodName As String = callingMethod.GetMethod().Name

@@ -634,7 +634,6 @@ Public Class SheetSet
         For i = 0 To UBound(Zapis)
             wsObekri.Cells(Red, i + 1).Value = Zapis(i)
         Next
-
         ' Close the EXCEL
         Form_Closed()
     End Sub

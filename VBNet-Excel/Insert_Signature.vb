@@ -14,6 +14,8 @@ Public Class Insert_Signature
     Dim cu As CommonUtil = New CommonUtil()
     Dim Zapis(26) As String
     Dim File_Path As String
+    ' --- Създаване на речника ---
+    Dim Data As New Dictionary(Of String, String)
 
     Public Shared Sub Set_Signature(blockNames As String())
         '
@@ -123,43 +125,46 @@ Public Class Insert_Signature
         File_Path = Path.GetDirectoryName(name_file)
         Dim File_name As String = Path.GetFileName(name_file)
         Dim Path_Name As String = Mid(File_Path, InStrRev(File_Path, "\") + 1, Len(File_Path))
-
-        Zapis(0) = cu.GetObjects_TEXT("Изберете Наименование на ОБЕКТА", vbFalse)
-        If Zapis(0) = "  #####  " Then
-            MsgBox("Няма избран текст Наименование на ОБЕКТА: ")
+        ' --- Основни полета ---
+        Data("ОБЕКТ") = cu.GetObjects_TEXT("Изберете Наименование на ОБЕКТА", vbFalse)
+        If Data("ОБЕКТ") = "  #####  " Then
+            MsgBox("Няма избран текст за Наименование на ОБЕКТА.")
             Exit Sub
         End If
-        Zapis(1) = cu.GetObjects_TEXT("Изберете Местоположение на ОБЕКТА", vbFalse)
-        Zapis(2) = cu.GetObjects_TEXT("Изберете ВЪЗЛОЖИТЕЛ на проекта", vbFalse)
-        Zapis(3) = cu.GetObjects_TEXT("Изберете СОСТВЕНИК на обекта", vbFalse)
-        Zapis(4) = cu.GetObjects_TEXT("Изберете ФАЗА на проекта", vbFalse)
-        Zapis(5) = cu.GetObjects_TEXT("Изберете ДАТА на проекта", vbFalse)
-        Zapis(6) = cu.GetObjects_TEXT("Изберете съгласувал част АРХИТЕКТУРА")
-        Zapis(7) = cu.GetObjects_TEXT("Изберете съгласувал част КОНСТРУКЦИИ")
-        Zapis(8) = cu.GetObjects_TEXT("Изберете съгласувал част ТЕХНОЛОГИЯ")
-        Zapis(9) = cu.GetObjects_TEXT("Изберете съгласувал част ВиК")
-        Zapis(10) = cu.GetObjects_TEXT("Изберете съгласувал част ОВ")
-        Zapis(11) = cu.GetObjects_TEXT("Изберете съгласувал част Геодезия")
-        Zapis(12) = cu.GetObjects_TEXT("Изберете съгласувал част ВП")
-        Zapis(13) = cu.GetObjects_TEXT("Изберете съгласувал част ЕЕФ")
-        Zapis(14) = cu.GetObjects_TEXT("Изберете съгласувал част ПБ")
-        Zapis(15) = cu.GetObjects_TEXT("Изберете съгласувалчаст ПБЗ")
-        Zapis(16) = cu.GetObjects_TEXT("Изберете съгласувал част ПУСО")
-        Zapis(17) = cu.GetObjects_TEXT("Изберете ПРОЕКТАНТ")
-        Zapis(17) = IIf(Zapis(17) = "  #####  ", "инж. М.Тонкова-Генчева", Zapis(17))
-        Zapis(18) = File_Path
-        Zapis(19) = cu.GetObjects_TEXT("Изберете Номер на заявлене")
-        Zapis(20) = cu.GetObjects_TEXT("Изберете Дата на изготвяне")
-        Zapis(21) = cu.GetObjects_TEXT("Изберете съгласувал SAP номер")
-        Zapis(22) = cu.GetObjects_TEXT("Изберете дружество")
-        Zapis(22) = IIf(Zapis(22) = "  #####  ", Chr(34) + "Електроразпределителни мрежи " + Chr(34) + "Запад" + Chr(34) + " ЕАД", Zapis(22))
-
-        Zapis(23) = cu.GetObjects_TEXT("Изберете текст съдържащ описанието по т.3 от становището")
-
-        Zapis(24) = cu.GetObjects_TEXT("Изберете Име")
-        Zapis(25) = cu.GetObjects_TEXT("Изберете Адрес")
-        Zapis(26) = cu.GetObjects_TEXT("Изберете Партида")
-
+        Data("МЕСТОПОЛОЖЕНИЕ") = cu.GetObjects_TEXT("Изберете Местоположение на ОБЕКТА", vbFalse)
+        Data("ВЪЗЛОЖИТЕЛ") = cu.GetObjects_TEXT("Изберете ВЪЗЛОЖИТЕЛ на проекта", vbFalse)
+        Data("СОБСТВЕНИК") = cu.GetObjects_TEXT("Изберете СОСТВЕНИК на обекта", vbFalse)
+        Data("ФАЗА") = cu.GetObjects_TEXT("Изберете ФАЗА на проекта", vbFalse)
+        Data("ДАТА") = cu.GetObjects_TEXT("Изберете ДАТА на проекта", vbFalse)
+        Data("АРХИТЕКТ") = cu.GetObjects_TEXT("Изберете съгласувал част АРХИТЕКТУРА")
+        Data("КОНСТРУКТОР") = cu.GetObjects_TEXT("Изберете съгласувал част КОНСТРУКЦИИ")
+        Data("ТЕХНОЛОГИЯ") = cu.GetObjects_TEXT("Изберете съгласувал част ТЕХНОЛОГИЯ")
+        Data("ВИК") = cu.GetObjects_TEXT("Изберете съгласувал част ВиК")
+        Data("ОВ") = cu.GetObjects_TEXT("Изберете съгласувал част ОВ")
+        Data("ГЕОДЕЗИЯ") = cu.GetObjects_TEXT("Изберете съгласувал част Геодезия")
+        Data("ВП") = cu.GetObjects_TEXT("Изберете съгласувал част ВП")
+        Data("ЕЕФ") = cu.GetObjects_TEXT("Изберете съгласувал част ЕЕФ")
+        Data("ПБ") = cu.GetObjects_TEXT("Изберете съгласувал част ПБ")
+        Data("ПБЗ") = cu.GetObjects_TEXT("Изберете съгласувалчаст ПБЗ")
+        Data("ПУСО") = cu.GetObjects_TEXT("Изберете съгласувал част ПУСО")
+        ' Проектант с дефолт
+        Dim projektant As String = cu.GetObjects_TEXT("Изберете ПРОЕКТАНТ")
+        Data("ПРОЕКТАНТ") = If(projektant = "  #####  ", "инж. М.Тонкова-Генчева", projektant)
+        ' Път към файл
+        Data("FILE_PATH") = File_Path
+        ' Допълнителни полета
+        Data("Ном.заявление") = cu.GetObjects_TEXT("Изберете Номер на заявлене")
+        Data("Дата_заявление") = cu.GetObjects_TEXT("Изберете Дата на изготвяне")
+        Data("SAP") = cu.GetObjects_TEXT("Изберете съгласувал SAP номер")
+        ' Дружество с дефолт
+        Dim drujestvo As String = cu.GetObjects_TEXT("Изберете дружество")
+        Data("Дружество") = If(drujestvo = "  #####  ",
+                       Chr(34) & "Електроразпределителни мрежи " & Chr(34) & "Запад" & Chr(34) & " ЕАД",
+                       drujestvo)
+        Data("ТОЧКА_3") = cu.GetObjects_TEXT("Изберете текст съдържащ описанието по т.3 от становището")
+        Data("ИМЕ") = cu.GetObjects_TEXT("Изберете Име")
+        Data("АДРЕС") = cu.GetObjects_TEXT("Изберете Адрес")
+        Data("ПАРТИДА") = cu.GetObjects_TEXT("Изберете Партида")
         Try
             ' Получаване на активния документ
             Dim acDoc As Document = Application.DocumentManager.MdiActiveDocument
@@ -203,42 +208,52 @@ Public Class Insert_Signature
                     ' Получаване на колекцията от атрибути на блоковата референция
                     Dim attCol As AttributeCollection = acBlkRef.AttributeCollection
                     ' Обхождане на всички атрибути
+                    'For Each objID As ObjectId In attCol
+                    '    ' Получаване на атрибута
+                    '    Dim dbObj As DBObject = actrans.GetObject(objID, OpenMode.ForWrite)
+                    '    Dim acAttRef As AttributeReference = dbObj
+                    '    ' Проверка тагът на атрибута и промяна на текста на атрибута
+                    '    If acAttRef.Tag = "ОБЕКТ" Then acAttRef.TextString = Zapis(0)
+                    '    If acAttRef.Tag = "МЕСТОПОЛОЖЕНИЕ" Then acAttRef.TextString = Zapis(1)
+                    '    If acAttRef.Tag = "ВЪЗЛОЖИТЕЛ" Then acAttRef.TextString = Zapis(2)
+                    '    If acAttRef.Tag = "СОБСТВЕНИК" Then acAttRef.TextString = Zapis(3)
+                    '    If acAttRef.Tag = "ФАЗА" Then acAttRef.TextString = Zapis(4)
+                    '    If acAttRef.Tag = "ДАТА" Then acAttRef.TextString = Zapis(5)
+                    '    If acAttRef.Tag = "АРХИТЕКТ" Then acAttRef.TextString = Zapis(6)
+                    '    If acAttRef.Tag = "КОНСТРУКТОР" Then acAttRef.TextString = Zapis(7)
+                    '    If acAttRef.Tag = "ТЕХНОЛОГИЯ" Then acAttRef.TextString = Zapis(8)
+                    '    If acAttRef.Tag = "ВИК" Then acAttRef.TextString = Zapis(9)
+                    '    If acAttRef.Tag = "ОВ" Then acAttRef.TextString = Zapis(10)
+                    '    If acAttRef.Tag = "ГЕОДЕЗИЯ" Then acAttRef.TextString = Zapis(11)
+                    '    If acAttRef.Tag = "ВП" Then acAttRef.TextString = Zapis(12)
+                    '    If acAttRef.Tag = "ЕЕФ" Then acAttRef.TextString = Zapis(13)
+                    '    If acAttRef.Tag = "ПБ" Then acAttRef.TextString = Zapis(14)
+                    '    If acAttRef.Tag = "ПБЗ" Then acAttRef.TextString = Zapis(15)
+                    '    If acAttRef.Tag = "ПУСО" Then acAttRef.TextString = Zapis(16)
+                    '    If acAttRef.Tag = "ПРОЕКТАНТ" Then acAttRef.TextString = Zapis(17)
+                    '    If acAttRef.Tag = "FILE_PATH" Then acAttRef.TextString = Zapis(18)
+                    '    If acAttRef.Tag = "Ном.заявление" Then acAttRef.TextString = Zapis(19)
+                    '    If acAttRef.Tag = "Дата_заявление" Then acAttRef.TextString = Zapis(20)
+                    '    If acAttRef.Tag = "SAP" Then acAttRef.TextString = Zapis(21)
+                    '    If acAttRef.Tag = "Дружество" Then acAttRef.TextString = Zapis(22)
+                    '    If acAttRef.Tag = "брой_листове" Then acAttRef.TextString = layoutCount.ToString
+
+                    '    If acAttRef.Tag = "ТОЧКА_3" Then acAttRef.TextString = Zapis(23)
+
+                    '    If acAttRef.Tag = "ИМЕ" Then acAttRef.TextString = Zapis(24)
+                    '    If acAttRef.Tag = "АДРЕС" Then acAttRef.TextString = Zapis(25)
+                    '    If acAttRef.Tag = "ПАРТИДА" Then acAttRef.TextString = Zapis(26)
+
+                    'Next
                     For Each objID As ObjectId In attCol
-                        ' Получаване на атрибута
                         Dim dbObj As DBObject = actrans.GetObject(objID, OpenMode.ForWrite)
-                        Dim acAttRef As AttributeReference = dbObj
-                        ' Проверка тагът на атрибута и промяна на текста на атрибута
-                        If acAttRef.Tag = "ОБЕКТ" Then acAttRef.TextString = Zapis(0)
-                        If acAttRef.Tag = "МЕСТОПОЛОЖЕНИЕ" Then acAttRef.TextString = Zapis(1)
-                        If acAttRef.Tag = "ВЪЗЛОЖИТЕЛ" Then acAttRef.TextString = Zapis(2)
-                        If acAttRef.Tag = "СОБСТВЕНИК" Then acAttRef.TextString = Zapis(3)
-                        If acAttRef.Tag = "ФАЗА" Then acAttRef.TextString = Zapis(4)
-                        If acAttRef.Tag = "ДАТА" Then acAttRef.TextString = Zapis(5)
-                        If acAttRef.Tag = "АРХИТЕКТ" Then acAttRef.TextString = Zapis(6)
-                        If acAttRef.Tag = "КОНСТРУКТОР" Then acAttRef.TextString = Zapis(7)
-                        If acAttRef.Tag = "ТЕХНОЛОГИЯ" Then acAttRef.TextString = Zapis(8)
-                        If acAttRef.Tag = "ВИК" Then acAttRef.TextString = Zapis(9)
-                        If acAttRef.Tag = "ОВ" Then acAttRef.TextString = Zapis(10)
-                        If acAttRef.Tag = "ГЕОДЕЗИЯ" Then acAttRef.TextString = Zapis(11)
-                        If acAttRef.Tag = "ВП" Then acAttRef.TextString = Zapis(12)
-                        If acAttRef.Tag = "ЕЕФ" Then acAttRef.TextString = Zapis(13)
-                        If acAttRef.Tag = "ПБ" Then acAttRef.TextString = Zapis(14)
-                        If acAttRef.Tag = "ПБЗ" Then acAttRef.TextString = Zapis(15)
-                        If acAttRef.Tag = "ПУСО" Then acAttRef.TextString = Zapis(16)
-                        If acAttRef.Tag = "ПРОЕКТАНТ" Then acAttRef.TextString = Zapis(17)
-                        If acAttRef.Tag = "FILE_PATH" Then acAttRef.TextString = Zapis(18)
-                        If acAttRef.Tag = "Ном.заявление" Then acAttRef.TextString = Zapis(19)
-                        If acAttRef.Tag = "Дата_заявление" Then acAttRef.TextString = Zapis(20)
-                        If acAttRef.Tag = "SAP" Then acAttRef.TextString = Zapis(21)
-                        If acAttRef.Tag = "Дружество" Then acAttRef.TextString = Zapis(22)
-                        If acAttRef.Tag = "брой_листове" Then acAttRef.TextString = layoutCount.ToString
-
-                        If acAttRef.Tag = "ТОЧКА_3" Then acAttRef.TextString = Zapis(23)
-
-                        If acAttRef.Tag = "ИМЕ" Then acAttRef.TextString = Zapis(24)
-                        If acAttRef.Tag = "АДРЕС" Then acAttRef.TextString = Zapis(25)
-                        If acAttRef.Tag = "ПАРТИДА" Then acAttRef.TextString = Zapis(26)
-
+                        Dim acAttRef As AttributeReference = CType(dbObj, AttributeReference)
+                        ' Попълване от речника, ако има стойност за този таг
+                        If Data.ContainsKey(acAttRef.Tag) Then
+                            acAttRef.TextString = Data(acAttRef.Tag)
+                        ElseIf acAttRef.Tag = "брой_листове" Then
+                            acAttRef.TextString = layoutCount.ToString()
+                        End If
                     Next
                 Next
                 Dim ptBasePointRes As PromptPointResult
@@ -269,6 +284,27 @@ Public Class Insert_Signature
         Dim excel_App As excel.Application = Nothing
         Dim excel_Workbook As excel.Workbook = Nothing
         Dim wsObekri As excel.Worksheet = Nothing
+        Dim ExcelColumnToTag As New Dictionary(Of String, String) From {
+            {"Обект", "ОБЕКТ"},
+            {"Дата", "ДАТА"},
+            {"Местоположение", "МЕСТОПОЛОЖЕНИЕ"},
+            {"Възложител", "ВЪЗЛОЖИТЕЛ"},
+            {"Собственик", "СОБСТВЕНИК"},
+            {"Фаза", "ФАЗА"},
+            {"Архитект", "АРХИТЕКТ"},
+            {"Конструктор", "КОНСТРУКТОР"},
+            {"Технология", "ТЕХНОЛОГИЯ"},
+            {"ВиК", "ВИК"},
+            {"ОВ", "ОВ"},
+            {"Геодезия", "ГЕОДЕЗИЯ"},
+            {"ВП", "ВП"},
+            {"ЕЕФ", "ЕЕФ"},
+            {"ПБ", "ПБ"},
+            {"ПБЗ", "ПБЗ"},
+            {"ПУСО", "ПУСО"},
+            {"Проектант", "ПРОЕКТАНТ"},
+            {"Път", "FILE_PATH"}
+        }
         Try
             ' 1. Стартиране на Excel "тихо"
             excel_App = New excel.Application
@@ -301,29 +337,42 @@ Public Class Insert_Signature
             ' 5. Добавяне на нов ред в края на таблицата
             ' Добавяме новия запис най-отгоре, за да са новите обекти винаги на видно място
             Dim newRow As excel.ListRow = tblObekti.ListRows.Add(1)
-            newRow.Range.Cells(1, 1).Value = "НЕ"
-            ' Основни данни — по име на колона
+            ' Попълване на "Платено" (ако колоната съществува)
+            If tblObekti.ListColumns.Contains("Платено") Then
+                newRow.Range.Cells(1, tblObekti.ListColumns("Платено").Index).Value = "НЕ Е ПЛАТЕНО"
+            End If
 
-            newRow.Range.Cells(1, tblObekti.ListColumns("Платено").Index).Value = "НЕ Е ПЛАТЕНО"
-            newRow.Range.Cells(1, tblObekti.ListColumns("Обект").Index).Value = Zapis(0)
-            newRow.Range.Cells(1, tblObekti.ListColumns("Дата").Index).Value = Zapis(1)
-            newRow.Range.Cells(1, tblObekti.ListColumns("Местоположение").Index).Value = Zapis(2)
-            newRow.Range.Cells(1, tblObekti.ListColumns("Възложител").Index).Value = Zapis(3)
-            newRow.Range.Cells(1, tblObekti.ListColumns("Собственик").Index).Value = Zapis(4)
-            newRow.Range.Cells(1, tblObekti.ListColumns("Фаза").Index).Value = Zapis(5)
-            newRow.Range.Cells(1, tblObekti.ListColumns("Архитект").Index).Value = Zapis(6)
-            newRow.Range.Cells(1, tblObekti.ListColumns("Конструктор").Index).Value = Zapis(7)
-            newRow.Range.Cells(1, tblObekti.ListColumns("Технология").Index).Value = Zapis(8)
-            newRow.Range.Cells(1, tblObekti.ListColumns("ВиК").Index).Value = Zapis(9)
-            newRow.Range.Cells(1, tblObekti.ListColumns("ОВ").Index).Value = Zapis(10)
-            newRow.Range.Cells(1, tblObekti.ListColumns("Геодезия").Index).Value = Zapis(11)
-            newRow.Range.Cells(1, tblObekti.ListColumns("ВП").Index).Value = Zapis(12)
-            newRow.Range.Cells(1, tblObekti.ListColumns("ЕЕФ").Index).Value = Zapis(13)
-            newRow.Range.Cells(1, tblObekti.ListColumns("ПБ").Index).Value = Zapis(14)
-            newRow.Range.Cells(1, tblObekti.ListColumns("ПБЗ").Index).Value = Zapis(15)
-            newRow.Range.Cells(1, tblObekti.ListColumns("ПУСО").Index).Value = Zapis(16)
-            newRow.Range.Cells(1, tblObekti.ListColumns("Проектант").Index).Value = Zapis(17)
-            newRow.Range.Cells(1, tblObekti.ListColumns("Път").Index).Value = Zapis(18)
+            ' Попълване на останалите колони според мапинга
+            For Each kvp As KeyValuePair(Of String, String) In ExcelColumnToTag
+                Dim excelColName As String = kvp.Key      ' напр. "Обект"
+                Dim dataTag As String = kvp.Value         ' напр. "ОБЕКТ"
+
+                If tblObekti.ListColumns.Contains(excelColName) AndAlso Data.ContainsKey(dataTag) Then
+                    newRow.Range.Cells(1, tblObekti.ListColumns(excelColName).Index).Value = Data(dataTag)
+                End If
+            Next
+            'newRow.Range.Cells(1, 1).Value = "НЕ"
+            '' Основни данни — по име на колона
+            'newRow.Range.Cells(1, tblObekti.ListColumns("Платено").Index).Value = "НЕ Е ПЛАТЕНО"
+            'newRow.Range.Cells(1, tblObekti.ListColumns("Обект").Index).Value = Zapis(0)
+            'newRow.Range.Cells(1, tblObekti.ListColumns("Дата").Index).Value = Zapis(1)
+            'newRow.Range.Cells(1, tblObekti.ListColumns("Местоположение").Index).Value = Zapis(2)
+            'newRow.Range.Cells(1, tblObekti.ListColumns("Възложител").Index).Value = Zapis(3)
+            'newRow.Range.Cells(1, tblObekti.ListColumns("Собственик").Index).Value = Zapis(4)
+            'newRow.Range.Cells(1, tblObekti.ListColumns("Фаза").Index).Value = Zapis(5)
+            'newRow.Range.Cells(1, tblObekti.ListColumns("Архитект").Index).Value = Zapis(6)
+            'newRow.Range.Cells(1, tblObekti.ListColumns("Конструктор").Index).Value = Zapis(7)
+            'newRow.Range.Cells(1, tblObekti.ListColumns("Технология").Index).Value = Zapis(8)
+            'newRow.Range.Cells(1, tblObekti.ListColumns("ВиК").Index).Value = Zapis(9)
+            'newRow.Range.Cells(1, tblObekti.ListColumns("ОВ").Index).Value = Zapis(10)
+            'newRow.Range.Cells(1, tblObekti.ListColumns("Геодезия").Index).Value = Zapis(11)
+            'newRow.Range.Cells(1, tblObekti.ListColumns("ВП").Index).Value = Zapis(12)
+            'newRow.Range.Cells(1, tblObekti.ListColumns("ЕЕФ").Index).Value = Zapis(13)
+            'newRow.Range.Cells(1, tblObekti.ListColumns("ПБ").Index).Value = Zapis(14)
+            'newRow.Range.Cells(1, tblObekti.ListColumns("ПБЗ").Index).Value = Zapis(15)
+            'newRow.Range.Cells(1, tblObekti.ListColumns("ПУСО").Index).Value = Zapis(16)
+            'newRow.Range.Cells(1, tblObekti.ListColumns("Проектант").Index).Value = Zapis(17)
+            'newRow.Range.Cells(1, tblObekti.ListColumns("Път").Index).Value = Zapis(18)
         Catch ex As Exception
             MsgBox("Грешка при запис в Excel: " & ex.Message, MsgBoxStyle.Critical)
         Finally

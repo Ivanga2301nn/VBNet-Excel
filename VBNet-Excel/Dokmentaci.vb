@@ -1,5 +1,6 @@
 ﻿Imports System.Drawing
 Imports System.IO
+Imports System.Runtime.InteropServices
 Imports System.Windows.Forms
 Imports Autodesk.AutoCAD.ApplicationServices
 Imports Autodesk.AutoCAD.DatabaseServices
@@ -55,6 +56,7 @@ Public Class Dokmentaci
         Dim f5 = "Светлотехнически.pdf"
         ' --- Настройка на OpenFileDialog за избор на файлове ---
         Dim openFileDialog As New Forms.OpenFileDialog()
+        openFileDialog.FileName = ""
         openFileDialog.InitialDirectory = dwgPath
         openFileDialog.Title = "Моля, изберете файлoве за копиране - СЪДЪРЖАЩИ ЧЕРТЕЖИТЕ"
         openFileDialog.Filter = "AutoCAD & Office Files|*.dwg" ' само DWG по подразбиране
@@ -68,6 +70,7 @@ Public Class Dokmentaci
             Next
         End If
         ' --- Избор на файл за Обяснителната записка (Word) ---
+        openFileDialog.FileName = f1
         openFileDialog.Title = "Моля, изберете файл за копиране - СЪДЪРЖАЩ ОБЯСНИТЕЛНАТА ЗАПИСКА"
         openFileDialog.Filter = "ОБЯСНИТЕЛНА ЗАПИСКА|*.docx"
         openFileDialog.Multiselect = False ' Забраняваме множествен избор
@@ -78,6 +81,7 @@ Public Class Dokmentaci
             CopyFile(dwgPath, dirPath, fileNameOnly, f1, doc)
         End If
         ' --- Избор на файл за Количествената сметка (Excel) ---
+        openFileDialog.FileName = "KS__.xlsx"
         openFileDialog.Title = "Моля, изберете файл за копиране - СЪДЪРЖАЩ КОЛИЧЕСТВЕНАТА СМЕТКА"
         openFileDialog.Filter = "КОЛИЧЕСТВЕНА СМЕТКА|*.xlsx"
         openFileDialog.Multiselect = False
@@ -87,6 +91,7 @@ Public Class Dokmentaci
             CopyFile(dwgPath, dirPath, fileNameOnly, f2, doc)
         End If
         ' --- Избор на файлове за становището (PDF или изображения) ---
+        openFileDialog.FileName = ""
         openFileDialog.Title = "Моля, изберете файл за копиране - СЪДЪРЖАЩ СТАНОВИЩЕТО"
         openFileDialog.Multiselect = True ' Позволява множествен избор
         openFileDialog.Filter =
@@ -98,7 +103,8 @@ Public Class Dokmentaci
             ' --- Проверка и обработка на избраните файлове ---
             ValidateAndGetFiles(selectedFiles, dirPath)
         End If
-        ' --- Избор на файлове за становището (PDF или изображения) ---
+        openFileDialog.FileName = ""
+        ' --- Избор на файлове за ГРАФИЧНАТА ЧАСТ (PDF) ---
         openFileDialog.Title = "Моля, изберете файл за копиране - ГРАФИЧНАТА ЧАСТ"
         openFileDialog.Multiselect = True ' Позволява множествен избор
         openFileDialog.Filter = "PDF файлове (*.pdf)|*.pdf"
@@ -107,8 +113,18 @@ Public Class Dokmentaci
             ' --- Проверка и обработка на избраните файлове ---
             AssembleProjectPdf(selectedFiles, dirPath, f4)
         End If
+        ' --- Избор на файлове за СВЕТЛОТЕНИКА (PDF) ---
+        openFileDialog.FileName = ""
+        openFileDialog.Title = "Моля, изберете файл за копиране - СВЕТЛОТЕНИКА"
+        openFileDialog.Multiselect = True ' Позволява множествен избор
+        openFileDialog.Filter = "PDF файлове (*.pdf)|*.pdf"
+        If openFileDialog.ShowDialog() = Forms.DialogResult.OK Then
+            Dim selectedFiles As String() = openFileDialog.FileNames
+            ' --- Проверка и обработка на избраните файлове ---
+            AssembleProjectPdf(selectedFiles, dirPath, f5)
+        End If
         ' --- Генериране на PDF от Word документа ---
-        ProcessWordFile(Path.Combine(dirPath, f1), doc)
+        ProcessWordFile(Path.Combine(dirPath, f1), doc, f5)
         ' --- Генериране на PDF от Excel файла ---
         ProcessExcelFile(Path.Combine(dirPath, f2), doc)
         ' --- Обединяване на всички останали Layout-и в един PDF ---
@@ -240,7 +256,6 @@ Public Class Dokmentaci
     ''' <param name="imageFiles">Колекция от пътища към изображения (.jpg, .jpeg, .png, .bmp, .tif, .tiff)</param>
     ''' <param name="pdfPath">
     ''' Път до PDF файла за запис. 
-    ''' Ако се подаде директория, автоматично се създава файл "CombinedImages.pdf" в нея.
     ''' </param>
     Public Sub ConvertImagesToSinglePdf_iTextSharp(imageFiles As IEnumerable(Of String), pdfPath As String)
         ' Сортираме изображенията по азбучен ред, за да бъдат добавени в PDF в правилната последователност.
@@ -448,6 +463,32 @@ Public Class Dokmentaci
         End If
         MergePDFs(Path.Combine(Path_Doc, "Част електро.pdf"), Dokuments)
         mainDoc.Editor.WriteMessage(vbLf & "Създаден файл: Част електро.pdf")
+
+        If File.Exists(Path.Combine(Path_Doc, "Обяснителна записка 1.pdf")) Then
+            Try
+                File.Delete(Path.Combine(Path_Doc, "Обяснителна записка 1.pdf"))
+            Catch ex As Exception
+                ' Тук може да логнете грешка, ако файлът е зает от друг процес
+                Debug.WriteLine("Грешка при изтривене: " & Path.Combine(Path_Doc, "Обяснителна записка 1.pdf"))
+            End Try
+        End If
+        If File.Exists(Path.Combine(Path_Doc, "Обяснителна записка 2.pdf")) Then
+            Try
+                File.Delete(Path.Combine(Path_Doc, "Обяснителна записка 2.pdf"))
+            Catch ex As Exception
+                ' Тук може да логнете грешка, ако файлът е зает от друг процес
+                Debug.WriteLine("Грешка при изтривене: " & Path.Combine(Path_Doc, "Обяснителна записка 2.pdf"))
+            End Try
+        End If
+        If File.Exists(Path.Combine(Path_Doc, "Обяснителна записка 3.pdf")) Then
+            Try
+                File.Delete(Path.Combine(Path_Doc, "Обяснителна записка 3.pdf"))
+            Catch ex As Exception
+                ' Тук може да логнете грешка, ако файлът е зает от друг процес
+                Debug.WriteLine("Грешка при изтривене: " & Path.Combine(Path_Doc, "Обяснителна записка 3.pdf"))
+            End Try
+        End If
+
     End Sub
     ''' <summary>
     ''' Обединява няколко PDF файла в един.
@@ -462,7 +503,7 @@ Public Class Dokmentaci
             ' или презаписва стар файл със същото име.
             ' Това е “потокът”, в който ще се записва крайният PDF.
             ' --------------------------------------------------------------
-            Using pdfStream As New System.IO.FileStream(outputFile, System.IO.FileMode.Create)
+            Using pdfStream As New FileStream(outputFile, FileMode.Create)
                 ' --------------------------------------------------------------
                 ' Document: обектът на iTextSharp, който представлява PDF документа в паметта.
                 ' Това е контейнерът, в който ще се добавят всички страници.
@@ -474,7 +515,7 @@ Public Class Dokmentaci
                 ' - pdfContainer: контейнерът, който създаваме
                 ' - pdfStream: потокът, където ще се запише крайният PDF
                 ' --------------------------------------------------------------
-                Dim pdfEngine As New iTextSharp.text.pdf.PdfCopy(pdfContainer, pdfStream)
+                Dim pdfEngine As New PdfCopy(pdfContainer, pdfStream)
                 ' --------------------------------------------------------------
                 ' Отваряме контейнера за писане. 
                 ' Всички операции с pdfEngine трябва да се извършват след това.
@@ -485,13 +526,13 @@ Public Class Dokmentaci
                 ' --------------------------------------------------------------
                 For Each filePath In inputFiles
                     ' Проверяваме дали файлът съществува, за да избегнем грешки
-                    If System.IO.File.Exists(filePath) Then
+                    If File.Exists(filePath) Then
                         Try
                             ' ----------------------------------------------------------
                             ' PdfReader: обект, който чете съдържанието на текущия PDF файл
                             ' Параметър: filePath – пълният път към PDF файла
                             ' ----------------------------------------------------------
-                            Dim pdfSource As New iTextSharp.text.pdf.PdfReader(filePath)
+                            Dim pdfSource As New PdfReader(filePath)
                             ' ----------------------------------------------------------
                             ' Обхождаме всички страници на текущия PDF файл
                             ' NumberOfPages връща броя на страниците в pdfSource
@@ -499,7 +540,7 @@ Public Class Dokmentaci
                             For i As Integer = 1 To pdfSource.NumberOfPages
                                 ' Взимаме конкретната страница от pdfSource
                                 ' PdfImportedPage е представяне на страница, което pdfEngine може да добави
-                                Dim importedPage As iTextSharp.text.pdf.PdfImportedPage = pdfEngine.GetImportedPage(pdfSource, i)
+                                Dim importedPage As PdfImportedPage = pdfEngine.GetImportedPage(pdfSource, i)
                                 ' Добавяме страницата към новия PDF документ
                                 pdfEngine.AddPage(importedPage)
                             Next
@@ -526,26 +567,14 @@ Public Class Dokmentaci
     End Sub
     ''' <summary>
     ''' Копира файл от изходната папка към целевата папка.
-    ''' Копира файл от една директория в друга.
     ''' Процедурата сглобява пълните пътища до изходния и целевия файл,
     ''' проверява дали изходният файл съществува и ако да – го копира,
     ''' като презаписва съществуващ файл със същото име.
-    ''' Всички съобщения за успех или грешка се извеждат
-    ''' в командния ред на AutoCAD.
-    ''' </summary>
-    ''' <param name="dwgPath">
-    ''' Път до директорията, от която ще се копира файлът.
-    ''' </param>
-    ''' <param name="dirPath">
-    ''' Път до директорията, в която ще бъде копиран файлът.
-    ''' </param>
-    ''' <param name="fn">
-    ''' Име на файла (включително разширението), който трябва да бъде копиран.
-    ''' </param>
-    ''' <param name="doc">
-    ''' Активният AutoCAD документ, използван за извеждане
-    ''' на съобщения към потребителя.
-    ''' </param>
+    ''' </summary>  
+    ''' <param name="dwgPath">Път до директорията, от която ще се копира файлът.</param>
+    ''' <param name="dirPath">Път до директорията, в която ще бъде копиран файлът.</param>
+    ''' <param name="fn">Име на файла (включително разширението), който трябва да бъде копиран.</param>
+    ''' <param name="doc">Активният AutoCAD документ за извеждане на съобщения.</param>
     Private Sub CopyFile(dwgPath As String, dirPath As String, FileName As String, newFile As String, doc As Autodesk.AutoCAD.ApplicationServices.Document)
         ' Сглобяване на пълния път до изходния файл
         Dim src = Path.Combine(dwgPath, FileName)
@@ -591,7 +620,9 @@ Public Class Dokmentaci
     ''' </summary>
     ''' <param name="filePath">Пълният път до Word документа</param>
     ''' <param name="doc">Активният AutoCAD документ за извеждане на съобщения</param>
-    Private Sub ProcessWordFile(filePath As String, doc As Autodesk.AutoCAD.ApplicationServices.Document)
+    Private Sub ProcessWordFile(filePath As String,
+                                doc As Autodesk.AutoCAD.ApplicationServices.Document,
+                                fileSWET As String)
         ' Декларация на обекти за Word
         Dim wordApp As Word.Application = Nothing
         Dim wordDoc As Word.Document = Nothing
@@ -602,10 +633,10 @@ Public Class Dokmentaci
             ' Отваряне на Word документа
             wordDoc = wordApp.Documents.Open(filePath)
             ' Вземаме папката, където се намира документа
-            Dim folderPath As String = System.IO.Path.GetDirectoryName(filePath)
+            Dim folderPath As String = Path.GetDirectoryName(filePath)
             ' --- Експортиране на първи PDF ---
             ' Винаги първи PDF: страници 1 и 2
-            Dim pdf1Path As String = System.IO.Path.Combine(folderPath, "Обяснителна записка 1.pdf")
+            Dim pdf1Path As String = Path.Combine(folderPath, "Обяснителна записка 1.pdf")
             wordDoc.ExportAsFixedFormat(pdf1Path, Word.WdExportFormat.wdExportFormatPDF,
                                     OpenAfterExport:=False,
                                     OptimizeFor:=Word.WdExportOptimizeFor.wdExportOptimizeForPrint,
@@ -613,7 +644,8 @@ Public Class Dokmentaci
                                     From:=1, To:=2)
             ' --- Проверка за файл започващ с "свет" ---
             ' Преглеждаме всички файлове в папката и проверяваме дали името започва с "свет" (главни/малки букви)
-            Dim fileExists As Boolean = System.IO.Directory.GetFiles(folderPath).Any(Function(f) System.IO.Path.GetFileName(f).ToLower().StartsWith("свет"))
+            Dim fullPath As String = Path.Combine(folderPath, fileSWET)
+            Dim fileExists As Boolean = File.Exists(fullPath)
             ' --- Ако няма такъв файл ---
             If Not fileExists Then
                 doc.Editor.WriteMessage(vbLf & "Няма файл, започващ с 'свет'. Създаваме втори PDF...")
@@ -649,7 +681,7 @@ Public Class Dokmentaci
                     Dim lastPage As Integer = wordDoc.ComputeStatistics(Word.WdStatistic.wdStatisticPages)
                     ' --- Втори PDF: от страница 3 до targetPage - 1 ---
                     If targetPage > 3 Then
-                        Dim pdf2Path As String = System.IO.Path.Combine(folderPath, "Обяснителна записка 2.pdf")
+                        Dim pdf2Path As String = Path.Combine(folderPath, "Обяснителна записка 2.pdf")
                         wordDoc.ExportAsFixedFormat(pdf2Path, Word.WdExportFormat.wdExportFormatPDF,
                                                 OpenAfterExport:=False,
                                                 OptimizeFor:=Word.WdExportOptimizeFor.wdExportOptimizeForPrint,
@@ -658,7 +690,7 @@ Public Class Dokmentaci
                     End If
                     ' --- Трети PDF: от targetPage до края ---
                     If targetPage <= lastPage Then
-                        Dim pdf3Path As String = System.IO.Path.Combine(folderPath, "Обяснителна записка 3.pdf")
+                        Dim pdf3Path As String = Path.Combine(folderPath, "Обяснителна записка 3.pdf")
                         wordDoc.ExportAsFixedFormat(pdf3Path, Word.WdExportFormat.wdExportFormatPDF,
                                                 OpenAfterExport:=False,
                                                 OptimizeFor:=Word.WdExportOptimizeFor.wdExportOptimizeForPrint,
@@ -674,9 +706,27 @@ Public Class Dokmentaci
             ' Ако има грешка при обработката, се извежда съобщение в AutoCAD
             doc.Editor.WriteMessage(vbLf & "Грешка при експортиране на PDF: " & ex.Message)
         Finally
-            ' Затваряне на документа и на Word, за да се освободи паметта
-            If wordDoc IsNot Nothing Then wordDoc.Close(False)
-            If wordApp IsNot Nothing Then wordApp.Quit(False)
+            'затваряне на Word приложението
+            Try
+                ' Затваряне на документа
+                If wordDoc IsNot Nothing Then
+                    wordDoc.Close(False)
+                    Marshal.ReleaseComObject(wordDoc) ' Освобождава обекта от паметта
+                    wordDoc = Nothing
+                End If
+                ' Излизане от Word
+                If wordApp IsNot Nothing Then
+                    wordApp.Quit(False)
+                    Marshal.ReleaseComObject(wordApp) ' Освобождава приложението
+                    wordApp = Nothing
+                End If
+            Catch ex As Exception
+                ' Логване на грешка, ако е необходимо
+            Finally
+                ' Форсиране на Garbage Collector (по избор, но помага при Office Interop)
+                GC.Collect()
+                GC.WaitForPendingFinalizers()
+            End Try
         End Try
     End Sub
     ''' <summary>
@@ -726,21 +776,17 @@ Public Class Dokmentaci
                 excelBook.Close(False)
                 System.Runtime.InteropServices.Marshal.ReleaseComObject(excelBook)
             End If
-
             If excelBooks IsNot Nothing Then
                 System.Runtime.InteropServices.Marshal.ReleaseComObject(excelBooks)
             End If
-
             If excelApp IsNot Nothing Then
                 excelApp.Quit()
                 System.Runtime.InteropServices.Marshal.ReleaseComObject(excelApp)
             End If
-
             ' Финално почистване на Garbage Collector-а
             GC.Collect()
             GC.WaitForPendingFinalizers()
         End Try
-
     End Sub
     ''' <summary>
     ''' Функция за интерактивно питане на потребителя с опции Да/Не.

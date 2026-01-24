@@ -207,44 +207,6 @@ Public Class Insert_Signature
                     Dim acBlkRef As BlockReference = actrans.GetObject(blkRefId, OpenMode.ForWrite)
                     ' Получаване на колекцията от атрибути на блоковата референция
                     Dim attCol As AttributeCollection = acBlkRef.AttributeCollection
-                    ' Обхождане на всички атрибути
-                    'For Each objID As ObjectId In attCol
-                    '    ' Получаване на атрибута
-                    '    Dim dbObj As DBObject = actrans.GetObject(objID, OpenMode.ForWrite)
-                    '    Dim acAttRef As AttributeReference = dbObj
-                    '    ' Проверка тагът на атрибута и промяна на текста на атрибута
-                    '    If acAttRef.Tag = "ОБЕКТ" Then acAttRef.TextString = Zapis(0)
-                    '    If acAttRef.Tag = "МЕСТОПОЛОЖЕНИЕ" Then acAttRef.TextString = Zapis(1)
-                    '    If acAttRef.Tag = "ВЪЗЛОЖИТЕЛ" Then acAttRef.TextString = Zapis(2)
-                    '    If acAttRef.Tag = "СОБСТВЕНИК" Then acAttRef.TextString = Zapis(3)
-                    '    If acAttRef.Tag = "ФАЗА" Then acAttRef.TextString = Zapis(4)
-                    '    If acAttRef.Tag = "ДАТА" Then acAttRef.TextString = Zapis(5)
-                    '    If acAttRef.Tag = "АРХИТЕКТ" Then acAttRef.TextString = Zapis(6)
-                    '    If acAttRef.Tag = "КОНСТРУКТОР" Then acAttRef.TextString = Zapis(7)
-                    '    If acAttRef.Tag = "ТЕХНОЛОГИЯ" Then acAttRef.TextString = Zapis(8)
-                    '    If acAttRef.Tag = "ВИК" Then acAttRef.TextString = Zapis(9)
-                    '    If acAttRef.Tag = "ОВ" Then acAttRef.TextString = Zapis(10)
-                    '    If acAttRef.Tag = "ГЕОДЕЗИЯ" Then acAttRef.TextString = Zapis(11)
-                    '    If acAttRef.Tag = "ВП" Then acAttRef.TextString = Zapis(12)
-                    '    If acAttRef.Tag = "ЕЕФ" Then acAttRef.TextString = Zapis(13)
-                    '    If acAttRef.Tag = "ПБ" Then acAttRef.TextString = Zapis(14)
-                    '    If acAttRef.Tag = "ПБЗ" Then acAttRef.TextString = Zapis(15)
-                    '    If acAttRef.Tag = "ПУСО" Then acAttRef.TextString = Zapis(16)
-                    '    If acAttRef.Tag = "ПРОЕКТАНТ" Then acAttRef.TextString = Zapis(17)
-                    '    If acAttRef.Tag = "FILE_PATH" Then acAttRef.TextString = Zapis(18)
-                    '    If acAttRef.Tag = "Ном.заявление" Then acAttRef.TextString = Zapis(19)
-                    '    If acAttRef.Tag = "Дата_заявление" Then acAttRef.TextString = Zapis(20)
-                    '    If acAttRef.Tag = "SAP" Then acAttRef.TextString = Zapis(21)
-                    '    If acAttRef.Tag = "Дружество" Then acAttRef.TextString = Zapis(22)
-                    '    If acAttRef.Tag = "брой_листове" Then acAttRef.TextString = layoutCount.ToString
-
-                    '    If acAttRef.Tag = "ТОЧКА_3" Then acAttRef.TextString = Zapis(23)
-
-                    '    If acAttRef.Tag = "ИМЕ" Then acAttRef.TextString = Zapis(24)
-                    '    If acAttRef.Tag = "АДРЕС" Then acAttRef.TextString = Zapis(25)
-                    '    If acAttRef.Tag = "ПАРТИДА" Then acAttRef.TextString = Zapis(26)
-
-                    'Next
                     For Each objID As ObjectId In attCol
                         Dim dbObj As DBObject = actrans.GetObject(objID, OpenMode.ForWrite)
                         Dim acAttRef As AttributeReference = CType(dbObj, AttributeReference)
@@ -256,22 +218,6 @@ Public Class Insert_Signature
                         End If
                     Next
                 Next
-                Dim ptBasePointRes As PromptPointResult
-                Dim pPtOpts As PromptPointOptions = New PromptPointOptions("")
-                ' Prompt for the start point
-                pPtOpts.Message = vbLf & "Изберете къде да поставя подписите: "
-                ptBasePointRes = acDoc.Editor.GetPoint(pPtOpts)
-                Dim ptBasePoint As Point3d = ptBasePointRes.Value
-                'Set_Signature(Zapis) ' клонира блокове от един DWG файл в друг
-                Dim Index As Integer = 0
-                For i As Integer = 0 To 18
-                    If acBlkTbl.Has(Zapis(i)) Then
-                        cu.InsertText(Zapis(i), New Point3d(ptBasePoint.X, ptBasePoint.Y - Index * 15, 0), "podpisi", 3, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
-                        cu.InsertBlock(Zapis(i), New Point3d(ptBasePoint.X + 30, ptBasePoint.Y - Index * 15, 0), "podpisi", New Scale3d(1, 1, 1))
-                        Index += 1
-                    End If
-                Next
-                ' Приключване на транзакцията
                 actrans.Commit()
             End Using
             SaveProjectDataToExcel()
@@ -284,27 +230,6 @@ Public Class Insert_Signature
         Dim excel_App As excel.Application = Nothing
         Dim excel_Workbook As excel.Workbook = Nothing
         Dim wsObekri As excel.Worksheet = Nothing
-        Dim ExcelColumnToTag As New Dictionary(Of String, String) From {
-            {"Обект", "ОБЕКТ"},
-            {"Дата", "ДАТА"},
-            {"Местоположение", "МЕСТОПОЛОЖЕНИЕ"},
-            {"Възложител", "ВЪЗЛОЖИТЕЛ"},
-            {"Собственик", "СОБСТВЕНИК"},
-            {"Фаза", "ФАЗА"},
-            {"Архитект", "АРХИТЕКТ"},
-            {"Конструктор", "КОНСТРУКТОР"},
-            {"Технология", "ТЕХНОЛОГИЯ"},
-            {"ВиК", "ВИК"},
-            {"ОВ", "ОВ"},
-            {"Геодезия", "ГЕОДЕЗИЯ"},
-            {"ВП", "ВП"},
-            {"ЕЕФ", "ЕЕФ"},
-            {"ПБ", "ПБ"},
-            {"ПБЗ", "ПБЗ"},
-            {"ПУСО", "ПУСО"},
-            {"Проектант", "ПРОЕКТАНТ"},
-            {"Път", "FILE_PATH"}
-        }
         Try
             ' 1. Стартиране на Excel "тихо"
             excel_App = New excel.Application
@@ -313,66 +238,58 @@ Public Class Insert_Signature
             ' 2. Отваряне на работната книга
             excel_Workbook = excel_App.Workbooks.Open(nameExcel)
             wsObekri = CType(excel_Workbook.Sheets("Обекти"), excel.Worksheet)
-            ' 3. Проверка дали таблицата "ОБЕКТИ" съществува
-            If wsObekri.ListObjects.Count = 0 Then
-                Throw New Exception("Няма дефинирани таблици в листа 'Обекти'.")
-            End If
+            ' --- Премахваме всички филтри
+            RemoveAllFilters(wsObekri)
+            ' --- Вземаме таблицата и колоната "Обект"
             Dim tblObekti As excel.ListObject = wsObekri.ListObjects("ОБЕКТИ")
-            ' --- ПРОВЕРКА ЗА ДУБЛИРАНЕ ---
-            Dim isDuplicate As Boolean = False
-            Try
-                ' Търсим съвпадение
-                Dim duplicateRow As Object = excel_App.WorksheetFunction.Match(Zapis(0), tblObekti.ListColumns("Обект").Range, 0)
-                isDuplicate = True ' Ако горният ред не даде грешка, значи има дубликат
-            Catch
-                ' Ако Match гръмне, значи е нов обект
-                isDuplicate = False
-            End Try
-            If isDuplicate Then
-                Dim result As MsgBoxResult = MsgBox("Обектът '" & Zapis(0) & "' вече съществува. Искате ли да го запишете отново?",
-                                                    MsgBoxStyle.YesNo + MsgBoxStyle.Question, "Дублиран запис")
-                ' Ако потребителят избере "НЕ", затваряме и излизаме чисто през Finally
-                If result = MsgBoxResult.No Then Return
+            Dim dataRange As excel.Range = tblObekti.ListColumns("Обект").DataBodyRange
+            ' --- Проверка за дубликат чрез Find
+            Dim key As String = Data("ОБЕКТ").Trim()
+            Dim foundCell As excel.Range = dataRange.Find(What:=key, LookIn:=excel.XlFindLookIn.xlValues, LookAt:=excel.XlLookAt.xlWhole)
+            If foundCell IsNot Nothing Then
+                ' Обектът вече съществува
+                Dim result As MsgBoxResult = MsgBox("Обектът '" & key & "' вече съществува." & vbCrLf &
+                                                    "Искате ли да продължите със записването?",
+                                                    MsgBoxStyle.YesNo Or MsgBoxStyle.Question,
+                                                    "Дублиран запис")
+                If result = MsgBoxResult.No Then
+                    Exit Sub
+                End If
             End If
+            ' --- Ако няма дубликат или потребителят избере Yes, продължаваме
             ' 5. Добавяне на нов ред в края на таблицата
             ' Добавяме новия запис най-отгоре, за да са новите обекти винаги на видно място
             Dim newRow As excel.ListRow = tblObekti.ListRows.Add(1)
-            ' Попълване на "Платено" (ако колоната съществува)
-            If tblObekti.ListColumns.Contains("Платено") Then
-                newRow.Range.Cells(1, tblObekti.ListColumns("Платено").Index).Value = "НЕ Е ПЛАТЕНО"
-            End If
-
-            ' Попълване на останалите колони според мапинга
-            For Each kvp As KeyValuePair(Of String, String) In ExcelColumnToTag
-                Dim excelColName As String = kvp.Key      ' напр. "Обект"
-                Dim dataTag As String = kvp.Value         ' напр. "ОБЕКТ"
-
-                If tblObekti.ListColumns.Contains(excelColName) AndAlso Data.ContainsKey(dataTag) Then
-                    newRow.Range.Cells(1, tblObekti.ListColumns(excelColName).Index).Value = Data(dataTag)
+            Dim map As New Dictionary(Of String, String) From {
+                {"Обект", "ОБЕКТ"},
+                {"Дата", "ДАТА"},
+                {"Местоположение", "МЕСТОПОЛОЖЕНИЕ"},
+                {"Възложител", "ВЪЗЛОЖИТЕЛ"},
+                {"Собственик", "СОБСТВЕНИК"},
+                {"Фаза", "ФАЗА"},
+                {"Архитект", "АРХИТЕКТ"},
+                {"Конструктор", "КОНСТРУКТОР"},
+                {"Технология", "ТЕХНОЛОГИЯ"},
+                {"ВиК", "ВИК"},
+                {"ОВ", "ОВ"},
+                {"Геодезия", "ГЕОДЕЗИЯ"},
+                {"ВП", "ВП"},
+                {"ЕЕФ", "ЕЕФ"},
+                {"ПБ", "ПБ"},
+                {"ПБЗ", "ПБЗ"},
+                {"ПУСО", "ПУСО"},
+                {"Проектант", "ПРОЕКТАНТ"},
+                {"Път", "FILE_PATH"}
+            }
+            For Each kvp In map
+                Dim colName As String = kvp.Key
+                Dim dataKey As String = kvp.Value
+                newRow.Range.Cells(1, 1).Value = "НЕ Е ПЛАТЕНО"
+                Dim idx As Integer = GetColumnIndexByName(tblObekti, colName)
+                If idx > 0 Then
+                    newRow.Range.Cells(1, idx).Value = Data(dataKey)
                 End If
             Next
-            'newRow.Range.Cells(1, 1).Value = "НЕ"
-            '' Основни данни — по име на колона
-            'newRow.Range.Cells(1, tblObekti.ListColumns("Платено").Index).Value = "НЕ Е ПЛАТЕНО"
-            'newRow.Range.Cells(1, tblObekti.ListColumns("Обект").Index).Value = Zapis(0)
-            'newRow.Range.Cells(1, tblObekti.ListColumns("Дата").Index).Value = Zapis(1)
-            'newRow.Range.Cells(1, tblObekti.ListColumns("Местоположение").Index).Value = Zapis(2)
-            'newRow.Range.Cells(1, tblObekti.ListColumns("Възложител").Index).Value = Zapis(3)
-            'newRow.Range.Cells(1, tblObekti.ListColumns("Собственик").Index).Value = Zapis(4)
-            'newRow.Range.Cells(1, tblObekti.ListColumns("Фаза").Index).Value = Zapis(5)
-            'newRow.Range.Cells(1, tblObekti.ListColumns("Архитект").Index).Value = Zapis(6)
-            'newRow.Range.Cells(1, tblObekti.ListColumns("Конструктор").Index).Value = Zapis(7)
-            'newRow.Range.Cells(1, tblObekti.ListColumns("Технология").Index).Value = Zapis(8)
-            'newRow.Range.Cells(1, tblObekti.ListColumns("ВиК").Index).Value = Zapis(9)
-            'newRow.Range.Cells(1, tblObekti.ListColumns("ОВ").Index).Value = Zapis(10)
-            'newRow.Range.Cells(1, tblObekti.ListColumns("Геодезия").Index).Value = Zapis(11)
-            'newRow.Range.Cells(1, tblObekti.ListColumns("ВП").Index).Value = Zapis(12)
-            'newRow.Range.Cells(1, tblObekti.ListColumns("ЕЕФ").Index).Value = Zapis(13)
-            'newRow.Range.Cells(1, tblObekti.ListColumns("ПБ").Index).Value = Zapis(14)
-            'newRow.Range.Cells(1, tblObekti.ListColumns("ПБЗ").Index).Value = Zapis(15)
-            'newRow.Range.Cells(1, tblObekti.ListColumns("ПУСО").Index).Value = Zapis(16)
-            'newRow.Range.Cells(1, tblObekti.ListColumns("Проектант").Index).Value = Zapis(17)
-            'newRow.Range.Cells(1, tblObekti.ListColumns("Път").Index).Value = Zapis(18)
         Catch ex As Exception
             MsgBox("Грешка при запис в Excel: " & ex.Message, MsgBoxStyle.Critical)
         Finally
@@ -396,6 +313,48 @@ Public Class Insert_Signature
             GC.Collect()
             GC.WaitForPendingFinalizers()
         End Try
+        ' --- Съобщение за успешен запис
+        MsgBox("Записът е приключил успешно!", MsgBoxStyle.Information, "Готово")
+    End Sub
+    Private Function GetColumnIndexByName(tbl As excel.ListObject, columnName As String) As Integer
+        For i As Integer = 1 To tbl.ListColumns.Count
+            If tbl.ListColumns(i).Name = columnName Then
+                Return i
+            End If
+        Next
+        Return -1 ' колоната не е намерена
+    End Function
+    ''' <summary>
+    ''' Премахва всички филтри от даден лист.
+    ''' Работи както за таблици (ListObject), така и за стандартни AutoFilter на листа.
+    ''' </summary>
+    ''' <param name="ws">Листът, от който ще се премахнат филтрите</param>
+    Sub RemoveAllFilters(ws As excel.Worksheet)
+        ' -------------------------
+        ' 1. Проверка за таблици (ListObject)
+        ' -------------------------
+        If ws.ListObjects.Count > 0 Then
+            ' Обхождаме всички таблици на листа
+            For Each tbl As excel.ListObject In ws.ListObjects
+                ' Проверяваме дали таблицата има активен AutoFilter
+                If tbl.AutoFilter IsNot Nothing Then
+                    Try
+                        ' Премахваме всички филтри и показваме всички редове
+                        tbl.AutoFilter.ShowAllData()
+                    Catch
+                        ' Ако няма филтър приложен, ShowAllData хвърля Exception
+                        ' Игнорираме го безопасно
+                    End Try
+                End If
+            Next
+        End If
+        ' -------------------------
+        ' 2. Проверка за стандартен AutoFilter на листа
+        ' -------------------------
+        If ws.AutoFilterMode Then
+            ' Ако е активен, изключваме филтъра
+            ws.AutoFilterMode = False
+        End If
     End Sub
 End Class
 Class SurroundingClass

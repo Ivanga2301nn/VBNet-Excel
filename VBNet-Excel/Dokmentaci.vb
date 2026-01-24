@@ -64,9 +64,9 @@ Public Class Dokmentaci
         ' --- Показваме диалог за избор на файлове ---
         If openFileDialog.ShowDialog() = Forms.DialogResult.OK Then
             For Each sourceFile As String In openFileDialog.FileNames
-                Dim fileNameOnly As String = System.IO.Path.GetFileName(sourceFile)
+                Dim fileNameOnly As String = Path.GetFileName(sourceFile)
                 ' Копиране на файловете в папката "Документация"
-                CopyFile(dwgPath, dirPath, fileNameOnly, fileNameOnly, doc)
+                CopyFile(sourceFile, dirPath, fileNameOnly, doc)
             Next
         End If
         ' --- Избор на файл за Обяснителната записка (Word) ---
@@ -75,10 +75,8 @@ Public Class Dokmentaci
         openFileDialog.Filter = "ОБЯСНИТЕЛНА ЗАПИСКА|*.docx"
         openFileDialog.Multiselect = False ' Забраняваме множествен избор
         If openFileDialog.ShowDialog() = Forms.DialogResult.OK Then
-            Dim sourceFilePath As String = openFileDialog.FileName
-            Dim fileNameOnly As String = System.IO.Path.GetFileName(sourceFilePath)
             ' Копиране в папката "Документация" с фиксирано име
-            CopyFile(dwgPath, dirPath, fileNameOnly, f1, doc)
+            CopyFile(openFileDialog.FileName, dirPath, f1, doc)
         End If
         ' --- Избор на файл за Количествената сметка (Excel) ---
         openFileDialog.FileName = "KS__.xlsx"
@@ -86,9 +84,8 @@ Public Class Dokmentaci
         openFileDialog.Filter = "КОЛИЧЕСТВЕНА СМЕТКА|*.xlsx"
         openFileDialog.Multiselect = False
         If openFileDialog.ShowDialog() = Forms.DialogResult.OK Then
-            Dim sourceFilePath As String = openFileDialog.FileName
-            Dim fileNameOnly As String = System.IO.Path.GetFileName(sourceFilePath)
-            CopyFile(dwgPath, dirPath, fileNameOnly, f2, doc)
+            ' Копиране в папката "Документация" с фиксирано име
+            CopyFile(openFileDialog.FileName, dirPath, f2, doc)
         End If
         ' --- Избор на файлове за становището (PDF или изображения) ---
         openFileDialog.FileName = ""
@@ -566,34 +563,41 @@ Public Class Dokmentaci
         End Try
     End Sub
     ''' <summary>
-    ''' Копира файл от изходната папка към целевата папка.
-    ''' Процедурата сглобява пълните пътища до изходния и целевия файл,
-    ''' проверява дали изходният файл съществува и ако да – го копира,
-    ''' като презаписва съществуващ файл със същото име.
-    ''' </summary>  
-    ''' <param name="dwgPath">Път до директорията, от която ще се копира файлът.</param>
-    ''' <param name="dirPath">Път до директорията, в която ще бъде копиран файлът.</param>
-    ''' <param name="fn">Име на файла (включително разширението), който трябва да бъде копиран.</param>
-    ''' <param name="doc">Активният AutoCAD документ за извеждане на съобщения.</param>
-    Private Sub CopyFile(dwgPath As String, dirPath As String, FileName As String, newFile As String, doc As Autodesk.AutoCAD.ApplicationServices.Document)
-        ' Сглобяване на пълния път до изходния файл
-        Dim src = Path.Combine(dwgPath, FileName)
-        ' Сглобяване на пълния път до целевия файл
-        Dim dst = Path.Combine(dirPath, newFile)
-        ' Проверка дали изходният файл съществува
-        If File.Exists(src) = False Then
-            ' Ако файлът липсва, извеждаме съобщение в командния ред на AutoCAD
-            doc.Editor.WriteMessage(vbLf & "Липсва файл: " & FileName)
-            ' Прекратяване на процедурата, защото няма какво да копираме
+    ''' Копира файл от подаден пълен изходен път към целева директория.
+    ''' Процедурата:
+    ''' - приема пълен път до изходния файл
+    ''' - сглобява пътя до целевия файл
+    ''' - проверява дали изходният файл съществува
+    ''' - копира файла, като презаписва при нужда
+    ''' </summary>
+    ''' <param name="dirPath">
+    ''' Пълен път до целевата директория, в която ще бъде копиран файлът.
+    ''' </param>
+    ''' <param name="sourcePath">
+    ''' Пълен път до изходния файл (включително пътя, името и разширението).
+    ''' </param>
+    ''' <param name="newFile">
+    ''' Името на файла в целевата директория.
+    ''' Използва се за преименуване при копиране.
+    ''' </param>
+    ''' <param name="doc">
+    ''' Активният AutoCAD документ, използван за извеждане на съобщения
+    ''' в командния ред.
+    ''' </param>
+    Private Sub CopyFile(sourcePath As String,
+                         dirPath As String,
+                         newFile As String,
+                         doc As Autodesk.AutoCAD.ApplicationServices.Document)
+        Dim src As String = sourcePath
+        Dim dst As String = Path.Combine(dirPath, newFile)
+        If Not File.Exists(src) Then
+            doc.Editor.WriteMessage(vbLf & "Липсва файл: " & src)
             Exit Sub
         End If
-        ' Копиране на файла в целевата директория
-        ' Третият параметър True означава, че файлът ще бъде презаписан,
-        ' ако вече съществува
         File.Copy(src, dst, True)
-        ' Информационно съобщение за успешно копиране
         doc.Editor.WriteMessage(vbLf & "Копиран файл: " & newFile)
     End Sub
+
     ''' <summary>
     ''' Изтрива всички файлове в дадена папка, без да изтрива самата папка.
     ''' </summary>
@@ -745,16 +749,23 @@ Public Class Dokmentaci
             excelApp = New Excel.Application
             excelApp.Visible = False
             excelApp.DisplayAlerts = False ' Изключваме предупреждения при изтриване на листове
-
             ' Отваряне на Excel файла
             excelBook = excelApp.Workbooks.Open(filePath)
+            Dim wsKolYes As Boolean = False
             ' Изтриване на всички листове с изключение на "Количествена сметка"
             For i As Integer = excelBook.Sheets.Count To 1 Step -1
                 Dim ws As Excel.Worksheet = excelBook.Sheets(i)
                 If ws.Name <> "Количествена сметка" Then
                     ws.Delete()
+                Else
+                    wsKolYes = True
                 End If
             Next
+            ' Проверка дали листът "Количествена сметка" съществува
+            If Not wsKolYes Then
+                doc.Editor.WriteMessage(vbLf & "Листът 'Количествена сметка' не е намерен в Excel файла.")
+                Return
+            End If
             ' Записваме Excel файла, за да се запазят направените промени
             excelBook.Save()
             ' Път към PDF файла
@@ -765,7 +776,6 @@ Public Class Dokmentaci
             wsSheet.ExportAsFixedFormat(Excel.XlFixedFormatType.xlTypePDF, pdfPath)
             ' Съобщение за успешно експортиране
             doc.Editor.WriteMessage(vbLf & "Excel файлът е обработен и PDF създаден: " & pdfPath)
-
         Catch ex As Exception
             ' Писане на грешка в командния ред на AutoCAD
             doc.Editor.WriteMessage(vbLf & "Грешка при обработка на Excel файла: " & ex.Message)
@@ -773,14 +783,14 @@ Public Class Dokmentaci
             ' ВАЖНО: Правилно затваряне и освобождаване на ресурсите
             If excelBook IsNot Nothing Then
                 excelBook.Close(False)
-                System.Runtime.InteropServices.Marshal.ReleaseComObject(excelBook)
+                Marshal.ReleaseComObject(excelBook)
             End If
             If excelBooks IsNot Nothing Then
-                System.Runtime.InteropServices.Marshal.ReleaseComObject(excelBooks)
+                Marshal.ReleaseComObject(excelBooks)
             End If
             If excelApp IsNot Nothing Then
                 excelApp.Quit()
-                System.Runtime.InteropServices.Marshal.ReleaseComObject(excelApp)
+                Marshal.ReleaseComObject(excelApp)
             End If
             ' Финално почистване на Garbage Collector-а
             GC.Collect()

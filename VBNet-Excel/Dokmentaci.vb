@@ -405,17 +405,13 @@ Public Class Dokmentaci
         Select Case True
             Case projectant.ToLower().Contains("тонкова")
                 targetSubFolder =
-                System.IO.Path.Combine(lastYearDir, "МОНИКА")
+             Path.Combine(lastYearDir, "МОНИКА")
             Case projectant.ToLower().Contains("василев")
-                targetSubFolder = System.IO.Path.Combine(lastYearDir, "ЕВГЕНИ")
+                targetSubFolder = Path.Combine(lastYearDir, "ЕВГЕНИ")
             Case projectant.ToLower().Contains("иванова")
                 targetSubFolder =
-                System.IO.Path.Combine(lastYearDir, "ИВАН")
+               Path.Combine(lastYearDir, "ИВАН")
         End Select
-        ' Взимаме всички файлове в папката на проектанта
-        Dim filesInFolder() As String = Directory.GetFiles(targetSubFolder)
-        ' Търсим PDF файл, съдържащ "ppp" в името
-        Dim pppFile As String = filesInFolder.FirstOrDefault(Function(f) Path.GetFileName(f).ToLower().Contains("ppp"))
         ' Търсим първия файл в Path_Doc, съдържащ "Становище"
         Dim stanovishteFile As String =
             Directory.GetFiles(Path_Doc).FirstOrDefault(Function(f) Path.GetFileName(f).Contains("Становище"))
@@ -426,13 +422,19 @@ Public Class Dokmentaci
             Dokuments.Add(Path.Combine(Path_Doc, "Обяснителна записка 1.pdf"))
             mainDoc.Editor.WriteMessage(vbLf & "Добавен файл: Обяснителна записка 1.pdf")
         End If
-        If System.IO.File.Exists(Path.Combine(Path_Doc, pppFile)) Then
-            Dokuments.Add(Path.Combine(Path_Doc, pppFile))
-            mainDoc.Editor.WriteMessage(vbLf & "Добавен файл: " & pppFile)
-        End If
-        If System.IO.File.Exists(Path.Combine(targetSubFolder, "Застраховка.pdf")) Then
-            Dokuments.Add(Path.Combine(targetSubFolder, "Застраховка.pdf"))
-            mainDoc.Editor.WriteMessage(vbLf & "Добавен файл: " & targetSubFolder & "\Застраховка.pdf")
+        If Not String.IsNullOrEmpty(targetSubFolder) Then
+            ' Взимаме всички файлове в папката на проектанта
+            Dim filesInFolder() As String = Directory.GetFiles(targetSubFolder)
+            ' Търсим PDF файл, съдържащ "ppp" в името
+            Dim pppFile As String = filesInFolder.FirstOrDefault(Function(f) Path.GetFileName(f).ToLower().Contains("ppp"))
+            If System.IO.File.Exists(Path.Combine(Path_Doc, pppFile)) Then
+                Dokuments.Add(Path.Combine(Path_Doc, pppFile))
+                mainDoc.Editor.WriteMessage(vbLf & "Добавен файл: " & pppFile)
+            End If
+            If System.IO.File.Exists(Path.Combine(targetSubFolder, "Застраховка.pdf")) Then
+                Dokuments.Add(Path.Combine(targetSubFolder, "Застраховка.pdf"))
+                mainDoc.Editor.WriteMessage(vbLf & "Добавен файл: " & targetSubFolder & "\Застраховка.pdf")
+            End If
         End If
         If Not String.IsNullOrEmpty(stanovishteFile) Then
             Dokuments.Add(stanovishteFile)
@@ -460,7 +462,6 @@ Public Class Dokmentaci
         End If
         MergePDFs(Path.Combine(Path_Doc, "Част електро.pdf"), Dokuments)
         mainDoc.Editor.WriteMessage(vbLf & "Създаден файл: Част електро.pdf")
-
         If File.Exists(Path.Combine(Path_Doc, "Обяснителна записка 1.pdf")) Then
             Try
                 File.Delete(Path.Combine(Path_Doc, "Обяснителна записка 1.pdf"))

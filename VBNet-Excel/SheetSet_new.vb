@@ -170,7 +170,6 @@ Public Class SheetSet_new
         Dim acDoc As Document = AcApp.DocumentManager.MdiActiveDocument ' Активен документ
         Dim acDb As Database = acDoc.Database
         Dim dbMod As Integer = Convert.ToInt32(AcApp.GetSystemVariable("DBMOD"))
-
         If dbMod <> 0 Then
             ' Ако има промени, но не искаш да записваш автоматично:
             MsgBox("Внимание: Файлът има незаписани промени!", MsgBoxStyle.Information, "Инфо")
@@ -579,7 +578,7 @@ Public Class SheetSet_new
                 '------------------------------
                 Dim pko As New PromptKeywordOptions(vbLf & "Изберете начин на номериране на листовете:")
                 pko.Keywords.Add("Последователно")          ' за нас → Global
-                pko.Keywords.Add("Формат")              ' за нас → ByInstallation
+                pko.Keywords.Add("Формат")                  ' за нас → ByInstallation
                 pko.Keywords.Default = "Последователно"
                 Dim pkr As PromptResult = acDoc.Editor.GetKeywords(pko)
                 Dim numberingMode As String = ""
@@ -597,6 +596,7 @@ Public Class SheetSet_new
                 ' -----------------------------
                 ' РАЗШИРЕН РЕЖИМ - > много сгради
                 '------------------------------
+
             End If
         Catch ex As Exception
         ' 7. Ако възникне грешка, показваме съобщение

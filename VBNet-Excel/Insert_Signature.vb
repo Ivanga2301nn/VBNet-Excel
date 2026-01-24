@@ -297,17 +297,17 @@ Public Class Insert_Signature
             excel_Workbook.Save()
             ' 7. Освобождаване на ресурсите
             If Not wsObekri Is Nothing Then
-                System.Runtime.InteropServices.Marshal.ReleaseComObject(wsObekri)
+                Runtime.InteropServices.Marshal.ReleaseComObject(wsObekri)
                 wsObekri = Nothing
             End If
             If Not excel_Workbook Is Nothing Then
                 excel_Workbook.Close(SaveChanges:=False) ' вече сме запазили
-                System.Runtime.InteropServices.Marshal.ReleaseComObject(excel_Workbook)
+                Runtime.InteropServices.Marshal.ReleaseComObject(excel_Workbook)
                 excel_Workbook = Nothing
             End If
             If Not excel_App Is Nothing Then
                 excel_App.Quit()
-                System.Runtime.InteropServices.Marshal.ReleaseComObject(excel_App)
+                Runtime.InteropServices.Marshal.ReleaseComObject(excel_App)
                 excel_App = Nothing
             End If
             GC.Collect()

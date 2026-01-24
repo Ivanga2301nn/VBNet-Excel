@@ -597,7 +597,6 @@ Public Class Dokmentaci
         File.Copy(src, dst, True)
         doc.Editor.WriteMessage(vbLf & "Копиран файл: " & newFile)
     End Sub
-
     ''' <summary>
     ''' Изтрива всички файлове в дадена папка, без да изтрива самата папка.
     ''' </summary>

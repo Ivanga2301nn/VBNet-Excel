@@ -405,8 +405,8 @@ Public Class Tablo
                                     Case "Изход 1p", "Сешоар", "Сешоар с контакт"
                                         .faza = "L"
                                         .NumberPoles = "1p"
+                                        .Tok = calc_Inom(.Мощност, .NumberPoles)
                                         If .Мощност > 3 Then
-                                            .Tok = calc_Inom(.Мощност, .NumberPoles)
                                             .RatedCurrent = calc_breaker_EZ9(.Tok)
                                         Else
                                             .RatedCurrent = calc_breaker_EZ9(17)

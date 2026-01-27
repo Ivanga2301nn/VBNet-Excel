@@ -197,8 +197,6 @@ Public Class SheetSet
                 Exit Sub
             End If
             Dim sheetsInFile As List(Of srtSheetSet) = GetSheetsFromDatabase(sheetSetDatabase) ' Съществуващи Sheet-и
-
-
             sheetSet.SetName(Path_Name)                                          ' Име на Sheet Set-а
             sheetSet.SetDesc(Set_Desc)                                           ' Описание на Sheet Set-а
             ' Обхождаме Layout-ите в чертежа
@@ -263,7 +261,6 @@ Public Class SheetSet
             ' --- 6. ЗАПИС В DST ---
             Dim mainSubset As AcSmSubset = Nothing
             Dim currentSubset As AcSmSubset = Nothing
-
             For i As Integer = 0 To sortedList.Count - 1
                 Dim current = sortedList(i)
                 current.Number = (i + 1).ToString()                               ' Номериране на листовете
@@ -283,7 +280,6 @@ Public Class SheetSet
 
                 ImportASheet(currentSubset, current.nameLayoutForSheet, "", current.Number, name_file, current.nameLayout)
             Next
-
         Catch ex As Exception
             MsgBox("Грешка: " & ex.Message)
         Finally

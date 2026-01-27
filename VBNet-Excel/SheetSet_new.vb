@@ -32,6 +32,7 @@ Public Class SheetSet_new
         Dim objectID As Object              ' Променено от IAcSmObjectId на Object
     End Structure
     Dim numbers As New Dictionary(Of Integer, String) From {
+        {0, "Сутерен"},
         {1, "Първи етаж"},
         {2, "Втори етаж"},
         {3, "Трети етаж"},
@@ -51,8 +52,9 @@ Public Class SheetSet_new
         {17, "Седемнадесети етаж"},
         {18, "Осемнадесети етаж"},
         {19, "Деветнадесети етаж"},
-        {20, "Двадесети етаж"}
-}
+        {20, "Двадесети етаж"},
+        {99, "Подпокривен"}
+    }
     Dim Sheets As New Dictionary(Of String, Integer) From {
         {"Съдържание", 1},
         {"Ел.захранване НН", 2},
@@ -116,32 +118,32 @@ Public Class SheetSet_new
     }
     ' Всички видове инсталации с трибуквен код ---
     Private ReadOnly LisAll As New Dictionary(Of String, String) From {
-    {"ВЪН", "OUT"},               ' Outdoor / външно
-    {"Ел.захранване НН", "PWR"},  ' Power supply / Ел.захранване
-    {"Осветителна инсталация", "LGT"},  ' Lighting / Осветление
-    {"Евакуационно осветление", "EVC"},  ' Evacuation lighting / Осветление за евакуация
-    {"Фасадно осветление", "FAC"},  ' Facade lighting / Фасадно осветление
-    {"Ел.инсталация контакти", "CON"},  ' Contacts / Ел.инсталация контакти
-    {"Силова инсталация", "POW"},  ' Power / Силова инсталация
-    {"Мълниезащитна инсталация", "LTP"},  ' Lightning protection / Мълниезащита
+    {"ВЪН", "OUT"},                             ' Outdoor / външно
+    {"Ел.захранване НН", "PWR"},                ' Power supply / Ел.захранване
+    {"Осветителна инсталация", "LGT"},          ' Lighting / Осветление
+    {"Евакуационно осветление", "EVC"},         ' Evacuation lighting / Осветление за евакуация
+    {"Фасадно осветление", "FAC"},              ' Facade lighting / Фасадно осветление
+    {"Ел.инсталация контакти", "CON"},          ' Contacts / Ел.инсталация контакти
+    {"Силова инсталация", "POW"},               ' Power / Силова инсталация
+    {"Мълниезащитна инсталация", "LTP"},        ' Lightning protection / Мълниезащита
     {"Защитна заземителна инсталация", "GND"},  ' Grounding / Заземяване
-    {"Еднолинейна схема на табло", "DBS"},  ' Distribution board schematic / Табло
-    {"Котировки ел. инсталации", "ELV"},  ' Elevations / Котировки
-    {"План покрив", "RFL"},  ' Roof plan / План покрив
-    {"Заснемане и демонтаж", "DEM"},  ' Demolition / Заснемане и демонтаж
-    {"Настройки", "CFG"},  ' Configuration / Настройки
-    {"Инсталация интернет", "NET"},  ' Internet installation
-    {"Инсталация кабелна телевизия", "CAT"},  ' Cable TV
-    {"Телефонна инсталация", "TEL"},  ' Telephone installation
+    {"Еднолинейна схема на табло", "DBS"},      ' Distribution board schematic / Табло
+    {"Котировки ел. инсталации", "ELV"},        ' Elevations / Котировки
+    {"План покрив", "RFL"},                     ' Roof plan / План покрив
+    {"Заснемане и демонтаж", "DEM"},            ' Demolition / Заснемане и демонтаж
+    {"Настройки", "CFG"},                       ' Configuration / Настройки
+    {"Инсталация интернет", "NET"},             ' Internet installation
+    {"Инсталация кабелна телевизия", "CAT"},    ' Cable TV
+    {"Телефонна инсталация", "TEL"},            ' Telephone installation
     {"Инсталации интернет и кабелна телевизия", "INT"},  ' Combined Internet + TV
     {"Инсталации интернет кабелна телевизия и телефон", "ICT"},  ' Internet + TV + Telephone
-    {"Инсталация видеонаблюдение", "VID"},  ' Video surveillance
-    {"Болнична повиквателна инсталация", "NCS"},  ' Nurse Call System 
-    {"Инсталация контрол на достъпа", "ACS"},  ' Access Control System
-    {"Оповестителна инсталация", "PAS"},  ' Public Address System
-    {"Сигнално-охранителна инсталация", "SEC"},  ' Security / Охрана
-    {"Пожароизвестителна инсталация", "FIR"},  ' Fire alarm / Пожар
-    {"Домофона инсталация", "DIC"}  ' Door Intercom Communication / Система с табло на входа, звънци по апартаменти/офиси, отваряне на врата
+    {"Инсталация видеонаблюдение", "VID"},      ' Video surveillance
+    {"Болнична повиквателна инсталация", "NCS"},    ' Nurse Call System 
+    {"Инсталация контрол на достъпа", "ACS"},   ' Access Control System
+    {"Оповестителна инсталация", "PAS"},        ' Public Address System
+    {"Сигнално-охранителна инсталация", "SEC"}, ' Security / Охрана
+    {"Пожароизвестителна инсталация", "FIR"},   ' Fire alarm / Пожар
+    {"Домофона инсталация", "DIC"}              ' Door Intercom Communication / Система с табло на входа, звънци по апартаменти/офиси, отваряне на врата
     }
     ' ГЛАВНИ ПАПКИ: Име (Key) и Пореден номер/Индекс (Value)
     Dim MainSubsets As New Dictionary(Of String, Integer) From {
@@ -225,7 +227,6 @@ Public Class SheetSet_new
         Finally
             If sheetSetDatabase IsNot Nothing Then LockDatabase(sheetSetDatabase, False) ' Отключване на DST
         End Try
-
         MsgBox("Sheet Set Name: " & sheetSetDatabase.GetSheetSet().GetName() & vbCrLf &
            "Sheet Set Description: " & sheetSetDatabase.GetSheetSet().GetDesc())
     End Sub
@@ -340,6 +341,7 @@ Public Class SheetSet_new
         ' 5.1 Вземаме реда на секциите такъв, какъвто вече е изграден
         Dim sectionOrder =
         secondLevelList.Select(Function(x) x.nameSheet).Distinct().ToList()
+        Dim idx As Integer = 1
         For Each secName In sectionOrder
             ' Всички листове за текущата секция
             Dim sectionItems =
@@ -373,14 +375,13 @@ Public Class SheetSet_new
                                           End Function).ToList()
                 Else
                     ' -------------------------------------------------------------
-                    ' СОРТИРАНЕ ПО ЕТАЖ / НИВО
-                    ' -------------------------------------------------------------
                     ' --- СОРТИРАНЕ ПО ЕТАЖ / НИВО ---
+                    ' -------------------------------------------------------------
                     sortedSubGroup = subGroupItems.OrderBy(Function(x As srtSheetSet)
                                                                Dim nameLower = x.nameLayoutForSheet.ToLower().Trim()
                                                                Dim match = numbers.FirstOrDefault(Function(p) p.Value.ToLower() = nameLower)
                                                                If match.Value IsNot Nothing Then Return CDbl(match.Key)
-                                                               Dim m = System.Text.RegularExpressions.Regex.Match(nameLower, "-?\d+")
+                                                               Dim m = Regex.Match(nameLower, "-?\d+")
                                                                If m.Success Then
                                                                    Dim levelNum As Double = 0
                                                                    If Double.TryParse(m.Value, Globalization.NumberStyles.Any, Globalization.CultureInfo.InvariantCulture, levelNum) Then Return levelNum
@@ -388,6 +389,15 @@ Public Class SheetSet_new
                                                                Return 9999.0
                                                            End Function).ThenBy(Function(x) x.nameLayoutForSheet).ToList()
                 End If
+                ' Присвояваме номерация в рамките на текущата подсекция
+                Dim formatSpecifier As String = "D" & sortedSubGroup.Count.ToString().Length
+                For i As Integer = 0 To sortedSubGroup.Count - 1
+                    Dim s As srtSheetSet = sortedSubGroup(i)
+                    'Използваме динамичния формат (D1, D2 или D3)
+                    s.Number = idx.ToString(formatSpecifier)
+                    sortedSubGroup(i) = s
+                    idx += 1
+                Next
                 ' =========================================================================
                 ' СПЕЦИФИКА НА AUTOCAD SHEET SET MANAGER
                 ' =========================================================================
@@ -398,14 +408,6 @@ Public Class SheetSet_new
                 ' Добавяме към финалния резултат
                 returnList.AddRange(sortedSubGroup)
             Next
-        Next
-        ' === Преномериране на сортираните листове от 1 до N (Structure-safe) ===
-        Dim idx As Integer = 1
-        For i As Integer = 0 To returnList.Count - 1
-            Dim s As srtSheetSet = returnList(i)
-            s.Number = idx
-            returnList(i) = s
-            idx += 1
         Next
         ' Връщаме напълно подредения списък
         Return returnList
@@ -542,7 +544,7 @@ Public Class SheetSet_new
             ' --- 4. Инициализираме Sheet Set Manager ---
             Dim sheetSetManager As IAcSmSheetSetMgr = New AcSmSheetSetMgr()
             ' --- 5. Проверяваме дали DST файлът съществува ---
-            If System.IO.File.Exists(dstPath) Then            ' Отваряме съществуващ DST файл
+            If File.Exists(dstPath) Then            ' Отваряме съществуващ DST файл
                 sheetSetDatabase = sheetSetManager.OpenDatabase(dstPath, False)
             Else
                 ' Ако DST файлът не съществува, извеждаме съобщение и спираме
@@ -570,8 +572,7 @@ Public Class SheetSet_new
         Try
             Dim sheetSet As IAcSmSheetSet = dstDatabase.GetSheetSet()
             Dim werwer = FindAllComponents(dstDatabase)
-            ' If True Then SetSheetCount()
-            'Dim werwer = FindAllComponents(sheetSet)
+
             If buildingName = "BuildingName" Then
                 ' -----------------------------
                 ' СТАНДАРТЕН РЕЖИМ - > една сграда
@@ -596,11 +597,19 @@ Public Class SheetSet_new
                 ' -----------------------------
                 ' РАЗШИРЕН РЕЖИМ - > много сгради
                 '------------------------------
+                Dim aaa As Integer
+
+
+
+
+
+
+
 
             End If
         Catch ex As Exception
-        ' 7. Ако възникне грешка, показваме съобщение
-        MsgBox("Грешка при номериране на Sheet Set файла: " & ex.Message)
+            ' 7. Ако възникне грешка, показваме съобщение
+            MsgBox("Грешка при номериране на Sheet Set файла: " & ex.Message)
         End Try
     End Sub
     ''' <summary>
@@ -665,10 +674,8 @@ Public Class SheetSet_new
                     currentSubset = mainSubset
                 End If
                 ' --- Импортиране на листа ---
-                ImportASheet(currentSubset, current.nameLayoutForSheet, "", (i + 1).ToString("D2"), current.nameFile, current.nameLayout)
+                ImportASheet(currentSubset, current.nameLayoutForSheet, "", current.Number, current.nameFile, current.nameLayout)
             Next
-            '' --- Съобщение за успешно записан DST ---
-            'MsgBox("Sheet Set файлът е запазен успешно!")
         Catch ex As Exception
             ' 7. Ако възникне грешка, показваме съобщение
             MsgBox("Грешка при запазване на Sheet Set файла: " & ex.Message)
@@ -803,7 +810,11 @@ Public Class SheetSet_new
         ' ===============================
             Case upperKey.Contains("СУТ")
                 Return "Сутерен"
-
+        ' ===============================
+        ' Подпокривен
+        ' ===============================
+            Case upperKey.Contains("ПОДПО")
+                Return "Подпокривен"
                 ' ===============================
                 ' ПО ПОДРАЗБИРАНЕ
                 ' ===============================
@@ -932,8 +943,7 @@ Public Class SheetSet_new
     ''' <returns>
     ''' Връща True, ако операцията е успешна (базата е заключена/отключена), False иначе
     ''' </returns>
-    Public Function LockDatabase(
-                                 database As AcSmDatabase,
+    Public Function LockDatabase(database As AcSmDatabase,
                                  lockFlag As Boolean) As Boolean
         ' Променлива за състоянието на заключване
         Dim dbLock As Boolean = False

@@ -320,8 +320,6 @@ Public Class CommonUtil
         ' LWPOLYLINE    - Полилиния
         ' CIRCLE        - Окръжност
 
-
-
         '
         ' allowMultiple - True  - Избира много обекти
         '               - False - Избира само един обект
@@ -352,8 +350,12 @@ Public Class CommonUtil
             prSelOpts.SingleOnly = True
             prs = edt.GetSelection(prSelOpts, filter)
         End If
-        Dim ss As SelectionSet = prs.Value
-        Return ss
+        ' Важно: Проверка дали потребителят не е натиснал Esc
+        If prs.Status = PromptStatus.OK Then
+            Return prs.Value
+        Else
+            Return Nothing
+        End If
     End Function
     ' Функцията GetObjects_TEXT приема входен низ като съобщение и връща нов низ,
     ' в който всички латински букви, които имат еквиваленти на кирилица, са заменени.

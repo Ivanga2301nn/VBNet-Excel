@@ -597,20 +597,28 @@ Public Class SheetSet_new
                 ' -----------------------------
                 ' РАЗШИРЕН РЕЖИМ - > много сгради
                 '------------------------------
-                Dim aaa As Integer
-
-
-
-
-
-
-
-
+                IterateAndNumber(sheetSet, 1, "Global", "currentPrefix")
+                'setSheetsNumber(dstDatabase)
             End If
         Catch ex As Exception
             ' 7. Ако възникне грешка, показваме съобщение
             MsgBox("Грешка при номериране на Sheet Set файла: " & ex.Message)
         End Try
+    End Sub
+    Private Sub setSheetsNumber(sheetSetDatabase As AcSmDatabase)
+        Dim existingSheets As New List(Of srtSheetSet)
+        Dim iter As IAcSmEnumPersist = sheetSetDatabase.GetEnumerator()
+        Dim item As IAcSmPersist = iter.Next()
+        Dim sheetCounter As Integer = 1
+        While item IsNot Nothing
+            If TypeOf item Is IAcSmSheet Then
+                Dim smSheet As IAcSmSheet = DirectCast(item, IAcSmSheet)
+                smSheet.SetNumber(sheetCounter.ToString)
+                sheetCounter += 1
+            End If
+
+            item = iter.Next()
+        End While
     End Sub
     ''' <summary>
     ''' Създава Sheet Set файл (DST) и добавя листовете според подадения сортиран списък.

@@ -432,9 +432,19 @@ Public Class Kabel
                     End If
 
                 Next
-                ' Преместване на филтрираните линии най-отгоре
-                If idsToMove.Count > 0 Then
-                    dot.MoveToTop(idsToMove)
+                ' --- ПОПРАВКА ---
+                ' Създаваме помощен HashSet, за да премахнем дубликатите автоматично
+                Dim uniqueIds As New ObjectIdCollection()
+                Dim checkedIds As New HashSet(Of ObjectId)()
+                For Each id As ObjectId In idsToMove
+                    If checkedIds.Add(id) Then ' Add връща False, ако ID-то вече го има
+                        uniqueIds.Add(id)
+                    End If
+                Next
+                ' ----------------
+                ' Сега използваме прочистения списък uniqueIds
+                If uniqueIds.Count > 0 Then
+                    dot.MoveToTop(uniqueIds)
                 End If
                 ' Потвърждаване на транзакцията, за да се запазят промените
                 trans.Commit()

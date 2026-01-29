@@ -167,6 +167,8 @@ Public Class SheetSet_new
     "Оповестителна",
     "Видеонаблюдение"
 }
+    ' Съществуващи Sheet-и
+    Dim sheetsInFile As List(Of srtSheetSet)
     <CommandMethod("UpdateSSM")>
     Public Sub RunUpdate()
         Dim acDoc As Document = AcApp.DocumentManager.MdiActiveDocument ' Активен документ
@@ -205,7 +207,6 @@ Public Class SheetSet_new
                 Exit Sub
             End If
             ' Връща списък с всички Sheet-и от дадена Sheet Set база данни (DST).
-            Dim sheetsInFile As List(Of srtSheetSet) = GetSheetsFromDatabase(sheetSetDatabase)  ' Съществуващи Sheet-и
             sheetSet.SetName(Path_Name)                                                         ' Име на Sheet Set-а
             sheetSet.SetDesc(Set_Desc)                                                          ' Описание на Sheet Set-а
             ' Почистване на всички Sheet-и от текущия DWG и премахване на празни папки (Subsets) в Sheet Set базата данни.
@@ -564,14 +565,11 @@ Public Class SheetSet_new
         End Try
     End Sub
     Public Sub GenerateSheetNumbers(acDoc As Document, dstDatabase As AcSmDatabase)
-        ' --- 1. Получаваме списъка с листове от DST ---
-        Dim dstSheets As List(Of srtSheetSet) = GetSheetsFromDatabase(dstDatabase)
         ' --- 2. Взимаме BuildingName от активния DWG ---
         Dim buildingName As String = GetOrCreateBuildingName(acDoc)
         ' --- 3. Генериране на номерация според режима ---
         Try
             Dim sheetSet As IAcSmSheetSet = dstDatabase.GetSheetSet()
-            Dim werwer = FindAllComponents(dstDatabase)
 
             If buildingName = "BuildingName" Then
                 ' -----------------------------
@@ -605,21 +603,6 @@ Public Class SheetSet_new
             MsgBox("Грешка при номериране на Sheet Set файла: " & ex.Message)
         End Try
     End Sub
-    Private Sub setSheetsNumber(sheetSetDatabase As AcSmDatabase)
-        Dim existingSheets As New List(Of srtSheetSet)
-        Dim iter As IAcSmEnumPersist = sheetSetDatabase.GetEnumerator()
-        Dim item As IAcSmPersist = iter.Next()
-        Dim sheetCounter As Integer = 1
-        While item IsNot Nothing
-            If TypeOf item Is IAcSmSheet Then
-                Dim smSheet As IAcSmSheet = DirectCast(item, IAcSmSheet)
-                smSheet.SetNumber(sheetCounter.ToString)
-                sheetCounter += 1
-            End If
-
-            item = iter.Next()
-        End While
-    End Sub
     ''' <summary>
     ''' Създава Sheet Set файл (DST) и добавя листовете според подадения сортиран списък.
     ''' </summary>
@@ -647,7 +630,17 @@ Public Class SheetSet_new
                 '------------------------------
                 ' Корен на DST става buildingName
                 acDoc.Editor.WriteMessage(vbLf & "РАЗШИРЕН РЕЖИМ - > много сгради:" & buildingName)
-                rootSubset = CreateSubset(sheetSetDatabase, buildingName, "", "", "", "", True)
+
+                ' Проверка дали вече съществува коренов Subset с това име
+                rootSubset = FindRootSubsetByName(sheetSetDatabase, buildingName)
+
+                If rootSubset Is Nothing Then
+                    ' Създаваме нов само ако липсва
+                    rootSubset = CreateSubset(sheetSetDatabase, buildingName, "", "", "", "", True)
+                    acDoc.Editor.WriteMessage(vbLf & "  → Създаден нов коренов Subset: " & buildingName)
+                End If
+
+                'rootSubset = CreateSubset(sheetSetDatabase, buildingName, "", "", "", "", True)
                 useBuildingRoot = True
             End If
             ' --- Променливи за текущата и главната папка (Subset) ---
@@ -689,6 +682,34 @@ Public Class SheetSet_new
             MsgBox("Грешка при запазване на Sheet Set файла: " & ex.Message)
         End Try
     End Sub
+    ''' <summary>
+    ''' Намира съществуващ коренов Subset (IAcSmSubset) по име в SheetSetDatabase.
+    ''' Търсенето е case-insensitive.
+    ''' </summary>
+    ''' <param name="db">SheetSetDatabase, в която да се търси</param>
+    ''' <param name="name">Името на търсения коренов Subset</param>
+    ''' <returns>Намереният IAcSmSubset или Nothing ако не съществува</returns>
+    Public Function FindRootSubsetByName(db As IAcSmDatabase, name As String) As IAcSmSubset
+        If db Is Nothing OrElse String.IsNullOrEmpty(name) Then Return Nothing
+        ' Вземаме основния SheetSet обект, който държи структурата
+        Dim sheetSet As IAcSmSheetSet = db.GetSheetSet()
+        ' Вземаме итератор за компонентите в него
+        Dim enumerator As IAcSmEnumPersist = db.GetEnumerator()
+        Dim item As IAcSmPersist = enumerator.Next()
+
+        While item IsNot Nothing
+            ' Проверяваме дали текущият елемент е Subset
+            If TypeOf item Is IAcSmSubset Then
+                Dim subset As IAcSmSubset = DirectCast(item, IAcSmSubset)
+                ' Case-insensitive сравнение на името
+                If String.Equals(subset.GetName(), name, StringComparison.OrdinalIgnoreCase) Then
+                    Return subset
+                End If
+            End If
+            item = enumerator.Next()
+        End While
+        Return Nothing
+    End Function
     ''' <summary>
     ''' Обхожда Layout-ите в чертежа и анализира имената им спрямо зададените речници.
     ''' Събира данни за всички Layout-и в даден DWG документ.
@@ -1341,10 +1362,8 @@ Public Class SheetSet_new
         ' Проверка за нищо – ако компонентът е Nothing, функцията приключва.
         If comp Is Nothing Then Return
         ' Определя типа на компонента за логика и справка: [Subset], [Sheet] или [Component].
-        Dim typeLabel As String = ""
         Select Case True
             Case TypeOf comp Is IAcSmSubset
-                typeLabel = "[Subset]"
                 Dim subset As IAcSmSubset = CType(comp, IAcSmSubset)
                 ' Проверка за промяна на префикса при режим "ByInstallation".
                 ' Ако префиксът се е променил, броячът се нулира.
@@ -1355,7 +1374,6 @@ Public Class SheetSet_new
                     End If
                 End If
             Case TypeOf comp Is IAcSmSheet
-                typeLabel = "[Sheet]"
                 Dim sheet As IAcSmSheet = CType(comp, IAcSmSheet)
                 Dim finalNumber As String
                 ' Определя номера на листа.
@@ -1368,8 +1386,6 @@ Public Class SheetSet_new
                 End If
                 sheet.SetNumber(finalNumber)
                 number += 1
-            Case Else
-                typeLabel = "[Component]"
         End Select
         ' Рекурсивно обхождане на Subset-и и SheetSet-и.
         Try

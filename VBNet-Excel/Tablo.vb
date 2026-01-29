@@ -1,24 +1,23 @@
-﻿Imports Autodesk.AutoCAD.ApplicationServices
-Imports Autodesk.AutoCAD.DatabaseServices
-Imports Autodesk.AutoCAD.Runtime
-Imports Autodesk.AutoCAD.EditorInput
-Imports Autodesk.AutoCAD.Internal.DatabaseServices
-Imports Autodesk.AutoCAD.Geometry
-Imports Autodesk.AutoCAD.DatabaseServices.Filters
-
-Imports SWF = System.Windows.Forms
-
-Imports Autodesk.AutoCAD.PlottingServices
-Imports System.Collections.Generic
-Imports System.Net.Security
-Imports System.Xml
-Imports System.Windows.Forms.VisualStyles.VisualStyleElement.TrackBar
+﻿Imports System.Collections.Generic
 Imports System.Diagnostics.Eventing
-Imports System.Security.Cryptography.X509Certificates
 Imports System.Diagnostics.Eventing.Reader
-Imports System.Reflection
-Imports System.Net
 Imports System.Drawing.Drawing2D
+Imports System.Net
+Imports System.Net.Security
+Imports System.Reflection
+Imports System.Security.Cryptography.X509Certificates
+Imports System.Text.RegularExpressions
+Imports System.Windows.Forms.VisualStyles.VisualStyleElement.TrackBar
+Imports System.Xml
+Imports Autodesk.AutoCAD.ApplicationServices
+Imports Autodesk.AutoCAD.DatabaseServices
+Imports Autodesk.AutoCAD.DatabaseServices.Filters
+Imports Autodesk.AutoCAD.EditorInput
+Imports Autodesk.AutoCAD.Geometry
+Imports Autodesk.AutoCAD.Internal.DatabaseServices
+Imports Autodesk.AutoCAD.PlottingServices
+Imports Autodesk.AutoCAD.Runtime
+Imports SWF = System.Windows.Forms
 
 Public Class Tablo
     Dim PI As Double = 3.1415926535897931
@@ -560,8 +559,10 @@ Public Class Tablo
                         If TK.konsuator1 = "Ел. печка" Then Continue For
 
                         If TK.brLamp > 0 Then
-                            TK.konsuator1 = "Общо"
-                            TK.konsuator2 = "осветление"
+                            If TK.konsuator1 <> "Аварийно" Then
+                                TK.konsuator1 = "Общо"
+                                TK.konsuator2 = "осветление"
+                            End If
                             TK.faza = "L"
                             TK.Kabebel_Se4enie = "3x1,5"
                             TK.RatedCurrent = "10"
@@ -587,25 +588,37 @@ Public Class Tablo
                     Next
                 Next
                 '
-                'Сортира токови кръгове
+                ' Сортира токовите кръгове във всяко табло
+                ' Използва се insertion sort върху масива Tokowkryg
                 '
                 For i = 0 To arrTablo.Count
+                    ' Ако таблото няма име – прекратяваме обработката
                     If arrTablo(i).Name = Nothing Then Exit For
                     Dim pointer As Integer = 0
                     Dim posicion As Integer = 0
                     Dim curent As strTokow
                     Dim ind As Integer = 0
+                    ' Определяме реалния брой на валидните токови кръгове
                     For Each TK As strTokow In arrTablo(i).Tokowkryg
+                        ' Ако токовият кръг е празен – прекратяваме броенето
                         If TK.ТоковКръг = Nothing Then Exit For
                         ind += 1
                     Next
+                    ' Insertion sort по име / номер на токов кръг
                     For pointer = 1 To ind - 1
+                        ' Запазваме текущия елемент
                         curent = arrTablo(i).Tokowkryg(pointer)
                         posicion = pointer
-                        Do While posicion > 0 AndAlso Compare(arrTablo(i).Tokowkryg(posicion - 1).ТоковКръг, curent.ТоковКръг)
-                            arrTablo(i).Tokowkryg(posicion) = arrTablo(i).Tokowkryg(posicion - 1)
-                            posicion = posicion - 1
+                        ' Преместваме елементите надясно,
+                        ' докато намерим правилната позиция
+                        Do While posicion > 0 AndAlso
+                            Compare(arrTablo(i).Tokowkryg(posicion - 1).ТоковКръг,
+                                    curent.ТоковКръг)
+                            arrTablo(i).Tokowkryg(posicion) =
+                                arrTablo(i).Tokowkryg(posicion - 1)
+                            posicion -= 1
                         Loop
+                        ' Поставяме текущия токов кръг на намерената позиция
                         arrTablo(i).Tokowkryg(posicion) = curent
                     Next
                 Next
@@ -673,25 +686,56 @@ Public Class Tablo
         ' Ако дясната част не може да се парсне като число, връщаме оригиналния текст
         Return input
     End Function
-    '
-    ' Функция за сравнение на два стринга
-    '
+    ''' <summary>
+    ''' Сравнява два токови кръга с цел сортиране.
+    ''' Приоритетът е:
+    ''' 1) Кръгове съдържащи "ав"
+    ''' 2) Кръгове съдържащи "до"
+    ''' 3) Всички останали (чисти числа или други означения).
+    ''' При еднакъв тип се сравнява числовата стойност,
+    ''' а при пълно съвпадение – лексикографски (без значение от регистъра).
+    ''' </summary>
+    ''' <param name="a">Първият токов кръг за сравнение.</param>
+    ''' <param name="b">Вторият токов кръг за сравнение.</param>
+    ''' <returns>
+    ''' True, ако <paramref name="a"/> трябва да бъде подреден след <paramref name="b"/>,
+    ''' False – в противен случай.
+    ''' </returns>
     Function Compare(a As String, b As String) As Boolean
-        ' Използваме Val() за да вземем числовата стойност в началото на стринга
-        Dim valA As Double = Val(a)
-        Dim valB As Double = Val(b)
-        ' Използваме Select Case за да проверим различните условия
-        Select Case True
-            Case valA <> 0 AndAlso valB <> 0        ' Ако и двата стринга започват с число, сравняваме числата
-                Return valA > valB
-            Case valA <> 0                          ' Ако само първият стринг започва с число, той е по-малък
-                Return False
-            Case valB <> 0                          ' Ако само вторият стринг започва с число, той е по-малък
-                Return True
-            Case Else                               ' Ако нито един от стринговете не започва с число, сравняваме ги като стрингове
-                Return a > b
-        End Select
+        ' Помощна функция, която определя приоритет на токовия кръг
+        ' По-ниската стойност означава по-висок приоритет при сортиране
+        Dim getPriority = Function(s As String) As Integer
+                              ' Кръгове съдържащи "ав" (автоматични) – най-висок приоритет
+                              If s.Contains("ав") Then Return 1
+                              ' Кръгове съдържащи "до" – втори приоритет
+                              If s.Contains("до") Then Return 2
+                              ' Всички останали (чисти числа или други означения)
+                              Return 3
+                          End Function
+        ' Определяме приоритета на двата сравнявани стринга
+        Dim pA = getPriority(a.ToLower())
+        Dim pB = getPriority(b.ToLower())
+        ' 1. Ако двата токови кръга са от различен тип,
+        ' сортираме ги по приоритет
+        If pA <> pB Then
+            ' Връща True, ако A трябва да застане СЛЕД B
+            Return pA > pB
+        End If
+        ' 2. Ако са от един и същи тип,
+        ' сравняваме числовата част на означението
+        ' (извличаме само цифрите от стринга)
+        Dim numA As Double = Val(Regex.Match(a, "\d+").Value)
+        Dim numB As Double = Val(Regex.Match(b, "\d+").Value)
+        If numA <> numB Then
+            ' По-голямото число се подрежда след по-малкото
+            Return numA > numB
+        End If
+        ' 3. Ако и числовите стойности съвпадат,
+        ' правим финално текстово сравнение (без значение от регистъра)
+        Return String.Compare(a, b, StringComparison.OrdinalIgnoreCase) > 0
     End Function
+
+
     <CommandMethod("InsertBlockTablo")>
     Public Sub InsertBlockTablo()
         ' Get the current database and start a transaction
@@ -2762,29 +2806,73 @@ Public Class Tablo
         .Sensitivity = 30,
         .DeviceType = PreferredDevice}
     End Function
+    ''' <summary>
+    ''' Създава и конфигурира GroupBox за управление на дадено табло.
+    ''' GroupBox-ът съдържа бутони за различни действия, които могат да се приложат към това табло:
+    ''' вмъкване на табло, избор на защита, поправка на ДЗТ, балансиране на фази, изчисляване на фази,
+    ''' вмъкване на блок табло и разделяне на шина.
+    ''' </summary>
+    ''' <param name="name">
+    ''' Името на таблото. Използва се за:
+    ''' - Заглавието на GroupBox-а (в текста му)  
+    ''' - Генериране на уникални имена за бутоните в GroupBox-а
+    ''' </param>
+    ''' <returns>
+    ''' Връща напълно инициализиран System.Windows.Forms.GroupBox с размери, шрифт, цветове и всички бутони, готов за добавяне в форма или контейнер.
+    ''' </returns>
     Private Function insGroupBox_BT(name As String) As Windows.Forms.GroupBox
+        ' Създаваме нов GroupBox
         Dim GroupBox As System.Windows.Forms.GroupBox = New Windows.Forms.GroupBox
+        ' Конфигуриране на основните свойства на GroupBox-а
         With GroupBox
-            .Name = name & "_BT"
-            .Size = New System.Drawing.Size(432, 250)
-            .Location = New System.Drawing.Point(500, 6)
-            .Font = New Drawing.Font("Arial", 12, Drawing.FontStyle.Bold)
-            .Text = "Действие за табло '" & name & "'"
-            '.Dock = Windows.Forms.DockStyle.Fill
-            .BackColor = System.Drawing.SystemColors.Control
-            .ForeColor = System.Drawing.SystemColors.WindowText
+            .Name = name & "_BT"                                    ' Уникално име за контрола, комбинирайки името на таблото с "_BT"
+            .Size = New System.Drawing.Size(432, 250)               ' Размер на GroupBox
+            .Location = New System.Drawing.Point(500, 6)            ' Позиция в родителския контейнер
+            .Font = New Drawing.Font("Arial", 12, Drawing.FontStyle.Bold) ' Шрифт за заглавието
+            .Text = "Действие за табло '" & name & "'"              ' Заглавие, показва името на таблото
+            .BackColor = System.Drawing.SystemColors.Control        ' Фонов цвят
+            .ForeColor = System.Drawing.SystemColors.WindowText     ' Цвят на текста
         End With
+        ' Добавяне на бутони към GroupBox-а
         With GroupBox.Controls
-            .Add(insButtonn(name & "/#/" & "1", "Вмъкни табло", 25, 6))         ' CreateTablo(dagrid)
-            .Add(insButtonn(name & "/#/" & "2", "Избери защита", 50, 6))        ' SetBreakers(dagrid)
-            .Add(insButtonn(name & "/#/" & "3", "Поправи ДЗТ", 75, 6))          ' SetRCD(dagrid)
-            .Add(insButtonn(name & "/#/" & "4", "Балансирай фази", 100, 6))     ' SetBalance(dagrid)
-            .Add(insButtonn(name & "/#/" & "5", "Изчисли фази", 100, 170))      ' Calculate_Faze(dagrid)
-            .Add(insButtonn(name & "/#/" & "6", "Вмъкни блок табло", 125, 6))   ' Call InsertTablo(dagrid)
-            .Add(insButtonn(name & "/#/" & "7", "Раздели шина", 150, 6))        ' Call InsertBus(dagrid)
+            .Add(insButtonn(name & "/#/" & "1", "Вмъкни табло", 25, 6))       ' Бутона за създаване/вмъкване на табло
+            .Add(insButtonn(name & "/#/" & "2", "Избери защита", 50, 6))         ' Бутона за избор на защита (прекъсвач)
+            .Add(insButtonn(name & "/#/" & "3", "Поправи ДЗТ", 75, 6))           ' Бутона за поправка на ДЗТ (RCD)
+            .Add(insButtonn(name & "/#/" & "4", "Балансирай фази", 100, 6))      ' Бутона за балансиране на фазите на таблото
+            .Add(insButtonn(name & "/#/" & "5", "Изчисли фази", 100, 170))       ' Бутона за изчисление на фазите
+            .Add(insButtonn(name & "/#/" & "6", "Вмъкни блок табло", 125, 6))    ' Бутона за вмъкване на блок табло
+            .Add(insButtonn(name & "/#/" & "7", "Раздели шина", 150, 6))         ' Бутона за разделяне на шина
         End With
+        ' Връщаме готовия GroupBox
         Return GroupBox
     End Function
+    ''' <summary>
+    ''' Балансира фазите на електрическо табло, като разпределя потребителските токови кръгове (консуматори)
+    ''' по фазите L1, L2 и L3 с цел оптимално натоварване.
+    ''' Процедурата извършва следните основни стъпки:
+    ''' 1. Проверява дали таблото съдържа поне един трифазен консуматор.
+    '''    Ако няма, пита потребителя дали да балансира еднофазно табло.
+    ''' 2. Извиква SetRCD за разпределение на RCD (Residual Current Device) преди балансирането.
+    ''' 3. Създава масив от структури ElectricalParameters, в който записва данните за токовите кръгове,
+    '''    включително мощност, ток, фази, RCD и свързана шина.
+    ''' 4. Сортира масива по токовете на консуматорите (най-големите първи).
+    ''' 5. Балансира фазите чрез цикъл, като добавя консуматорите към най-малко натоварената фаза.
+    ''' 6. Сумира токовете по фази за всички консуматори и записва резултатите в DataGridView.
+    ''' 7. Пренасочва фазите така, че първият токов кръг да започва с L1.
+    ''' 8. Повтаря разпределението на RCD след приключване на фазовото балансиране.
+    ''' 9. Извършва допълнителни изчисления за консуматори, разпределени на различни шини.
+    ''' </summary>
+    ''' <param name="DataGridView">
+    ''' DataGridView, съдържащ всички данни за токовите кръгове, фази, токове, RCD и шини.
+    ''' Редовете трябва да съдържат следните типове данни:
+    ''' - Rед za6t + 3: мощност
+    ''' - Rед 1: ток
+    ''' - Ред za6t + 6: фаза или CircuitType
+    ''' - Rед defkt: RCD
+    ''' - Ред 6: Phases
+    ''' - Ред za6t + 10: Bus (шина)
+    ''' Методът модифицира стойностите в тези редове и добавя резултати за общите токове по фази.
+    ''' </param>
     Private Sub SetBalance(DataGridView As Windows.Forms.DataGridView)
         Dim brColums As Integer = DataGridView.Columns.Count
         Dim Faza_Tablo As Boolean = False
@@ -2806,7 +2894,6 @@ Public Class Tablo
         ' Разпределя RCD за да балансира правилно фазите
         '
         SetRCD(DataGridView)
-
         Dim columnCount As Integer = DataGridView.Columns.Count
         Dim ЕlArray(columnCount - 1) As ElectricalParameters
         '
@@ -3337,7 +3424,7 @@ Public Class Tablo
                 Dim brKontakt As String = IIf(DataGridView.Rows(za6t + 2).Cells(index).Value = 0,
                                           "----",
                                           DataGridView.Rows(za6t + 2).Cells(index).Value.ToString)
-                Dim Мощност As String = DataGridView.Rows(za6t + 3).Cells(index).Value.ToString
+                Dim Мощност As String = CDbl(DataGridView.Rows(za6t + 3).Cells(index).Value).ToString("0.000")
                 Dim typeKabel As String = DataGridView.Rows(za6t + 4).Cells(index).Value.ToString
                 Dim sechKabel As String = DataGridView.Rows(za6t + 5).Cells(index).Value.ToString
                 Dim Faza As String = DataGridView.Rows(za6t + 6).Cells(index).Value.ToString

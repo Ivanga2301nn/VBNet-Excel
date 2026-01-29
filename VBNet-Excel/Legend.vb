@@ -215,7 +215,8 @@ Public Class Legend
                              "Домофон", "Високоговорител", "Аудио система", "Камери",
                              "СОТ", "Аудио система", "Ключ_квадрат", "Розетка_1",
                              "Ключ_знак_WIFI", "Авария", "Авария_100", "LED_DENIMA",
-                             "LED_ULTRALUX", "LED_ULTRALUX_100", "Луминисцентна лампа", "LED_lenta"
+                             "LED_ULTRALUX", "LED_ULTRALUX_100", "Луминисцентна лампа", "LED_lenta",
+                             "LED_ULTRALUX_нов"
                             arrBlock(index).blName = blName
                             arrBlock(index).blVisibility = Visibility
                             arrBlock(index).blText = "- " + BlockText(blName, Visibility)

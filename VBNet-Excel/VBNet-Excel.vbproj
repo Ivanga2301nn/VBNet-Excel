@@ -115,6 +115,7 @@
     <Compile Include="CreateLayout.vb" />
     <Compile Include="Dokmentaci.vb" />
     <Compile Include="DwgCleaner.vb" />
+    <Compile Include="SheetSet_Monika.vb" />
     <Compile Include="SheetSet_new.vb" />
     <Compile Include="Form_Print.Designer.vb">
       <DependentUpon>Form_Print.vb</DependentUpon>

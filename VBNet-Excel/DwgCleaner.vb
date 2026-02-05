@@ -11,6 +11,9 @@ Imports Autodesk.AutoCAD.Runtime
 Imports iTextSharp.text.pdf.parser
 Imports System.Collections
 Imports System.Collections.Generic
+Imports Autodesk.AutoCAD.DatabaseServices.AssocArray
+' Алиас за избягване на конфликт със System.Array
+Imports ACDB_L = Autodesk.AutoCAD.DatabaseServices
 
 Public Class DwgCleaner
     ' Координати за пълно изтриване
@@ -154,16 +157,15 @@ Public Class DwgCleaner
             ' СТЪПКА 3: Изчистване съдържанието на динамични блокове "Качване"
             ' ===============================
             ClearAttributesInDynamicBlocks(doc, "Качване")
+            ClearAttributesInDynamicBlocks(doc, "Заземление")
             ' ===============================
             ' СТЪПКА 4: Изчистване съдържанието на динамични блокове "Качване"
             ' ===============================
-            FindMylniq(doc)
-            ' ===============================
+            FindMylniq(doc)            ' ===============================
             ' СТЪПКА 5: Native BURST (разбиване на блокове)
             ' ===============================
-            sw.WriteLine("5: Native BURST (разбиване на блокове) ...")
-            NativeBurst(doc)
             ExplodeAllArrays(doc)
+            NativeBurst(doc)
             NativeBurst(doc)
             ' ===============================
             ' СТЪПКА 6: Bind на всички Xref-и
@@ -175,7 +177,6 @@ Public Class DwgCleaner
             ' СТЪПКА 7: PURGE (пълно почистване на неизползвани елементи)
             ' ===============================
             NativePurge(doc)
-
             Using docLock As DocumentLock = doc.LockDocument()
                 ClearAllConstraints(doc)
             End Using
@@ -445,7 +446,7 @@ Public Class DwgCleaner
     ''' <param name="targetName">Името на блока, чийто атрибути ще бъдат изчистени (пример: "Качване")</param>
     Private Sub ClearAttributesInDynamicBlocks(doc As Document, targetName As String)
         Dim db As Database = doc.Database
-        sw.WriteLine("3. Изчистване съдържанието на блокове 'Качване'...")
+        sw.WriteLine("3. Изчистване съдържанието на блокове '" & targetName & "'")
         ' Създаваме транзакция за безопасна работа с обекти
         Using tr As Transaction = db.TransactionManager.StartTransaction()
             ' Вземаме BlockTable и ModelSpace за четене/писане
@@ -485,59 +486,112 @@ Public Class DwgCleaner
             sw.WriteLine("Изчистени атрибути в динамичен блок '" & targetName & "': " & count)
         End Using
     End Sub
+    '''' <summary>
+    '''' Разбива всички масиви (BlockReference масиви) в ModelSpace
+    '''' без да пипа реалните блокове и атрибути.
+    '''' </summary>
+    'Public Sub ExplodeAllArrays(doc As Document)
+    '    Dim db As Database = doc.Database
+    '    Try
+    '        Using tr As Transaction = db.TransactionManager.StartTransaction()
+    '            Dim bt As BlockTable = CType(tr.GetObject(db.BlockTableId, OpenMode.ForRead), BlockTable)
+    '            Dim ms As BlockTableRecord = CType(tr.GetObject(bt(BlockTableRecord.ModelSpace), OpenMode.ForWrite), BlockTableRecord)
+    '            Dim idsToErase As New List(Of ObjectId)
+    '            Dim count As Integer = 0
+    '            For Each id As ObjectId In ms
+    '                Dim ent As Entity = TryCast(tr.GetObject(id, OpenMode.ForRead), Entity)
+    '                If ent Is Nothing Then Continue For
+    '                If TypeOf ent Is BlockReference Then
+    '                    Dim br As BlockReference = CType(ent, BlockReference)
+    '                    If br.IsDynamicBlock Then
+    '                        Dim objs As New DBObjectCollection()
+    '                        br.Explode(objs)
+    '                        For Each o As DBObject In objs
+    '                            Dim e As Entity = TryCast(o, Entity)
+    '                            If e IsNot Nothing Then
+    '                                ms.AppendEntity(e)
+    '                                tr.AddNewlyCreatedDBObject(e, True)
+    '                            End If
+    '                        Next
+    '                        idsToErase.Add(br.ObjectId)
+    '                        count += 1
+    '                    End If
+    '                End If
+    '            Next
+    '            ' Изтриваме оригиналните BlockReference масиви
+    '            For Each id As ObjectId In idsToErase
+    '                Dim e As Entity = TryCast(tr.GetObject(id, OpenMode.ForWrite), Entity)
+    '                If e IsNot Nothing Then
+    '                    e.Erase()
+    '                End If
+    '            Next
+    '            tr.Commit()
+    '            sw.WriteLine("ExplodeAllArrays: Обработени " & count & " масива.")
+    '        End Using
+    '    Catch ex As Exception
+    '        SaveError(ex, db.Filename)
+    '    End Try
+    'End Sub
+
     ''' <summary>
-    ''' Разбива всички масиви (BlockReference масиви) в ModelSpace
-    ''' без да пипа реалните блокове и атрибути.
+    ''' Намира всички асоциативни масиви (Associative Arrays) в Model Space
+    ''' и ги „разбива“ на обикновени обекти чрез AssocArray.Explode.
+    '''
+    ''' Какво прави процедурата стъпка по стъпка:
+    ''' 1) Отваря транзакция към текущата база данни на чертежа.
+    ''' 2) Обхожда всички обекти в Model Space.
+    ''' 3) Идентифицира кои от тях са асоциативни масиви.
+    ''' 4) Събира техните ObjectId в списък за последваща обработка.
+    ''' 5) Във втори цикъл експлодва всеки намерен масив.
+    ''' 6) Комитва транзакцията и извежда съобщение в командния ред.
+    '''
+    ''' ⚠ ВАЖНО ПОВЕДЕНИЕ:
+    ''' - Масивите НЕ се трият директно тук — те се експлодват.
+    ''' - След експлодването остават отделни примитивни обекти.
+    ''' - Процедурата работи само в Model Space.
     ''' </summary>
     Public Sub ExplodeAllArrays(doc As Document)
+        ' Вземаме база данни
         Dim db As Database = doc.Database
-        Try
-            sw.WriteLine("6: Разбиване на блокове) ...")
-            ' Стартираме транзакция за безопасна работа с обекти
-            Using tr As Transaction = db.TransactionManager.StartTransaction()
-                Dim bt As BlockTable = CType(tr.GetObject(db.BlockTableId, OpenMode.ForRead), BlockTable)
-                Dim ms As BlockTableRecord = CType(tr.GetObject(bt(BlockTableRecord.ModelSpace), OpenMode.ForWrite), BlockTableRecord)
-                Dim idsToErase As New List(Of ObjectId)
-                ' Обхождаме всички обекти в ModelSpace
-                Dim count As Integer = 0
-                For Each id As ObjectId In ms
-                    Dim ent As Entity = TryCast(tr.GetObject(id, OpenMode.ForRead), Entity)
-                    If ent Is Nothing Then Continue For
-                    ' Проверка дали е BlockReference
-                    If TypeOf ent Is BlockReference Then
-                        Dim br As BlockReference = CType(ent, BlockReference)
-                        ' Проверяваме само дали е DynamicBlock
-                        If br.IsDynamicBlock Then
-                            Dim objs As New DBObjectCollection()
-                            br.Explode(objs) ' Разбиваме масива / DynamicBlock
-                            ' Добавяме всички обекти от Explode в ModelSpace
-                            For Each o As DBObject In objs
-                                Dim e As Entity = TryCast(o, Entity)
-                                If e IsNot Nothing Then
-                                    ms.AppendEntity(e)
-                                    tr.AddNewlyCreatedDBObject(e, True)
-                                End If
-                            Next
-                            ' Добавяме оригиналния BlockReference за изтриване
-                            idsToErase.Add(br.ObjectId)
-                            count += 1
-                        End If
-                    End If
-                Next
-                ' Изтриваме оригиналните BlockReference масиви
-                For Each id As ObjectId In idsToErase
-                    Dim e As Entity = TryCast(tr.GetObject(id, OpenMode.ForWrite), Entity)
-                    If e IsNot Nothing Then
-                        e.Erase()
-                    End If
-                Next
-                tr.Commit()
-                sw.WriteLine("ExplodeAllArrays: Обработени " & count & " масива.")
-            End Using
-        Catch ex As Exception
-            SaveError(ex, db.Filename)
-        End Try
+        ' Брояч на намерените и обработени масиви
+        Dim count As Integer = 0
+        ' Започваме транзакция – всички промени ще бъдат атомарни
+        Using tr As Transaction = db.TransactionManager.StartTransaction()
+            ' Вземаме Model Space като BlockTableRecord за четене
+            Dim btr As BlockTableRecord =
+                tr.GetObject(SymbolUtilityServices.GetBlockModelSpaceId(db), OpenMode.ForRead)
+            ' Списък с ID-тата на намерените асоциативни масиви
+            Dim idsToProcess As New List(Of ObjectId)
+            ' ПЪРВИ ЦИКЪЛ: търсим всички асоциативни масиви
+            For Each id As ObjectId In btr
+                ' Отваряме обекта само за четене
+                Dim ent As Entity = tr.GetObject(id, OpenMode.ForRead)
+                ' Проверка дали обектът е асоциативен масив
+                ' В AutoCAD това става чрез AssocArray.IsAssociativeArray
+                If AssocArray.IsAssociativeArray(id) Then
+                    ' Ъпгрейдваме от Read → Write (подготвяме за промяна)
+                    ent.UpgradeOpen()
+                    ' Създаваме колекция (в момента не се използва по-нататък,
+                    ' но е типичен шаблон при работа с AssocArray)
+                    Dim objs As New DBObjectCollection()
+                    ' Добавяме ID-то в списъка за обработка във втория цикъл
+                    idsToProcess.Add(id)
+                End If
+            Next
+            ' ВТОРИ ЦИКЪЛ: експлодваме всеки намерен масив
+            For Each arrId As ObjectId In idsToProcess
+                ' AssocArray.Explode връща колекция от новосъздадени обекти
+                Dim newIds As ObjectIdCollection = AssocArray.Explode(arrId)
+                ' Увеличаваме брояча на обработените масиви
+                count += 1
+            Next
+            ' Потвърждаваме всички промени в чертежа
+            tr.Commit()
+            ' Информационно съобщение към потребителя
+            sw.WriteLine("ExplodeAllArrays: Обработени " & count & " масива.")
+        End Using
     End Sub
+
     ''' <summary>
     ''' Търси в текущия чертеж текстове и блокове, свързани с мълниезащита.
     ''' При намиране на конкретен текст го заменя с нов MText,
@@ -665,9 +719,8 @@ Public Class DwgCleaner
         Dim db As Database = doc.Database
         Try
             Dim changed As Boolean = True
-            sw.WriteLine("--- Пълно почистване на неизползвани слоеве и блокове...")
+            sw.WriteLine(" Пълно почистване на неизползвани слоеве и блокове...")
             ' Въртим цикъла докато спрем да намираме излишни неща (заради вложените зависимости)
-            Dim count As Integer = 0
             While changed
                 changed = False
                 Using tr As Transaction = db.TransactionManager.StartTransaction()
@@ -712,9 +765,7 @@ Public Class DwgCleaner
                     End If
                     tr.Commit()
                 End Using
-                count += 1
             End While
-            sw.WriteLine("ExplodeAllArrays: Обработени " & count & " масива.")
         Catch ex As Exception
             SaveError(ex, db.Filename)
         End Try

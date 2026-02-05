@@ -17,6 +17,7 @@ Imports Autodesk.AutoCAD.Geometry
 Imports Autodesk.AutoCAD.Internal.DatabaseServices
 Imports Autodesk.AutoCAD.PlottingServices
 Imports Autodesk.AutoCAD.Runtime
+Imports Org.BouncyCastle.Asn1.Pkcs
 Imports SWF = System.Windows.Forms
 
 Public Class Tablo
@@ -48,6 +49,21 @@ Public Class Tablo
     Dim Cable_AlR_4 As New Dictionary(Of Integer, String)
     Dim Disconnectors As New Dictionary(Of Integer, String)
     Dim RCD_Catalog As New List(Of strRCD)
+
+    ' ===============================
+    ' Глобални променливи за таблата
+    ' ===============================
+    Public widthColom As Double = 120      ' Ширина на всяка колона в таблицата
+    Public heightRow As Double = 25        ' Височина на редовете
+    Public widthText As Double = 140       ' Ширина на колоната за текст (напр. "Токов кръг")
+    Public widthTextDim As Double = 40     ' Допълнителна ширина за текстова колона (напр. за единици)
+    Public lengthProw As Double = 90       ' Дължина на вертикалните линии между текст и блокове
+    Public lengthProwBlock As Double = 0   ' Дължина на линията под блока за прекъсвач (ще се изчислява по-късно)
+    Public padingText As Double = 3        ' Отстояние на текста от линиите
+    Public widthTablo As Double = 410      ' Ширина на цялото табло (за блокове и линии)
+    Public heightText As Double = 12       ' Височина на текста, използван в блоковете
+    Public Y_Шина As Double = 620          ' Вертикална позиция на шината (Y координата)
+
     Public Structure strTokow
         Dim ТоковКръг As String         ' Номер на токов кръг
         Dim brLamp As Integer           ' Брой лампи
@@ -127,13 +143,12 @@ Public Class Tablo
         Dim edt As Editor = acDoc.Editor
         Dim acCurDb As Database = acDoc.Database
         Dim SelectedSet = cu.GetObjects("INSERT", "Изберете блок")
-
-        ' Запълва речниците и масивите с данни
-        SetCatalog()
         If SelectedSet Is Nothing Then
             MsgBox("Нама маркиран нито един блок.")
             Exit Sub
         End If
+        ' Запълва речниците и масивите с данни
+        SetCatalog()
         Dim brTablo As Integer = 0
         Dim FEC_KRYG As Integer = 1
         Dim blkRecId As ObjectId = ObjectId.Null
@@ -734,8 +749,6 @@ Public Class Tablo
         ' правим финално текстово сравнение (без значение от регистъра)
         Return String.Compare(a, b, StringComparison.OrdinalIgnoreCase) > 0
     End Function
-
-
     <CommandMethod("InsertBlockTablo")>
     Public Sub InsertBlockTablo()
         ' Get the current database and start a transaction
@@ -3250,6 +3263,129 @@ Public Class Tablo
                 Return GV_Наст
         End Select
     End Function
+    ''' <summary>
+    ''' Чертане на рамката на електрическото табло (външни контури + вертикални линии)
+    ''' </summary>
+    Private Sub DrawPanelFrame(ptBasePoint As Point3d,
+                               brColums As Integer,
+                               twoBus As Boolean
+                               )
+        ' =====================================================
+        ' 1️⃣ Определяне на основни координати и масив за линии
+        ' =====================================================
+        ' prX: крайната X координата за хоризонталните линии
+        Dim prX As Double = ptBasePoint.X + widthText + widthTextDim + (brColums - IIf(twoBus, 3, 2)) * widthColom
+        Dim prY As Double ' ще се използва по-късно за текста
+        ' Массив за начални и крайни точки на линиите
+        Dim arrPoint(17, 1) As Point3d
+        ' --- Хоризонтални линии на редовете на таблицата ---
+        arrPoint(0, 0) = New Point3d(ptBasePoint.X, ptBasePoint.Y, 0)
+        arrPoint(0, 1) = New Point3d(prX, ptBasePoint.Y, 0)
+        arrPoint(1, 0) = New Point3d(ptBasePoint.X, ptBasePoint.Y + 3 * heightRow, 0)
+        arrPoint(1, 1) = New Point3d(prX, ptBasePoint.Y + 3 * heightRow, 0)
+        arrPoint(2, 0) = New Point3d(ptBasePoint.X, ptBasePoint.Y + 4 * heightRow, 0)
+        arrPoint(2, 1) = New Point3d(prX, ptBasePoint.Y + 4 * heightRow, 0)
+        arrPoint(3, 0) = New Point3d(ptBasePoint.X, ptBasePoint.Y + 5 * heightRow, 0)
+        arrPoint(3, 1) = New Point3d(prX, ptBasePoint.Y + 5 * heightRow, 0)
+        arrPoint(4, 0) = New Point3d(ptBasePoint.X, ptBasePoint.Y + 6 * heightRow, 0)
+        arrPoint(4, 1) = New Point3d(prX, ptBasePoint.Y + 6 * heightRow, 0)
+        arrPoint(5, 0) = New Point3d(ptBasePoint.X, ptBasePoint.Y + 7 * heightRow, 0)
+        arrPoint(5, 1) = New Point3d(prX, ptBasePoint.Y + 7 * heightRow, 0)
+        arrPoint(6, 0) = New Point3d(ptBasePoint.X, ptBasePoint.Y + 8 * heightRow, 0)
+        arrPoint(6, 1) = New Point3d(prX, ptBasePoint.Y + 8 * heightRow, 0)
+        arrPoint(7, 0) = New Point3d(ptBasePoint.X, ptBasePoint.Y + 9 * heightRow, 0)
+        arrPoint(7, 1) = New Point3d(prX, ptBasePoint.Y + 9 * heightRow, 0)
+        arrPoint(8, 0) = New Point3d(ptBasePoint.X, ptBasePoint.Y + 10 * heightRow, 0)
+        arrPoint(8, 1) = New Point3d(prX, ptBasePoint.Y + 10 * heightRow, 0)
+        ' --- Вертикални линии на таблицата ---
+        arrPoint(9, 0) = New Point3d(ptBasePoint.X, ptBasePoint.Y, 0)
+        arrPoint(9, 1) = New Point3d(ptBasePoint.X, ptBasePoint.Y + 10 * heightRow, 0)
+        arrPoint(10, 0) = New Point3d(ptBasePoint.X + widthText, ptBasePoint.Y, 0)
+        arrPoint(10, 1) = New Point3d(ptBasePoint.X + widthText, ptBasePoint.Y + 10 * heightRow, 0)
+        arrPoint(11, 0) = New Point3d(ptBasePoint.X + widthText + widthTextDim, ptBasePoint.Y, 0)
+        arrPoint(11, 1) = New Point3d(ptBasePoint.X + widthText + widthTextDim, ptBasePoint.Y + 10 * heightRow, 0)
+        ' --- Допълнителни линии за рамка на блока и шина ---
+        arrPoint(12, 0) = New Point3d(ptBasePoint.X + widthText, ptBasePoint.Y + 10 * heightRow + lengthProw, 0)
+        arrPoint(12, 1) = New Point3d(ptBasePoint.X + widthText, ptBasePoint.Y + 10 * heightRow + lengthProw + widthTablo, 0)
+        arrPoint(13, 0) = New Point3d(ptBasePoint.X + widthText, ptBasePoint.Y + 10 * heightRow + lengthProw, 0)
+        arrPoint(13, 1) = New Point3d(prX, ptBasePoint.Y + 10 * heightRow + lengthProw, 0)
+        arrPoint(14, 0) = New Point3d(prX, ptBasePoint.Y + 10 * heightRow + lengthProw, 0)
+        arrPoint(14, 1) = New Point3d(prX, ptBasePoint.Y + 10 * heightRow + lengthProw + widthTablo, 0)
+        arrPoint(15, 0) = New Point3d(ptBasePoint.X + widthText, ptBasePoint.Y + 10 * heightRow + lengthProw + widthTablo, 0)
+        arrPoint(15, 1) = New Point3d(prX, ptBasePoint.Y + 10 * heightRow + lengthProw + widthTablo, 0)
+        ' --- Линии за маркировка (червен кръст) ---
+        arrPoint(16, 0) = New Point3d(ptBasePoint.X + widthText + 18, ptBasePoint.Y + 10 * heightRow + lengthProw + widthTablo, 0)
+        arrPoint(16, 1) = New Point3d(ptBasePoint.X + widthText + 18, ptBasePoint.Y + 10 * heightRow + lengthProw + widthTablo - 36, 0)
+        arrPoint(17, 0) = New Point3d(ptBasePoint.X + widthText, ptBasePoint.Y + 10 * heightRow + lengthProw + widthTablo - 18, 0)
+        arrPoint(17, 1) = New Point3d(ptBasePoint.X + widthText + 36, ptBasePoint.Y + 10 * heightRow + lengthProw + widthTablo - 18, 0)
+        ' =====================================================
+        ' 2️⃣ Чертеж на линиите
+        ' =====================================================
+        For index = 0 To UBound(arrPoint)
+            Select Case index
+                Case < 12
+                    ' Чертае основната таблица (хоризонтални и вертикални линии)
+                    cu.DrowLine(arrPoint(index, 0), arrPoint(index, 1), "EL_ТАБЛА", LineWeight.ByLayer, "ByLayer")
+                Case 12 To 15
+                    ' Чертае рамка за блока с информация за шина
+                    cu.DrowLine(arrPoint(index, 0), arrPoint(index, 1), "EL_ТАБЛА", LineWeight.ByLayer, "CENTER")
+                Case 16, 17
+                    ' Чертае червен кръст за маркиране на таблото
+                    cu.DrowLine(arrPoint(index, 0), arrPoint(index, 1), "Defpoints", LineWeight.ByLayer, "ByLayer", 1)
+            End Select
+        Next
+        ' --- Вертикални линии за колоните на таблицата ---
+        For index = 1 To brColums - IIf(twoBus, 3, 2)
+            Dim X As Double = ptBasePoint.X + widthText + widthTextDim + index * widthColom
+            cu.DrowLine(New Point3d(X, ptBasePoint.Y, 0),
+                    New Point3d(X, ptBasePoint.Y + 10 * heightRow, 0),
+                    "EL_ТАБЛА",
+                    LineWeight.ByLayer,
+                    "ByLayer")
+        Next
+        ' =====================================================
+        ' 3️⃣ Вмъкване на текстове (първа колона)
+        ' =====================================================
+        prX = ptBasePoint.X + padingText
+        prY = ptBasePoint.Y + (heightRow - heightText) / 2
+        cu.InsertText("Токов кръг", New Point3d(prX, prY + 9 * heightRow, 0),
+                  "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+        cu.InsertText("Брой лампи", New Point3d(prX, prY + 8 * heightRow, 0),
+                  "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+        cu.InsertText("Брой контакти", New Point3d(prX, prY + 7 * heightRow, 0),
+                  "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+        cu.InsertText("Инстал. мощност", New Point3d(prX, prY + 6 * heightRow, 0),
+                  "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+        cu.InsertText("Тип кабел", New Point3d(prX, prY + 5 * heightRow, 0),
+                  "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+        cu.InsertText("Сечение кабел", New Point3d(prX, prY + 4 * heightRow, 0),
+                  "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+        cu.InsertText("Фаза", New Point3d(prX, prY + 3 * heightRow, 0),
+                  "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+        cu.InsertText("Консуматор", New Point3d(prX, prY + 2 * heightRow, 0),
+                  "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+        ' =====================================================
+        ' 4️⃣ Вмъкване на текстове (втора колона)
+        ' =====================================================
+        prX = prX + widthText
+        prY = ptBasePoint.Y + (heightRow - heightText) / 2
+        cu.InsertText("№", New Point3d(prX, prY + 9 * heightRow, 0),
+                  "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+        cu.InsertText("бр.", New Point3d(prX, prY + 8 * heightRow, 0),
+                  "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+        cu.InsertText("бр.", New Point3d(prX, prY + 7 * heightRow, 0),
+                  "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+        cu.InsertText("kW", New Point3d(prX, prY + 6 * heightRow, 0),
+                  "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+        cu.InsertText("---", New Point3d(prX, prY + 5 * heightRow, 0),
+                  "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+        cu.InsertText("mm²", New Point3d(prX, prY + 4 * heightRow, 0),
+                  "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+        cu.InsertText("---", New Point3d(prX, prY + 3 * heightRow, 0),
+                  "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+        cu.InsertText("---", New Point3d(prX, prY + 2 * heightRow, 0),
+                  "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+    End Sub
     Private Sub CreateTablo(DataGridView As Windows.Forms.DataGridView)
         '' Get the current database and start the Transaction Manager
         Dim acDoc As Document = Application.DocumentManager.MdiActiveDocument
@@ -3266,16 +3402,6 @@ Public Class Tablo
         Dim ptBasePoint As Point3d = ptBasePointRes.Value
 
         Dim TabloName As String = Mid(DataGridView.Name, 1, Len(DataGridView.Name) - 3)
-        Dim widthColom As Double = 120
-        Dim heightRow As Double = 25
-        Dim widthText As Double = 140
-        Dim widthTextDim As Double = 40
-        Dim lengthProw As Double = 90
-        Dim lengthProwBlock As Double = 0
-        Dim padingText As Double = 3
-        Dim widthTablo As Double = 410
-        Dim heightText As Double = 12
-        Dim Y_Шина As Double = 620
 
         Dim blkRecId_D As ObjectId = ObjectId.Null
         Dim blkRecId_L As ObjectId = ObjectId.Null
@@ -3290,123 +3416,11 @@ Public Class Tablo
         If DataGridView.Columns.Contains("Разединител") Then twoBus = True
 
         Try
-            Dim arrPoint(17, 1) As Point3d
-            Dim prX As Double = ptBasePoint.X + widthText + widthTextDim + (brColums - IIf(twoBus, 3, 2)) * widthColom
-            Dim prY As Double = 0
 
-            arrPoint(0, 0) = New Point3d(ptBasePoint.X, ptBasePoint.Y, 0)
-            arrPoint(0, 1) = New Point3d(prX, ptBasePoint.Y, 0)
-            arrPoint(1, 0) = New Point3d(ptBasePoint.X, ptBasePoint.Y + 3 * heightRow, 0)
-            arrPoint(1, 1) = New Point3d(prX, ptBasePoint.Y + 3 * heightRow, 0)
-            arrPoint(2, 0) = New Point3d(ptBasePoint.X, ptBasePoint.Y + 4 * heightRow, 0)
-            arrPoint(2, 1) = New Point3d(prX, ptBasePoint.Y + 4 * heightRow, 0)
-            arrPoint(3, 0) = New Point3d(ptBasePoint.X, ptBasePoint.Y + 5 * heightRow, 0)
-            arrPoint(3, 1) = New Point3d(prX, ptBasePoint.Y + 5 * heightRow, 0)
-            arrPoint(4, 0) = New Point3d(ptBasePoint.X, ptBasePoint.Y + 6 * heightRow, 0)
-            arrPoint(4, 1) = New Point3d(prX, ptBasePoint.Y + 6 * heightRow, 0)
-            arrPoint(5, 0) = New Point3d(ptBasePoint.X, ptBasePoint.Y + 7 * heightRow, 0)
-            arrPoint(5, 1) = New Point3d(prX, ptBasePoint.Y + 7 * heightRow, 0)
-            arrPoint(6, 0) = New Point3d(ptBasePoint.X, ptBasePoint.Y + 8 * heightRow, 0)
-            arrPoint(6, 1) = New Point3d(prX, ptBasePoint.Y + 8 * heightRow, 0)
-            arrPoint(7, 0) = New Point3d(ptBasePoint.X, ptBasePoint.Y + 9 * heightRow, 0)
-            arrPoint(7, 1) = New Point3d(prX, ptBasePoint.Y + 9 * heightRow, 0)
-            arrPoint(8, 0) = New Point3d(ptBasePoint.X, ptBasePoint.Y + 10 * heightRow, 0)
-            arrPoint(8, 1) = New Point3d(prX, ptBasePoint.Y + 10 * heightRow, 0)
-
-            arrPoint(9, 0) = New Point3d(ptBasePoint.X, ptBasePoint.Y, 0)
-            arrPoint(9, 1) = New Point3d(ptBasePoint.X, ptBasePoint.Y + 10 * heightRow, 0)
-            arrPoint(10, 0) = New Point3d(ptBasePoint.X + widthText, ptBasePoint.Y, 0)
-            arrPoint(10, 1) = New Point3d(ptBasePoint.X + widthText, ptBasePoint.Y + 10 * heightRow, 0)
-            arrPoint(11, 0) = New Point3d(ptBasePoint.X + widthText + widthTextDim, ptBasePoint.Y, 0)
-            arrPoint(11, 1) = New Point3d(ptBasePoint.X + widthText + widthTextDim,
-                                          ptBasePoint.Y + 10 * heightRow, 0)
-
-            arrPoint(12, 0) = New Point3d(ptBasePoint.X + widthText,
-                                          ptBasePoint.Y + 10 * heightRow + lengthProw, 0)
-            arrPoint(12, 1) = New Point3d(ptBasePoint.X + widthText,
-                                          ptBasePoint.Y + 10 * heightRow + lengthProw + widthTablo, 0)
-            arrPoint(13, 0) = New Point3d(ptBasePoint.X + widthText,
-                                          ptBasePoint.Y + 10 * heightRow + lengthProw, 0)
-            arrPoint(13, 1) = New Point3d(prX, ptBasePoint.Y + 10 * heightRow + lengthProw, 0)
-            arrPoint(14, 0) = New Point3d(prX, ptBasePoint.Y + 10 * heightRow + lengthProw, 0)
-            arrPoint(14, 1) = New Point3d(prX, ptBasePoint.Y + 10 * heightRow + lengthProw + widthTablo, 0)
-            arrPoint(15, 0) = New Point3d(ptBasePoint.X + widthText,
-                                          ptBasePoint.Y + 10 * heightRow + lengthProw + widthTablo, 0)
-            arrPoint(15, 1) = New Point3d(prX,
-                                          ptBasePoint.Y + 10 * heightRow + lengthProw + widthTablo, 0)
-
-            arrPoint(16, 0) = New Point3d(ptBasePoint.X + widthText + 18,
-                                          ptBasePoint.Y + 10 * heightRow + lengthProw + widthTablo, 0)
-            arrPoint(16, 1) = New Point3d(ptBasePoint.X + widthText + 18,
-                                          ptBasePoint.Y + 10 * heightRow + lengthProw + widthTablo - 36, 0)
-
-            arrPoint(17, 0) = New Point3d(ptBasePoint.X + widthText,
-                                          ptBasePoint.Y + 10 * heightRow + lengthProw + widthTablo - 18, 0)
-            arrPoint(17, 1) = New Point3d(ptBasePoint.X + widthText + 36,
-                                          ptBasePoint.Y + 10 * heightRow + lengthProw + widthTablo - 18, 0)
+            ' Чертане на рамката на електрическото табло (външни контури + вертикални линии)
+            DrawPanelFrame(ptBasePoint, brColums, twoBus)
 
             Dim X As Double = 0
-
-            For index = 0 To UBound(arrPoint)
-                Select Case index
-                    Case < 12
-                        cu.DrowLine(arrPoint(index, 0), arrPoint(index, 1), "EL_ТАБЛА", LineWeight.ByLayer, "ByLayer")
-                    Case 12 To 15
-                        cu.DrowLine(arrPoint(index, 0), arrPoint(index, 1), "EL_ТАБЛА", LineWeight.ByLayer, "CENTER")
-                    Case 16, 17
-                        cu.DrowLine(arrPoint(index, 0), arrPoint(index, 1), "Defpoints", LineWeight.ByLayer, "ByLayer", 1)
-                End Select
-            Next
-
-            For index = 1 To brColums - IIf(twoBus, 3, 2)
-                X = ptBasePoint.X + widthText + widthTextDim + index * widthColom
-                cu.DrowLine(New Point3d(X, ptBasePoint.Y, 0),
-                                  New Point3d(X, ptBasePoint.Y + 10 * heightRow, 0),
-                                  "EL_ТАБЛА",
-                                  LineWeight.ByLayer,
-                                  "ByLayer")
-            Next
-
-            prX = ptBasePoint.X + padingText
-            prY = ptBasePoint.Y + (heightRow - heightText) / 2
-
-            cu.InsertText("Токов кръг", New Point3d(prX, prY + 9 * heightRow, 0),
-                                 "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
-            cu.InsertText("Брой лампи", New Point3d(prX, prY + 8 * heightRow, 0),
-                                 "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
-            cu.InsertText("Брой контакти", New Point3d(prX, prY + 7 * heightRow, 0),
-                                 "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
-            cu.InsertText("Инстал. мощност", New Point3d(prX, prY + 6 * heightRow, 0),
-                                 "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
-            cu.InsertText("Тип кабел", New Point3d(prX, prY + 5 * heightRow, 0),
-                                 "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
-            cu.InsertText("Сечение кабел", New Point3d(prX, prY + 4 * heightRow, 0),
-                                 "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
-            cu.InsertText("Фаза", New Point3d(prX, prY + 3 * heightRow, 0),
-                                 "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
-            cu.InsertText("Консуматор", New Point3d(prX, prY + 2 * heightRow, 0),
-                                 "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
-
-            prX = prX + widthText
-            prY = ptBasePoint.Y + (heightRow - heightText) / 2
-
-            cu.InsertText("№", New Point3d(prX, prY + 9 * heightRow, 0),
-                                 "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
-            cu.InsertText("бр.", New Point3d(prX, prY + 8 * heightRow, 0),
-                                 "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
-            cu.InsertText("бр.", New Point3d(prX, prY + 7 * heightRow, 0),
-                                 "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
-            cu.InsertText("kW", New Point3d(prX, prY + 6 * heightRow, 0),
-                                 "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
-            cu.InsertText("---", New Point3d(prX, prY + 5 * heightRow, 0),
-                                 "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
-            cu.InsertText("mm²", New Point3d(prX, prY + 4 * heightRow, 0),
-                                 "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
-            cu.InsertText("---", New Point3d(prX, prY + 3 * heightRow, 0),
-                                 "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
-            cu.InsertText("---", New Point3d(prX, prY + 2 * heightRow, 0),
-                                 "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
-
             Dim LeftPoint As Point3d = New Point3d(0, 0, 0)
             Dim RightPoint As Point3d = New Point3d(0, 0, 0)
             Dim Coloni_Broj As Integer = 2
@@ -3576,7 +3590,6 @@ Public Class Tablo
                                                       New Scale3d(5, 5, 5)
                                                       )
                         End If
-
                         lengthProwBlock = 145
                         LeftPoint = New Point3d(0, 0, 0)
                         RightPoint = New Point3d(0, 0, 0)
@@ -3814,6 +3827,7 @@ Public Class Tablo
                 End If
                 Coloni_Broj += 1
             Next
+
             '-------------------------------------------------------------------------------------------------------------------------------------------------
             X = ptBasePoint.X + widthText + widthTextDim
             '

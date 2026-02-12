@@ -173,6 +173,7 @@ Partial Class Form_ExcelUtilForm
         Me.Button_ФОТОВОЛТАИЦИ_КАБЕЛИ = New System.Windows.Forms.Button()
         Me.Button_Генератор_ФОТОВОЛТАИЦИ = New System.Windows.Forms.Button()
         Me.Button_Изчисти_ФОТОВОЛТАИЦИ_Кабели = New System.Windows.Forms.Button()
+        Me.Button_Вземи_БАТЕРИИ = New System.Windows.Forms.Button()
         Me.MenuStrip1 = New System.Windows.Forms.MenuStrip()
         Me.FileToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.NewToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
@@ -1489,9 +1490,9 @@ Partial Class Form_ExcelUtilForm
         'TabPage6
         '
         Me.TabPage6.Controls.Add(Me.TableLayoutPanel3)
-        Me.TabPage6.Location = New System.Drawing.Point(4, 22)
+        Me.TabPage6.Location = New System.Drawing.Point(4, 29)
         Me.TabPage6.Name = "TabPage6"
-        Me.TabPage6.Size = New System.Drawing.Size(961, 465)
+        Me.TabPage6.Size = New System.Drawing.Size(961, 452)
         Me.TabPage6.TabIndex = 5
         Me.TabPage6.Text = "Табла"
         Me.TabPage6.UseVisualStyleBackColor = True
@@ -1516,7 +1517,7 @@ Partial Class Form_ExcelUtilForm
         Me.TableLayoutPanel3.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 37.0!))
         Me.TableLayoutPanel3.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 37.0!))
         Me.TableLayoutPanel3.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100.0!))
-        Me.TableLayoutPanel3.Size = New System.Drawing.Size(961, 465)
+        Me.TableLayoutPanel3.Size = New System.Drawing.Size(961, 452)
         Me.TableLayoutPanel3.TabIndex = 11
         '
         'Button_Вземи_АПАРАТИ
@@ -1564,9 +1565,9 @@ Partial Class Form_ExcelUtilForm
         'TabPage5
         '
         Me.TabPage5.Controls.Add(Me.TableLayoutPanel1)
-        Me.TabPage5.Location = New System.Drawing.Point(4, 22)
+        Me.TabPage5.Location = New System.Drawing.Point(4, 29)
         Me.TabPage5.Name = "TabPage5"
-        Me.TabPage5.Size = New System.Drawing.Size(961, 465)
+        Me.TabPage5.Size = New System.Drawing.Size(961, 452)
         Me.TabPage5.TabIndex = 4
         Me.TabPage5.Text = "Скари и канали"
         Me.TabPage5.UseVisualStyleBackColor = True
@@ -1590,7 +1591,7 @@ Partial Class Form_ExcelUtilForm
         Me.TableLayoutPanel1.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 37.0!))
         Me.TableLayoutPanel1.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 37.0!))
         Me.TableLayoutPanel1.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100.0!))
-        Me.TableLayoutPanel1.Size = New System.Drawing.Size(961, 465)
+        Me.TableLayoutPanel1.Size = New System.Drawing.Size(961, 452)
         Me.TableLayoutPanel1.TabIndex = 19
         '
         'Button_Вземи_СКАРИ
@@ -1642,7 +1643,7 @@ Partial Class Form_ExcelUtilForm
         Me.DataGridView_Skari.Location = New System.Drawing.Point(3, 3)
         Me.DataGridView_Skari.Name = "DataGridView_Skari"
         Me.TableLayoutPanel1.SetRowSpan(Me.DataGridView_Skari, 4)
-        Me.DataGridView_Skari.Size = New System.Drawing.Size(710, 459)
+        Me.DataGridView_Skari.Size = New System.Drawing.Size(710, 446)
         Me.DataGridView_Skari.TabIndex = 18
         '
         'Участък
@@ -1901,10 +1902,10 @@ Partial Class Form_ExcelUtilForm
         'TabPage13
         '
         Me.TabPage13.Controls.Add(Me.TableLayoutPanel8)
-        Me.TabPage13.Location = New System.Drawing.Point(4, 22)
+        Me.TabPage13.Location = New System.Drawing.Point(4, 29)
         Me.TabPage13.Name = "TabPage13"
         Me.TabPage13.Padding = New System.Windows.Forms.Padding(3)
-        Me.TabPage13.Size = New System.Drawing.Size(961, 465)
+        Me.TabPage13.Size = New System.Drawing.Size(961, 452)
         Me.TabPage13.TabIndex = 9
         Me.TabPage13.Text = "Фотоволтаици"
         Me.TabPage13.UseVisualStyleBackColor = True
@@ -1918,21 +1919,23 @@ Partial Class Form_ExcelUtilForm
         Me.TableLayoutPanel8.Controls.Add(Me.Button_Изчисти_ФОТОВОЛТАИЦИ_Траншея, 2, 2)
         Me.TableLayoutPanel8.Controls.Add(Me.Button_Траншея_ФОТОВОЛТАИЦИ, 1, 2)
         Me.TableLayoutPanel8.Controls.Add(Me.Button_Вземи_ФОТОВОЛТАИЦИ, 1, 0)
-        Me.TableLayoutPanel8.Controls.Add(Me.Button19, 1, 4)
+        Me.TableLayoutPanel8.Controls.Add(Me.Button19, 1, 5)
         Me.TableLayoutPanel8.Controls.Add(Me.Button_ФОТОВОЛТАИЦИ_КАБЕЛИ, 1, 1)
-        Me.TableLayoutPanel8.Controls.Add(Me.Button_Генератор_ФОТОВОЛТАИЦИ, 1, 3)
+        Me.TableLayoutPanel8.Controls.Add(Me.Button_Генератор_ФОТОВОЛТАИЦИ, 1, 4)
         Me.TableLayoutPanel8.Controls.Add(Me.Button_Изчисти_ФОТОВОЛТАИЦИ_Кабели, 2, 1)
+        Me.TableLayoutPanel8.Controls.Add(Me.Button_Вземи_БАТЕРИИ, 1, 3)
         Me.TableLayoutPanel8.Dock = System.Windows.Forms.DockStyle.Fill
         Me.TableLayoutPanel8.Location = New System.Drawing.Point(3, 3)
         Me.TableLayoutPanel8.Name = "TableLayoutPanel8"
-        Me.TableLayoutPanel8.RowCount = 6
+        Me.TableLayoutPanel8.RowCount = 7
+        Me.TableLayoutPanel8.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 37.0!))
         Me.TableLayoutPanel8.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 37.0!))
         Me.TableLayoutPanel8.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 37.0!))
         Me.TableLayoutPanel8.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 37.0!))
         Me.TableLayoutPanel8.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 37.0!))
         Me.TableLayoutPanel8.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 37.0!))
         Me.TableLayoutPanel8.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100.0!))
-        Me.TableLayoutPanel8.Size = New System.Drawing.Size(955, 459)
+        Me.TableLayoutPanel8.Size = New System.Drawing.Size(955, 446)
         Me.TableLayoutPanel8.TabIndex = 25
         '
         'Button_Изчисти_ФОТОВОЛТАИЦИ_Траншея
@@ -1969,7 +1972,7 @@ Partial Class Form_ExcelUtilForm
         '
         Me.TableLayoutPanel8.SetColumnSpan(Me.Button19, 2)
         Me.Button19.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.Button19.Location = New System.Drawing.Point(632, 151)
+        Me.Button19.Location = New System.Drawing.Point(632, 188)
         Me.Button19.Name = "Button19"
         Me.Button19.Size = New System.Drawing.Size(320, 31)
         Me.Button19.TabIndex = 23
@@ -1990,7 +1993,7 @@ Partial Class Form_ExcelUtilForm
         '
         Me.TableLayoutPanel8.SetColumnSpan(Me.Button_Генератор_ФОТОВОЛТАИЦИ, 2)
         Me.Button_Генератор_ФОТОВОЛТАИЦИ.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.Button_Генератор_ФОТОВОЛТАИЦИ.Location = New System.Drawing.Point(632, 114)
+        Me.Button_Генератор_ФОТОВОЛТАИЦИ.Location = New System.Drawing.Point(632, 151)
         Me.Button_Генератор_ФОТОВОЛТАИЦИ.Name = "Button_Генератор_ФОТОВОЛТАИЦИ"
         Me.Button_Генератор_ФОТОВОЛТАИЦИ.Size = New System.Drawing.Size(320, 31)
         Me.Button_Генератор_ФОТОВОЛТАИЦИ.TabIndex = 20
@@ -2006,6 +2009,16 @@ Partial Class Form_ExcelUtilForm
         Me.Button_Изчисти_ФОТОВОЛТАИЦИ_Кабели.TabIndex = 22
         Me.Button_Изчисти_ФОТОВОЛТАИЦИ_Кабели.Text = "Изчисти"
         Me.Button_Изчисти_ФОТОВОЛТАИЦИ_Кабели.UseVisualStyleBackColor = True
+        '
+        'Button_Вземи_БАТЕРИИ
+        '
+        Me.Button_Вземи_БАТЕРИИ.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.Button_Вземи_БАТЕРИИ.Location = New System.Drawing.Point(632, 114)
+        Me.Button_Вземи_БАТЕРИИ.Name = "Button_Вземи_БАТЕРИИ"
+        Me.Button_Вземи_БАТЕРИИ.Size = New System.Drawing.Size(230, 31)
+        Me.Button_Вземи_БАТЕРИИ.TabIndex = 26
+        Me.Button_Вземи_БАТЕРИИ.Text = "Вземи БАТЕРИИ"
+        Me.Button_Вземи_БАТЕРИИ.UseVisualStyleBackColor = True
         '
         'MenuStrip1
         '
@@ -2566,9 +2579,10 @@ Partial Class Form_ExcelUtilForm
     Friend WithEvents Button_Изчисти_ФОТОВОЛТАИЦИ_Траншея As Windows.Forms.Button
     Friend WithEvents Button_Траншея_ФОТОВОЛТАИЦИ As Windows.Forms.Button
     Friend WithEvents Button_Вземи_ФОТОВОЛТАИЦИ As Windows.Forms.Button
-    Friend WithEvents Button19 As Windows.Forms.Button
     Friend WithEvents Button_ФОТОВОЛТАИЦИ_КАБЕЛИ As Windows.Forms.Button
     Friend WithEvents Button_Генератор_ФОТОВОЛТАИЦИ As Windows.Forms.Button
     Friend WithEvents Button_Изчисти_ФОТОВОЛТАИЦИ_Кабели As Windows.Forms.Button
     Friend WithEvents Button_Записка As Windows.Forms.Button
+    Friend WithEvents Button19 As Windows.Forms.Button
+    Friend WithEvents Button_Вземи_БАТЕРИИ As Windows.Forms.Button
 End Class

@@ -1,16 +1,17 @@
-﻿Imports Autodesk.AutoCAD.ApplicationServices
+﻿Imports System.IO
+Imports System.Net
+Imports System.Security.Policy
+Imports System.Text.RegularExpressions
+Imports System.Web
+Imports Autodesk.AutoCAD.ApplicationServices
 Imports Autodesk.AutoCAD.DatabaseServices
-Imports Autodesk.AutoCAD.Runtime
 Imports Autodesk.AutoCAD.EditorInput
 Imports Autodesk.AutoCAD.Geometry
-Imports System.Net
-Imports excel = Microsoft.Office.Interop.Excel
-Imports System.IO
-Imports Microsoft.VisualBasic.Devices
-Imports System.Web
+Imports Autodesk.AutoCAD.Runtime
 Imports Microsoft.Office.Interop
+Imports Microsoft.VisualBasic.Devices
+Imports excel = Microsoft.Office.Interop.Excel
 Imports word = Microsoft.Office.Interop.Word
-Imports System.Text.RegularExpressions
 
 Public Class Form_ExcelUtilForm
     Dim PI As Double = 3.1415926535897931
@@ -9392,30 +9393,97 @@ Public Class Form_ExcelUtilForm
                 .Cells(index, 4).Value = wsKoef.Cells(red_Фотоволтаици + 2, i).Value
                 index += 1
             End With
-        Next
-        '
-        '
-        '
-        '
-        ' Доставка и монтаж на монокристален соларен панел
-        ' Доставка и монтаж фиксираща планка за соларен панел - /външна единична/ с болт и квадратна гайка М8 мм 
-        ' Доставка и монтаж фиксираща планка за соларен панел - /вътрешна двойна/ с болт и квадратна гайка М8 мм
-        ' Доставка и монтаж соларен комплект конектор МС пожарозащитен клас UL 94-V0Q, IP - 67 за кабел  Cu 1х6мм²
-        ' Доставка и монтаж на инвертор трифазен многострингов
-        '
-        '
-        '
-        '    wsKoef.Cells(30, i).Value = wsFECTabloca.Cells(11 + i, 5).Value ' "Брой панели"
-        '    wsKoef.Cells(31, i).Value = wsFECTabloca.Cells(11 + i, 1).Value ' "Тип панели"
-        '    wsKoef.Cells(32, i).Value = wsFECTabloca.Cells(25 + i, 5).Value ' "Брой инвертори"
-        '    wsKoef.Cells(33, i).Value = wsFECTabloca.Cells(25 + i, 1).Value ' "Тип инвертори"
-        'Next
-        index = Kol_Smetka_Kabeli(index, vbTrue, "ФОТОВОЛТАИЦИ")
-        Button_Генератор_ВЪНШНО_Click(sender, e)
+            Dim brAkum As Integer = 0
+            Dim strbat As String = ""
+            Dim strKletka As String = ""
+            Dim strMoshnost As String = ""
+            Dim strKapacitet As String = ""
 
+            With wsKoef
+                brAkum = .Cells(red_Фотоволтаици + 10, 2).Value
+                strbat = .Cells(red_Фотоволтаици + 10, 3).Value
+                strKletka = .Cells(red_Фотоволтаици + 10, 4).Value
+                strMoshnost = .Cells(red_Фотоволтаици + 10, 5).Value
+                strKapacitet = .Cells(red_Фотоволтаици + 10, 6).Value
+            End With
+            With wsKol_Smetka
+                .Cells(index, 2).Value = "Доставка и монтаж на батерия " + strbat +
+                                         ", клетка " + strKletka + vbCrLf +
+                                         "- Мощност: " + strMoshnost + " kW;" +
+                                         vbCrLf +
+                                         "- Капацитет: " + strKapacitet + " kWh."
+                .Cells(index, 2).VerticalAlignment = excel.XlVAlign.xlVAlignTop
+                .Cells(index, 2).HorizontalAlignment = excel.XlHAlign.xlHAlignLeft
+                .Cells(index, 3).Value = "бр."
+                .Cells(index, 4).Value = brAkum
+                index += 1
+            End With
+        Next
+        index = Kol_Smetka_Kabeli(index, vbTrue, "ФОТОВОЛТАИЦИ")
+
+        Button_Генератор_ВЪНШНО_Click(sender, e)
     End Sub
     Private Sub Button_Записка_Click(sender As Object, e As EventArgs) Handles Button_Записка.Click
         Dim Zapiska As New Zapiska()
         Zapiska.New_zapiska()
+    End Sub
+    Private Sub Button_Вземи_БАТЕРИИ_Click(sender As Object, e As EventArgs) Handles Button_Вземи_БАТЕРИИ.Click
+        If IsNothing(excel_Workbook) Then
+            MsgBox("Първо да беше отворил файла?")
+            Exit Sub
+        End If
+        Me.Visible = vbFalse
+        Dim acDoc As Document = Application.DocumentManager.MdiActiveDocument
+        Dim edt As Editor = acDoc.Editor
+        Dim acCurDb As Database = acDoc.Database
+        Dim SelectedSet = cu.GetObjects("INSERT", "Изберете блок")
+        Dim arrBlock(500) As strСкара
+        If SelectedSet Is Nothing Then
+            MsgBox("Няма маркиран нито един блок.")
+            Me.Visible = vbTrue
+            Exit Sub
+        End If
+        Dim blkRecId As ObjectId = ObjectId.Null
+        Using acTrans As Transaction = acCurDb.TransactionManager.StartTransaction()
+            Try
+                Dim brAkum As Integer = 0
+                Dim strbat As String = ""
+                Dim strKletka As String = ""
+                Dim strMoshnost As String = ""
+                Dim strKapacitet As String = ""
+                For Each sObj As SelectedObject In SelectedSet
+                    blkRecId = sObj.ObjectId
+                    Dim acBlkRef As BlockReference = DirectCast(acTrans.GetObject(blkRecId, OpenMode.ForRead), BlockReference)
+                    Dim attCol As AttributeCollection = acBlkRef.AttributeCollection
+                    Dim props As DynamicBlockReferencePropertyCollection = acBlkRef.DynamicBlockReferencePropertyCollection
+
+                    Dim blName As String = (CType(acBlkRef.DynamicBlockTableRecord.GetObject(OpenMode.ForRead), BlockTableRecord)).Name
+
+                    If Not blName = "Батерия" Then Continue For
+                    For Each objID As ObjectId In attCol
+                        Dim dbObj As DBObject = acTrans.GetObject(objID, OpenMode.ForRead)
+                        Dim acAttRef As AttributeReference = dbObj
+                        ' Съхранение на стойностите на атрибутите в съответните променливи
+                        If acAttRef.Tag = "БАТЕРИЯ_ВИД" Then strbat = acAttRef.TextString
+                        If acAttRef.Tag = "БАТЕРИЯ_КЛЕТКА" Then strKletka = acAttRef.TextString
+                        If acAttRef.Tag = "МОЩНОСТ" Then strMoshnost = acAttRef.TextString
+                        If acAttRef.Tag = "КАПАЦИТЕТ" Then strKapacitet = acAttRef.TextString
+                    Next
+                    brAkum += 1
+                Next
+                With wsKoef
+                    .Cells(red_Фотоволтаици + 10, 1) = "БАТЕРИЯ"
+                    .Cells(red_Фотоволтаици + 10, 2) = brAkum
+                    .Cells(red_Фотоволтаици + 10, 3) = strbat
+                    .Cells(red_Фотоволтаици + 10, 4) = strKletka
+                    .Cells(red_Фотоволтаици + 10, 5) = strMoshnost
+                    .Cells(red_Фотоволтаици + 10, 6) = strKapacitet
+                End With
+
+            Catch ex As Exception
+                MsgBox("Възникна грешка: " & ex.Message & vbCrLf & vbCrLf & ex.StackTrace.ToString)
+                acTrans.Abort()
+            End Try
+        End Using
     End Sub
 End Class

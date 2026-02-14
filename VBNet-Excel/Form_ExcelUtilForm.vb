@@ -9291,6 +9291,7 @@ Public Class Form_ExcelUtilForm
         Dim Verifi_FEC As Boolean = True
         Dim Kонектор As Integer = 0
         Dim Групи As Integer = 0
+        Dim Стринг As Integer = 0
         '
         For i = 1 To 6
             If Verifi_FEC And wsFEC_Tabloca.Cells(i, 6).Value <> "OK" Then
@@ -9310,14 +9311,18 @@ Public Class Form_ExcelUtilForm
         '
         With wsFEC_ФЕЦ
             For j As Integer = 0 To 9
-                If Val(.Cells(5, 3 + j * 5).Value) = 0 Then
+                If Val(.Cells(6, 3 + j * 5).Value) = 0 Then
                     Continue For
                 Else
-                    Групи = Val(.Cells(5, 3 + j * 5).Value)
+                    Групи = Val(.Cells(6, 3 + j * 5).Value)
                 End If
-                For i = 37 To 59
-                    Kонектор += IIf(Val(.Cells(i, 3 + j * 5).Value) > 0, Групи * 2, 0)
+                For i = 38 To 58
+                    If Val(.Cells(i, 3 + j * 5).Value) = 0 Then Continue For
+                    Стринг += 1
                 Next
+                Kонектор += Групи * Стринг
+                Групи = 0
+                Стринг = 0
             Next
         End With
         '
@@ -9444,8 +9449,9 @@ Public Class Form_ExcelUtilForm
             Exit Sub
         End If
         Dim blkRecId As ObjectId = ObjectId.Null
-        Using acTrans As Transaction = acCurDb.TransactionManager.StartTransaction()
-            Try
+        Try
+            Using acTrans As Transaction = acCurDb.TransactionManager.StartTransaction()
+
                 Dim brAkum As Integer = 0
                 Dim strbat As String = ""
                 Dim strKletka As String = ""
@@ -9479,11 +9485,11 @@ Public Class Form_ExcelUtilForm
                     .Cells(red_Фотоволтаици + 10, 5) = strMoshnost
                     .Cells(red_Фотоволтаици + 10, 6) = strKapacitet
                 End With
-
-            Catch ex As Exception
-                MsgBox("Възникна грешка: " & ex.Message & vbCrLf & vbCrLf & ex.StackTrace.ToString)
                 acTrans.Abort()
-            End Try
-        End Using
+            End Using
+        Catch ex As Exception
+            MsgBox("Възникна грешка: " & ex.Message & vbCrLf & vbCrLf & ex.StackTrace.ToString)
+        End Try
+        Me.Visible = vbTrue
     End Sub
 End Class

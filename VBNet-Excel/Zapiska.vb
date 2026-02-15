@@ -51,6 +51,13 @@ Public Class Zapiska
         Dim Visibility As String
         Dim CountS As Integer
     End Structure
+    Structure strPanel
+        Dim Наклон_Ширина As String
+        Dim Наклон_Дължина As String
+        Dim Азимут As Double
+        Dim Rotation As Double
+    End Structure
+
     <CommandMethod("Zapiska")>
     <CommandMethod("Записка")>
     Public Sub New_zapiska()
@@ -2962,9 +2969,6 @@ SAP
         Dim wsFEC_ФЕЦ As excel.Worksheet = excel_Workbook_FEC.Worksheets("ФЕЦ")
         ' Декларира булева променлива за верификация
         Dim Verifi_FEC As Boolean = True
-        ' Декларира променливи за конектор и групи
-        Dim Kонектор As Integer = 0
-        Dim Групи As Integer = 0
         ' Цикъл за проверка на стойностите в първите 6 реда на колоната 6 в листа "Таблица"
         For i = 1 To 6
             If Verifi_FEC And wsFEC_Таблица.Cells(i, 6).Value <> "OK" Then
@@ -2993,9 +2997,8 @@ SAP
             AddParagraph(wordDoc, Text, True)
         End If
         AddParagraph(wordDoc, " ", True)
-
         Dim Части As String = "     "
-        Части += IIf("Продажба" = "  #####  ", "", "Архитектурна, ")
+        Части += IIf(dicObekt("АРХИТЕКТ") = "  #####  ", "", "Архитектурна, ")
         Части += IIf(dicObekt("КОНСТРУКТОР") = "  #####  ", "", "Конструктивна, ")
         Части += IIf(dicObekt("ТЕХНОЛОГИЯ") = "  #####  ", "", "Технологична, ")
         Части += IIf(dicObekt("ВИК") = "  #####  ", "", "ВИК, ")
@@ -3093,6 +3096,7 @@ SAP
         Text_Пожарна = Text
         Text = "Номиналната мощност ще се реализира чрез "
         Dim values As New List(Of String)
+        Dim countInvertor As Integer = 0
         For i = 28 To 37
             If wsFEC_Таблица.Cells(i, 5).Value <= 0 Then
                 Continue For
@@ -3102,6 +3106,7 @@ SAP
             textValue += IIf(countValue = 1, "трифазен многострингов инвертор тип ", "трифазни многострингови инвертори тип ")
             textValue += wsFEC_Таблица.Cells(i, 1).Value
             values.Add(textValue)
+            countInvertor += countValue
         Next
         Dim Text_PIC As String = ""
         If values.Count > 0 Then
@@ -3114,6 +3119,7 @@ SAP
             End If
         End If
         dicObekt.Add("Text_PIC", Text_PIC)
+        dicObekt.Add("countInvertor", countInvertor)
         Text += "."
         Text_Пожарна += vbCrLf + Text
         AddParagraph(wordDoc, Text, False)
@@ -3151,7 +3157,6 @@ SAP
                 .AllowZero = False
                 .AllowNegative = False
             End With
-
             Dim pKeyRes As PromptDoubleResult = acDoc.Editor.GetDouble(pDouOpts)
             If pKeyRes.Status = PromptStatus.Keyword Then
                 Dylbo = pKeyRes.StringResult
@@ -3173,52 +3178,65 @@ SAP
         Text_Пожарна += vbCrLf + Text
         dicObekt.Add("Земя", Text_Пожарна)
         AddParagraph(wordDoc, Text, False)
-        Dim Мълния = cu.GetObjects("INSERT", "Изберете блок който e панел ", False)
-        If Мълния Is Nothing Then
+        Dim Панели As New List(Of strPanel)
+        Dim Панел = cu.GetObjects("INSERT", "Изберете блок който e панел ", True)
+        If Панел Is Nothing Then
             MsgBox("Няма маркиран нито един блок който e панел.")
         Else
-            Dim Наклон_Ширина As String = ""
-            Dim Наклон_Дължина As String = ""
-            Dim Азимут As Double = 0
-
             Try
                 Using actrans As Transaction = acDoc.TransactionManager.StartTransaction()
+                    ' Обхождаме всеки избран блок в колекцията
+                    For Each obj As SelectedObject In Панел
+                        Dim blkRecId = obj.ObjectId
+                        Dim ТекущПанел As New strPanel
+                        Dim acBlkRef As BlockReference =
+                            DirectCast(actrans.GetObject(blkRecId, OpenMode.ForWrite), BlockReference)
+                        Dim props As DynamicBlockReferencePropertyCollection = acBlkRef.DynamicBlockReferencePropertyCollection
+                        Dim attCol As AttributeCollection = acBlkRef.AttributeCollection
+                        ' Обхождане на всички атрибути
+                        For Each objID As ObjectId In attCol
+                            Dim dbObj As DBObject = actrans.GetObject(objID, OpenMode.ForRead)
+                            Dim acAttRef As AttributeReference = dbObj
+                            ТекущПанел.Rotation = acAttRef.Rotation
+                        Next
+                        ТекущПанел.Азимут = 180 - ТекущПанел.Rotation * 180 / Math.PI
+                        If ТекущПанел.Азимут < 0 Then ТекущПанел.Азимут += 360
 
-                    Dim blkRecId = Мълния(0).ObjectId
-                    Dim acBlkRef As BlockReference =
-                        DirectCast(actrans.GetObject(blkRecId, OpenMode.ForWrite), BlockReference)
-                    Dim props As DynamicBlockReferencePropertyCollection = acBlkRef.DynamicBlockReferencePropertyCollection
-                    Dim attCol As AttributeCollection = acBlkRef.AttributeCollection
-                    ' Обхождане на всички атрибути
-                    For Each objID As ObjectId In attCol
-                        Dim dbObj As DBObject = actrans.GetObject(objID, OpenMode.ForRead)
-                        Dim acAttRef As AttributeReference = dbObj
-                        'If acAttRef.Tag = "ТАБЛО" Then Азимут = acAttRef.TextString
-                        Азимут = acAttRef.Rotation
-                    Next
-                    For Each prop As DynamicBlockReferenceProperty In props
-                        'This is where you change states based on input
-                        ' Разстояние_Профили Наклон_Дължина Наклон_Ширина Ширина Дължина Профил d1 ang1
-                        ' Отстояние d2 d3 d4 d5 d6 d7 d8 Visibility1 d9 Проекция d11 d22 d21 d14 d13 d12 d15 d10
-                        If prop.PropertyName = "Наклон_Ширина" Then Наклон_Ширина = prop.Value
-                        If prop.PropertyName = "Наклон_Дължина" Then Наклон_Дължина = prop.Value
+                        For Each prop As DynamicBlockReferenceProperty In props
+                            If prop.PropertyName = "Наклон_Ширина" Then ТекущПанел.Наклон_Ширина = prop.Value
+                            If prop.PropertyName = "Наклон_Дължина" Then ТекущПанел.Наклон_Дължина = prop.Value
+                        Next
+                        Панели.Add(ТекущПанел)
                     Next
                     actrans.Commit()
                 End Using
             Catch ex As Exception
                 MsgBox("Възникна грешка " & ex.Message & vbCrLf & vbCrLf & ex.StackTrace.ToString)
             End Try
-
-            Text = "Наклона на фотоволтаичните модули спрямо хоризонталната повърхност (β) е "
-            Text += Наклон_Дължина
-            Text += "°"
-
-            Азимут = Азимут * 180 / PI
-            Азимут = (Азимут - 90) Mod (360)
-            Text += " за всичките монокристални соларни панели Азимута е "
-            Text += String.Format("{0:0.0}", Азимут)
-            Text += "°."
-            AddParagraph(wordDoc, Text, False)
+            Select Case Панели.Count
+                Case 1
+                    Text = "Наклонът на фотоволтаичните модули спрямо хоризонталната повърхност е "
+                    Text += String.Format("{0:0.0}", Панели(0).Наклон_Дължина)
+                    Text += "°,a азимута е "
+                    Text += String.Format("{0:0.0}", Панели(0).Азимут)
+                    Text += "°."
+                    AddParagraph(wordDoc, Text, False)
+                Case 2
+                    Text = "Фотоволтаичните модули са организирани в групи със следните геометрични параметри:"
+                    AddParagraph(wordDoc, Text, False)
+                    Text = "Наклон: " + String.Format("{0:0.0}", Панели(0).Наклон_Дължина) + "° и " + String.Format("{0:0.0}", Панели(1).Наклон_Дължина) + "°"
+                    Text += " спрямо хоризонталната равнина;"
+                    AddParagraph(wordDoc, Text, False)
+                    Text = " Азимут: " + String.Format("{0:0.0}", Панели(0).Азимут) + "° и " + String.Format("{0:0.0}", Панели(1).Азимут) + "°"
+                    AddParagraph(wordDoc, Text, False)
+                Case Else
+                    Text = "Фотоволтаичните модули са организирани в групи със следните геометрични параметри (наклонът е спрямо хоризонталната равнина):"
+                    AddParagraph(wordDoc, Text, False)
+                    For i As Integer = 0 To Панели.Count - 1
+                        Text = "Група " + (i + 1).ToString() + ": Наклон: " + String.Format("{0:0.0}", Панели(i).Наклон_Дължина) + "°, Азимут: " + String.Format("{0:0.0}", Панели(i).Азимут) + "°"
+                        AddParagraph(wordDoc, Text, False)
+                    Next
+            End Select
         End If
         FormatParagraph(wordDoc, "МРЕЖОВИ МНОГОСТРИНГОВИ ИНВЕРТОРИ", wordApp, level:=2)
         With Text
@@ -3245,7 +3263,7 @@ SAP
             Text += " Спрямо моментното ниво на слънчевата радиация и околната температура генерираната мощност се контролира и поддържа на максимално ниво в работната си точка от V-A характеристика."
             AddParagraph(wordDoc, Text, False)
             Text = "Системата, осигуряваща работата на инвертора в най-високата оптимална работна точка се нарича MРР Тракер, който е съставна част от инверторното устройство."
-            Text += " Предвидените в проекта инвертори имат по 4/10бр. МРР тракери."
+            'Text += " Предвидените в проекта инвертори имат по 4/10бр. МРР тракери."
             AddParagraph(wordDoc, Text, False)
             Text = "Синхронизирането на фотоволтаичните генератори и мрежата НН-0.4кV се извършва чрез инверторите."
             Text += " Когато радиацията върху слънчевите модули падне под минималния праг, инверторите спират да функционират."
@@ -3512,7 +3530,7 @@ SAP
                     Text = "Фотоволтаичните модули ще се монтират върху покрив."
                     AddParagraph(wordDoc, Text, True)
                     AddParagraph(wordDoc, txtPokriv, False)
-                    Text = "Монтнаж на кабелни трасета."
+                    Text = "Монтаж на кабелни трасета."
                     AddParagraph(wordDoc, Text, True)
                     AddParagraph(wordDoc, txtPokriv, False)
                 Case "Двете"
@@ -3522,10 +3540,9 @@ SAP
                     Text = "Част от фотоволтаичните модули ще се монтират върху покрив."
                     AddParagraph(wordDoc, Text, True)
                     AddParagraph(wordDoc, txtPokriv, False)
-                    Text = "Монтнаж на кабелни трасета."
+                    Text = "Монтаж на кабелни трасета."
                     AddParagraph(wordDoc, Text, True)
                     AddParagraph(wordDoc, txtPokriv, False)
-
             End Select
         End With
     End Sub

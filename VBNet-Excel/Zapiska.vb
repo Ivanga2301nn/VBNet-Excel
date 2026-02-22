@@ -229,11 +229,11 @@ Public Class Zapiska
         Dim ss_Kabeli = cu.GetObjects("LINE", "Изберете КАБЕЛИТЕ в чертеж за външно захранване на сградата:")
         Dim ss_Tabla = cu.GetObjects("INSERT", "Изберете БЛОКОВЕТЕ в чертеж за външно захранване на сградата:")
         If ss_Tabla Is Nothing Then
-            MsgBox("Няма маркиран нито един блок.")
+            MsgBox("НЕ Е маркиран нито един блок.")
             Exit Sub
         End If
         If ss_Kabeli Is Nothing Then
-            MsgBox("Няма маркиран нито едина линия.")
+            MsgBox("НЕ Е маркиран нито едина линия.")
             Exit Sub
         End If
 
@@ -645,7 +645,7 @@ Public Class Zapiska
         Dim Слабо_Име As String = "Сл.табло"
         Dim Слабо_Блок = cu.GetObjects("INSERT", "Изберете блок който съдържа името на слабтоковото табло ", False)
         If Слабо_Блок Is Nothing Then
-            MsgBox("Няма маркиран нито един блок съдържащ името на слабтоковото табло.")
+            MsgBox("НЕ Е маркиран нито един блок съдържащ името на слабтоковото табло.")
             Exit Sub
         End If
         Dim text As String = ""
@@ -706,7 +706,7 @@ Public Class Zapiska
         Dim Мълния = cu.GetObjects("INSERT", "Изберете блок който съдържа нълниеприемника на обекта ", False)
         Dim text As String = ""
         If Мълния Is Nothing Then
-            MsgBox("Няма маркиран нито един блок за мълниезащита.")
+            MsgBox("НЕ Е маркиран нито един блок за мълниезащита.")
             FormatParagraph(wordDoc, "МЪЛНИЕЗАЩИТНА ИНСТАЛЦИЯ", wordApp)
             text = "Съгласно изискванията на Наредба № 4 от 22 декември 2010 г. за мълниезащита на сгради, външни съоръжения и открити пространства (Обн. ДВ, бр. 6 от 18 януари 2011 г.), обектът е класифициран в III категория на мълниезащита."
             text += " В съответствие с тази категоризация, мерките за защита от мълнии трябва да отговарят на нормативните изисквания за обекти от този тип."
@@ -1164,7 +1164,7 @@ Public Class Zapiska
         If Not dicObekt("SAP").Contains("##") Then
             Dim Stylb = cu.GetObjects("INSERT", "Изберете блок който съдържа текстовете за стълба", False)
             If Stylb Is Nothing Then
-                MsgBox("Няма маркиран нито един блок.")
+                MsgBox("НЕ Е маркиран нито един блок.")
                 Exit Sub
             End If
             Dim rezult As String = ""
@@ -2726,7 +2726,7 @@ SAP
                          dicObekt As Dictionary(Of String, String))
         Dim ss_Tabla = cu.GetObjects("INSERT", "Изберете БЛОКОВЕТЕ в чертеж съдържащи БАТЕРИИТЕ:")
         If ss_Tabla Is Nothing Then
-            MsgBox("Няма маркиран нито един блок.")
+            MsgBox("НЕ Е маркиран нито един блок.")
             Exit Sub
         End If
         Dim ss_GRT = cu.GetObjects("INSERT", "Изберете ТАБЛОТО в чертеж към който са свързани БАТЕРИИТЕ:", allowMultiple:=False)
@@ -2827,7 +2827,7 @@ SAP
         FormatParagraph(wordDoc, "ВРЪЗКА СЪС СИСТЕМАТА НА ВЪЗЛОЖИТЕЛЯ:", wordApp, level:=2)
         Dim ss_Kabeli = cu.GetObjects("LINE", "Изберете КАБЕЛИТЕ в чертеж свързващи БАТЕРИИТЕ:")
         If ss_Kabeli Is Nothing Then
-            MsgBox("Няма маркиран нито едина линия.")
+            MsgBox("НЕ Е маркиран нито едина линия.")
             Exit Sub
         End If
         Dim Kabel(50, 2) As String
@@ -3261,7 +3261,7 @@ SAP
         Dim Панели As New List(Of strPanel)
         Dim Панел = cu.GetObjects("INSERT", "Изберете блок който e панел ", True)
         If Панел Is Nothing Then
-            MsgBox("Няма маркиран нито един блок който e панел.")
+            MsgBox("НЕ Е маркиран нито един блок който e панел.")
         Else
             Try
                 Using actrans As Transaction = acDoc.TransactionManager.StartTransaction()
@@ -3642,7 +3642,7 @@ SAP
                 Exit Do
             End If
             Dim repeatChoice As MsgBoxResult = MsgBox(
-                    Title:="Няма маркиран текст съдържащ помещението, в което се МОНТИРАТ ИНВЕРТОРИТЕ!",
+                    Title:="НЕ Е маркиран текст съдържащ помещението, в което се МОНТИРАТ ИНВЕРТОРИТЕ!",
                     Buttons:=MsgBoxStyle.YesNo,
                     Prompt:="Да повторя ли избора?"
                     )
@@ -3664,7 +3664,7 @@ SAP
         Dim blkRecId As ObjectId = ObjectId.Null
         Dim ss_Tabla = cu.GetObjects("INSERT", "Изберете БЛОКОВЕТЕ в чертеж съдържащи ДАТЧИЦИТЕ ОТ ПИЦ:")
         If ss_Tabla Is Nothing Then
-            MsgBox("Няма маркиран нито един блок.")
+            MsgBox("НЕ Е маркиран нито един блок.")
             Exit Sub
         End If
         Using acTrans As Transaction = acCurDb.TransactionManager.StartTransaction()

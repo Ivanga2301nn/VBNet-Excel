@@ -33,7 +33,7 @@ Public Class PIC
         Dim acCurDb As Database = acDoc.Database
         Dim SelectedSet = cu.GetObjects("INSERT", "Изберете блок")
         If SelectedSet Is Nothing Then
-            MsgBox("Нама маркиран нито един блок.")
+            MsgBox("НЕ Е маркиран нито един блок.")
             Exit Sub
         End If
         Dim arrBlock(250) As strDat4ik
@@ -131,7 +131,7 @@ Public Class PIC
                 Using acTrans As Transaction = acCurDb.TransactionManager.StartTransaction()
                     Dim SelectedSet = cu.GetObjects("INSERT", "Изберете блок за номериране:")
                     If SelectedSet Is Nothing Then
-                        MsgBox("Нама маркиран нито един блок.")
+                        MsgBox("НЕ Е маркиран нито един блок.")
                         Exit Sub
                     End If
                     Dim index As Integer = 0
@@ -181,7 +181,7 @@ Public Class PIC
                 Using acTrans As Transaction = acCurDb.TransactionManager.StartTransaction()
                     Dim SelectedSet = cu.GetObjects("INSERT", "Изберете блок за номериране:")
                     If SelectedSet Is Nothing Then
-                        MsgBox("Нама маркиран нито един блок.")
+                        MsgBox("НЕ Е маркиран нито един блок.")
                         Exit Sub
                     End If
                     Dim index As Integer = 0
@@ -220,7 +220,7 @@ Public Class PIC
         Dim SelectedSet = cu.GetObjects("INSERT", "Изберете паралелен сигнализатор за номериране:")
         Dim blkRecId As ObjectId = ObjectId.Null
         If SelectedSet Is Nothing Then
-            MsgBox("Нама маркиран нито един блок.")
+            MsgBox("НЕ Е маркиран нито един блок.")
             Exit Sub
         End If
         If SelectedSet.Count > 1 Then
@@ -237,7 +237,7 @@ Public Class PIC
                 Do
                     SelectedSet = cu.GetObjects("INSERT", "Изберете блок за сигнализиране:")
                     If SelectedSet Is Nothing Then
-                        MsgBox("Нама маркиран нито един блок.")
+                        MsgBox("НЕ Е маркиран нито един блок.")
                         Exit Do
                     End If
                     For Each sObj As SelectedObject In SelectedSet
@@ -322,7 +322,7 @@ Public Class PIC
                 Using acTrans As Transaction = acCurDb.TransactionManager.StartTransaction()
                     Dim SelectedSet = cu.GetObjects("INSERT", "Изберете блок за номериране:")
                     If SelectedSet Is Nothing Then
-                        MsgBox("Нама маркиран нито един блок.")
+                        MsgBox("НЕ Е маркиран нито един блок.")
                         Exit Sub
                     End If
                     Dim index As Integer = 0
@@ -355,5 +355,4 @@ Public Class PIC
             End Try
         Loop
     End Sub
-
 End Class

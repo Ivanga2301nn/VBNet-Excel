@@ -21,7 +21,7 @@ Public Class Kabel
         Dim ss = cu.GetObjects("INSERT", "Изберете блок кабелен канал")
 
         If ss Is Nothing Then
-            MsgBox("Нама маркиран блок кабелен канал в слой 'EL'.")
+            MsgBox("НЕ Е маркиран блок кабелен канал в слой 'EL'.")
             Exit Sub
         End If
 
@@ -152,7 +152,7 @@ Public Class Kabel
         Dim br As Integer = 0
 
         If ss Is Nothing Then
-            MsgBox("Нама маркирана линия в слой 'EL'.")
+            MsgBox("НЕ Е маркирана линия в слой 'EL'.")
             Exit Sub
         End If
         Dim Kabel(10, 2) As String
@@ -176,7 +176,7 @@ Public Class Kabel
         Dim Kabel(10, 2) As String
 
         If SelectedSet Is Nothing Then
-            MsgBox("Нама маркирана БЛОК в слой 'EL'.")
+            MsgBox("НЕ Е маркирана БЛОК в слой 'EL'.")
             Exit Sub
         End If
 
@@ -225,7 +225,7 @@ Public Class Kabel
         acCurDb = Application.DocumentManager.MdiActiveDocument.Database
         Dim blkRecId As ObjectId = ObjectId.Null
         If SelectedSet Is Nothing Then
-            MsgBox("Няма маркиран линия в слой 'EL'.")
+            MsgBox("НЕ Е маркиран линия в слой 'EL'.")
             Exit Sub
         End If
         '
@@ -357,7 +357,7 @@ Public Class Kabel
         acCurDb = Application.DocumentManager.MdiActiveDocument.Database
         Dim blkRecId As ObjectId = ObjectId.Null
         If SelectedSet Is Nothing Then
-            MsgBox("Няма маркиран линия в слой 'EL'.")
+            MsgBox("НЕ Е маркиран линия в слой 'EL'.")
             Exit Sub
         End If
         For Each sObj As SelectedObject In SelectedSet
@@ -382,7 +382,7 @@ Public Class Kabel
         ' Проверка дали е избран обект (линия)
         If ss Is Nothing Then
             ' Ако няма избрани обекти, показване на съобщение и излизане от процедурата
-            MsgBox("Няма маркирана линия в слой 'EL'.")
+            MsgBox("НЕ Е маркирана линия в слой 'EL'.")
             Exit Sub
         End If
         ' Опит за изпълнение на следния блок код, с уловка на евентуални грешки

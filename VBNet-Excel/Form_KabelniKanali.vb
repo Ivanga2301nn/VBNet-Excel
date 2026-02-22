@@ -37,7 +37,7 @@ Public Class Form_KabelniKanali
     Private Sub Form_KabelniKanali_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         Line_Selected = cu.GetObjects("LINE", "Изберете линии за кабеланата скара/канал:")
         If Line_Selected Is Nothing Then
-            MsgBox("Нама маркиранa линия в слой 'EL'.")
+            MsgBox("НЕ Е маркиранa линия в слой 'EL'.")
             Exit Sub
         End If
 
@@ -579,7 +579,7 @@ Public Class Form_KabelniKanali
         ReDim Kabel(200)
         Line_Selected = cu.GetObjects("LINE", "Изберете линии за кабеланата скара/канал:")
         If Line_Selected Is Nothing Then
-            MsgBox("Нама маркиранa линия в слой 'EL'.")
+            MsgBox("НЕ Е маркиранa линия в слой 'EL'.")
             Exit Sub
         End If
         Call Set_array_Kabel()

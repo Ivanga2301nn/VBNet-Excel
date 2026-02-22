@@ -910,7 +910,7 @@ Public Class Form_ExcelUtilForm
         Dim SelectedSet = cu.GetObjects("INSERT", "Изберете блок")
         Dim arrBlock(500) As strKontakt
         If SelectedSet Is Nothing Then
-            MsgBox("Няма маркиран нито един блок.")
+            MsgBox("НЕ Е маркиран нито един блок.")
             Me.Visible = vbTrue
             Exit Sub
         End If
@@ -2715,7 +2715,7 @@ Public Class Form_ExcelUtilForm
         Dim Качване(100) As strКачване
 
         If SelectedSet Is Nothing Then
-            MsgBox("Няма маркиран нито един блок.")
+            MsgBox("НЕ Е маркиран нито един блок.")
             Me.Visible = vbTrue
             Exit Sub
         End If
@@ -3391,7 +3391,7 @@ Public Class Form_ExcelUtilForm
         Dim Инсталация As String = ""
         Me.Visible = vbTrue
         If ss Is Nothing Then
-            MsgBox("Няма маркиран линия в слой 'EL'.")
+            MsgBox("НЕ Е маркиран линия в слой 'EL'.")
             Exit Sub
         End If
         Dim Kabel(1000, 2) As String
@@ -5172,7 +5172,7 @@ Public Class Form_ExcelUtilForm
         Dim Качване(100) As strКачване
 
         If SelectedSet Is Nothing Then
-            MsgBox("Няма маркиран нито един блок.")
+            MsgBox("НЕ Е маркиран нито един блок.")
             Me.Visible = vbTrue
             Exit Sub
         End If
@@ -5619,7 +5619,7 @@ Public Class Form_ExcelUtilForm
         Dim Качване(100) As strКачване
 
         If SelectedSet Is Nothing Then
-            MsgBox("Няма маркиран нито един блок.")
+            MsgBox("НЕ Е маркиран нито един блок.")
             Me.Visible = vbTrue
             Exit Sub
         End If
@@ -5951,14 +5951,14 @@ Public Class Form_ExcelUtilForm
         Dim acCurDb As Database = acDoc.Database
         Dim SelectedSet = cu.GetObjects("INSERT", "Изберете блок")
         If SelectedSet Is Nothing Then
-            MsgBox("Няма маркиран нито един блок.")
+            MsgBox("НЕ Е маркиран нито един блок.")
             Me.Visible = vbTrue
             Exit Sub
         End If
         ProgressBar_Extrat.Maximum = SelectedSet.Count + 1
         ProgressBar_Extrat.Value = ProgressBar_Extrat.Minimum
         If SelectedSet Is Nothing Then
-            MsgBox("Няма маркиран нито един блок.")
+            MsgBox("НЕ Е маркиран нито един блок.")
             Me.Visible = vbTrue
             Exit Sub
         End If
@@ -6024,7 +6024,7 @@ Public Class Form_ExcelUtilForm
         Dim SelectedSet = cu.GetObjects("INSERT", "Изберете блок")
         Dim arrBlock(500) As strСкара
         If SelectedSet Is Nothing Then
-            MsgBox("Няма маркиран нито един блок.")
+            MsgBox("НЕ Е маркиран нито един блок.")
             Me.Visible = vbTrue
             Exit Sub
         End If
@@ -7168,7 +7168,7 @@ Public Class Form_ExcelUtilForm
         Dim SelectedSet = cu.GetObjects("INSERT", "Изберете блок")
         Dim arrBlock(500) As strKontakt
         If SelectedSet Is Nothing Then
-            MsgBox("Няма маркиран нито един блок.")
+            MsgBox("НЕ Е маркиран нито един блок.")
             Me.Visible = vbTrue
             Exit Sub
         End If
@@ -7262,7 +7262,7 @@ Public Class Form_ExcelUtilForm
         Dim arrBlock(500) As strKontakt
         Me.Visible = vbTrue
         If SelectedSet Is Nothing Then
-            MsgBox("Няма маркиран нито един блок.")
+            MsgBox("НЕ Е маркиран нито един блок.")
             Me.Visible = vbTrue
             Exit Sub
         End If
@@ -7429,7 +7429,7 @@ Public Class Form_ExcelUtilForm
         Dim SelectedSet = cu.GetObjects("INSERT", "Изберете блоковете в чертеж за външно захранване на сградата:")
         Dim arrBlock = cu.GET_Zazemlenie(SelectedSet)
         If SelectedSet Is Nothing Then
-            MsgBox("Няма маркиран нито един блок.")
+            MsgBox("НЕ Е маркиран нито един блок.")
             Me.Visible = vbTrue
             Exit Sub
         End If
@@ -8448,7 +8448,7 @@ Public Class Form_ExcelUtilForm
         Dim Качване(100) As strКачване
 
         If SelectedSet Is Nothing Then
-            MsgBox("Няма маркиран нито един блок.")
+            MsgBox("НЕ Е маркиран нито един блок.")
             Me.Visible = vbTrue
             Exit Sub
         End If
@@ -8791,7 +8791,7 @@ Public Class Form_ExcelUtilForm
         Dim Качване(100) As strКачване
 
         If SelectedSet Is Nothing Then
-            MsgBox("Няма маркиран нито един блок.")
+            MsgBox("НЕ Е маркиран нито един блок.")
             Me.Visible = vbTrue
             Exit Sub
         End If
@@ -9274,7 +9274,7 @@ Public Class Form_ExcelUtilForm
         Dim Инсталация As String = "ТРАНШЕЯ"
         Me.Visible = vbTrue
         If ss Is Nothing Then
-            MsgBox("Няма маркиран линия в слой 'EL'.")
+            MsgBox("НЕ Е маркиран линия в слой 'EL'.")
             Exit Sub
         End If
         Dim Kabel_fec As Double = 1
@@ -9511,7 +9511,7 @@ Public Class Form_ExcelUtilForm
         Dim SelectedSet = cu.GetObjects("INSERT", "Изберете блок")
         Dim arrBlock(500) As strСкара
         If SelectedSet Is Nothing Then
-            MsgBox("Няма маркиран нито един блок.")
+            MsgBox("НЕ Е маркиран нито един блок.")
             Me.Visible = vbTrue
             Exit Sub
         End If

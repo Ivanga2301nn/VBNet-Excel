@@ -25,7 +25,7 @@ Public Class Ka4vane
 
         ' Проверка дали има маркиран блок
         If ss Is Nothing Then
-            MsgBox("Няма маркиран блок.")
+            MsgBox("НЕ Е маркиран блок.")
             Exit Sub
         ElseIf ss.Count > 1 Then
             MsgBox("Маркиран е повече от един блок.")
@@ -152,7 +152,7 @@ Public Class Ka4vane
             Dim ss = cu.GetObjects("LINE", "Изберете линии преход " & tgOT_KYM & " етаж:")
 
             If ss Is Nothing Then
-                MsgBox("Нама маркиран линия в слой 'EL'.")
+                MsgBox("НЕ Е маркиран линия в слой 'EL'.")
                 Exit Sub
             End If
             '

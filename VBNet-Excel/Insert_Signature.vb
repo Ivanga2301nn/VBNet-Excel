@@ -128,7 +128,7 @@ Public Class Insert_Signature
         ' --- Основни полета ---
         Data("ОБЕКТ") = cu.GetObjects_TEXT("Изберете Наименование на ОБЕКТА", vbFalse)
         If Data("ОБЕКТ") = "  #####  " Then
-            MsgBox("Няма избран текст за Наименование на ОБЕКТА.")
+            MsgBox("НЕ Е избран текст за Наименование на ОБЕКТА.")
             Exit Sub
         End If
         Data("МЕСТОПОЛОЖЕНИЕ") = cu.GetObjects_TEXT("Изберете Местоположение на ОБЕКТА", vbFalse)

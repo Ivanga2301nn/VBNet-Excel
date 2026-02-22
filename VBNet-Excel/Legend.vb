@@ -63,7 +63,7 @@ Public Class Legend
         ' Проверка дали няма маркирани кабели (обекти от тип LINE)
         If ss_Kabeli Is Nothing Then
             ' Показване на съобщение за грешка ако няма маркирани линии
-            MsgBox("Няма маркиран нито едина линия.")
+            MsgBox("НЕ Е маркиран нито едина линия.")
             ' Прекратяване изпълнението на текущата процедура
             Exit Sub
         End If
@@ -162,7 +162,7 @@ Public Class Legend
         Dim PI As Double = 3.1415926535897931
         ' Проверка дали са избрани блокове
         If SelectedSet Is Nothing Then
-            MsgBox("Нама маркиран нито един блок.")
+            MsgBox("НЕ Е маркиран нито един блок.")
             Exit Sub
         End If
         ' Променливи за идентификатор на блок и индекс за масива
@@ -492,7 +492,7 @@ Public Class Legend
         Dim SelectedSet = cu.GetObjects("INSERT", "Изберете блок")
 
         If SelectedSet Is Nothing Then
-            MsgBox("Нама маркиран нито един блок.")
+            MsgBox("НЕ Е маркиран нито един блок.")
             Exit Sub
         End If
         Dim Брой_Апарати As Integer = 6

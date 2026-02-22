@@ -58,7 +58,7 @@ Public Class Form_Tran6eq
                 '    pbCanvas.SizeMode = PictureBoxSizeMode.Zoom
                 'Else
                 '    ' Ако няма preview изображение, показваме съобщение
-                '    MessageBox.Show("Няма preview изображение за блока '" & blockName & "'.")
+                '    MessageBox.Show("НЕ Е preview изображение за блока '" & blockName & "'.")
                 'End If
 
                 ' Завършваме транзакцията

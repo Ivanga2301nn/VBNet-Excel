@@ -652,7 +652,7 @@ Public Class Dokmentaci
             Dim fileExists As Boolean = File.Exists(fullPath)
             ' --- Ако няма такъв файл ---
             If Not fileExists Then
-                doc.Editor.WriteMessage(vbLf & "Няма файл, започващ с 'свет'. Създаваме втори PDF...")
+                doc.Editor.WriteMessage(vbLf & "НЕ Е файл, започващ с 'свет'. Създаваме втори PDF...")
                 ' Вземаме общия брой страници в документа
                 Dim lastPage As Integer = wordDoc.ComputeStatistics(Word.WdStatistic.wdStatisticPages)
                 ' Втори PDF: от страница 3 до последната

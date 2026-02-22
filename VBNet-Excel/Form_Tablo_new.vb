@@ -106,7 +106,7 @@ Public Class Form_Tablo_new
         Dim SelectedSet = cu.GetObjects("INSERT", "Изберете блок")
         Me.Visible = True
         If SelectedSet Is Nothing Then
-            MsgBox("Нама маркиран нито един блок.")
+            MsgBox("НЕ Е маркиран нито един блок.")
             Exit Sub
         End If
         Dim blkRecId As ObjectId = ObjectId.Null

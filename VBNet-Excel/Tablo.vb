@@ -144,7 +144,7 @@ Public Class Tablo
         Dim acCurDb As Database = acDoc.Database
         Dim SelectedSet = cu.GetObjects("INSERT", "Изберете блок")
         If SelectedSet Is Nothing Then
-            MsgBox("Нама маркиран нито един блок.")
+            MsgBox("НЕ Е маркиран нито един блок.")
             Exit Sub
         End If
         ' Запълва речниците и масивите с данни
@@ -763,11 +763,11 @@ Public Class Tablo
             Exit Sub
         End If
         If SelTablo Is Nothing Then
-            MsgBox("Няма маркиран поне един блок за табло")
+            MsgBox("НЕ Е маркиран поне един блок за табло")
             Exit Sub
         End If
         If SelTablo.Count > 1 Then
-            MsgBox("Няма маркиран САМО един блок за табло")
+            MsgBox("НЕ Е маркиран САМО един блок за табло")
             Exit Sub
         End If
         Try
@@ -841,11 +841,11 @@ Public Class Tablo
             Exit Sub
         End If
         If SelTablo Is Nothing Then
-            MsgBox("Няма маркиран поне един блок за табло")
+            MsgBox("НЕ Е маркиран поне един блок за табло")
             Exit Sub
         End If
         If SelTablo.Count > 1 Then
-            MsgBox("Няма маркиран САМО един блок за табло")
+            MsgBox("НЕ Е маркиран САМО един блок за табло")
             Exit Sub
         End If
         Try
@@ -931,7 +931,7 @@ Public Class Tablo
             Exit Sub
         End If
         If SelTablo Is Nothing Then
-            MsgBox("Няма маркиран поне един блок за табло")
+            MsgBox("НЕ Е маркиран поне един блок за табло")
             Exit Sub
         End If
         If SelTablo.Count > 1 Then
@@ -995,7 +995,7 @@ Public Class Tablo
             End If
         Next
 
-        Return "Няма подходящ прекъсвач"
+        Return "НЕ Е подходящ прекъсвач"
     End Function
     Private Function calc_disconnector(Ikryg As Double) As String
         ' Речник за мощностни разединители на Schneider Electric
@@ -1010,7 +1010,7 @@ Public Class Tablo
                 Return disconnector.Value & ", " & disconnector.Key & "A"
             End If
         Next
-        Return "Няма подходящ разединител"
+        Return "НЕ Е подходящ разединител"
     End Function
     ' Функцията избира подходящ автоматичен прекъсвач EZ9
     ' на базата на върховия ток на токовия кръг (Ikryg), умножен по корекционен коефициент Knti
@@ -2899,7 +2899,7 @@ Public Class Tablo
         If Not Faza_Tablo Then
             If MsgBox("Да балансирам ли еднофазно табло?",
                       vbOKCancel,
-                      "Няма нито един трифазен консуматор") = MsgBoxResult.Cancel Then
+                      "НЕ Е нито един трифазен консуматор") = MsgBoxResult.Cancel Then
                 Exit Sub
             End If
         End If
@@ -4728,7 +4728,7 @@ Public Class Tablo
 
         ' Ако не е намерено подходящо сечение
         If String.IsNullOrEmpty(text) Then
-            text = "Няма подходящ кабел за това сечение"
+            text = "НЕ Е подходящ кабел за това сечение"
         End If
 
         Return text

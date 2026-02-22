@@ -57,7 +57,7 @@ Public Class Tran6eq
         Dim ss = cu.GetObjects("LINE", "Изберете Линия")
         Dim br As Integer = 0
         If ss Is Nothing Then
-            MsgBox("Нама маркирана линия в слой 'EL'.")
+            MsgBox("НЕ Е маркирана линия в слой 'EL'.")
             Exit Sub
         End If
         Dim acDoc As Document = Application.DocumentManager.MdiActiveDocument

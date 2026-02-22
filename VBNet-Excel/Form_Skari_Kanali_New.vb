@@ -1,10 +1,11 @@
-﻿Imports Autodesk.AutoCAD.ApplicationServices
+﻿Imports System.IO
+Imports System.Net
+Imports System.Windows.Forms
+Imports Autodesk.AutoCAD.ApplicationServices
 Imports Autodesk.AutoCAD.DatabaseServices
-Imports Autodesk.AutoCAD.Runtime
 Imports Autodesk.AutoCAD.EditorInput
 Imports Autodesk.AutoCAD.Geometry
-Imports System.Net
-Imports System.IO
+Imports Autodesk.AutoCAD.Runtime
 Public Class Form_Skari_Kanali_New
     Dim PI As Double = 3.1415926535897931
     Dim cu As CommonUtil = New CommonUtil()
@@ -31,9 +32,6 @@ Public Class Form_Skari_Kanali_New
     End Structure
     Dim Kabel(200) As strLine
     Private Sub Skari_Kanali_Load(sender As Object, e As EventArgs) Handles MyBase.Load
-        'Me.Height = 1000
-        'Me.Width = 1600
-
         Line_Selected = cu.GetObjects("LINE", "Изберете линии за кабеланата скара/канал:")
         If Line_Selected Is Nothing Then
             MsgBox("Нама маркиранa линия в слой 'EL'.")
@@ -42,8 +40,6 @@ Public Class Form_Skari_Kanali_New
 
         GroupBox_Размери_Скари.Visible = False
         GroupBox_Размери_Скари.Dock = Windows.Forms.DockStyle.Fill
-
-
 
         arrSkari(1, 0) = 50
         arrSkari(1, 1) = 35
@@ -168,10 +164,10 @@ Public Class Form_Skari_Kanali_New
         arrKanal(10, 4) = 0
 
         Call Set_array_Kabel()
-
     End Sub
+
     Private Sub Set_array_Kabel()
-        Dim acDoc As Document = Application.DocumentManager.MdiActiveDocument
+        Dim acDoc As Document = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument
         Dim acCurDb As Database = acDoc.Database
         Using trans As Transaction = acDoc.TransactionManager.StartTransaction()
             Try
@@ -260,5 +256,4 @@ Public Class Form_Skari_Kanali_New
     Private Sub RadioButton_Тръба_CheckedChanged(sender As Object, e As EventArgs) Handles RadioButton_Тръба.CheckedChanged
         GroupBox_Размери_Скари.Visible = False
     End Sub
-
 End Class

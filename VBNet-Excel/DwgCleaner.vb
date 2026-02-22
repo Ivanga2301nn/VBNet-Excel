@@ -158,6 +158,8 @@ Public Class DwgCleaner
             ' ===============================
             ClearAttributesInDynamicBlocks(doc, "Качване")
             ClearAttributesInDynamicBlocks(doc, "Заземление")
+            ClearAttributesInDynamicBlocks(doc, "Табло и инвертор")
+            ClearAttributesInDynamicBlocks(doc, "Батерия")
             ' ===============================
             ' СТЪПКА 4: Изчистване съдържанието на динамични блокове "Качване"
             ' ===============================

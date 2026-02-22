@@ -108,7 +108,9 @@ Public Class Kabel
 
             Using acTrans As Transaction = acCurDb.TransactionManager.StartTransaction()
                 ' Вмъква блок
+                If InStr(Application.DocumentManager.MdiActiveDocument.Name, "_PV_100") Then scale = 100
                 If InStr(Application.DocumentManager.MdiActiveDocument.Name, "_PV_40") Then scale = 40
+                If InStr(Application.DocumentManager.MdiActiveDocument.Name, "_PV_30") Then scale = 30
                 If InStr(Application.DocumentManager.MdiActiveDocument.Name, "_PV_20") Then scale = 20
                 If InStr(Application.DocumentManager.MdiActiveDocument.Name, "_PV_15") Then scale = 15
 
@@ -519,6 +521,7 @@ Public Class Kabel
             Using acTrans As Transaction = acCurDb.TransactionManager.StartTransaction()
 
                 ' Определяне на мащаба на блока в зависимост от името на документа
+                If InStr(Application.DocumentManager.MdiActiveDocument.Name, "_PV_100") > 0 Then scale = 100
                 If InStr(Application.DocumentManager.MdiActiveDocument.Name, "_PV_40") > 0 Then scale = 40
                 If InStr(Application.DocumentManager.MdiActiveDocument.Name, "_PV_20") > 0 Then scale = 20
                 If InStr(Application.DocumentManager.MdiActiveDocument.Name, "_PV_30") > 0 Then scale = 30

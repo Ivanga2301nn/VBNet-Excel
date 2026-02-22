@@ -240,25 +240,28 @@ Public Class Form_ExcelUtilForm
         Return Text
     End Function
     Private Sub Open_WS()
-        wsLines = excel_Workbook.Worksheets("Кабели")
-        wsKontakti = excel_Workbook.Worksheets("Контакти")
-        wsLight = excel_Workbook.Worksheets("Осветителни тела")
-        wsElboard = excel_Workbook.Worksheets("Табла")
-        wsCableTrays = excel_Workbook.Worksheets("Скари и канали")
-        wsKol_Smetka = excel_Workbook.Worksheets("Количествена сметка")
-        wsSpecefikaciq = excel_Workbook.Worksheets("Спецификация")
-        wsInternet = excel_Workbook.Worksheets("Интернет")
-        wsKoef = excel_Workbook.Worksheets("Коефициенти")
-        wsPIC = excel_Workbook.Worksheets("Пожароизвестяване")
-        wsDOMOF = excel_Workbook.Worksheets("Домофонна")
+        Try
+            wsLines = excel_Workbook.Worksheets("Кабели")
+            wsKontakti = excel_Workbook.Worksheets("Контакти")
+            wsLight = excel_Workbook.Worksheets("Осветителни тела")
+            wsElboard = excel_Workbook.Worksheets("Табла")
+            wsCableTrays = excel_Workbook.Worksheets("Скари и канали")
+            wsKol_Smetka = excel_Workbook.Worksheets("Количествена сметка")
+            wsSpecefikaciq = excel_Workbook.Worksheets("Спецификация")
+            wsInternet = excel_Workbook.Worksheets("Интернет")
+            wsKoef = excel_Workbook.Worksheets("Коефициенти")
+            wsPIC = excel_Workbook.Worksheets("Пожароизвестяване")
+            wsDOMOF = excel_Workbook.Worksheets("Домофонна")
 
-        wsBOLNICA = excel_Workbook.Worksheets("Болнична система")
-        wwsKONTROL = excel_Workbook.Worksheets("Контрол достъп")
-        wsOPOWES = excel_Workbook.Worksheets("Оповестяване")
-        wsSOT = excel_Workbook.Worksheets("СОТ")
-        wsVIDEO = excel_Workbook.Worksheets("Видеонаблюдение")
-        wsKa4vane = excel_Workbook.Worksheets("Силова качване")
-
+            wsBOLNICA = excel_Workbook.Worksheets("Болнична система")
+            wwsKONTROL = excel_Workbook.Worksheets("Контрол достъп")
+            wsOPOWES = excel_Workbook.Worksheets("Оповестяване")
+            wsSOT = excel_Workbook.Worksheets("СОТ")
+            wsVIDEO = excel_Workbook.Worksheets("Видеонаблюдение")
+            wsKa4vane = excel_Workbook.Worksheets("Силова качване")
+        Catch ex As Exception
+            MsgBox("Възникна грешка: " & ex.Message & vbCrLf & vbCrLf & ex.StackTrace.ToString)
+        End Try
     End Sub
     Private Function GetExcelWorksheet() As excel.Workbook
         fullName = Application.DocumentManager.MdiActiveDocument.Name
@@ -6752,6 +6755,11 @@ Public Class Form_ExcelUtilForm
                     text = text + "Pдвиг(400V): " + wsElboard.Cells(i, 4).Value + "; "
                     text = text + "Брой полюси: " + wsElboard.Cells(i, 5).Value + "; "
                     text = text + "Обхват термична защита: " + wsElboard.Cells(i, 6).Value + "; "
+                Case "TR"
+                    text = text + " - Трансформатор за безопасно напрежение - "
+                    text = text + "Мощност: " + wsElboard.Cells(i, 5).Value + "; "
+                    text = text + "Вход : " + wsElboard.Cells(i, 6).Value + "; "
+                    text = text + "Изход : " + wsElboard.Cells(i, 7).Value + "; "
                 Case Else
                     text = "НЕИЗВЕСТЕН ЕЛЕМЕНТ --> " + wsElboard.Cells(i, 12).Value
             End Select

@@ -825,6 +825,15 @@ Public Class Legend
                             Tekst2 = "Електромер "
                             Tekst2 += vbCrLf + "Напрежение: " + Apar.bl_4
                             Tekst2 += vbCrLf + "Брой полюси: " + Apar.bl_2
+                        Case "TR"
+                            Tekst1 = Apar.bl_SHORTNAME
+                            Tekst1 += vbCrLf + Apar.bl_2
+                            Tekst1 += vbCrLf + Apar.bl_3
+                            Tekst1 += vbCrLf + Apar.bl_4
+                            Tekst2 = "Трансформатор за безоп. напр.,"
+                            Tekst2 += vbCrLf + "Мощност: " + Apar.bl_2 + ","
+                            Tekst2 += vbCrLf + "Вход : " + Apar.bl_3 + ","
+                            Tekst2 += vbCrLf + "Изход : " + Apar.bl_4 + ","
                         Case Else
                             Tekst1 = "Непознат елемент"
                     End Select

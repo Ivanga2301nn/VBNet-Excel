@@ -28,7 +28,7 @@ Public Class Zapiska
     Dim cu As CommonUtil = New CommonUtil()
     Dim ShSet As SheetSet = New SheetSet()
     Dim Кавички As String = Chr(34)
-    Dim wordApp As New Word.Application
+    Dim wordApp As Word.Application
     Dim picList As New List(Of PIC)()
     Structure srtSheetSet
         Dim NameSubset As String
@@ -61,21 +61,23 @@ Public Class Zapiska
     <CommandMethod("Zapiska")>
     <CommandMethod("Записка")>
     Public Sub New_zapiska()
-        Dim wordDoc As Word.Document
+        Dim wordDoc As Word.Document = Nothing
         Try
+            wordApp = New Word.Application
+            wordApp.Visible = True ' Препоръчвам True по време на дебъгване
+            wordDoc = wordApp.Documents.Add()
+
             Dim fullName As String = Application.DocumentManager.MdiActiveDocument.Name
             Dim filePath As String = Path.GetDirectoryName(fullName)
             Dim Path_Name As String = Mid(filePath, InStrRev(filePath, "\") + 1, Len(filePath))
             Dim fileName As String = filePath + "\" + "Обяснителна записка.docx"
             Dim Text As String = ""
-            Dim File_DST As String = filePath + "\" + Path_Name + ".dst"
             wordDoc = OpenWordDocument(fileName, wordApp)
             Dim dicSignature As Dictionary(Of String, String)
             If wordDoc Is Nothing Then
                 Exit Sub
             End If
             CreateCustomStyles(wordDoc)
-            ' ApplyCustomStyles(wordDoc)
             '
             ' Извлича данните от блок "Insert_Signature"
             '
@@ -2140,37 +2142,36 @@ SAP
     Public Function OpenWordDocument(ByVal fileName As String, ByVal wordApp As Word.Application) As Word.Document
         Dim wordDoc As Word.Document = Nothing
         Try
-            ' Проверка дали wordApp е Nothing
-            If wordApp Is Nothing Then
-                ' Ако wordApp е Nothing, създайте нова инстанция на Word.Application
-                wordApp = New Word.Application()
-            End If
-            ' Проверка дали файлът е отворен
-            For Each doc As Word.Document In wordApp.Documents
-                If doc.FullName = fileName Then
-                    wordDoc = doc
+            ' 1. Не създавай wordApp тук. Направи го в New_zapiska, за да е ясно кой контролира обекта.
+            If wordApp Is Nothing Then Throw New Exception("Word Application не е инициализиран!")
+            ' 2. Използвай индекс вместо For Each, за да не "забравяш" обекти в паметта
+            Dim docs As Word.Documents = wordApp.Documents
+            For i As Integer = 1 To docs.Count
+                Dim tempDoc As Word.Document = docs.Item(i)
+                If tempDoc.FullName.Equals(fileName, StringComparison.OrdinalIgnoreCase) Then
+                    wordDoc = tempDoc
                     wordDoc.Activate()
                     Exit For
+                Else
+                    ' Освобождаваме веднага, ако не е нашият файл
+                    Marshal.ReleaseComObject(tempDoc)
                 End If
             Next
-            ' Ако файлът не е отворен, отворете го
+            Marshal.ReleaseComObject(docs) ' Освобождаваме колекцията
+            ' 3. Ако не е намерен - отваряме или създаваме
             If wordDoc Is Nothing Then
                 If File.Exists(fileName) Then
                     wordDoc = wordApp.Documents.Open(fileName)
                 Else
                     wordDoc = wordApp.Documents.Add()
-                    wordDoc.SaveAs(fileName)
-                End If
-                ' Активиране на документа
-                If Not wordDoc.ActiveWindow Is Nothing Then
-                    wordDoc.Activate()
+                    wordDoc.SaveAs2(fileName) ' Ползвай SaveAs2 за по-нови версии
                 End If
             End If
-            ' Изтриване на съдържанието, ако е необходимо
+            ' 4. Почистване и подготовка
             wordDoc.Content.Delete()
             wordApp.Visible = True
         Catch ex As Exception
-            MsgBox("Error opening or activating Word document: " & ex.Message)
+            MsgBox("Грешка в OpenWordDocument: " & ex.Message)
         End Try
         Return wordDoc
     End Function
@@ -2280,15 +2281,19 @@ SAP
     End Function
     <CommandMethod("PVZapiska")>
     Public Sub PV_New_zapiska()
-        Dim fullName As String = Application.DocumentManager.MdiActiveDocument.Name
-        Dim filePath As String = Path.GetDirectoryName(fullName)
-        Dim Path_Name As String = Mid(filePath, InStrRev(filePath, "\") + 1, Len(filePath))
-        Dim fileName As String = filePath + "\" + "Обяснителна записка_PV.docx"
-        Dim Text As String = ""
-        Dim File_DST As String = filePath + "\" + Path_Name + ".dst"
-        Dim wordDoc As Word.Document = OpenWordDocument(fileName, wordApp)
-        Dim dicSignature As Dictionary(Of String, String)
+        Dim wordDoc As Word.Document = Nothing
         Try
+            wordApp = New Word.Application
+            wordApp.Visible = True ' Препоръчвам True по време на дебъгване
+            wordDoc = wordApp.Documents.Add()
+
+            Dim fullName As String = Application.DocumentManager.MdiActiveDocument.Name
+            Dim filePath As String = Path.GetDirectoryName(fullName)
+            Dim Path_Name As String = Mid(filePath, InStrRev(filePath, "\") + 1, Len(filePath))
+            Dim fileName As String = filePath + "\" + "Обяснителна записка_PV.docx"
+            Dim Text As String = ""
+            wordDoc = OpenWordDocument(fileName, wordApp)
+            Dim dicSignature As Dictionary(Of String, String)
             If wordDoc Is Nothing Then
                 Exit Sub
             End If
@@ -2310,7 +2315,6 @@ SAP
             Записка_ПИЦ(wordDoc, acDoc, acCurDb, dicSignature)
             POIS(wordDoc, dicSignature)
             If MsgBox(Title:="Завърших записката.", Buttons:=MsgBoxStyle.YesNo, Prompt:="Да създам ли записка ПОЖАРНА БЕЗОПАСНОСТ") = MsgBoxResult.Yes Then
-
                 wordDoc.Save()
                 wordDoc.Close(False)
 
@@ -2670,21 +2674,59 @@ SAP
         AddParagraph(wordDoc, text, False)
         AddПодпис(wordDoc, dicObekt("ПРОЕКТАНТ"))
     End Sub
-    Sub ЗАПИСКА_Батерия(wordDoc As Word.Document,
-                             acDoc As Document,
-                             acCurDb As Database,
-                             dicObekt As Dictionary(Of String, String))
-        Dim Text As String = ""
+    ''' <summary>
+    ''' Извлича информация за батерии от избрани блокове в чертеж (AutoCAD)
+    ''' и изчислява общите им електрически параметри.
+    '''
+    ''' Процедурата:
+    ''' 1) Изисква от потребителя да избере:
+    '''    - блокове "Батерия"
+    '''    - табло към което са свързани
+    '''    - текст за помещение
+    '''    - текст за кота
+    '''
+    ''' 2) За всеки избран блок:
+    '''    - Проверява дали името на блока е "Батерия"
+    '''    - Чете атрибутите:
+    '''         • БАТЕРИЯ_ВИД
+    '''         • БАТЕРИЯ_КЛЕТКА
+    '''         • МОЩНОСТ
+    '''         • КАПАЦИТЕТ
+    '''    - Натрупва:
+    '''         • общ брой батерии
+    '''         • сумарна мощност
+    '''         • сумарен капацитет
+    '''
+    ''' 3) Извлича от избраното табло:
+    '''         • атрибут "ТАБЛО"
+    '''
+    ''' 4) Записва всички изчислени стойности в речника dicObekt
+    '''    за последваща обработка (Excel, Word или друг изход).
+    '''
+    ''' Процедурата използва AutoCAD Transaction за безопасно
+    ''' четене на обекти от базата данни.
+    ''' </summary>
+    '''
+    ''' <param name="acCurDb">
+    ''' Активната AutoCAD база данни.
+    ''' </param>
+    '''
+    ''' <param name="dicObekt">
+    ''' Речник за съхранение на резултатите:
+    '''    • СРТ_Помещение_BAT
+    '''    • СРТ_Кота_BAT
+    '''    • intBattery_Count
+    '''    • douBattery_Power
+    '''    • douBattery_Capaci
+    '''    • strBattery_Name
+    '''    • strBattery_Type
+    '''    • strBattery_Tablo
+    ''' </param>
+    Sub get_Battery_Data(acCurDb As Database,
+                         dicObekt As Dictionary(Of String, String))
         Dim ss_Tabla = cu.GetObjects("INSERT", "Изберете БЛОКОВЕТЕ в чертеж съдържащи БАТЕРИИТЕ:")
         If ss_Tabla Is Nothing Then
             MsgBox("Няма маркиран нито един блок.")
-            dicObekt.Add("СРТ_Помещение_BAT", "#####")
-            dicObekt.Add("СРТ_Кота_BAT", "#####")
-            Exit Sub
-        End If
-        Dim ss_Kabeli = cu.GetObjects("LINE", "Изберете КАБЕЛИТЕ в чертеж свързващи БАТЕРИИТЕ:")
-        If ss_Kabeli Is Nothing Then
-            MsgBox("Няма маркиран нито едина линия.")
             Exit Sub
         End If
         Dim ss_GRT = cu.GetObjects("INSERT", "Изберете ТАБЛОТО в чертеж към който са свързани БАТЕРИИТЕ:", allowMultiple:=False)
@@ -2695,16 +2737,15 @@ SAP
 
         Dim blkRecId As ObjectId = ObjectId.Null
 
+        Dim strBattery_ТАБЛО As String = ""
         Dim strBattery_Name As String = ""
         Dim strBattery_Type As String = ""
-        Dim strBattery_Tablo As String = ""
+
         Dim intBattery_Count As Integer = 0
-        Dim douBattery_Power As Double = 0
-        Dim douBattery_Capaci As Double = 0
         Dim douBattery_Power_1 As Double = 0
         Dim douBattery_Capaci_1 As Double = 0
-
-        Dim strBattery_ТАБЛО As String = ""
+        Dim douBattery_Power As Double = 0
+        Dim douBattery_Capaci As Double = 0
 
         Using acTrans As Transaction = acCurDb.TransactionManager.StartTransaction()
             Try
@@ -2716,6 +2757,8 @@ SAP
 
                     Dim blName As String = (CType(acBlkRef.DynamicBlockTableRecord.GetObject(OpenMode.ForRead), BlockTableRecord)).Name
                     If blName <> "Батерия" Then Continue For
+                    douBattery_Power_1 = 0
+                    douBattery_Capaci_1 = 0
 
                     intBattery_Count += 1
                     For Each objID As ObjectId In attCol
@@ -2729,30 +2772,46 @@ SAP
                     douBattery_Power += douBattery_Power_1
                     douBattery_Capaci += douBattery_Capaci_1
                 Next
-
+                dicObekt.Add("intBattery_Count", intBattery_Count)
+                dicObekt.Add("douBattery_Power", douBattery_Power)
+                dicObekt.Add("douBattery_Capaci", douBattery_Capaci)
+                dicObekt.Add("strBattery_Name", strBattery_Name)
+                dicObekt.Add("strBattery_Type", strBattery_Type)
+                Dim strBattery_Tablo As String = ""
                 blkRecId = ss_GRT(0).ObjectId
                 Dim acBlkRef_GRT As BlockReference = DirectCast(acTrans.GetObject(blkRecId, OpenMode.ForRead), BlockReference)
                 Dim attCol_GRT As AttributeCollection = acBlkRef_GRT.AttributeCollection
                 For Each objID As ObjectId In attCol_GRT
                     Dim dbObj As DBObject = acTrans.GetObject(objID, OpenMode.ForRead)
                     Dim acAttRef As AttributeReference = dbObj
-                    If acAttRef.Tag = "ТАБЛО" Then strBattery_Tablo = acAttRef.TextString
+                    If acAttRef.Tag = "ИМЕ" Then strBattery_Tablo = acAttRef.TextString
                 Next
+                dicObekt.Add("strBattery_Tablo", strBattery_Tablo)
             Catch ex As Exception
                 MsgBox("Възникна грешка: " & ex.Message & vbCrLf & vbCrLf & ex.StackTrace.ToString)
                 acTrans.Abort()
             End Try
         End Using
+    End Sub
+    Sub ЗАПИСКА_Батерия(wordDoc As Word.Document,
+                             acDoc As Document,
+                             acCurDb As Database,
+                             dicObekt As Dictionary(Of String, String))
+        Dim Text As String = ""
+        If dicObekt("intBattery_Count") = 0 Then Exit Sub
         FormatParagraph(wordDoc, "ЛОКАЛНО СЪОРЪЖЕНИЕ ЗА СЪХРАНЕНИЕ НА ЕЛЕКТРИЧЕСКА ЕНЕРГИЯ", wordApp, level:=1)
         With Text
-            Text = $"В проекта е предвидено да се монтират {intBattery_Count} {If(intBattery_Count > 1, "броя локални съоръжения", "брой локално съоръжения")} за съхранение на електрическа енергия тип {strBattery_Name} изградени от батерийни клетки {strBattery_Type}."
-            Text += " То представлява модерна и ефективна система за съхранение на електроенергия, предназначена за различни приложения, включително интеграция с възобновяеми източници на енергия и стабилизиране на електроразпределителни мрежи."
+            Text = $"В проекта е предвидено да се монтира{dicObekt("intBattery_Count")} {If(dicObekt("intBattery_Count") > 1, "т броя локални съоръжения", " брой локално съоръжение")} за съхранение на електрическа енергия тип {dicObekt("strBattery_Name")} изграден"
+            Text = $"{If(dicObekt("intBattery_Count") > 1, "и", "о")} от батерийни клетки {dicObekt("strBattery_Type")}."
             AddParagraph(wordDoc, Text, False)
-            Text = $"{If(intBattery_Count > 1, "Предвидените ", "Предвидения ")} {intBattery_Count} {If(intBattery_Count > 1, "броя", "брой")} ЛСС съоръжения ще са с обща МОЩНОСТ {douBattery_Power}kW и ОБЩ ОПЕРАТИВЕН КАПАЦИТЕТ {douBattery_Capaci}kWh."
+            Text = $"{If(dicObekt("intBattery_Count") > 1, "Предвидените ", "Предвидения ")} {dicObekt("intBattery_Count")} {If(dicObekt("intBattery_Count") > 1, "броя", "брой")} ЛСС съоръжения ще"
+            Text = $"{If(dicObekt("intBattery_Count") > 1, "са ", "е ")} с обща МОЩНОСТ {dicObekt("douBattery_Power")}kW и ОБЩ ОПЕРАТИВЕН КАПАЦИТЕТ {dicObekt("douBattery_Capaci")}kWh."
             AddParagraph(wordDoc, Text, False)
-            Text = "Локалното съоръжение за съхранение на електрическа енергия е проектирано така, че да осигурява минимален гарантиран капацитет, позволяващ непрекъсната работа с продължителност от поне 2 часа."
+            Text = $"{If(dicObekt("intBattery_Count") > 1, "Локалните съоръжения ", "Локалното съоръжение ")} за съхранение на електрическа енергия "
+            Text += $"{If(dicObekt("intBattery_Count") > 1, "са проектирани", "е проектирано")} така, че да осигуряв"
+            Text += $"{If(dicObekt("intBattery_Count") > 1, "ат", "а")} минимален гарантиран капацитет, позволяващ непрекъсната работа с продължителност от поне 2 часа."
             AddParagraph(wordDoc, Text, False)
-            Text = $"Слсс/Pлсс = {douBattery_Capaci}/{douBattery_Power} = {douBattery_Capaci / douBattery_Power} часа"
+            Text = $"Слсс/Pлсс = {dicObekt("douBattery_Capaci")}/{dicObekt("douBattery_Power")} = {dicObekt("douBattery_Capaci") / dicObekt("douBattery_Power")} часа"
             AddParagraph(wordDoc, Text, False)
             Text = "Където:"
             AddParagraph(wordDoc, Text, True)
@@ -2765,86 +2824,12 @@ SAP
             Text += " Не включва трансформаторната уредба в случай на присъединяване към уредба високо/средно напрежение."
             AddParagraph(wordDoc, Text, False)
         End With
-        FormatParagraph(wordDoc, "ОСНОВНИ ХАРАКТЕРИСТИКИ:", wordApp, level:=2)
-        With Text
-            Text = $"Основни технически характеристики на предвидените в пректа локалното съоръжение за съхранение на електрическа енергия тип {strBattery_Name} са:"
-            AddParagraph(wordDoc, Text, False)
-            Text = $"Работно напрежение (AC)					400 V"
-            AddParagraph(wordDoc, Text, False)
-            Text = $"Максимален капацитет					{douBattery_Capaci_1} kWh"
-            AddParagraph(wordDoc, Text, False)
-            Text = $"Максимална мощност на зареждане 			≤{douBattery_Power_1} kW"
-            AddParagraph(wordDoc, Text, False)
-            Text = $"Максимална мощност на разреждане 			≤{douBattery_Power_1} kW"
-            AddParagraph(wordDoc, Text, False)
-            Text = $"Тип на клетката на батерията				{strBattery_Type}"
-            AddParagraph(wordDoc, Text, False)
-            Text = $"Размери (ШxДxВ) 						1350×2300×1350 mm"
-            AddParagraph(wordDoc, Text, False)
-            Text = $"Тегло с батериите						2500 kg"
-            AddParagraph(wordDoc, Text, False)
-            Text = $"Степен на защита						IP54"
-            AddParagraph(wordDoc, Text, False)
-            Text = $"Експлоатационен живот					6000 цикъла"
-            AddParagraph(wordDoc, Text, False)
-            Text = $"Минимален използваем капацитет на батерията	8% ~ 100%"
-            AddParagraph(wordDoc, Text, False)
-            Text = $"Работен температурен диапазон			-20 ~+50°C"
-            AddParagraph(wordDoc, Text, False)
-            Text = $"Охлаждане							Водно (Smart liquid cooling)"
-            AddParagraph(wordDoc, Text, False)
-            Text = $"Стандарти							IEC62477, IEC61000, UN38.3"
-            AddParagraph(wordDoc, Text, False)
-            Text = $"Пълното описание на характеристиките на {strBattery_Name} e приложено към проекта."
-            AddParagraph(wordDoc, Text, False)
-            Text = "Локалното съоръжение за съхранение на електрическа енергияще се разположи на указаното в проекта място на бетонова площадка."
-            Text += " При монтажа на съоръженията стриктно да се спазват изискванията на завода производител разтоянието между отделните модули."
-            AddParagraph(wordDoc, Text, False)
-        End With
-        ' ПРОСТОТИИ И ДИВОТИИ
-        With Text
-            Text = "Проектът ще осигури баланс на съоръжението за съхранение (balance of plant) – обхващащ всички инфраструктурни компоненти и системи, необходими за функционирането на съоръжението."
-            AddParagraph(wordDoc, Text, Bold:=False)
-            Text = "1. Батерийна технология: Системата използва литиево-желязо-фосфатни (LFP) батерии, които са известни с високата си безопасност, дълъг живот и устойчивост. Батериите осигуряват повече от 6000 цикъла и се очаква да функционират надеждно повече от 10 години."
-            AddParagraph(wordDoc, Text, Bold:=False, makeBoldUntilColon:=True)
-            Text = "2. Охлаждане: Охлаждането на системата се осъществява по въздушен път, което гарантира ефективност и по-лесна поддръжка без необходимост от сложни охладителни механизми."
-            AddParagraph(wordDoc, Text, Bold:=False, makeBoldUntilColon:=True)
-            Text = "3. Енергийна ефективност: Системата поддържа тотална хармонична дисторзия (THD) под 3% при номинална мощност, което гарантира минимални загуби при преобразуване на енергията."
-            AddParagraph(wordDoc, Text, Bold:=False, makeBoldUntilColon:=True)
-            Text = "4. Система за управление на батериите (BMS): Интелигентната система за управление на батериите следи в реално време следи тяхното състояние и предлага защити срещу презареждане, дълбок разряд, прегряване и пренапрежение. Това удължава живота на батериите и повишава надеждността."
-            AddParagraph(wordDoc, Text, Bold:=False, makeBoldUntilColon:=True)
-            Text = "5. Интеграция и мониторинг: Съоръженията включват усъвършенствани комуникационни интерфейси като RS485, CAN2.0 и Ethernet, които осигуряват мониторинг в реално време и позволяват интеграция с енергийни мениджмънт системи (EMS). Чрез локален екран може да се следи състоянието на модулите и да се управлява процесът на съхранение и използване на енергия."
-            AddParagraph(wordDoc, Text, Bold:=False, makeBoldUntilColon:=True)
-            Text = "6. Модулен дизайн: Системите са проектирани за паралелно свързване на няколко модула, което позволява лесно разширение на капацитета, ако е необходимо. Това прави съоръженията гъвкави и подходящи за различни обекти с нарастващи енергийни нужди."
-            AddParagraph(wordDoc, Text, Bold:=False, makeBoldUntilColon:=True)
-            Text = "7. Сигурност и защита: Системата е сертифицирана по международни стандарти за безопасност, като IEC62619 и IEC62116, и включва защити като противопожарни системи с аерозоли или специални газове (например Heptafluoropropane)."
-            AddParagraph(wordDoc, Text, Bold:=False, makeBoldUntilColon:=True)
-            Text = "8. Устойчивост на околната среда: Съоръженията имат степен на защита IP54, която ги прави устойчиви на различни атмосферни условия, и могат да работят в температурен диапазон от -25°C до 60°C, което ги прави подходящи както за външни, така и за вътрешни инсталации."
-            AddParagraph(wordDoc, Text, Bold:=False, makeBoldUntilColon:=True)
-        End With
-        FormatParagraph(wordDoc, "ПРИЛОЖЕНИЯ:", wordApp, level:=2)
-        ' ОЩЕ ПРОСТОТИИ И ДИВОТИИ
-        With Text
-            Text = $"Предвидените в проекта {intBattery_Count} {If(intBattery_Count > 1, "броя локални", "брой локално")} съоръжения за съхранение /ЛСС/ на електрическа енергия {strBattery_Name} изградени от батериини клетки {strBattery_Type}."
-            Text += "Това създава възможност за ефективно използване на слънчевата енергия и оптимално управление на натоварването на електрическата мрежа."
-            AddParagraph(wordDoc, Text)
-            Text = "Основната функция на системата за съхранение е да акумулира излишната енергия, генерирана от фотоволтаичната инсталация през деня, когато слънчевата радиация е най-интензивна."
-            Text += " Тази съхранена енергия може да бъде използвана през периодите на по-ниско производство или по-висока консумация, като вечер и през нощта, когато слънчевото захранване е минимално или липсва."
-            AddParagraph(wordDoc, Text)
-            Text = "Интеграцията със соларната инсталация предоставя няколко важни предимства:"
-            AddParagraph(wordDoc, Text)
-            Text = "• Максимално използване на възобновяеми източници: Чрез съхранение на излишната енергия през активните часове на слънчевото производство, системата увеличава ефективността на фотоволтаиците и намалява зависимостта от електрическата мрежа."
-            AddParagraph(wordDoc, Text, Bold:=False, makeBoldUntilColon:=True)
-            Text = "• Намаляване на пиковото натоварване: Системата може да подава съхранена енергия в моменти на върхова консумация, намалявайки натоварването на мрежата и съответно разходите за електроенергия."
-            AddParagraph(wordDoc, Text, Bold:=False, makeBoldUntilColon:=True)
-            Text = "• Автономност и резервно захранване: Системата осигурява енергийна независимост, като позволява продължаване на захранването дори при аварии или прекъсвания на мрежата."
-            AddParagraph(wordDoc, Text, Bold:=False, makeBoldUntilColon:=True)
-            Text = "• Оптимизация на енергийния баланс: Съхранената енергия може да се използва стратегически за постигане на баланс между производство и потребление, като по този начин намалява разходите за енергия."
-            AddParagraph(wordDoc, Text, Bold:=False, makeBoldUntilColon:=True)
-            Text = "Тази комбинация между фотоволтаична инсталация и съоръжения за съхранение на енергия осигурява оптимално управление на енергийните ресурси, намалява въглеродния отпечатък и подпомага устойчивото развитие на обекта."
-            AddParagraph(wordDoc, Text)
-        End With
-        FormatParagraph(wordDoc, "ВРЪЗКА СЪС СИСТЕМАТА НА ВЪЗЛОИТЕЛЯ:", wordApp, level:=2)
+        FormatParagraph(wordDoc, "ВРЪЗКА СЪС СИСТЕМАТА НА ВЪЗЛОЖИТЕЛЯ:", wordApp, level:=2)
+        Dim ss_Kabeli = cu.GetObjects("LINE", "Изберете КАБЕЛИТЕ в чертеж свързващи БАТЕРИИТЕ:")
+        If ss_Kabeli Is Nothing Then
+            MsgBox("Няма маркиран нито едина линия.")
+            Exit Sub
+        End If
         Dim Kabel(50, 2) As String
         Kabel = cu.GET_LINE_TYPE_KABEL(Kabel, ss_Kabeli, vbFalse)
         Dim arrКабели As New List(Of srtCable)()
@@ -2885,10 +2870,12 @@ SAP
                 arrКабели(index) = кабел
             End If
         Next
-        Text = $"В проекта е предвидено връзката между табло {Кавички + strBattery_Tablo + Кавички} и {intBattery_Count} {If(intBattery_Count > 1, "броя локални", "брой локално")} съоръжения за съхранение на електрическа енергия тип {strBattery_Name}"
+        Text = $"В проекта е предвидено електрическата връзка между табло {Кавички + dicObekt("strBattery_Tablo") + Кавички} и "
+        Text += If(dicObekt("intBattery_Count") > 1, dicObekt("intBattery_Count") + " броя локални съоръжения", "локалното съоръжение")
+        Text += $" за съхранение на електрическа енергия тип {dicObekt("strBattery_Name")}"
         Text += ", да бъде осъществена чрез"
         ' Проверка дали масивът съдържа само един елемент
-        If arrКабели.Count = 1 Then
+        If dicObekt("intBattery_Count") = 1 Then
             ' Ако има само един елемент, добавяме директно неговия тип
             Text += " силов кабел тип "
             Text += arrКабели(0).Тип
@@ -2912,6 +2899,99 @@ SAP
         Text += "."
         dicObekt.Add("ЛСС", Text)
         AddParagraph(wordDoc, Text, False)
+#Region "Секция: Основни характеристики на ЛСС"
+        FormatParagraph(wordDoc, "ОСНОВНИ ХАРАКТЕРИСТИКИ:", wordApp, level:=2)
+        ' 1. Подготовка на данните и граматиката
+        Dim count As Integer = CInt(dicObekt("intBattery_Count"))
+        Dim isSingular As Boolean = (count = 1)
+        Dim batteryName As String = dicObekt("strBattery_Name").ToString()
+        ' Логика за заглавното изречение
+        Dim prilagatelno As String = If(isSingular, "предвиденото", "предвидените")
+        Dim noun As String = If(isSingular, "локално съоръжение", "локални съоръжения")
+        Dim introText As String = $"Основни технически характеристики на {prilagatelno} в проекта {noun} " &
+                                  $"за съхранение на електрическа енергия тип {batteryName} са:"
+        AddParagraph(wordDoc, introText, False)
+        ' 2. Таблични данни (използваме vbTab за подравняване в Word)
+        ' Изчисляваме стойностите за единица модул
+        Dim unitCapacity As Double = CDbl(dicObekt("douBattery_Capaci")) / count
+        Dim unitPower As Double = CDbl(dicObekt("douBattery_Power")) / count
+        AddParagraph(wordDoc, $"Работно напрежение (AC){vbTab}{vbTab}{vbTab}400 V", False)
+        AddParagraph(wordDoc, $"Максимален капацитет{vbTab}{vbTab}{vbTab}{unitCapacity} kWh", False)
+        AddParagraph(wordDoc, $"Максимална мощност на зареждане{vbTab}≤{unitPower} kW", False)
+        AddParagraph(wordDoc, $"Максимална мощност на разреждане{vbTab}≤{unitPower} kW", False)
+        AddParagraph(wordDoc, $"Тип на клетката на батерията{vbTab}{vbTab}{dicObekt("strBattery_Type")}", False)
+        AddParagraph(wordDoc, $"Размери (ШxДxВ){vbTab}{vbTab}{vbTab}{vbTab}1350×2300×1350 mm", False)
+        AddParagraph(wordDoc, $"Тегло с батериите{vbTab}{vbTab}{vbTab}{vbTab}2500 kg", False)
+        AddParagraph(wordDoc, $"Степен на защита{vbTab}{vbTab}{vbTab}{vbTab}IP54", False)
+        AddParagraph(wordDoc, $"Експлоатационен живот{vbTab}{vbTab}{vbTab}6000 цикъла", False)
+        AddParagraph(wordDoc, $"Минимален използваем капацитет{vbTab}8% ~ 100%", False)
+        AddParagraph(wordDoc, $"Работен температурен диапазон{vbTab}-20 ~ +50°C", False)
+        AddParagraph(wordDoc, $"Стандарти{vbTab}{vbTab}{vbTab}{vbTab}{vbTab}IEC 62477, IEC 61000, UN 38.3", False)
+        AddParagraph(wordDoc, $"Пълното описание на характеристиките на {batteryName} е приложено към проекта.", False)
+        ' 3. Текст за разположение (съгласуван)
+        Dim subekt As String = If(isSingular, "Локалното съоръжение", "Локалните съоръжения")
+        Dim deystvie As String = If(isSingular, "разположи", "разположат")
+        Dim obekt As String = If(isSingular, "съоръжението", "съоръженията")
+
+        Dim fullText As String = $"{subekt} за съхранение на електрическа енергия ще се {deystvie} " &
+                         "на указаното в проекта място на бетонова площадка. " &
+                         $"При монтажа на {obekt} стриктно да се спазват изискванията на " &
+                         "завода производител за разстоянието между отделните модули."
+        AddParagraph(wordDoc, fullText, False)
+#End Region
+        ' ПРОСТОТИИ И ДИВОТИИ
+#Region "Секция 1: Описание на оборудването"
+        Text = "Проектът ще осигури баланс на съоръжението за съхранение (Balance of Plant) – обхващащ всички инфраструктурни компоненти и системи, необходими за функционирането на съоръжението."
+        AddParagraph(wordDoc, Text, Bold:=False)
+        Text = "1. Батерийна технология: Системата използва литиево-желязо-фосфатни (LFP) батерии, които са известни с високата си безопасност, дълъг живот и устойчивост. Батериите осигуряват повече от 6000 цикъла и се очаква да функционират надеждно повече от 10 години."
+        AddParagraph(wordDoc, Text, Bold:=False, makeBoldUntilColon:=True)
+        Text = "2. Охлаждане: Охлаждането на системата се осъществява по въздушен път, което гарантира ефективност и по-лесна поддръжка без необходимост от сложни охладителни механизми."
+        AddParagraph(wordDoc, Text, Bold:=False, makeBoldUntilColon:=True)
+        Text = "3. Енергийна ефективност: Системата поддържа тотална хармонична дисторзия (THD) под 3% при номинална мощност, което гарантира минимални загуби при преобразуване на енергията."
+        AddParagraph(wordDoc, Text, Bold:=False, makeBoldUntilColon:=True)
+        Text = "4. Система за управление на батериите (BMS): Интелигентната система за управление на батериите следи в реално време тяхното състояние и предлага защити срещу презареждане, дълбок разряд, прегряване и пренапрежение. Това удължава живота на батериите и повишава надеждността."
+        AddParagraph(wordDoc, Text, Bold:=False, makeBoldUntilColon:=True)
+        Text = "5. Интеграция и мониторинг: Съоръженията включват усъвършенствани комуникационни интерфейси като RS485, CAN2.0 и Ethernet, които осигуряват мониторинг в реално време и позволяват интеграция със системи за енергиен мениджмънт (EMS). Чрез локален екран може да се следи състоянието на модулите и да се управлява процесът на съхранение и използване на енергия."
+        AddParagraph(wordDoc, Text, Bold:=False, makeBoldUntilColon:=True)
+        Text = "6. Модулен дизайн: Системите са проектирани за паралелно свързване на няколко модула, което позволява лесно разширение на капацитета, ако е необходимо. Това прави съоръженията гъвкави и подходящи за различни обекти с нарастващи енергийни нужди."
+        AddParagraph(wordDoc, Text, Bold:=False, makeBoldUntilColon:=True)
+        Text = "7. Сигурност и защита: Системата е сертифицирана по международни стандарти за безопасност, като IEC 62619 и IEC 62116, и включва защити като противопожарни системи с аерозоли или специални газове (например хептафлуоропропан/Heptafluoropropane)."
+        AddParagraph(wordDoc, Text, Bold:=False, makeBoldUntilColon:=True)
+        Text = "8. Устойчивост на околната среда: Съоръженията имат степен на защита IP54, която ги прави устойчиви на различни атмосферни условия, и могат да работят в температурен диапазон от -25°C до 60°C, което ги прави подходящи както за външни, така и за вътрешни инсталации."
+        AddParagraph(wordDoc, Text, Bold:=False, makeBoldUntilColon:=True)
+#End Region
+        FormatParagraph(wordDoc, "ПРИЛОЖЕНИЯ:", wordApp, level:=2)
+        ' ОЩЕ ПРОСТОТИИ И ДИВОТИИ
+#Region "Секция: Описание на Системата за Съхранение (ЛСС)"
+        ' 1. Подготовка на граматическите форми
+        Dim countText As String = If(isSingular, "1 брой локално", $"{count} броя локални")
+        Dim verbIs As String = If(isSingular, "е изградено", "са изградени")
+        Dim nounUnit As String = If(isSingular, "съоръжение", "съоръжения")
+        ' 2. Основно описание и технология
+        Text = $"{If(isSingular, "Предвиденното", "Предвидените")} в проекта {countText} {nounUnit} за съхранение /ЛСС/ на електрическа енергия {dicObekt("strBattery_Name")} {verbIs} от батерийни клетки {dicObekt("strBattery_Type")}. "
+        Text += "Това създава възможност за ефективно използване на слънчевата енергия и оптимално управление на натоварването на електрическата мрежа."
+        AddParagraph(wordDoc, Text)
+        Text = "Основната функция на системата за съхранение е да акумулира излишната енергия, генерирана от фотоволтаичната инсталация през деня, когато слънчевата радиация е най-интензивна. "
+        Text += "Тази съхранена енергия може да бъде използвана през периодите на по-ниско производство или по-висока консумация, като вечер и през нощта, когато слънчевото захранване е минимално или липсва."
+        AddParagraph(wordDoc, Text)
+        ' 3. Логика при пълен капацитет (Добавено)
+        Text = "При достигане на пълния капацитет на батерийните модули, системата автоматично регулира входящия поток, "
+        Text += "като насочва излишната енергия към вътрешната мрежа на обекта или ограничава производството на инверторите, за да предотврати презареждане."
+        AddParagraph(wordDoc, Text)
+        ' 4. Списък с предимства
+        AddParagraph(wordDoc, "Интеграция със соларната инсталация предоставя няколко важни предимства:")
+        Text = "• Максимално използване на възобновяеми източници: Чрез съхранение на излишната енергия през активните часове на слънчевото производство, системата увеличава ефективността на фотоволтаиците и намалява зависимостта от електрическата мрежа."
+        AddParagraph(wordDoc, Text, Bold:=False, makeBoldUntilColon:=True)
+        Text = "• Намаляване на пиковото натоварване: Системата може да подава съхранена енергия в моменти на върхова консумация, намалявайки натоварването на мрежата и съответно разходите за електроенергия."
+        AddParagraph(wordDoc, Text, Bold:=False, makeBoldUntilColon:=True)
+        Text = "• Автономност и резервно захранване: Системата осигурява енергийна независимост, като позволява продължаване на захранването дори при аварии или прекъсвания на мрежата."
+        AddParagraph(wordDoc, Text, Bold:=False, makeBoldUntilColon:=True)
+        Text = "• Оптимизация на енергийния баланс: Съхранената енергия може да се използва стратегически за постигане на баланс между производство и потребление, като по този начин намалява разходите за енергия."
+        AddParagraph(wordDoc, Text, Bold:=False, makeBoldUntilColon:=True)
+        ' 5. Заключение
+        Text = "Тази комбинация между фотоволтаична инсталация и съоръжения за съхранение на енергия осигурява оптимално управление на енергийните ресурси, намалява въглеродния отпечатък и подпомага устойчивото развитие на обекта."
+        AddParagraph(wordDoc, Text)
+#End Region
     End Sub
     ' ОБЯСНИТЕЛНА ЗАПИСКА ЗА PV
     Sub ОБЯСНИТЕЛНА_ЗАПИСКА_PV(wordDoc As Word.Document,
@@ -3217,7 +3297,7 @@ SAP
                 Case 1
                     Text = "Наклонът на фотоволтаичните модули спрямо хоризонталната повърхност е "
                     Text += String.Format("{0:0.0}", Панели(0).Наклон_Дължина)
-                    Text += "°,a азимута е "
+                    Text += "°, a азимута е "
                     Text += String.Format("{0:0.0}", Панели(0).Азимут)
                     Text += "°."
                     AddParagraph(wordDoc, Text, False)
@@ -3237,6 +3317,12 @@ SAP
                         AddParagraph(wordDoc, Text, False)
                     Next
             End Select
+        End If
+        get_Battery_Data(acCurDb, dicObekt)
+        If dicObekt("intBattery_Count") > 0 Then
+            Text = $"В проекта е предвидено да се монтират {dicObekt("intBattery_Count")} {If(dicObekt("intBattery_Count") > 1, "броя локални съоръжения", "брой локално съоръжения")} за съхранение на електрическа енергия тип {dicObekt("strBattery_Name")} изградени от батерийни клетки {dicObekt("strBattery_Type")}."
+            Text += " То представлява модерна и ефективна система за съхранение на електроенергия, предназначена за различни приложения, включително интеграция с възобновяеми източници на енергия и стабилизиране на електроразпределителни мрежи."
+            AddParagraph(wordDoc, Text, False)
         End If
         FormatParagraph(wordDoc, "МРЕЖОВИ МНОГОСТРИНГОВИ ИНВЕРТОРИ", wordApp, level:=2)
         With Text
@@ -3575,10 +3661,7 @@ SAP
         dicObekt.Add("СРТ_Помещение_PIC", СРТ_Помещение_PIC)
         Dim СРТ_Кота_PIC = cu.GetObjects_TEXT("Изберете текст съдържаш котата на която се намира на ПИЦ/ДАТЧИКА")
         dicObekt.Add("СРТ_Кота_PIC", СРТ_Кота_PIC)
-
-
         Dim blkRecId As ObjectId = ObjectId.Null
-
         Dim ss_Tabla = cu.GetObjects("INSERT", "Изберете БЛОКОВЕТЕ в чертеж съдържащи ДАТЧИЦИТЕ ОТ ПИЦ:")
         If ss_Tabla Is Nothing Then
             MsgBox("Няма маркиран нито един блок.")

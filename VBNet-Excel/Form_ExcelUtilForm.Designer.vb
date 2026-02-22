@@ -1490,9 +1490,9 @@ Partial Class Form_ExcelUtilForm
         'TabPage6
         '
         Me.TabPage6.Controls.Add(Me.TableLayoutPanel3)
-        Me.TabPage6.Location = New System.Drawing.Point(4, 22)
+        Me.TabPage6.Location = New System.Drawing.Point(4, 29)
         Me.TabPage6.Name = "TabPage6"
-        Me.TabPage6.Size = New System.Drawing.Size(961, 465)
+        Me.TabPage6.Size = New System.Drawing.Size(961, 452)
         Me.TabPage6.TabIndex = 5
         Me.TabPage6.Text = "Табла"
         Me.TabPage6.UseVisualStyleBackColor = True
@@ -1517,7 +1517,7 @@ Partial Class Form_ExcelUtilForm
         Me.TableLayoutPanel3.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 37.0!))
         Me.TableLayoutPanel3.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 37.0!))
         Me.TableLayoutPanel3.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100.0!))
-        Me.TableLayoutPanel3.Size = New System.Drawing.Size(961, 465)
+        Me.TableLayoutPanel3.Size = New System.Drawing.Size(961, 452)
         Me.TableLayoutPanel3.TabIndex = 11
         '
         'Button_Вземи_АПАРАТИ
@@ -1902,10 +1902,10 @@ Partial Class Form_ExcelUtilForm
         'TabPage13
         '
         Me.TabPage13.Controls.Add(Me.TableLayoutPanel8)
-        Me.TabPage13.Location = New System.Drawing.Point(4, 29)
+        Me.TabPage13.Location = New System.Drawing.Point(4, 22)
         Me.TabPage13.Name = "TabPage13"
         Me.TabPage13.Padding = New System.Windows.Forms.Padding(3)
-        Me.TabPage13.Size = New System.Drawing.Size(961, 452)
+        Me.TabPage13.Size = New System.Drawing.Size(961, 465)
         Me.TabPage13.TabIndex = 9
         Me.TabPage13.Text = "Фотоволтаици"
         Me.TabPage13.UseVisualStyleBackColor = True
@@ -1935,7 +1935,7 @@ Partial Class Form_ExcelUtilForm
         Me.TableLayoutPanel8.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 37.0!))
         Me.TableLayoutPanel8.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 37.0!))
         Me.TableLayoutPanel8.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100.0!))
-        Me.TableLayoutPanel8.Size = New System.Drawing.Size(955, 446)
+        Me.TableLayoutPanel8.Size = New System.Drawing.Size(955, 459)
         Me.TableLayoutPanel8.TabIndex = 25
         '
         'Button_Изчисти_ФОТОВОЛТАИЦИ_Траншея

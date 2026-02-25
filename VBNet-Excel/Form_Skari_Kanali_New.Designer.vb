@@ -443,10 +443,9 @@ Partial Class Form_Skari_Kanali_New
         'GroupBox_Размери_Скари
         '
         Me.GroupBox_Размери_Скари.Controls.Add(Me.TableLayoutPanel)
-        Me.GroupBox_Размери_Скари.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.GroupBox_Размери_Скари.Location = New System.Drawing.Point(0, 0)
+        Me.GroupBox_Размери_Скари.Location = New System.Drawing.Point(196, 45)
         Me.GroupBox_Размери_Скари.Name = "GroupBox_Размери_Скари"
-        Me.GroupBox_Размери_Скари.Size = New System.Drawing.Size(924, 373)
+        Me.GroupBox_Размери_Скари.Size = New System.Drawing.Size(557, 275)
         Me.GroupBox_Размери_Скари.TabIndex = 1
         Me.GroupBox_Размери_Скари.TabStop = False
         Me.GroupBox_Размери_Скари.Text = "Размер на кабелната скара, mm"
@@ -498,7 +497,7 @@ Partial Class Form_Skari_Kanali_New
         Me.TableLayoutPanel.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 10.0!))
         Me.TableLayoutPanel.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 10.0!))
         Me.TableLayoutPanel.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 10.0!))
-        Me.TableLayoutPanel.Size = New System.Drawing.Size(918, 348)
+        Me.TableLayoutPanel.Size = New System.Drawing.Size(551, 250)
         Me.TableLayoutPanel.TabIndex = 0
         '
         'Label_0_9
@@ -506,9 +505,9 @@ Partial Class Form_Skari_Kanali_New
         Me.Label_0_9.AutoSize = True
         Me.Label_0_9.Dock = System.Windows.Forms.DockStyle.Fill
         Me.Label_0_9.Font = New System.Drawing.Font("Microsoft Sans Serif", 14.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
-        Me.Label_0_9.Location = New System.Drawing.Point(3, 306)
+        Me.Label_0_9.Location = New System.Drawing.Point(3, 225)
         Me.Label_0_9.Name = "Label_0_9"
-        Me.Label_0_9.Size = New System.Drawing.Size(85, 42)
+        Me.Label_0_9.Size = New System.Drawing.Size(49, 25)
         Me.Label_0_9.TabIndex = 59
         Me.Label_0_9.Text = "35"
         Me.Label_0_9.TextAlign = System.Drawing.ContentAlignment.MiddleCenter
@@ -518,9 +517,9 @@ Partial Class Form_Skari_Kanali_New
         Me.Label_0_8.AutoSize = True
         Me.Label_0_8.Dock = System.Windows.Forms.DockStyle.Fill
         Me.Label_0_8.Font = New System.Drawing.Font("Microsoft Sans Serif", 14.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
-        Me.Label_0_8.Location = New System.Drawing.Point(3, 272)
+        Me.Label_0_8.Location = New System.Drawing.Point(3, 200)
         Me.Label_0_8.Name = "Label_0_8"
-        Me.Label_0_8.Size = New System.Drawing.Size(85, 34)
+        Me.Label_0_8.Size = New System.Drawing.Size(49, 25)
         Me.Label_0_8.TabIndex = 58
         Me.Label_0_8.Text = "600"
         Me.Label_0_8.TextAlign = System.Drawing.ContentAlignment.MiddleCenter
@@ -530,9 +529,9 @@ Partial Class Form_Skari_Kanali_New
         Me.Label_0_7.AutoSize = True
         Me.Label_0_7.Dock = System.Windows.Forms.DockStyle.Fill
         Me.Label_0_7.Font = New System.Drawing.Font("Microsoft Sans Serif", 14.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
-        Me.Label_0_7.Location = New System.Drawing.Point(3, 238)
+        Me.Label_0_7.Location = New System.Drawing.Point(3, 175)
         Me.Label_0_7.Name = "Label_0_7"
-        Me.Label_0_7.Size = New System.Drawing.Size(85, 34)
+        Me.Label_0_7.Size = New System.Drawing.Size(49, 25)
         Me.Label_0_7.TabIndex = 57
         Me.Label_0_7.Text = "500"
         Me.Label_0_7.TextAlign = System.Drawing.ContentAlignment.MiddleCenter
@@ -542,9 +541,9 @@ Partial Class Form_Skari_Kanali_New
         Me.Label_0_6.AutoSize = True
         Me.Label_0_6.Dock = System.Windows.Forms.DockStyle.Fill
         Me.Label_0_6.Font = New System.Drawing.Font("Microsoft Sans Serif", 14.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
-        Me.Label_0_6.Location = New System.Drawing.Point(3, 204)
+        Me.Label_0_6.Location = New System.Drawing.Point(3, 150)
         Me.Label_0_6.Name = "Label_0_6"
-        Me.Label_0_6.Size = New System.Drawing.Size(85, 34)
+        Me.Label_0_6.Size = New System.Drawing.Size(49, 25)
         Me.Label_0_6.TabIndex = 56
         Me.Label_0_6.Text = "400"
         Me.Label_0_6.TextAlign = System.Drawing.ContentAlignment.MiddleCenter
@@ -554,9 +553,9 @@ Partial Class Form_Skari_Kanali_New
         Me.Label_0_5.AutoSize = True
         Me.Label_0_5.Dock = System.Windows.Forms.DockStyle.Fill
         Me.Label_0_5.Font = New System.Drawing.Font("Microsoft Sans Serif", 14.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
-        Me.Label_0_5.Location = New System.Drawing.Point(3, 170)
+        Me.Label_0_5.Location = New System.Drawing.Point(3, 125)
         Me.Label_0_5.Name = "Label_0_5"
-        Me.Label_0_5.Size = New System.Drawing.Size(85, 34)
+        Me.Label_0_5.Size = New System.Drawing.Size(49, 25)
         Me.Label_0_5.TabIndex = 55
         Me.Label_0_5.Text = "300"
         Me.Label_0_5.TextAlign = System.Drawing.ContentAlignment.MiddleCenter
@@ -566,9 +565,9 @@ Partial Class Form_Skari_Kanali_New
         Me.Label_0_4.AutoSize = True
         Me.Label_0_4.Dock = System.Windows.Forms.DockStyle.Fill
         Me.Label_0_4.Font = New System.Drawing.Font("Microsoft Sans Serif", 14.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
-        Me.Label_0_4.Location = New System.Drawing.Point(3, 136)
+        Me.Label_0_4.Location = New System.Drawing.Point(3, 100)
         Me.Label_0_4.Name = "Label_0_4"
-        Me.Label_0_4.Size = New System.Drawing.Size(85, 34)
+        Me.Label_0_4.Size = New System.Drawing.Size(49, 25)
         Me.Label_0_4.TabIndex = 54
         Me.Label_0_4.Text = "200"
         Me.Label_0_4.TextAlign = System.Drawing.ContentAlignment.MiddleCenter
@@ -578,9 +577,9 @@ Partial Class Form_Skari_Kanali_New
         Me.Label_0_3.AutoSize = True
         Me.Label_0_3.Dock = System.Windows.Forms.DockStyle.Fill
         Me.Label_0_3.Font = New System.Drawing.Font("Microsoft Sans Serif", 14.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
-        Me.Label_0_3.Location = New System.Drawing.Point(3, 102)
+        Me.Label_0_3.Location = New System.Drawing.Point(3, 75)
         Me.Label_0_3.Name = "Label_0_3"
-        Me.Label_0_3.Size = New System.Drawing.Size(85, 34)
+        Me.Label_0_3.Size = New System.Drawing.Size(49, 25)
         Me.Label_0_3.TabIndex = 53
         Me.Label_0_3.Text = "150"
         Me.Label_0_3.TextAlign = System.Drawing.ContentAlignment.MiddleCenter
@@ -590,9 +589,9 @@ Partial Class Form_Skari_Kanali_New
         Me.Label_0_2.AutoSize = True
         Me.Label_0_2.Dock = System.Windows.Forms.DockStyle.Fill
         Me.Label_0_2.Font = New System.Drawing.Font("Microsoft Sans Serif", 14.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
-        Me.Label_0_2.Location = New System.Drawing.Point(3, 68)
+        Me.Label_0_2.Location = New System.Drawing.Point(3, 50)
         Me.Label_0_2.Name = "Label_0_2"
-        Me.Label_0_2.Size = New System.Drawing.Size(85, 34)
+        Me.Label_0_2.Size = New System.Drawing.Size(49, 25)
         Me.Label_0_2.TabIndex = 52
         Me.Label_0_2.Text = "100"
         Me.Label_0_2.TextAlign = System.Drawing.ContentAlignment.MiddleCenter
@@ -602,9 +601,9 @@ Partial Class Form_Skari_Kanali_New
         Me.Label_0_1.AutoSize = True
         Me.Label_0_1.Dock = System.Windows.Forms.DockStyle.Fill
         Me.Label_0_1.Font = New System.Drawing.Font("Microsoft Sans Serif", 14.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
-        Me.Label_0_1.Location = New System.Drawing.Point(3, 34)
+        Me.Label_0_1.Location = New System.Drawing.Point(3, 25)
         Me.Label_0_1.Name = "Label_0_1"
-        Me.Label_0_1.Size = New System.Drawing.Size(85, 34)
+        Me.Label_0_1.Size = New System.Drawing.Size(49, 25)
         Me.Label_0_1.TabIndex = 51
         Me.Label_0_1.Text = "50"
         Me.Label_0_1.TextAlign = System.Drawing.ContentAlignment.MiddleCenter
@@ -614,9 +613,9 @@ Partial Class Form_Skari_Kanali_New
         Me.Label_1_1.AutoSize = True
         Me.Label_1_1.Dock = System.Windows.Forms.DockStyle.Fill
         Me.Label_1_1.Font = New System.Drawing.Font("Microsoft Sans Serif", 14.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
-        Me.Label_1_1.Location = New System.Drawing.Point(94, 0)
+        Me.Label_1_1.Location = New System.Drawing.Point(58, 0)
         Me.Label_1_1.Name = "Label_1_1"
-        Me.Label_1_1.Size = New System.Drawing.Size(85, 34)
+        Me.Label_1_1.Size = New System.Drawing.Size(49, 25)
         Me.Label_1_1.TabIndex = 45
         Me.Label_1_1.Text = "35"
         Me.Label_1_1.TextAlign = System.Drawing.ContentAlignment.MiddleCenter
@@ -626,9 +625,9 @@ Partial Class Form_Skari_Kanali_New
         Me.Label_1_2.AutoSize = True
         Me.Label_1_2.Dock = System.Windows.Forms.DockStyle.Fill
         Me.Label_1_2.Font = New System.Drawing.Font("Microsoft Sans Serif", 14.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
-        Me.Label_1_2.Location = New System.Drawing.Point(185, 0)
+        Me.Label_1_2.Location = New System.Drawing.Point(113, 0)
         Me.Label_1_2.Name = "Label_1_2"
-        Me.Label_1_2.Size = New System.Drawing.Size(85, 34)
+        Me.Label_1_2.Size = New System.Drawing.Size(49, 25)
         Me.Label_1_2.TabIndex = 46
         Me.Label_1_2.Text = "60"
         Me.Label_1_2.TextAlign = System.Drawing.ContentAlignment.MiddleCenter
@@ -638,9 +637,9 @@ Partial Class Form_Skari_Kanali_New
         Me.Label_1_3.AutoSize = True
         Me.Label_1_3.Dock = System.Windows.Forms.DockStyle.Fill
         Me.Label_1_3.Font = New System.Drawing.Font("Microsoft Sans Serif", 14.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
-        Me.Label_1_3.Location = New System.Drawing.Point(276, 0)
+        Me.Label_1_3.Location = New System.Drawing.Point(168, 0)
         Me.Label_1_3.Name = "Label_1_3"
-        Me.Label_1_3.Size = New System.Drawing.Size(85, 34)
+        Me.Label_1_3.Size = New System.Drawing.Size(49, 25)
         Me.Label_1_3.TabIndex = 47
         Me.Label_1_3.Text = "85"
         Me.Label_1_3.TextAlign = System.Drawing.ContentAlignment.MiddleCenter
@@ -650,9 +649,9 @@ Partial Class Form_Skari_Kanali_New
         Me.Label_1_4.AutoSize = True
         Me.Label_1_4.Dock = System.Windows.Forms.DockStyle.Fill
         Me.Label_1_4.Font = New System.Drawing.Font("Microsoft Sans Serif", 14.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
-        Me.Label_1_4.Location = New System.Drawing.Point(367, 0)
+        Me.Label_1_4.Location = New System.Drawing.Point(223, 0)
         Me.Label_1_4.Name = "Label_1_4"
-        Me.Label_1_4.Size = New System.Drawing.Size(85, 34)
+        Me.Label_1_4.Size = New System.Drawing.Size(49, 25)
         Me.Label_1_4.TabIndex = 48
         Me.Label_1_4.Text = "110"
         Me.Label_1_4.TextAlign = System.Drawing.ContentAlignment.MiddleCenter
@@ -662,9 +661,9 @@ Partial Class Form_Skari_Kanali_New
         Me.Label_1_5.AutoSize = True
         Me.Label_1_5.Dock = System.Windows.Forms.DockStyle.Fill
         Me.Label_1_5.Font = New System.Drawing.Font("Microsoft Sans Serif", 14.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
-        Me.Label_1_5.Location = New System.Drawing.Point(458, 0)
+        Me.Label_1_5.Location = New System.Drawing.Point(278, 0)
         Me.Label_1_5.Name = "Label_1_5"
-        Me.Label_1_5.Size = New System.Drawing.Size(85, 34)
+        Me.Label_1_5.Size = New System.Drawing.Size(49, 25)
         Me.Label_1_5.TabIndex = 60
         Me.Label_1_5.Text = "110"
         Me.Label_1_5.TextAlign = System.Drawing.ContentAlignment.MiddleCenter
@@ -674,9 +673,9 @@ Partial Class Form_Skari_Kanali_New
         Me.Label_1_6.AutoSize = True
         Me.Label_1_6.Dock = System.Windows.Forms.DockStyle.Fill
         Me.Label_1_6.Font = New System.Drawing.Font("Microsoft Sans Serif", 14.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
-        Me.Label_1_6.Location = New System.Drawing.Point(549, 0)
+        Me.Label_1_6.Location = New System.Drawing.Point(333, 0)
         Me.Label_1_6.Name = "Label_1_6"
-        Me.Label_1_6.Size = New System.Drawing.Size(85, 34)
+        Me.Label_1_6.Size = New System.Drawing.Size(49, 25)
         Me.Label_1_6.TabIndex = 61
         Me.Label_1_6.Text = "110"
         Me.Label_1_6.TextAlign = System.Drawing.ContentAlignment.MiddleCenter
@@ -686,9 +685,9 @@ Partial Class Form_Skari_Kanali_New
         Me.Label_1_7.AutoSize = True
         Me.Label_1_7.Dock = System.Windows.Forms.DockStyle.Fill
         Me.Label_1_7.Font = New System.Drawing.Font("Microsoft Sans Serif", 14.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
-        Me.Label_1_7.Location = New System.Drawing.Point(640, 0)
+        Me.Label_1_7.Location = New System.Drawing.Point(388, 0)
         Me.Label_1_7.Name = "Label_1_7"
-        Me.Label_1_7.Size = New System.Drawing.Size(85, 34)
+        Me.Label_1_7.Size = New System.Drawing.Size(49, 25)
         Me.Label_1_7.TabIndex = 62
         Me.Label_1_7.Text = "110"
         Me.Label_1_7.TextAlign = System.Drawing.ContentAlignment.MiddleCenter
@@ -698,9 +697,9 @@ Partial Class Form_Skari_Kanali_New
         Me.Label_1_8.AutoSize = True
         Me.Label_1_8.Dock = System.Windows.Forms.DockStyle.Fill
         Me.Label_1_8.Font = New System.Drawing.Font("Microsoft Sans Serif", 14.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
-        Me.Label_1_8.Location = New System.Drawing.Point(731, 0)
+        Me.Label_1_8.Location = New System.Drawing.Point(443, 0)
         Me.Label_1_8.Name = "Label_1_8"
-        Me.Label_1_8.Size = New System.Drawing.Size(85, 34)
+        Me.Label_1_8.Size = New System.Drawing.Size(49, 25)
         Me.Label_1_8.TabIndex = 63
         Me.Label_1_8.Text = "110"
         Me.Label_1_8.TextAlign = System.Drawing.ContentAlignment.MiddleCenter
@@ -710,9 +709,9 @@ Partial Class Form_Skari_Kanali_New
         Me.Label_1_9.AutoSize = True
         Me.Label_1_9.Dock = System.Windows.Forms.DockStyle.Fill
         Me.Label_1_9.Font = New System.Drawing.Font("Microsoft Sans Serif", 14.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
-        Me.Label_1_9.Location = New System.Drawing.Point(822, 0)
+        Me.Label_1_9.Location = New System.Drawing.Point(498, 0)
         Me.Label_1_9.Name = "Label_1_9"
-        Me.Label_1_9.Size = New System.Drawing.Size(93, 34)
+        Me.Label_1_9.Size = New System.Drawing.Size(50, 25)
         Me.Label_1_9.TabIndex = 64
         Me.Label_1_9.Text = "110"
         Me.Label_1_9.TextAlign = System.Drawing.ContentAlignment.MiddleCenter

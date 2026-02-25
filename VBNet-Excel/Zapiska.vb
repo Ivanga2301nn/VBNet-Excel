@@ -1386,28 +1386,33 @@ Public Class Zapiska
         ' Получаване на базата данни на активния документ
         Dim acCurDb As Database = acDoc.Database
         ' Започване на транзакция
-        Using actrans As Transaction = acDoc.TransactionManager.StartTransaction()
-            Dim acBlkTbl As BlockTable = actrans.GetObject(acCurDb.BlockTableId, OpenMode.ForRead)
-            ' Получаване на ID на записа на блока "Insert_Signature" в таблицата на блоковете
-            Dim blkRecId As ObjectId = acBlkTbl("Insert_Signature")
-            ' Получаване на записа на блока
-            Dim acBlkTblRec As BlockTableRecord = actrans.GetObject(blkRecId, OpenMode.ForRead)
-            ' Обхождане на всички блокови референции за блока "Insert_Signature"
-            For Each blkRefId As ObjectId In acBlkTblRec.GetBlockReferenceIds(True, True)
-                ' Получаване на блоковата референция
-                Dim acBlkRef As BlockReference = actrans.GetObject(blkRefId, OpenMode.ForWrite)
-                ' Получаване на колекцията от атрибути на блоковата референция
-                Dim attCol As AttributeCollection = acBlkRef.AttributeCollection
-                ' Обхождане на всички атрибути
-                For Each objID As ObjectId In attCol
-                    ' Получаване на атрибута
-                    Dim dbObj As DBObject = actrans.GetObject(objID, OpenMode.ForWrite)
-                    Dim acAttRef As AttributeReference = dbObj
-                    ' Проверка тагът на атрибута и промяна на текста на атрибута
-                    zapis.Add(acAttRef.Tag, acAttRef.TextString)
+        Try
+            Using actrans As Transaction = acDoc.TransactionManager.StartTransaction()
+                Dim acBlkTbl As BlockTable = actrans.GetObject(acCurDb.BlockTableId, OpenMode.ForRead)
+                ' Получаване на ID на записа на блока "Insert_Signature" в таблицата на блоковете
+                Dim blkRecId As ObjectId = acBlkTbl("Insert_Signature")
+                ' Получаване на записа на блока
+                Dim acBlkTblRec As BlockTableRecord = actrans.GetObject(blkRecId, OpenMode.ForRead)
+                ' Обхождане на всички блокови референции за блока "Insert_Signature"
+                For Each blkRefId As ObjectId In acBlkTblRec.GetBlockReferenceIds(True, True)
+                    ' Получаване на блоковата референция
+                    Dim acBlkRef As BlockReference = actrans.GetObject(blkRefId, OpenMode.ForWrite)
+                    ' Получаване на колекцията от атрибути на блоковата референция
+                    Dim attCol As AttributeCollection = acBlkRef.AttributeCollection
+                    ' Обхождане на всички атрибути
+                    For Each objID As ObjectId In attCol
+                        ' Получаване на атрибута
+                        Dim dbObj As DBObject = actrans.GetObject(objID, OpenMode.ForWrite)
+                        Dim acAttRef As AttributeReference = dbObj
+                        ' Проверка тагът на атрибута и промяна на текста на атрибута
+                        zapis.Add(acAttRef.Tag, acAttRef.TextString)
+                    Next
                 Next
-            Next
-        End Using
+            End Using
+        Catch ex As Exception
+
+        End Try
+
         Dim stackTrace As New StackTrace()
         Dim callingMethod As StackFrame = stackTrace.GetFrame(1)
         Dim methodName As String = callingMethod.GetMethod().Name

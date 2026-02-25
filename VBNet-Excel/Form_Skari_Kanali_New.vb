@@ -1,16 +1,17 @@
 ﻿Imports System.ComponentModel
 Imports System.Drawing
+Imports System.Drawing.Drawing2D
 Imports System.IO
 Imports System.Net
 Imports System.Runtime.InteropServices
 Imports System.Windows.Forms
+Imports System.Windows.Forms.VisualStyles.VisualStyleElement
 Imports Autodesk.AutoCAD.ApplicationServices
 Imports Autodesk.AutoCAD.DatabaseServices
 Imports Autodesk.AutoCAD.EditorInput
 Imports Autodesk.AutoCAD.Geometry
 Imports Autodesk.AutoCAD.Runtime
 
-Imports System.Drawing.Drawing2D
 
 Public Class Form_Skari_Kanali_New
 
@@ -25,6 +26,7 @@ Public Class Form_Skari_Kanali_New
     Dim Шир As Double = 0
     Dim Вис As Double = 0
     Dim razdelitel As Integer = 0
+
     Structure Скара
         Dim Ширина As String
         Dim Височина As String
@@ -46,6 +48,10 @@ Public Class Form_Skari_Kanali_New
     Public DuctCatalog As New List(Of Скара)
     Dim Kabel(200) As strLine
 
+    Private Sub DataGridView_Кабели_DataError(sender As Object, e As DataGridViewDataErrorEventArgs) _
+    Handles DataGridView_Кабели.DataError
+        e.Cancel = True  ' Игнорирай грешката
+    End Sub
     Private Sub Skari_Kanali_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         Line_Selected = cu.GetObjects("LINE", "Изберете линии за кабеланата скара/канал:")
         If Line_Selected Is Nothing Then
@@ -62,6 +68,7 @@ Public Class Form_Skari_Kanali_New
 
         Set_array_Kabel()
         Label_Площ.Text = "Площ: " + summaKabeli.ToString + " mm"
+
     End Sub
     Private Sub Set_array_Kabel()
         If Line_Selected Is Nothing Then Exit Sub
@@ -149,7 +156,7 @@ Public Class Form_Skari_Kanali_New
     Handles RadioButton_Скара.CheckedChanged
 
         If RadioButton_Скара.Checked Then
-
+            GroupBox_Размери_Скари.Visible = True
             GroupBox3.Visible = True
             Izbor_Element(15, TrayCatalog)
             CreateGrid("Скара")
@@ -161,7 +168,7 @@ Public Class Form_Skari_Kanali_New
             End If
 
             ' 3. Изчакай анимацията да завърши
-            Await UpdateProgressBarsAnimated(TrayCatalog, 500, fillPercent)
+            Await UpdateProgressBarsAnimated(TrayCatalog, 250, fillPercent)
 
             Label_Skara.Text = "Скара [ШхВ]"
         End If
@@ -172,25 +179,6 @@ Public Class Form_Skari_Kanali_New
         Izbor_Element(0, DuctCatalog)
         CreateGrid("Канал")
         Label_Skara.Text = "Канал [ШхВ]"
-        Label_1_1.Text = "12"
-        Label_1_2.Text = "16"
-        Label_1_3.Text = "20"
-        Label_1_4.Text = "25"
-        Label_1_5.Text = "40"
-        Label_1_6.Text = "60"
-        Label_1_7.Text = "80"
-        Label_1_8.Text = "100"
-        Label_1_9.Text = "140"
-
-        Label_0_1.Text = "12"
-        Label_0_2.Text = "16"
-        Label_0_3.Text = "25"
-        Label_0_4.Text = "40"
-        Label_0_5.Text = "60"
-        Label_0_6.Text = "80"
-        Label_0_7.Text = "100"
-        Label_0_8.Text = "120"
-        Label_0_9.Text = "140"
         GroupBox_Размери_Скари.Visible = True
     End Sub
     Private Sub RadioButton_Тръба_CheckedChanged(sender As Object, e As EventArgs) Handles RadioButton_Тръба.CheckedChanged
@@ -201,6 +189,14 @@ Public Class Form_Skari_Kanali_New
     Private Sub NumericUpDown_Razdelitel_ValueChanged(sender As Object, e As EventArgs) Handles NumericUpDown_Razdelitel.ValueChanged
         razdelitel = NumericUpDown_Razdelitel.Value
         Izbor_Element(15, TrayCatalog)
+
+        ' 2. Вземи процента от ComboBox
+        Dim fillPercent As Double = 40
+        If ComboBox_Процент_Запълване.SelectedItem IsNot Nothing Then
+            Double.TryParse(ComboBox_Процент_Запълване.SelectedItem.ToString(), fillPercent)
+        End If
+        ' 3. Изчакай анимацията да завърши
+        UpdateProgressBarsAnimated(TrayCatalog, 250, fillPercent)
     End Sub
     Private Sub DataGridView_Кабели_CellValueChanged(sender As Object, e As DataGridViewCellEventArgs) Handles DataGridView_Кабели.CellValueChanged
         Set_array_Kabel()
@@ -211,6 +207,14 @@ Public Class Form_Skari_Kanali_New
             Izbor_Element(0, DuctCatalog)
         Else
             Izbor_Element(15, TrayCatalog)
+            ' 2. Вземи процента от ComboBox
+            Dim fillPercent As Double = 40
+            If ComboBox_Процент_Запълване.SelectedItem IsNot Nothing Then
+                Double.TryParse(ComboBox_Процент_Запълване.SelectedItem.ToString(), fillPercent)
+            End If
+
+            ' 3. Изчакай анимацията да завърши
+            UpdateProgressBarsAnimated(TrayCatalog, 250, fillPercent)
         End If
     End Sub
     ''' <summary>
@@ -267,8 +271,15 @@ Public Class Form_Skari_Kanali_New
             Dim w As Double = CDbl(currentTray.Ширина)
             Dim h As Double = CDbl(currentTray.Височина)
             Dim effectiveWidth As Double = w - (numDividers * separatorWidth)
-            ' Изчисляваме реалния процент (математически)
 
+            If effectiveWidth <= 0 Then
+                ' Трейът е твърде малък за толкова разделители - не може да се използва
+                currentTray.Процент = 100  ' Маркирай го като "препълнен"
+                sortedCatalog(i) = currentTray
+                Continue For  ' Премини към следващия трей
+            End If
+
+            ' Изчисляваме реалния процент (математически)
             Dim effectiveArea As Double = effectiveWidth * h
             ' Тук записваме реалната стойност (може да е 20%, може да е 500%)
             currentTray.Процент = (totalCableArea / effectiveArea) * 100
@@ -289,16 +300,15 @@ Public Class Form_Skari_Kanali_New
         ' Връщаме целия списък обратно в оригиналния Catalog, за да ползваме изчислените проценти
         Catalog = sortedCatalog
         'UpdateProgressBars(Catalog)
-        Dim fillPercent As Double
-        If ComboBox_Процент_Запълване.SelectedItem IsNot Nothing Then
-            Double.TryParse(ComboBox_Процент_Запълване.SelectedItem.ToString(), fillPercent)
-        End If
+        'Dim fillPercent As Double
+        'If ComboBox_Процент_Запълване.SelectedItem IsNot Nothing Then
+        '    Double.TryParse(ComboBox_Процент_Запълване.SelectedItem.ToString(), fillPercent)
+        'End If
 
-        ' ⬇️ И ОБНОВИ ИЗВИКВАНЕТО ⬇️
-        UpdateProgressBarsAnimated(TrayCatalog, 500, fillPercent)
+        '' ⬇️ И ОБНОВИ ИЗВИКВАНЕТО ⬇️
+        'UpdateProgressBarsAnimated(TrayCatalog, 3200, fillPercent)
         Return foundTray
     End Function
-
     ''' <summary>
     ''' Инициализира каталога със скари (TrayCatalog),
     ''' като зарежда предварително дефинирани комбинации
@@ -540,7 +550,6 @@ Public Class Form_Skari_Kanali_New
             Next
         Next
     End Sub
-
     Private Sub UpdateProgressBars(ByRef Catalog As List(Of Скара))
         For row As Integer = 1 To TableLayoutPanel.RowCount - 1
             For col As Integer = 1 To TableLayoutPanel.ColumnCount - 1
@@ -591,7 +600,6 @@ Public Class Form_Skari_Kanali_New
         Next
         TableLayoutPanel.Refresh()
     End Sub
-
     ' ⬇️ НОВА ПРОЦЕДУРА ВЪВ ФОРМАТА ⬇️
     Private Sub TrayProgressBar_Click(sender As Object, e As TrayClickEventArgs)
         ' ⚠️ ТУК ЩЕ ВИКНЕМ БЪДЕЩАТА ПРОЦЕДУРА ЗА AutoCAD ⚠️
@@ -604,8 +612,6 @@ Public Class Form_Skari_Kanali_New
         MessageBox.Show($"Избрана скара: {e.Width}x{e.Height} мм" & vbCrLf &
                     $"Запълване: {e.Percent:F1}%", "Инфо")
     End Sub
-
-
     ''' <summary>
     ''' Анимира всички GradientProgressBar контроли в TableLayoutPanel
     ''' според процента на запълване на съответните скари от подадения каталог.
@@ -672,11 +678,8 @@ Public Class Form_Skari_Kanali_New
                 End If
             Next
         Next
-
         ' 2. Изчисли крайните стойности
         Dim targetValues As New Dictionary(Of String, Integer)
-        Dim targetColors As New Dictionary(Of String, Tuple(Of Color, Color))
-
         For row As Integer = 1 To TableLayoutPanel.RowCount - 1
             For col As Integer = 1 To TableLayoutPanel.ColumnCount - 1
                 Dim ctrl = TableLayoutPanel.GetControlFromPosition(col, row)
@@ -716,26 +719,22 @@ Public Class Form_Skari_Kanali_New
                                     startColor = Color.FromArgb(255, 200, 200)  ' Бледо червено
                                     endColor = Color.FromArgb(150, 0, 0)        ' Тъмно червено
                             End Select
-                            ' Запази цветовете
-                            targetColors(gp.Name) = Tuple.Create(startColor, endColor)
+                            gp.StartColor = startColor
+                            gp.EndColor = endColor
                         End If
                     End If
                 End If
             Next
         Next
-
         ' 3. Анимация - плавно пълнене
         Dim steps As Integer = 10
         Dim delayPerStep As Integer = durationMs \ steps
-
-        For iStep As Integer = 1 To steps  ' ⬅️ ПРОМЯНА: step → iStep
+        For iStep As Integer = 1 To steps  ' 
             Dim currentPercent As Double = iStep / steps
-
             For Each kvp In targetValues
                 Dim gpName As String = kvp.Key
                 Dim targetValue As Integer = kvp.Value
                 Dim animatedValue As Integer = CInt(targetValue * currentPercent)
-
                 ' Намери контрола по име
                 For row As Integer = 1 To TableLayoutPanel.RowCount - 1
                     For col As Integer = 1 To TableLayoutPanel.ColumnCount - 1
@@ -756,8 +755,7 @@ Public Class Form_Skari_Kanali_New
             ' Изчакай преди следващата стъпка
             Await Task.Delay(delayPerStep)
         Next
-
-        ' 4. Финализирай със точните стойности и цветове
+        ' 5. Финализирай (само стойностите и текста, цветовете вече са зададени)
         For row As Integer = 1 To TableLayoutPanel.RowCount - 1
             For col As Integer = 1 To TableLayoutPanel.ColumnCount - 1
                 Dim ctrl = TableLayoutPanel.GetControlFromPosition(col, row)
@@ -766,22 +764,13 @@ Public Class Form_Skari_Kanali_New
                     If targetValues.ContainsKey(gp.Name) Then
                         gp.Value = targetValues(gp.Name)
                         gp.ShowText = True
-
-                        ' Приложи цветовете
-                        If targetColors.ContainsKey(gp.Name) Then
-                            gp.StartColor = targetColors(gp.Name).Item1
-                            gp.EndColor = targetColors(gp.Name).Item2
-                        End If
                     End If
                 End If
             Next
         Next
         TableLayoutPanel.Refresh()
     End Function
-
 End Class
-
-
 ' ⬇️ НОВ КЛАС ЗА АРГУМЕНТИТЕ ⬇️
 Public Class TrayClickEventArgs
     Inherits EventArgs
@@ -796,23 +785,18 @@ Public Class TrayClickEventArgs
         Me.Percent = p
     End Sub
 End Class
-
 Public Class GradientProgressBar
     Inherits Control
-
     Public Event ProgressBarClicked As EventHandler(Of TrayClickEventArgs)
-
     Private _value As Integer = 0
     Private _maximum As Integer = 100
     Private _minimum As Integer = 0
-    Private _startColor As Color = Color.FromArgb(0, 192, 0)
-    Private _endColor As Color = Color.FromArgb(0, 128, 255)
+    Private _startColor As Color = Color.FromArgb(230, 230, 230)  ' Светло сиво
+    Private _endColor As Color = Color.FromArgb(200, 200, 200)    ' Тъмно сиво
     Private _showText As Boolean = True
     Private _borderColor As Color = Color.Gray
-
     Private _width As String = ""
     Private _height As String = ""
-
     <Category("Data")>
     Public Property TrayWidth As String
         Get
@@ -822,7 +806,6 @@ Public Class GradientProgressBar
             _width = v
         End Set
     End Property
-
     <Category("Data")>
     Public Property TrayHeight As String
         Get
@@ -832,7 +815,6 @@ Public Class GradientProgressBar
             _height = v
         End Set
     End Property
-
     <Category("Behavior")>
     Public Property Value As Integer
         Get
@@ -843,7 +825,6 @@ Public Class GradientProgressBar
             Me.Invalidate()
         End Set
     End Property
-
     <Category("Behavior")>
     Public Property Maximum As Integer
         Get
@@ -854,7 +835,6 @@ Public Class GradientProgressBar
             Me.Invalidate()
         End Set
     End Property
-
     <Category("Behavior")>
     Public Property Minimum As Integer
         Get
@@ -865,7 +845,6 @@ Public Class GradientProgressBar
             Me.Invalidate()
         End Set
     End Property
-
     <Category("Appearance")>
     Public Property StartColor As System.Drawing.Color
         Get
@@ -876,7 +855,6 @@ Public Class GradientProgressBar
             Me.Invalidate()
         End Set
     End Property
-
     <Category("Appearance")>
     Public Property EndColor As System.Drawing.Color
         Get
@@ -887,7 +865,6 @@ Public Class GradientProgressBar
             Me.Invalidate()
         End Set
     End Property
-
     <Category("Appearance")>
     Public Property ShowText As Boolean
         Get
@@ -898,7 +875,6 @@ Public Class GradientProgressBar
             Me.Invalidate()
         End Set
     End Property
-
     <Category("Appearance")>
     Public Property BorderColor As System.Drawing.Color
         Get
@@ -909,7 +885,6 @@ Public Class GradientProgressBar
             Me.Invalidate()
         End Set
     End Property
-
     Protected Overrides Sub OnPaint(e As PaintEventArgs)
         MyBase.OnPaint(e)
 
@@ -984,15 +959,12 @@ Public Class GradientProgressBar
         MyBase.OnResize(e)
         Me.SetStyle(ControlStyles.AllPaintingInWmPaint Or ControlStyles.OptimizedDoubleBuffer, True)
     End Sub
-
     Protected Overrides Sub OnClick(e As EventArgs)
         MyBase.OnClick(e)
 
         ' Вдигни събитието с данните
         RaiseEvent ProgressBarClicked(Me, New TrayClickEventArgs(_width, _height, CSng(_value)))
     End Sub
-
-    ' За да работи кликът, трябва да е clickable контрол
     Protected Overrides Sub OnMouseClick(e As MouseEventArgs)
         MyBase.OnMouseClick(e)
         Me.Invalidate()  ' Опционално: визуален反馈 при клик

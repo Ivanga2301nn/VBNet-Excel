@@ -47,7 +47,6 @@ Public Class Form_Skari_Kanali_New
     Public TrayCatalog As New List(Of Скара)
     Public DuctCatalog As New List(Of Скара)
     Dim Kabel(200) As strLine
-
     Private Sub DataGridView_Кабели_DataError(sender As Object, e As DataGridViewDataErrorEventArgs) _
     Handles DataGridView_Кабели.DataError
         e.Cancel = True  ' Игнорирай грешката
@@ -152,34 +151,40 @@ Public Class Form_Skari_Kanali_New
             Exit Sub
         End If
     End Sub
-    Private Async Sub RadioButton_Скара_CheckedChanged(sender As Object, e As EventArgs) _
-    Handles RadioButton_Скара.CheckedChanged
-
+    Private Async Sub RadioButton_Скара_CheckedChanged(sender As Object, e As EventArgs) Handles RadioButton_Скара.CheckedChanged
         If RadioButton_Скара.Checked Then
+            GroupBox_Размери_Скари.Text = "Размер на кабелната скара, mm"
             GroupBox_Размери_Скари.Visible = True
             GroupBox3.Visible = True
             Izbor_Element(15, TrayCatalog)
             CreateGrid("Скара")
-
             ' 2. Вземи процента от ComboBox
             Dim fillPercent As Double = 40
             If ComboBox_Процент_Запълване.SelectedItem IsNot Nothing Then
                 Double.TryParse(ComboBox_Процент_Запълване.SelectedItem.ToString(), fillPercent)
             End If
-
             ' 3. Изчакай анимацията да завърши
             Await UpdateProgressBarsAnimated(TrayCatalog, 250, fillPercent)
-
             Label_Skara.Text = "Скара [ШхВ]"
         End If
     End Sub
-    Private Sub RadioButton_Канал_CheckedChanged(sender As Object, e As EventArgs) Handles RadioButton_Канал.CheckedChanged
-        GroupBox_Размери_Скари.Visible = False
-        GroupBox3.Visible = False
-        Izbor_Element(0, DuctCatalog)
-        CreateGrid("Канал")
-        Label_Skara.Text = "Канал [ШхВ]"
-        GroupBox_Размери_Скари.Visible = True
+    Private Async Sub RadioButton_Канал_CheckedChanged(sender As Object, e As EventArgs) Handles RadioButton_Канал.CheckedChanged
+        If RadioButton_Канал.Checked Then
+            GroupBox_Размери_Скари.Visible = False
+            GroupBox_Размери_Скари.Text = "Размер на кабелните канали, mm"
+            GroupBox3.Visible = False
+            Izbor_Element(0, DuctCatalog)
+            CreateGrid("Канал")
+            ' 2. Вземи процента от ComboBox
+            Dim fillPercent As Double = 40
+            If ComboBox_Процент_Запълване.SelectedItem IsNot Nothing Then
+                Double.TryParse(ComboBox_Процент_Запълване.SelectedItem.ToString(), fillPercent)
+            End If
+            ' 3. Изчакай анимацията да завърши
+            Await UpdateProgressBarsAnimated(DuctCatalog, 250, fillPercent)
+            Label_Skara.Text = "Канал [ШхВ]"
+            GroupBox_Размери_Скари.Visible = True
+        End If
     End Sub
     Private Sub RadioButton_Тръба_CheckedChanged(sender As Object, e As EventArgs) Handles RadioButton_Тръба.CheckedChanged
         GroupBox_Размери_Скари.Visible = False
@@ -203,17 +208,17 @@ Public Class Form_Skari_Kanali_New
         Label_Площ.Text = "Площ: " + summaKabeli.ToString + " mm²"
     End Sub
     Private Sub ComboBox_Процент_Запълване_SelectedIndexChanged(sender As Object, e As EventArgs) Handles ComboBox_Процент_Запълване.SelectedIndexChanged
+        ' 2. Вземи процента от ComboBox
+        Dim fillPercent As Double = 40
+        If ComboBox_Процент_Запълване.SelectedItem IsNot Nothing Then
+            Double.TryParse(ComboBox_Процент_Запълване.SelectedItem.ToString(), fillPercent)
+        End If
+
         If RadioButton_Канал.Checked = True Then
             Izbor_Element(0, DuctCatalog)
+            UpdateProgressBarsAnimated(DuctCatalog, 250, fillPercent)
         Else
             Izbor_Element(15, TrayCatalog)
-            ' 2. Вземи процента от ComboBox
-            Dim fillPercent As Double = 40
-            If ComboBox_Процент_Запълване.SelectedItem IsNot Nothing Then
-                Double.TryParse(ComboBox_Процент_Запълване.SelectedItem.ToString(), fillPercent)
-            End If
-
-            ' 3. Изчакай анимацията да завърши
             UpdateProgressBarsAnimated(TrayCatalog, 250, fillPercent)
         End If
     End Sub
@@ -295,18 +300,11 @@ Public Class Form_Skari_Kanali_New
         If foundTray.Ширина <> Nothing Then
             TextBox_Кабелна_Скара.Text = foundTray.Ширина & "x" & foundTray.Височина
         Else
-            TextBox_Кабелна_Скара.Text = "Няма подходящ размер"
+            TextBox_Кабелна_Скара.Text = "=Няма="
         End If
         ' Връщаме целия списък обратно в оригиналния Catalog, за да ползваме изчислените проценти
         Catalog = sortedCatalog
-        'UpdateProgressBars(Catalog)
-        'Dim fillPercent As Double
-        'If ComboBox_Процент_Запълване.SelectedItem IsNot Nothing Then
-        '    Double.TryParse(ComboBox_Процент_Запълване.SelectedItem.ToString(), fillPercent)
-        'End If
 
-        '' ⬇️ И ОБНОВИ ИЗВИКВАНЕТО ⬇️
-        'UpdateProgressBarsAnimated(TrayCatalog, 3200, fillPercent)
         Return foundTray
     End Function
     ''' <summary>
@@ -365,18 +363,13 @@ Public Class Form_Skari_Kanali_New
     End Sub
     Public Sub InitializeCatalog_Канали()
         DuctCatalog.Clear()
-        Dim widths12() As Integer = {12}
         Dim widths16() As Integer = {16, 25, 40}
         Dim widths20() As Integer = {20, 25, 40, 60, 80}
-        Dim widths25() As Integer = {25, 30, 40, 80}
+        Dim widths25() As Integer = {25, 40, 80}
         Dim widths40() As Integer = {25, 40, 60, 80, 100, 120}
-        Dim widths60() As Integer = {40, 60, 80, 100, 140, 180}
+        Dim widths60() As Integer = {40, 60, 80, 100, 140}
         Dim widths80() As Integer = {40, 60, 80}
-        Dim widths100() As Integer = {60}
-        Dim widths140() As Integer = {60}
-        For Each w In widths12
-            AddToCatalog(w, 12, DuctCatalog)
-        Next
+
         For Each w In widths16
             AddToCatalog(w, 16, DuctCatalog)
         Next
@@ -394,12 +387,6 @@ Public Class Form_Skari_Kanali_New
         Next
         For Each w In widths80
             AddToCatalog(w, 80, DuctCatalog)
-        Next
-        For Each w In widths100
-            AddToCatalog(w, 100, DuctCatalog)
-        Next
-        For Each w In widths140
-            AddToCatalog(w, 140, DuctCatalog)
         Next
     End Sub
     Private Sub CreateGradientProgressBars()
@@ -465,8 +452,8 @@ Public Class Form_Skari_Kanali_New
         TableLayoutPanel.ColumnStyles.Clear()
 
         ' Дефиниции за Скари и Канали
-        Dim widths() As Integer
-        Dim heights() As Integer
+        Dim widths() As Integer      ' ⬅️ ХОРИЗОНТАЛНО (колони)
+        Dim heights() As Integer     ' ⬅️ ВЕРТИКАЛНО (редове)
         Dim rows As Integer
         Dim cols As Integer
 
@@ -478,8 +465,8 @@ Public Class Form_Skari_Kanali_New
             cols = heights.Length + 1  ' 4 + 1 header = 5
         ElseIf tip = "Канал" Then
             ' Кабелни канали: 9 ширини × 9 височини
-            widths = {12, 16, 25, 40, 60, 80, 100, 120, 140}
-            heights = {12, 16, 20, 25, 40, 60, 80, 100, 140}
+            widths = {25, 40, 60, 80, 100, 120, 140}
+            heights = {20, 25, 40, 60, 80, 100, 140}
             rows = widths.Length + 1   ' 9 + 1 header = 10
             cols = heights.Length + 1  ' 9 + 1 header = 10
         End If
@@ -544,8 +531,6 @@ Public Class Form_Skari_Kanali_New
 
                 ' ⬇️ ДОБАВИ ТОВА ⬇️
                 AddHandler gp.ProgressBarClicked, AddressOf Me.TrayProgressBar_Click
-
-
                 TableLayoutPanel.Controls.Add(gp, col + 1, row + 1)
             Next
         Next

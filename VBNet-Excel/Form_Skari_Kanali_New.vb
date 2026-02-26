@@ -191,7 +191,7 @@ Public Class Form_Skari_Kanali_New
         GroupBox3.Visible = True
         Label_Skara.Text = "Тръба [ø]"
     End Sub
-    Private Sub NumericUpDown_Razdelitel_ValueChanged(sender As Object, e As EventArgs) Handles NumericUpDown_Razdelitel.ValueChanged
+    Private Async Sub NumericUpDown_Razdelitel_ValueChanged(sender As Object, e As EventArgs) Handles NumericUpDown_Razdelitel.ValueChanged
         razdelitel = NumericUpDown_Razdelitel.Value
         Izbor_Element(15, TrayCatalog)
 
@@ -201,13 +201,13 @@ Public Class Form_Skari_Kanali_New
             Double.TryParse(ComboBox_Процент_Запълване.SelectedItem.ToString(), fillPercent)
         End If
         ' 3. Изчакай анимацията да завърши
-        UpdateProgressBarsAnimated(TrayCatalog, 250, fillPercent)
+        Await UpdateProgressBarsAnimated(TrayCatalog, 250, fillPercent)
     End Sub
     Private Sub DataGridView_Кабели_CellValueChanged(sender As Object, e As DataGridViewCellEventArgs) Handles DataGridView_Кабели.CellValueChanged
         Set_array_Kabel()
         Label_Площ.Text = "Площ: " + summaKabeli.ToString + " mm²"
     End Sub
-    Private Sub ComboBox_Процент_Запълване_SelectedIndexChanged(sender As Object, e As EventArgs) Handles ComboBox_Процент_Запълване.SelectedIndexChanged
+    Private Async Sub ComboBox_Процент_Запълване_SelectedIndexChanged(sender As Object, e As EventArgs) Handles ComboBox_Процент_Запълване.SelectedIndexChanged
         ' 2. Вземи процента от ComboBox
         Dim fillPercent As Double = 40
         If ComboBox_Процент_Запълване.SelectedItem IsNot Nothing Then
@@ -216,10 +216,10 @@ Public Class Form_Skari_Kanali_New
 
         If RadioButton_Канал.Checked = True Then
             Izbor_Element(0, DuctCatalog)
-            UpdateProgressBarsAnimated(DuctCatalog, 250, fillPercent)
+            Await UpdateProgressBarsAnimated(DuctCatalog, 250, fillPercent)
         Else
             Izbor_Element(15, TrayCatalog)
-            UpdateProgressBarsAnimated(TrayCatalog, 250, fillPercent)
+            Await UpdateProgressBarsAnimated(TrayCatalog, 250, fillPercent)
         End If
     End Sub
     ''' <summary>

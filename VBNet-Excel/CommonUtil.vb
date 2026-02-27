@@ -507,60 +507,90 @@ Public Class CommonUtil
             Application.ShowAlertDialog("Number of objects selected: 0")
         End If
     End Sub
-    Public Function InsertBlock(BlockName As String,    ' име на блока който ще се вмъква
-                                InsertPoint As Point3d, ' точка на вмъкване
-                                layer As String,        ' слой на който ще се вмъква
-                                Scale As Scale3d        ' Скала на блока
-                                ) As ObjectId
-        ' Get the current database and start a transaction
+    ''' <summary>
+    ''' Вмъква блок по име в текущото пространство на чертежа,
+    ''' задава слой и скала, и създава неговите атрибути (ако има такива).
+    ''' </summary>
+    Public Function InsertBlock(BlockName As String,    ' Име на блока, който ще се вмъква
+                            InsertPoint As Point3d, ' Точка на вмъкване
+                            layer As String,        ' Слой на който ще бъде поставен
+                            Scale As Scale3d        ' Скала (X, Y, Z)
+                            ) As ObjectId           ' Връща ObjectId на новия блок
+        ' ------------------------------------------------------------
+        ' 1) Вземаме текущата AutoCAD база данни
+        ' ------------------------------------------------------------
         Dim acCurDb As Autodesk.AutoCAD.DatabaseServices.Database
         acCurDb = Application.DocumentManager.MdiActiveDocument.Database
-
+        ' ------------------------------------------------------------
+        ' 2) Стартираме Transaction (задължително при работа с DB)
+        ' ------------------------------------------------------------
         Using acTrans As Transaction = acCurDb.TransactionManager.StartTransaction()
-
-            ' Open the Block table for read
+            ' ------------------------------------------------------------
+            ' 3) Отваряме BlockTable за четене
+            ' ------------------------------------------------------------
             Dim acBlkTbl As BlockTable
             acBlkTbl = acTrans.GetObject(acCurDb.BlockTableId, OpenMode.ForRead)
+            ' ObjectId на дефиницията на блока
             Dim blkRecId As ObjectId = ObjectId.Null
+            ' Опитваме да вземем блока по име
             blkRecId = acBlkTbl(BlockName)
+            ' ObjectId на реално вмъкнатия блок
             Dim blkRecIdNow As ObjectId = ObjectId.Null
-
+            ' ------------------------------------------------------------
+            ' 4) Ако блокът не съществува → прекратяваме
+            ' ------------------------------------------------------------
             If blkRecId = ObjectId.Null Then
                 acTrans.Commit()
                 Return blkRecIdNow
-                Exit Function
             End If
-
-            ' Insert the block into the current space
+            ' ------------------------------------------------------------
+            ' 5) Отваряме BlockTableRecord (дефиницията на блока)
+            ' ------------------------------------------------------------
             Dim acBlkTblRec As BlockTableRecord
             acBlkTblRec = acTrans.GetObject(blkRecId, OpenMode.ForRead)
-
+            ' ------------------------------------------------------------
+            ' 6) Създаваме нов BlockReference (реалното вмъкване)
+            ' ------------------------------------------------------------
             Using acBlkRef As New BlockReference(InsertPoint, blkRecId)
+                ' Отваряме текущото пространство (ModelSpace / PaperSpace)
                 Dim acCurSpaceBlkTblRec As BlockTableRecord
                 acCurSpaceBlkTblRec = acTrans.GetObject(acCurDb.CurrentSpaceId, OpenMode.ForWrite)
+                ' Добавяме блока към пространството
                 acCurSpaceBlkTblRec.AppendEntity(acBlkRef)
                 acTrans.AddNewlyCreatedDBObject(acBlkRef, True)
+                ' Запазваме ObjectId на новия блок
                 blkRecIdNow = acBlkRef.ObjectId
+                ' ------------------------------------------------------------
+                ' 7) Настройваме слой и скала
+                ' ------------------------------------------------------------
                 acBlkRef.Layer = layer
-                ' Verify block table record has attribute definitions associated with it
-
                 acBlkRef.ScaleFactors = Scale
-
+                ' ------------------------------------------------------------
+                ' 8) Проверяваме дали блокът има атрибутни дефиниции
+                ' ------------------------------------------------------------
                 If Not acBlkTblRec.HasAttributeDefinitions Then
                     acTrans.Commit()
                     Return blkRecIdNow
-                    Exit Function
                 End If
-                ' Add attributes from the block table record
+                ' ------------------------------------------------------------
+                ' 9) Създаваме AttributeReference за всеки атрибут
+                ' ------------------------------------------------------------
                 For Each objID As ObjectId In acBlkTblRec
+                    ' Вземаме обекта от дефиницията
                     Dim dbObj As DBObject = acTrans.GetObject(objID, OpenMode.ForRead)
+                    ' Проверяваме дали е AttributeDefinition
                     If TypeOf dbObj Is AttributeDefinition Then
                         Dim acAtt As AttributeDefinition = dbObj
+                        ' Пропускаме константните атрибути
                         If Not acAtt.Constant Then
                             Using acAttRef As New AttributeReference
+                                ' Копиране на параметрите от дефиницията
                                 acAttRef.SetAttributeFromBlock(acAtt, acBlkRef.BlockTransform)
+                                ' Трансформиране на позицията според InsertPoint
                                 acAttRef.Position = acAtt.Position.TransformBy(acBlkRef.BlockTransform)
+                                ' Начална стойност на текста
                                 acAttRef.TextString = acAtt.TextString
+                                ' Добавяне към блока
                                 acBlkRef.AttributeCollection.AppendAttribute(acAttRef)
                                 acTrans.AddNewlyCreatedDBObject(acAttRef, True)
                             End Using
@@ -568,8 +598,11 @@ Public Class CommonUtil
                     End If
                 Next
             End Using
-            ' Save the new object to the database
+            ' ------------------------------------------------------------
+            ' 10) Commit – записваме всички промени в базата
+            ' ------------------------------------------------------------
             acTrans.Commit()
+            ' Връщаме ObjectId на новосъздадения блок
             Return blkRecIdNow
         End Using
     End Function

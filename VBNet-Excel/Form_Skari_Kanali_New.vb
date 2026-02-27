@@ -11,10 +11,7 @@ Imports Autodesk.AutoCAD.DatabaseServices
 Imports Autodesk.AutoCAD.EditorInput
 Imports Autodesk.AutoCAD.Geometry
 Imports Autodesk.AutoCAD.Runtime
-
-
 Public Class Form_Skari_Kanali_New
-
     Dim PI As Double = 3.1415926535897931
     Dim cu As CommonUtil = New CommonUtil()
     Dim Line_Selected As SelectionSet
@@ -26,7 +23,6 @@ Public Class Form_Skari_Kanali_New
     Dim Шир As Double = 0
     Dim Вис As Double = 0
     Dim razdelitel As Integer = 0
-
     Structure Скара
         Dim Ширина As String
         Dim Височина As String
@@ -585,17 +581,73 @@ Public Class Form_Skari_Kanali_New
         Next
         TableLayoutPanel.Refresh()
     End Sub
-    ' ⬇️ НОВА ПРОЦЕДУРА ВЪВ ФОРМАТА ⬇️
     Private Sub TrayProgressBar_Click(sender As Object, e As TrayClickEventArgs)
-        ' ⚠️ ТУК ЩЕ ВИКНЕМ БЪДЕЩАТА ПРОЦЕДУРА ЗА AutoCAD ⚠️
+        ' ⬇️ 1. ОПРЕДЕЛИ ТИПА (Скара или Канал) ⬇️
+        Dim tip As String = ""
+        Dim layer As String = ""
+        If RadioButton_Скара.Checked Then
+            tip = "Скара"
+            layer = "EL_Скари"
+        ElseIf RadioButton_Канал.Checked Then
+            tip = "Канал"
+            layer = "EL_Канали"
+        Else
+            MessageBox.Show("Моля, избери начин на полагане!", "Грешка",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            Exit Sub
+        End If
+        ' ⬇️ 2. ВЗЕМИ AutoCAD DOCUMENT ⬇️
+        Dim acDoc As Document = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument
+        Dim acCurDb As Database = acDoc.Database
+        ' ⬇️ 3. СКРИЙ ФОРМАТА (AutoCAD става активен) ⬇️
+        Me.Visible = False
+        ' ⬇️ 4. ИЗБОР НА ТОЧКА ОТ ПОТРЕБИТЕЛЯ ⬇️
+        Dim pPtOpts As New PromptPointOptions("")
+        pPtOpts.Message = vbLf & $"Изберете точка на вмъкване на {tip}: "
+        Dim pPtRes As PromptPointResult = acDoc.Editor.GetPoint(pPtOpts)
+        ' ⬇️ 5. ПОКАЖИ ФОРМАТА ОБРАТНО ⬇️
+        Me.Visible = True
+        If pPtRes.Status <> PromptStatus.OK Then
+            Exit Sub
+        End If
+        Dim InsertPoint As Point3d = pPtRes.Value
+        ' ⬇️ 6. ЗАКЛЮЧИ ДОКУМЕНТА И ВМЪКНИ БЛОКА ⬇️
+        Using docLock As DocumentLock = acDoc.LockDocument()
+            Dim blkRecId As ObjectId = cu.InsertBlock(tip, InsertPoint, layer, New Scale3d(1, 1, 1))
 
-        ' Примерно какво ще има там:
-        ' InsertBlock_Trays(e.Width, e.Height)
+            If blkRecId.IsNull Then
+                MessageBox.Show($"Блокът '{tip}' не съществува в чертежа!", "Грешка",
+                            MessageBoxButtons.OK, MessageBoxIcon.Error)
+                Exit Sub
+            End If
+            ' ⬇️ 7. ЗАДАЙ ДИНАМИЧНИТЕ ПАРАМЕТРИ ⬇️
+            Using acTrans As Transaction = acCurDb.TransactionManager.StartTransaction()
+                Try
+                    Dim acBlkRef As BlockReference = DirectCast(acTrans.GetObject(blkRecId, OpenMode.ForWrite), BlockReference)
+                    Dim props As DynamicBlockReferencePropertyCollection = acBlkRef.DynamicBlockReferencePropertyCollection
+                    Dim attCol = acBlkRef.AttributeCollection
+                    ' ⬇️ Задай "ШИРИНА" и "ВИСОЧИНА" ⬇️
+                    For Each prop As DynamicBlockReferenceProperty In props
+                        If prop.PropertyName = "Ширина" Then prop.Value = CDbl(e.Width / 10)
+                        If prop.PropertyName = "Височина" Then prop.Value = CDbl(e.Height / 10)
+                        If prop.PropertyName = "Размер" Then prop.Value = $"{e.Width}x{e.Height}"
+                    Next
 
-        ' Засега само показваме инфо за тест
-        Debug.Print($"Клик на скара: {e.Width}x{e.Height} мм, Запълване: {e.Percent}%")
-        MessageBox.Show($"Избрана скара: {e.Width}x{e.Height} мм" & vbCrLf &
-                    $"Запълване: {e.Percent:F1}%", "Инфо")
+                    For Each objID As ObjectId In attCol
+                        Dim dbObj As DBObject = acTrans.GetObject(objID, OpenMode.ForWrite)
+                        Dim acAttRef As AttributeReference = dbObj
+                        Dim ddd As String = ""
+                        If acAttRef.Tag = "ШИРИНА" Then acAttRef.TextString = CDbl(e.Width)
+                        If acAttRef.Tag = "ВИСОЧИНА" Then acAttRef.TextString = CDbl(e.Height)
+                    Next
+                    acTrans.Commit()
+                Catch ex As Exception
+                    acTrans.Abort()
+                    MessageBox.Show($"Грешка: {ex.Message}", "Грешка", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                End Try
+
+            End Using
+        End Using
     End Sub
     ''' <summary>
     ''' Анимира всички GradientProgressBar контроли в TableLayoutPanel
@@ -756,7 +808,6 @@ Public Class Form_Skari_Kanali_New
         TableLayoutPanel.Refresh()
     End Function
 End Class
-' ⬇️ НОВ КЛАС ЗА АРГУМЕНТИТЕ ⬇️
 Public Class TrayClickEventArgs
     Inherits EventArgs
 

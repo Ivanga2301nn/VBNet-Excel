@@ -1,6 +1,7 @@
 ﻿Imports System.Collections.Generic
 Imports System.Drawing
 Imports System.Security.Cryptography
+Imports System.Windows.Forms
 Imports Autodesk.AutoCAD.ApplicationServices
 Imports Autodesk.AutoCAD.DatabaseServices
 Imports Autodesk.AutoCAD.DatabaseServices.Filters
@@ -14,6 +15,13 @@ Imports Org.BouncyCastle.Bcpg
 'Imports System.Windows.Forms
 
 Public Class Form_Tablo_new
+    Private Sub Form_Tablo_new_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        Me.Height = 1000
+        Me.Width = 1600
+    End Sub
+End Class
+
+Public Class Tablo_new
     Dim PI As Double = 3.1415926535897931
     Dim cu As CommonUtil = New CommonUtil()
     Private ListKonsumator As New List(Of strKonsumator)
@@ -78,20 +86,7 @@ Public Class Form_Tablo_new
         Dim Height As Integer
         Dim IP_Rating As String
     End Structure
-
-    Private Sub Form_Tablo_new_Load(sender As Object, e As EventArgs) Handles MyBase.Load
-        Me.Height = 1000
-        Me.Width = 1600
-        DataGridView.Visible = False
-        GetObjects()
-        DataGridView.Visible = True
-    End Sub
-    <CommandMethod("NEW_Tablo")>
-    Private Sub NEW_Tablo()
-
-    End Sub
-    Private Sub GetObjects()
-        Me.Visible = False
+    Private Sub GetKonsumatori()
         Dim acDoc As Document = Application.DocumentManager.MdiActiveDocument
         Dim edt As Editor = acDoc.Editor
         Dim acCurDb As Database = acDoc.Database
@@ -100,7 +95,6 @@ Public Class Form_Tablo_new
             MsgBox("НЕ Е маркиран нито един блок.")
             Exit Sub
         End If
-        Me.Visible = True
         Dim blkRecId As ObjectId = ObjectId.Null
         Using acTrans As Transaction = acCurDb.TransactionManager.StartTransaction()
             Try

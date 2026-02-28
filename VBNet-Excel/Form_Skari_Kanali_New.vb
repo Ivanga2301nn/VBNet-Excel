@@ -60,10 +60,8 @@ Public Class Form_Skari_Kanali_New
 
         GroupBox_Размери_Скари.Visible = False
         GroupBox_Размери_Скари.Dock = DockStyle.Fill
-
         Set_array_Kabel()
         Label_Площ.Text = "Площ: " + summaKabeli.ToString + " mm"
-
     End Sub
     Private Sub Set_array_Kabel()
         If Line_Selected Is Nothing Then Exit Sub

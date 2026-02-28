@@ -4639,7 +4639,6 @@ Public Class Tablo
             {258, "3х95+70"},
             {344, "3х150+70"}
             }
-
         RCD_Catalog = New List(Of strRCD) From {
     New strRCD With {.NominalCurrent = 25, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "RCCB"},
     New strRCD With {.NominalCurrent = 25, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "RCCB"},

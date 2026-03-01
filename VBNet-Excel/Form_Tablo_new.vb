@@ -62,6 +62,42 @@ Public Class Form_Tablo_new
     ' ============================================================
     ' КАТАЛОЖНИ СТРУКТУРИ
     ' ============================================================
+    ' =====================================================
+    ' 4. РЕДОВЕ: Параметри с мерни единици и типове клетки
+    ' =====================================================
+    ' Структура: {Параметър, Мерна единица, Тип клетка}
+    ' Тип клетка: "Text", "Combo", "Check"
+    Dim rowData As String()() = {
+        New String() {"Прекъсвач", "", "Text"},
+        New String() {"Изчислен ток", "A", "Text"},
+        New String() {"Тип на апарата", "", "Combo"},
+        New String() {"Номинален ток", "A", "Combo"},
+        New String() {"Изкл. възможн.", "", "Text"},
+        New String() {"Крива", "", "Text"},
+        New String() {"Брой полюси", "бр.", "Text"},
+        New String() {"---------", "", "Text"},
+        New String() {"ДТЗ", "", "Text"},
+        New String() {"Вид на апарата", "", "Text"},
+        New String() {"Клас на апарата", "", "Text"},
+        New String() {"Номинален ток", "A", "Text"},
+        New String() {"Изкл. възможн.", "mA", "Text"},
+        New String() {"Брой полюси", "бр.", "Text"},
+        New String() {"---------", "", "Text"},
+        New String() {"Брой лампи", "бр.", "Text"},
+        New String() {"Брой контакти", "бр.", "Text"},
+        New String() {"Инст. мощност", "kW", "Text"},
+        New String() {"---------", "", "Text"},
+        New String() {"Тип кабел", "---", "Combo"},
+        New String() {"Сечение", "---", "Combo"},
+        New String() {"Фаза", "---", "Text"},
+        New String() {"---------", "", "Text"},
+        New String() {"Консуматор", "---", "Text"},
+        New String() {"предназначение", "---", "Text"},
+        New String() {"Управление", "---", "Combo"},
+        New String() {"---------", "", "Text"},
+        New String() {"Шина", "---", "Check"},
+        New String() {"ДТЗ (RCD)", "---", "Check"}
+    }
     Public Structure BreakerInfo
         Dim NominalCurrent As Integer        ' 6, 10, 16, 20...
         Dim Type As String                   ' "EZ9", "C120", "NSX", "MTZ"
@@ -191,8 +227,6 @@ Public Class Form_Tablo_new
         Public Phase As String                    ' "L" или "L1,L2,L3"
         Public ContactCount As Integer            ' Колко контакта добавя (1, 2, 3)
     End Class
-
-
     Private Sub GetKonsumatori()
         Dim acDoc As Document = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument
         Dim edt As Editor = acDoc.Editor
@@ -323,38 +357,29 @@ Public Class Form_Tablo_new
     ''' </summary>
     Private Sub BuildTreeViewFromKonsumatori()
         ' 1. Изчисти старото дърво
-        TreeView.Nodes.Clear()
-
+        TreeView1.Nodes.Clear()
         ' 2. Групирай консуматорите по ТАБЛО
         Dim panels = ListKonsumator.GroupBy(Function(k) k.ТАБЛО).ToList()
-
         ' 3. За всяко табло създай възел
         For Each panelGroup In panels
             Dim panelName As String = panelGroup.Key
-
             ' Пропусни ако няма име на табло
             If String.IsNullOrEmpty(panelName) Then
                 panelName = "Без табло"
             End If
-
             ' Брой кръгове в това табло (уникални ТоковКръг стойности)
             Dim circuitCount As Integer = panelGroup.Select(Function(k) k.ТоковКръг).Distinct().Count()
-
             ' Обща мощност (сума от всички консуматори)
             Dim totalPower As Double = panelGroup.Sum(Function(k) k.doubМОЩНОСТ)
-
             ' Създай възел за таблото
             Dim panelNode As New TreeNode()
             panelNode.Text = GetPanelNodeText(panelName, circuitCount, totalPower)
             panelNode.Tag = panelGroup.ToList()  ' Запази консуматорите за по-късно
-
             ' Добави възела в TreeView
-            TreeView.Nodes.Add(panelNode)
+            TreeView1.Nodes.Add(panelNode)
         Next
-
         ' 4. Разгъни дървото
-        TreeView.ExpandAll()
-
+        TreeView1.ExpandAll()
     End Sub
     ''' <summary>
     ''' Форматира текста за възела на таблото
@@ -379,6 +404,7 @@ Public Class Form_Tablo_new
         colParam.Frozen = True
         colParam.DefaultCellStyle.Font = New Drawing.Font("Arial", 10, FontStyle.Bold)
         colParam.DefaultCellStyle.BackColor = Color.FromArgb(200, 220, 255)
+        colParam.SortMode = DataGridViewColumnSortMode.NotSortable
         DataGridView1.Columns.Add(colParam)
         ' =====================================================
         ' 2. ВТОРА КОЛОНА: Мерни единици (дименсии)
@@ -391,18 +417,9 @@ Public Class Form_Tablo_new
         colUnit.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter
         colUnit.DefaultCellStyle.Font = New Drawing.Font("Arial", 10, FontStyle.Italic)
         colUnit.DefaultCellStyle.ForeColor = Color.Gray
+        colUnit.SortMode = DataGridViewColumnSortMode.NotSortable
         DataGridView1.Columns.Add(colUnit)
-        ' =====================================================
-        ' 3. КОЛОНИ ЗА ТОКОВИ КРЪГОВЕ
-        ' =====================================================
-        For i As Integer = 1 To 20
-            Dim col As New DataGridViewTextBoxColumn()
-            col.Name = $"colCircuit{i}"
-            col.HeaderText = i.ToString()
-            col.Width = 70
-            col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter
-            DataGridView1.Columns.Add(col)
-        Next
+
         ' Колона ОБЩО
         Dim colTotal As New DataGridViewTextBoxColumn()
         colTotal.Name = "colTotal"
@@ -411,43 +428,9 @@ Public Class Form_Tablo_new
         colTotal.DefaultCellStyle.Font = New Drawing.Font("Arial", 10, FontStyle.Bold)
         colTotal.DefaultCellStyle.BackColor = Color.FromArgb(230, 240, 255)
         colTotal.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter
+        colTotal.SortMode = DataGridViewColumnSortMode.NotSortable
         DataGridView1.Columns.Add(colTotal)
-        ' =====================================================
-        ' 4. РЕДОВЕ: Параметри с мерни единици и типове клетки
-        ' =====================================================
-        ' Структура: {Параметър, Мерна единица, Тип клетка}
-        ' Тип клетка: "Text", "Combo", "Check"
-        Dim rowData As String()() = {
-        New String() {"---------", "", "Text"},
-        New String() {"Прекъсвач", "", "Text"},
-        New String() {"---------", "", "Text"},
-        New String() {"Изчислен ток", "A", "Text"},
-        New String() {"Тип на апарата", "", "Combo"},
-        New String() {"Номинален ток", "A", "Combo"},
-        New String() {"Изкл. възможн.", "", "Text"},
-        New String() {"Крива", "", "Text"},
-        New String() {"Брой полюси", "бр.", "Text"},
-        New String() {"---------", "", "Text"},
-        New String() {"ДТЗ", "", "Text"},
-        New String() {"Вид на апарата", "", "Text"},
-        New String() {"Клас на апарата", "", "Text"},
-        New String() {"Номинален ток", "A", "Text"},
-        New String() {"Изкл. възможн.", "mA", "Text"},
-        New String() {"Брой полюси", "бр.", "Text"},
-        New String() {"---------", "", "Text"},
-        New String() {"Брой лампи", "бр.", "Text"},
-        New String() {"Брой контакти", "бр.", "Text"},
-        New String() {"Инст. мощност", "kW", "Text"},
-        New String() {"Тип кабел", "---", "Text"},
-        New String() {"Сечение", "---", "Text"},
-        New String() {"Фаза", "---", "Text"},
-        New String() {"Консуматор", "---", "Text"},
-        New String() {"---------", "", "Text"},
-        New String() {"Управление", "---", "Combo"},
-        New String() {"---------", "", "Text"},
-        New String() {"Шина", "---", "Check"},
-        New String() {"ДТЗ (RCD)", "---", "Check"}
-    }
+
         For Each row As String() In rowData
             Dim dgvRow As New DataGridViewRow()
             dgvRow.CreateCells(DataGridView1)
@@ -471,7 +454,6 @@ Public Class Form_Tablo_new
                         cell = New DataGridViewTextBoxCell()
                         cell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter
                 End Select
-
                 dgvRow.Cells(colIndex) = cell
             Next
             ' Оцветяване
@@ -479,7 +461,7 @@ Public Class Form_Tablo_new
                 dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(220, 220, 220)
             ElseIf row(0) = "Прекъсвач" OrElse row(0) = "ДТЗ" Then
                 dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(180, 200, 255)
-                dgvRow.DefaultCellStyle.Font = New Drawing.Font("Arial", 9, FontStyle.Bold)
+                dgvRow.DefaultCellStyle.Font = New Drawing.Font("Arial", 10, FontStyle.Bold)
             End If
 
             DataGridView1.Rows.Add(dgvRow)
@@ -508,8 +490,18 @@ Public Class Form_Tablo_new
             Case "Номинален ток"
                 comboCell.Items.AddRange("6A", "10A", "16A", "20A", "25A", "32A", "40A", "50A", "63A")
             Case "Управление"
-                comboCell.Items.AddRange("Ръчно", "Автоматично", "Дистанционно")
+                comboCell.Items.AddRange("Няма",
+                                         "Импулсно реле",
+                                         "Моторна защита",
+                                         "Контактор",
+                                         "Моторен механизъм",
+                                         "Честотен регулатор",
+                                         "Стълбищен автомат",
+                                         "Електромер",
+                                         "Фото реле")
         End Select
+        ' ✅ ЗАДАЙ ПЪРВИЯ ЕЛЕМЕНТ КАТО СТОЙНОСТ
+        If comboCell.Items.Count > 0 Then comboCell.Value = comboCell.Items(0)
         comboCell.DisplayStyle = ComboBoxStyle.DropDownList
     End Sub
     ' Добави това след SetupDataGridView()
@@ -1085,6 +1077,193 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
             Else
                 tokow.Ток = (tokow.Мощност * 1000) / 230
             End If
+        Next
+    End Sub
+
+    Private Sub TreeView1_AfterSelect(sender As Object, e As TreeViewEventArgs) Handles TreeView1.AfterSelect
+        FillDataGridViewForPanel()
+    End Sub
+    ''' <summary>
+    ''' Попълва DataGridView1 с данни за избраното табло
+    ''' </summary>
+    Private Sub FillDataGridViewForPanel()
+        ' Проверка дали има избран възел
+        If TreeView1.SelectedNode Is Nothing Then
+            MsgBox("Моля, изберете табло от дървото!", MsgBoxStyle.Exclamation, "Няма избор")
+            Return
+        End If
+        ' Вземи името на избраното табло
+        Dim selectedPanel As String = TreeView1.SelectedNode.Text
+        ' Ако има "(", вземи само текста преди него
+        If selectedPanel.Contains("(") Then
+            selectedPanel = selectedPanel.Substring(0, selectedPanel.IndexOf("(")).Trim()
+        End If
+        ' Филтрирай токовите кръгове за това табло
+        Dim panelCircuits = ListTokow.Where(
+            Function(t) t.Tablo.ToUpper() = selectedPanel.ToUpper()
+        ).OrderBy(Function(t) t.ТоковКръг).ToList()
+        ' Проверка дали има кръгове
+        If panelCircuits Is Nothing OrElse panelCircuits.Count = 0 Then
+            MsgBox($"Няма намерени токови кръгове за табло '{selectedPanel}'",
+                   MsgBoxStyle.Information, "Няма данни")
+            Return
+        End If
+        ' 1. Добави колони за кръговете
+        AddCircuitColumns(panelCircuits)
+        ' ============================================================
+        ' 1. ИЗЧИСЛИ ВСИЧКИ ОБЩИ СТОЙНОСТИ (САМО ВЕДНЪЖ!)
+        ' ============================================================
+        Dim totalLamps As Integer = panelCircuits.Sum(Function(c) c.brLamp)
+        Dim totalContacts As Integer = panelCircuits.Sum(Function(c) c.brKontakt)
+        Dim totalPower As Double = panelCircuits.Sum(Function(c) c.Мощност)
+
+        Dim hasThreePhase As Boolean = panelCircuits.Any(Function(c) c.БройПолюси = 3)
+        Dim totalCurrent As Double = If(hasThreePhase,
+            (totalPower * 1000) / (Math.Sqrt(3) * 400),
+            (totalPower * 1000) / 230)
+
+        Dim mostCommonPoles As String = panelCircuits.GroupBy(Function(c) c.Брой_Полюси) _
+                                             .OrderByDescending(Function(g) g.Count()) _
+                                             .FirstOrDefault()?.Key
+        If mostCommonPoles Is Nothing Then mostCommonPoles = "1p"
+
+        Dim totalPhase As String = If(hasThreePhase, "3P", "1P")
+        ' 2. Попълни данните
+        For Each row As DataGridViewRow In DataGridView1.Rows
+            Dim paramName As String = row.Cells(0).Value.ToString()
+            ' Пропусни разделителите и заглавията
+            If paramName = "---------" OrElse paramName = "Прекъсвач" OrElse paramName = "ДТЗ" OrElse paramName = "Управление" Then
+                Continue For
+            End If
+            '    Dim rowData As String()() = {
+            '    New String() {"Прекъсвач", "", "Text"},
+            '    New String() {"Изчислен ток", "A", "Text"},
+            '    New String() {"Тип на апарата", "", "Combo"},
+            '    New String() {"Номинален ток", "A", "Combo"},
+            '    New String() {"Изкл. възможн.", "", "Text"},
+            '    New String() {"Крива", "", "Text"},
+            '    New String() {"Брой полюси", "бр.", "Text"},
+            '    New String() {"---------", "", "Text"},
+            '    New String() {"ДТЗ", "", "Text"},
+            '    New String() {"Вид на апарата", "", "Text"},
+            '    New String() {"Клас на апарата", "", "Text"},
+            '    New String() {"Номинален ток", "A", "Text"},
+            '    New String() {"Изкл. възможн.", "mA", "Text"},
+            '    New String() {"Брой полюси", "бр.", "Text"},
+            '    New String() {"---------", "", "Text"},
+            '    New String() {"Брой лампи", "бр.", "Text"},
+            '    New String() {"Брой контакти", "бр.", "Text"},
+            '    New String() {"Инст. мощност", "kW", "Text"},
+            '    New String() {"Тип кабел", "---", "Text"},
+            '    New String() {"Сечение", "---", "Text"},
+            '    New String() {"Фаза", "---", "Text"},
+            '    New String() {"Консуматор", "---", "Text"},
+            '    New String() {"---------", "", "Text"},
+            '    New String() {"Управление", "---", "Combo"},
+            '    New String() {"---------", "", "Text"},
+            '    New String() {"Шина", "---", "Check"},
+            '    New String() {"ДТЗ (RCD)", "---", "Check"}
+            '}
+            ' Попълни клетките за всеки кръг
+            For i As Integer = 0 To panelCircuits.Count - 1
+                Dim circuit As strTokow = panelCircuits(i)
+                Dim colIndex As Integer = i + 2
+                If colIndex < DataGridView1.Columns.Count - 1 Then
+                    Select Case paramName
+                        Case "Брой лампи" : row.Cells(colIndex).Value = panelCircuits(i).brLamp
+                        Case "Брой контакти" : row.Cells(colIndex).Value = panelCircuits(i).brKontakt
+                        Case "Изчислен ток" : row.Cells(colIndex).Value = panelCircuits(i).Ток.ToString("N2")
+                        Case "Инст. мощност" : row.Cells(colIndex).Value = panelCircuits(i).Мощност.ToString("N3")
+                        Case "Брой полюси" : row.Cells(colIndex).Value = panelCircuits(i).БройПолюси
+                        Case "Фаза" : row.Cells(colIndex).Value = If(panelCircuits(i).БройПолюси = 1, "L", "L1,L2,L3")
+                    End Select
+                End If
+            Next
+            ' 3. ОБЩО (последна колона)
+            Dim totalColIndex As Integer = DataGridView1.Columns.Count - 1
+            Select Case paramName
+                Case "Брой лампи"
+                    row.Cells(totalColIndex).Value = panelCircuits.Sum(Function(c) c.brLamp)
+                Case "Брой контакти"
+                    row.Cells(totalColIndex).Value = panelCircuits.Sum(Function(c) c.brKontakt)
+                Case "Инст. мощност"
+                    row.Cells(totalColIndex).Value = panelCircuits.Sum(Function(c) c.Мощност).ToString("0.00")
+                Case "Изчислен ток"
+                    If hasThreePhase Then
+                        totalCurrent = (totalPower * 1000) / (Math.Sqrt(3) * 400)
+                    Else
+                        totalCurrent = (totalPower * 1000) / 230
+                    End If
+                    row.Cells(totalColIndex).Value = totalCurrent.ToString("0.00")
+            End Select
+        Next
+    End Sub
+    ''' <summary>
+    ''' Добавя колони за токовите кръгове на избраното табло
+    ''' </summary>
+    Private Sub AddCircuitColumns(panelCircuits As List(Of strTokow))
+        ' 1. Изтрий старите колони за кръгове
+        Dim columnsToRemove As New List(Of String)
+        For Each col As DataGridViewColumn In DataGridView1.Columns
+            If col.Name <> "colParameter" AndAlso
+           col.Name <> "colUnit" AndAlso
+           col.Name <> "colTotal" Then
+                columnsToRemove.Add(col.Name)
+            End If
+        Next
+        For Each colName As String In columnsToRemove
+            DataGridView1.Columns.Remove(colName)
+        Next
+        ' 2. Добави нови колони за всеки кръг
+        For i As Integer = 0 To panelCircuits.Count - 1
+            Dim circuit As strTokow = panelCircuits(i)
+            Dim col As New DataGridViewTextBoxColumn()
+            col.Name = $"colCircuit{i}"
+            col.HeaderText = circuit.ТоковКръг
+            col.Width = 110
+            col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter
+            col.SortMode = DataGridViewColumnSortMode.NotSortable
+            col.Tag = circuit
+            ' Добави колоната ПРЕДИ colTotal
+            Dim totalIndex As Integer = DataGridView1.Columns.IndexOf(DataGridView1.Columns("colTotal"))
+            DataGridView1.Columns.Insert(totalIndex, col)
+        Next
+        ' ✅ 3. ЗАДАЙ ТИПА КЛЕТКИ ЗА НОВИТЕ КОЛОНИ (използвайки rowData)
+        Dim rowIndex As Integer = 0
+        For Each row As DataGridViewRow In DataGridView1.Rows
+            ' Вземи типа клетка от rowData
+            Dim cellType As String = rowData(rowIndex)(2)
+            ' За всяка нова колона (от индекс 2 до colTotal-1)
+            For colIndex As Integer = 2 To DataGridView1.Columns.Count - 2
+                Dim colName As String = DataGridView1.Columns(colIndex).Name
+                ' Пропусни ако не е колона за кръг
+                If Not colName.StartsWith("colCircuit") Then Continue For
+                ' Запази стойността от старата клетка (ако има)
+                Dim oldValue As Object = Nothing
+                If row.Cells(colIndex).Value IsNot Nothing Then
+                    oldValue = row.Cells(colIndex).Value
+                End If
+                ' Създай нова клетка с правилния тип (същата логика като в SetupDataGridView)
+                Dim cell As DataGridViewCell = Nothing
+                Select Case cellType
+                    Case "Combo"
+                        cell = New DataGridViewComboBoxCell()
+                        SetupComboBoxCell(cell, row.Cells(0).Value.ToString())
+                    Case "Check"
+                        cell = New DataGridViewCheckBoxCell()
+                        cell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter
+                    Case Else
+                        cell = New DataGridViewTextBoxCell()
+                        cell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter
+                End Select
+                ' Възстанови стойността
+                If oldValue IsNot Nothing Then
+                    cell.Value = oldValue
+                End If
+                ' Замени клетката
+                row.Cells(colIndex) = cell
+            Next
+            rowIndex += 1
         Next
     End Sub
 End Class

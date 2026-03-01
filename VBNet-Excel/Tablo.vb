@@ -987,23 +987,18 @@ Public Class Tablo
 
 
         Ikryg = Knti * Ikryg
-
         ' Избира автоматичен прекъсвач на базата на зададения ток
         For Each breaker In Breakers
             If Ikryg <= breaker.Key Then
                 Return breaker.Value & ", " & breaker.Key & "A"
             End If
         Next
-
         Return "НЕ Е подходящ прекъсвач"
     End Function
     Private Function calc_disconnector(Ikryg As Double) As String
         ' Речник за мощностни разединители на Schneider Electric
         ' Речник за всички товарови разединители
-
-
         Ikryg = Knti * Ikryg
-
         ' Избира мощностен разединител на базата на зададения ток
         For Each disconnector In Disconnectors
             If Ikryg <= disconnector.Key Then
@@ -2841,7 +2836,7 @@ Public Class Tablo
             .Name = name & "_BT"                                    ' Уникално име за контрола, комбинирайки името на таблото с "_BT"
             .Size = New System.Drawing.Size(432, 250)               ' Размер на GroupBox
             .Location = New System.Drawing.Point(500, 6)            ' Позиция в родителския контейнер
-            .Font = New Drawing.Font("Arial", 12, Drawing.FontStyle.Bold) ' Шрифт за заглавието
+            .Font = New Drawing.Font("Arial", 10, Drawing.FontStyle.Bold) ' Шрифт за заглавието
             .Text = "Действие за табло '" & name & "'"              ' Заглавие, показва името на таблото
             .BackColor = System.Drawing.SystemColors.Control        ' Фонов цвят
             .ForeColor = System.Drawing.SystemColors.WindowText     ' Цвят на текста

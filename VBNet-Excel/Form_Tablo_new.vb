@@ -209,12 +209,14 @@ Public Class Form_Tablo_new
     ''' Конфигурация за всеки тип блок
     ''' </summary>
     Public Class BlockConfig
-        Public BlockNames As List(Of String)      ' Възможни имена на блока
-        Public Category As String                 ' "Lamp", "Contact", "Device", "Panel"
-        Public DefaultPoles As String             ' "1p" или "3p"
-        Public DefaultCable As String             ' "3x1.5", "3x2.5", "5x2.5"
-        Public DefaultBreaker As String           ' "10", "16", "20"
-        Public VisibilityRules As List(Of VisRule) ' Правила за visibility
+        Public BlockNames As List(Of String)        ' Възможни имена на блока
+        Public Category As String                   ' "Lamp", "Contact", "Device", "Panel"
+        Public DefaultPoles As String               ' "1p" или "3p"
+        Public DefaultCable As String               ' "3x1.5", "3x2.5", "5x2.5"
+        Public DefaultBreaker As String             ' "10", "16", "20"
+        Public DefaultPrenaz As String              ' Предназначение 
+        Public DefaultPrenaz1 As String             ' Предназначение 
+        Public VisibilityRules As List(Of VisRule)  ' Правила за visibility
     End Class
     ''' <summary>
     ''' Правило за конкретна visibility стойност
@@ -876,7 +878,8 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
             .DefaultPoles = "1p",
             .DefaultCable = "3x1.5",
             .DefaultBreaker = "10",
-                .VisibilityRules = New List(Of VisRule)()
+            .DefaultPrenaz = "",
+            .VisibilityRules = New List(Of VisRule)()
         },
         New BlockConfig With {        ' АВАРИЙНО ОСВЕТЛЕНИЕ
             .BlockNames = New List(Of String) From {"АВАРИЯ", "АВАРИЯ_100"},
@@ -884,7 +887,7 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
             .DefaultPoles = "1p",
             .DefaultCable = "3x1.5",
             .DefaultBreaker = "10",
-                .VisibilityRules = New List(Of VisRule)()
+            .VisibilityRules = New List(Of VisRule)()
         },
         New BlockConfig With {        ' БОЙЛЕРИ
             .BlockNames = New List(Of String) From {"БОЙЛЕР"},
@@ -1028,9 +1031,6 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                 End If
             Case "Device"
 
-
-
-                ' Уреди не се броят като лампи/контакти
         End Select
         ' ============================================================
         ' ПРОВЕРКА ЗА ТРИФАЗНОСТ
@@ -1072,14 +1072,72 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                 ProcessConsumerByConfig(kons, tokow)
             Next
             ' Изчисли тока
-            If tokow.БройПолюси = 3 Then
-                tokow.Ток = (tokow.Мощност * 1000) / (Math.Sqrt(3) * 400)
-            Else
-                tokow.Ток = (tokow.Мощност * 1000) / 230
-            End If
+            tokow.Ток = calc_Inom(tokow.Мощност, tokow.Фаза)
+            ' ✅ ИЗБЕРИ ПРЕКЪСВАЧ
+            Dim poles As Integer = If(tokow.БройПолюси = 3, 3, 1)
+            Dim breaker As BreakerInfo = SelectBreaker(tokow.Ток, poles, "C")
+
+            tokow.Тип_Апарат = breaker.Type
+            tokow.Номинален_Ток = breaker.NominalCurrent.ToString()
+            tokow.Крива = breaker.Curve
+            tokow.Изкл_Възможност = breaker.BreakingCapacity.ToString() & "A"
+            tokow.Брой_Полюси = breaker.Poles & "P"
         Next
     End Sub
+    ''' <summary>
+    ''' Автоматично избира прекъсвач от каталога според тока и броя полюси
+    ''' </summary>
+    ''' <param name="calculatedCurrent">Изчислен ток (A)</param>
+    ''' <param name="poles">Брой полюси (1 или 3)</param>
+    ''' <param name="curve">Крива по подразбиране ("C")</param>
+    ''' <returns>BreakerInfo или Nothing ако не е намерен</returns>
+    Private Function SelectBreaker(calculatedCurrent As Double,
+                                poles As Integer,
+                                Optional curve As String = "C") As BreakerInfo
 
+        ' 1. Коефициент на оразмеряване (1.25 за резерв)
+        Dim designCurrent As Double = calculatedCurrent * 1.25
+        ' 2. Филтрирай прекъсвачите по полюси и крива
+        Dim suitableBreakers = Breakers.Where(
+                               Function(b) b.Poles = poles AndAlso
+                               String.Equals(b.Curve, curve, StringComparison.OrdinalIgnoreCase)
+                               ).OrderBy(Function(b) b.NominalCurrent).ToList()
+        ' 3. Намери първия прекъсвач с номинален ток >= designCurrent
+        Dim selectedBreaker = suitableBreakers.FirstOrDefault(
+                              Function(b) b.NominalCurrent >= designCurrent
+                              )
+        Return selectedBreaker
+    End Function
+    ''' <summary>
+    ''' Изчислява номиналния ток за токов кръг
+    ''' </summary>
+    ''' <param name="Pkryg">Мощност в kW</param>
+    ''' <param name="NumberPoles">Брой фази: "1P" или "3P"</param>
+    ''' <param name="Motor">True за двигатели (cos φ = 0.85, КПД = 0.9)</param>
+    ''' <returns>Номинален ток в Ampere</returns>
+    Private Function calc_Inom(Pkryg As Double,                     ' мощност
+                       NumberPoles As String,                       ' брой фази
+                       Optional Motor As Boolean = False            ' Ако е двигател True - КПД и cos FI да са по 0,83
+                       ) As Double                                  ' Изчислява номинален ток за товар
+        Dim CosFI As Double                                         ' Декларира променлива за cos φ (фактор на мощността)
+        Dim KPD As Double                                           ' Декларира променлива за КПД (коефициент на полезно действие)
+        Const U380 As Double = 0.4                                  ' Дефинира константа за напрежение при 380V, преобразувано в kV (киловолти)
+        Const U220 As Double = 0.23                                 ' Дефинира константа за напрежение при 220V, преобразувано в kV (киловолти)
+        Dim Inom As Double = 0                                      ' Инициализира променлива за номиналния ток с начална стойност 0
+        If Motor Then                                               ' Проверява дали токовият кръг е двигател
+            CosFI = 0.85                                            ' Ако е двигател, задава фактор на мощността 0.83
+            KPD = 0.9                                               ' Ако е двигател, задава КПД 0.83
+        Else                                                        ' Ако токовият кръг не е двигател
+            CosFI = 0.9                                             ' Задава фактор на мощността 0.9
+            KPD = 1                                                 ' Задава КПД 1
+        End If
+        If NumberPoles = "3P" Then                                  ' Проверява дали токовият кръг е трифазен (3 полюса)
+            Inom = Pkryg / (U380 * Math.Sqrt(3) * CosFI * KPD)      ' Изчислява номиналния ток за трифазен кръг по формулата
+        Else                                                        ' Ако токовият кръг е монофазен (2 полюса)
+            Inom = Pkryg / (U220 * CosFI * KPD)                     ' Изчислява номиналния ток за монофазен кръг по формулата
+        End If
+        Return Inom                                                 ' Връща изчисления номинален ток
+    End Function
     Private Sub TreeView1_AfterSelect(sender As Object, e As TreeViewEventArgs) Handles TreeView1.AfterSelect
         FillDataGridViewForPanel()
     End Sub
@@ -1108,6 +1166,7 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                    MsgBoxStyle.Information, "Няма данни")
             Return
         End If
+        GroupBox2.Text = $"Обработвам табло '{selectedPanel}'"
         ' 1. Добави колони за кръговете
         AddCircuitColumns(panelCircuits)
         ' ============================================================
@@ -1119,8 +1178,8 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
 
         Dim hasThreePhase As Boolean = panelCircuits.Any(Function(c) c.БройПолюси = 3)
         Dim totalCurrent As Double = If(hasThreePhase,
-            (totalPower * 1000) / (Math.Sqrt(3) * 400),
-            (totalPower * 1000) / 230)
+                                        (totalPower * 1000) / (Math.Sqrt(3) * 400),
+                                        (totalPower * 1000) / 230)
 
         Dim mostCommonPoles As String = panelCircuits.GroupBy(Function(c) c.Брой_Полюси) _
                                              .OrderByDescending(Function(g) g.Count()) _
@@ -1135,7 +1194,7 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
             If paramName = "---------" OrElse paramName = "Прекъсвач" OrElse paramName = "ДТЗ" OrElse paramName = "Управление" Then
                 Continue For
             End If
-            '    Dim rowData As String()() = {
+            '        Dim rowData As String()() = {
             '    New String() {"Прекъсвач", "", "Text"},
             '    New String() {"Изчислен ток", "A", "Text"},
             '    New String() {"Тип на апарата", "", "Combo"},
@@ -1154,11 +1213,13 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
             '    New String() {"Брой лампи", "бр.", "Text"},
             '    New String() {"Брой контакти", "бр.", "Text"},
             '    New String() {"Инст. мощност", "kW", "Text"},
-            '    New String() {"Тип кабел", "---", "Text"},
-            '    New String() {"Сечение", "---", "Text"},
-            '    New String() {"Фаза", "---", "Text"},
-            '    New String() {"Консуматор", "---", "Text"},
             '    New String() {"---------", "", "Text"},
+            '    New String() {"Тип кабел", "---", "Combo"},
+            '    New String() {"Сечение", "---", "Combo"},
+            '    New String() {"Фаза", "---", "Text"},
+            '    New String() {"---------", "", "Text"},
+            '    New String() {"Консуматор", "---", "Text"},
+            '    New String() {"предназначение", "---", "Text"},
             '    New String() {"Управление", "---", "Combo"},
             '    New String() {"---------", "", "Text"},
             '    New String() {"Шина", "---", "Check"},
@@ -1176,6 +1237,15 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                         Case "Инст. мощност" : row.Cells(colIndex).Value = panelCircuits(i).Мощност.ToString("N3")
                         Case "Брой полюси" : row.Cells(colIndex).Value = panelCircuits(i).БройПолюси
                         Case "Фаза" : row.Cells(colIndex).Value = If(panelCircuits(i).БройПолюси = 1, "L", "L1,L2,L3")
+
+
+                        Case "Тип на апарата" : row.Cells(colIndex).Value = If(panelCircuits(i).БройПолюси = 1, "L", "L1,L2,L3")
+                        Case "Номинален ток" : row.Cells(colIndex).Value = If(panelCircuits(i).БройПолюси = 1, "L", "L1,L2,L3")
+                        Case "Изкл. възможн." : row.Cells(colIndex).Value = If(panelCircuits(i).БройПолюси = 1, "L", "L1,L2,L3")
+                        Case "Крива" : row.Cells(colIndex).Value = If(panelCircuits(i).БройПолюси = 1, "L", "L1,L2,L3")
+                        Case "Брой полюси" : row.Cells(colIndex).Value = If(panelCircuits(i).БройПолюси = 1, "L", "L1,L2,L3")
+
+
                     End Select
                 End If
             Next
@@ -1266,4 +1336,5 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
             rowIndex += 1
         Next
     End Sub
+
 End Class

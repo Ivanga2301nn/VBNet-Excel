@@ -74,6 +74,7 @@ Public Class Form_Tablo_new
         New String() {"Номинален ток", "A", "Combo"},
         New String() {"Изкл. възможн.", "", "Text"},
         New String() {"Крива", "", "Text"},
+        New String() {"Защитен блок", "", "Combo"},
         New String() {"Брой полюси", "бр.", "Text"},
         New String() {"---------", "", "Text"},
         New String() {"ДТЗ", "", "Text"},
@@ -144,48 +145,70 @@ Public Class Form_Tablo_new
         Dim Visibility As String        ' За динамични блокове
         Dim Phase As Integer            ' Брой фази (1, 3)
     End Structure
+    ''' <summary>
+    ''' Представя токов кръг в електрическо табло.
+    ''' Съдържа идентификация, мощност, ток, кабел,
+    ''' защитна апаратура (прекъсвач и ДТЗ),
+    ''' както и списък с консуматори в кръга.
+    ''' Използва се като логическа структура за обработка
+    ''' и визуализация (напр. в DataGridView).
+    ''' </summary>
     Public Class strTokow
         ' ============================================================
-        ' ИДЕНТИФИКАЦИЯ (Български имена за DataGridView)
+        ' ИДЕНТИФИКАЦИЯ
         ' ============================================================
-        Public Tablo As String                 ' Родителско табло
-        Public ТоковКръг As String             ' Име/номер на кръга
-        Public БройПолюси As Integer           ' 1 или 3 (ще ни трябва за избора на прекъсвач)
+        Public Tablo As String                 ' Табло към което принадлежи кръгът
+        Public ТоковКръг As String             ' Име или номер на токовия кръг
+        Public БройПолюси As Integer           ' 1 или 3 – използва се при избор на апарат
         ' ============================================================
         ' БРОЯЧИ
         ' ============================================================
-        Public brLamp As Integer               ' Брой лампи
-        Public brKontakt As Integer            ' Брой контакти
+        Public brLamp As Integer               ' Брой лампи в кръга
+        Public brKontakt As Integer            ' Брой контакти в кръга
         ' ============================================================
         ' МОЩНОСТ И ТОК
         ' ============================================================
-        Public Мощност As Double               ' kW (обща мощност)
-        Public Ток As Double                   ' A (изчислен ток I = P/U)
-        Public Фаза As String                  ' "1P", "3P", "L1", "L2", "L3"
+        Public Мощност As Double               ' Обща мощност на кръга (kW)
+        Public Ток As Double                   ' Изчислен ток (A)
+        Public Фаза As String                  ' Фаза: "1P", "3P", "L1", "L2", "L3"
         ' ============================================================
         ' КАБЕЛ
         ' ============================================================
-        Public Кабел_Сечение As String         ' "3x2.5", "5x4"
-        Public Кабел_Тип As String             ' "NYM", "YJV", "CBT"
+        Public Кабел_Сечение As String         ' Сечение на кабела (пример: "3x2.5")
+        Public Кабел_Тип As String             ' Тип кабел (NYM, YJV, CBT и др.)
         ' ============================================================
         ' ЗАЩИТА (ПРЕКЪСВАЧ)
         ' ============================================================
-        Public Тип_Апарат As String            ' "EZ9", "C120", "NSX", "MTZ"
-        Public Брой_Полюси As String           ' "1p", "3p"
-        Public Крива As String                 ' "B", "C", "D"
-        Public Номинален_Ток As String         ' "10A", "16A", "20A"...
-        Public Изкл_Възможност As String       ' "6000A", "10000A"...
+        Public Тип_Апарат As String            ' Серия апарат (EZ9, C120, NSX, MTZ)
+        Public Брой_Полюси As String           ' Брой полюси на прекъсвача ("1p", "3p")
+        Public Крива As String                 ' Характеристика (B, C, D)
+        Public Номинален_Ток As String         ' Номинален ток (пример: "16A")
+        Public Изкл_Възможност As String       ' Изключвателна способност ("6000A", "10000A")
+        Public Защитен_блок As String          ' Изключвателна способност ("6000A", "10000A")
         ' ============================================================
-        ' ДТЗ (RCD) - ОПЦИОНАЛНО
+        ' ДТЗ (RCD)
         ' ============================================================
-        Public RCD_Тип As String               ' "AC", "A", "F"
-        Public RCD_Чувствителност As String    ' "30mA", "100mA", "300mA"
-        Public RCD_Ток As String               ' "25A", "40A", "63A"
-        Dim RCD_Полюси As String            ' "2p", "4p"
+        Public RCD_Тип As String               ' Тип ДТЗ (AC, A, F)
+        Public RCD_Чувствителност As String    ' Чувствителност ("30mA", "100mA", "300mA")
+        Public RCD_Ток As String               ' Номинален ток на ДТЗ ("25A", "40A", "63A")
+        Public RCD_Полюси As String            ' Полюси на ДТЗ ("2p", "4p")
+        ' ============================================================
+        ' ОПИСАНИЕ / ТЕКСТОВЕ
+        ' ============================================================
+        Public Консуматор As String            ' Обобщен текст за консуматора
+        Public предназначение As String        ' Предназначение на кръга
+        ' ============================================================
+        ' ДОПЪЛНИТЕЛНИ ФЛАГОВЕ
+        ' ============================================================
+        Public Управление As String            ' Тип управление (ако има)
+        Public Шина As Boolean                 ' Дали кръгът е на шинена
+        Public ДТЗ_RCD As Boolean              ' Дали има задължително трявба да има ДТЗ
         ' ============================================================
         ' КОНСУМАТОРИ В КРЪГА
         ' ============================================================
         Public Konsumator As List(Of strKonsumator)
+        ' Списък с всички реални консуматори,
+        ' принадлежащи към този токов кръг.
     End Class
     Public Structure strTablo
         Dim countTablo As Integer
@@ -214,8 +237,8 @@ Public Class Form_Tablo_new
         Public DefaultPoles As String               ' "1p" или "3p"
         Public DefaultCable As String               ' "3x1.5", "3x2.5", "5x2.5"
         Public DefaultBreaker As String             ' "10", "16", "20"
-        Public DefaultPrenaz As String              ' Предназначение 
-        Public DefaultPrenaz1 As String             ' Предназначение 
+        Public DefaultPrednaz As String             ' Предназначение 
+        Public DefaultPrednaz1 As String            ' Предназначение 
         Public VisibilityRules As List(Of VisRule)  ' Правила за visibility
     End Class
     ''' <summary>
@@ -281,7 +304,7 @@ Public Class Form_Tablo_new
                 Next
                 acTrans.Commit()
             Catch ex As Exception
-                MsgBox("Възникна грешка: " & ex.Message & vbCrLf & vbCrLf & ex.StackTrace.ToString)
+                MsgBox("Възникна грешка:  " & ex.Message & vbCrLf & vbCrLf & ex.StackTrace.ToString)
                 acTrans.Abort()
             End Try
         End Using
@@ -873,42 +896,56 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
     Private Sub InitializeBlockConfigs()
         BlockConfigs = New List(Of BlockConfig) From {
         New BlockConfig With {        ' LED ОСВЕТЛЕНИЕ
-            .BlockNames = New List(Of String) From {"LED_DENIMA", "LED_LENTA", "LED_ULTRALUX", "LED_ULTRALUX_100", "LED_ULTRALUX_НОВ", "LED_ЛУНА"},
+            .BlockNames = New List(Of String) From {"LED_DENIMA", "LED_LENTA", "LED_ULTRALUX", "LED_ULTRALUX_100", "LED_ULTRALUX_НОВ",
+                                                    "LED_ЛУНА", "ПЛАФОНИ", "МЕТАЛХАОГЕННА ЛАМПА", "ЛИНИЯ МХЛ - 220V", "ПОЛИЛЕЙ", "ПРОЖЕКТОР"},
             .Category = "Lamp",
             .DefaultPoles = "1p",
-            .DefaultCable = "3x1.5",
+            .DefaultCable = "3x1,5",
             .DefaultBreaker = "10",
-            .DefaultPrenaz = "",
+            .DefaultPrednaz = "Общо",
+            .DefaultPrednaz1 = "осветление",
+            .VisibilityRules = New List(Of VisRule)()
+        },
+                New BlockConfig With {        ' УЛИЧНО ОСВЕТЛЕНИЕ
+            .BlockNames = New List(Of String) From {"ULI4NO"},
+            .Category = "Lamp",
+            .DefaultPoles = "1p",
+            .DefaultCable = "3x1,5",
+            .DefaultBreaker = "10",
+            .DefaultPrednaz = "Улично",
+            .DefaultPrednaz1 = "осветлене",
             .VisibilityRules = New List(Of VisRule)()
         },
         New BlockConfig With {        ' АВАРИЙНО ОСВЕТЛЕНИЕ
             .BlockNames = New List(Of String) From {"АВАРИЯ", "АВАРИЯ_100"},
             .Category = "Lamp",
             .DefaultPoles = "1p",
-            .DefaultCable = "3x1.5",
+            .DefaultCable = "3x1,5",
             .DefaultBreaker = "10",
+            .DefaultPrednaz = "Аварийно",
+            .DefaultPrednaz1 = "осветлене",
             .VisibilityRules = New List(Of VisRule)()
         },
         New BlockConfig With {        ' БОЙЛЕРИ
             .BlockNames = New List(Of String) From {"БОЙЛЕР"},
             .Category = "Device",
             .DefaultPoles = "1p",
-            .DefaultCable = "3x2.5",
+            .DefaultCable = "3x2,5",
             .DefaultBreaker = "16",
             .VisibilityRules = New List(Of VisRule) From {
-                New VisRule With {.VisibilityPattern = "ИЗХОД 3P", .Poles = "3p", .Cable = "5x2.5", .Phase = "L1,L2,L3"},
-                New VisRule With {.VisibilityPattern = "380V", .Poles = "3p", .Cable = "5x2.5", .Phase = "L1,L2,L3"},
+                New VisRule With {.VisibilityPattern = "ИЗХОД 3P", .Poles = "3p", .Cable = "5x2,5", .Phase = "L1,L2,L3"},
+                New VisRule With {.VisibilityPattern = "380V", .Poles = "3p", .Cable = "5x2,5", .Phase = "L1,L2,L3"},
                 New VisRule With {.VisibilityPattern = "ПРОТОЧЕН", .Breaker = "20"},
                 New VisRule With {.VisibilityPattern = "СЕШОАР", .Breaker = "16"},
                 New VisRule With {.VisibilityPattern = "СЕШОАР С КОНТАКТ", .Breaker = "16"},
-                New VisRule With {.VisibilityPattern = "ИЗХОД ГАЗ", .Cable = "3x1.5", .Breaker = "6"}
+                New VisRule With {.VisibilityPattern = "ИЗХОД ГАЗ", .Cable = "3x1,5", .Breaker = "6"}
             }
         },
         New BlockConfig With {        ' БОЙЛЕРНО ТАБЛО
             .BlockNames = New List(Of String) From {"БОЙЛЕРНО ТАБЛО"},
             .Category = "Contact",
             .DefaultPoles = "1p",
-            .DefaultCable = "3x1.5",
+            .DefaultCable = "3x2,5",
             .DefaultBreaker = "10",
             .VisibilityRules = New List(Of VisRule) From {
                 New VisRule With {.VisibilityPattern = "КЛЮЧ И КОНТАКТ", .ContactCount = 1},
@@ -917,84 +954,35 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
             }
         },
         New BlockConfig With {        ' ВЕНТИЛАЦИИ, КЛИМАТИЦИ, КОНВЕКТОРИ
-            .BlockNames = New List(Of String) From {"ВЕНТИЛАЦИИ", "ВЕНТИЛАТОР", "КЛИМАТИК", "КОНВЕКТОР", "ГОРЕЛКА", "НАГРЕВАТЕЛ", "ЕЛ. ЛИРА"},
+            .BlockNames = New List(Of String) From {"ВЕНТИЛАЦИИ"},
             .Category = "Device",
             .DefaultPoles = "1p",
-            .DefaultCable = "3x1.5",
+            .DefaultCable = "3x1,5",
             .DefaultBreaker = "10",
             .VisibilityRules = New List(Of VisRule) From {
-                New VisRule With {.VisibilityPattern = "3P", .Poles = "3p", .Cable = "5x1.5", .Phase = "L1,L2,L3"},
-                New VisRule With {.VisibilityPattern = "КАНАЛЕН 3P", .Poles = "3p", .Cable = "5x1.5", .Phase = "L1,L2,L3"},
-                New VisRule With {.VisibilityPattern = "ПРОЗОРЧЕН 3P", .Poles = "3p", .Cable = "5x1.5", .Phase = "L1,L2,L3"}
+                New VisRule With {.VisibilityPattern = "3P", .Poles = "3p", .Cable = "5x2,5", .Phase = "L1,L2,L3"},
+                New VisRule With {.VisibilityPattern = "КАНАЛЕН 3P", .Poles = "3p", .Cable = "5x2,5", .Phase = "L1,L2,L3"},
+                New VisRule With {.VisibilityPattern = "ПРОЗОРЧЕН 3P", .Poles = "3p", .Cable = "5x2,5", .Phase = "L1,L2,L3"}
             }
         },
         New BlockConfig With {        ' КОНТАКТИ
             .BlockNames = New List(Of String) From {"КОНТАКТ"},
             .Category = "Contact",
             .DefaultPoles = "1p",
-            .DefaultCable = "3x2.5",
+            .DefaultCable = "3x2,5",
             .DefaultBreaker = "16",
+            .DefaultPrednaz = "Контакти",
+            .DefaultPrednaz1 = "",
             .VisibilityRules = New List(Of VisRule) From {
                 New VisRule With {.VisibilityPattern = "ДВУГНЕЗДОВ", .ContactCount = 1},
                 New VisRule With {.VisibilityPattern = "ТРИГНЕЗДОВ", .ContactCount = 2},
-                New VisRule With {.VisibilityPattern = "ТРИФАЗЕН", .Poles = "3p", .Cable = "5x2.5", .Phase = "L1,L2,L3"},
-                New VisRule With {.VisibilityPattern = "ТР+2МФ", .Poles = "3p", .Cable = "5x2.5", .Phase = "L1,L2,L3", .ContactCount = 2},
-                New VisRule With {.VisibilityPattern = "ТВЪРДА ВРЪЗКА", .Cable = "3x4.0"},
-                New VisRule With {.VisibilityPattern = "УСИЛЕН", .Cable = "3x4.0"},
-                New VisRule With {.VisibilityPattern = "IP 54", .Cable = "3x2.5"},
-                New VisRule With {.VisibilityPattern = "МОНТАЖ В КАНАЛ", .Cable = "3x2.5"}
+                New VisRule With {.VisibilityPattern = "ТРИФАЗЕН", .Poles = "3p", .Cable = "5x2,5", .Phase = "L1,L2,L3"},
+                New VisRule With {.VisibilityPattern = "ТР+2МФ", .Poles = "3p", .Cable = "5x2,5", .Phase = "L1,L2,L3", .ContactCount = 2},
+                New VisRule With {.VisibilityPattern = "ТВЪРДА ВРЪЗКА", .Cable = "3x4,0"},
+                New VisRule With {.VisibilityPattern = "УСИЛЕН", .Cable = "3x4,0"},
+                New VisRule With {.VisibilityPattern = "IP 54", .Cable = "3x2,5"},
+                New VisRule With {.VisibilityPattern = "МОНТАЖ В КАНАЛ", .Cable = "3x2,5"}
             }
-        },
-        New BlockConfig With {        ' ЛИНИЯ МХЛ
-            .BlockNames = New List(Of String) From {"ЛИНИЯ МХЛ"},
-            .Category = "Lamp",
-            .DefaultPoles = "1p",
-            .DefaultCable = "3x1.5",
-            .DefaultBreaker = "10",
-            .VisibilityRules = New List(Of VisRule)()
-        },
-        New BlockConfig With {        ' ЛУМИНЕСЦЕНТНИ ЛАМПИ
-            .BlockNames = New List(Of String) From {"ЛУМИНЕСЦЕНТНА"},
-            .Category = "Lamp",
-            .DefaultPoles = "1p",
-            .DefaultCable = "3x1.5",
-            .DefaultBreaker = "10",
-            .VisibilityRules = New List(Of VisRule)()
-        },
-        New BlockConfig With {        ' МЕТАЛОХАЛОГЕННИ ЛАМПИ
-            .BlockNames = New List(Of String) From {"МЕТАЛХАОГЕННА", "МЕТАЛХАЛОГЕННА"},
-            .Category = "Lamp",
-            .DefaultPoles = "1p",
-            .DefaultCable = "3x1.5",
-            .DefaultBreaker = "10",
-            .VisibilityRules = New List(Of VisRule)()
-        },
-        New BlockConfig With {        ' ПЛАФОНИ, АПЛИЦИ, ПЕНДЕЛИ, ЛАМПИОНИ, ДАТЧИЦИ
-            .BlockNames = New List(Of String) From {"ПЛАФОНИ",
-                                        "АПЛИК", "ПЕНДЕЛ", "ЛАМПИОН",
-                                        "НАСТОЛНА ЛАМПА", "ФАСАДНО", "БАНСКИ АПЛИК",
-                                        "ДАТЧИК", "ФОТОДАТЧИК"},
-            .Category = "Lamp",
-            .DefaultPoles = "1p",
-            .DefaultCable = "3x1.5",
-            .DefaultBreaker = "10",
-            .VisibilityRules = New List(Of VisRule)()
-        },
-        New BlockConfig With {        ' ПОЛИЛЕИ
-            .BlockNames = New List(Of String) From {"ПОЛИЛЕЙ"},
-            .Category = "Lamp",
-            .DefaultPoles = "1p",
-            .DefaultCable = "3x1.5",
-            .DefaultBreaker = "10",
-            .VisibilityRules = New List(Of VisRule)()
-        },
-        New BlockConfig With {        ' ПРОЖЕКТОРИ
-            .BlockNames = New List(Of String) From {"ПРОЖЕКТОР"},
-            .Category = "Lamp",
-            .DefaultPoles = "1p",
-            .DefaultCable = "3x1.5",
-            .DefaultBreaker = "10",
-            .VisibilityRules = New List(Of VisRule)()
         }
     }
     End Sub
@@ -1071,6 +1059,10 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
             For Each kons As strKonsumator In tokow.Konsumator
                 ProcessConsumerByConfig(kons, tokow)
             Next
+
+
+
+
             ' Изчисли тока
             tokow.Ток = calc_Inom(tokow.Мощност, tokow.Фаза)
             ' ✅ ИЗБЕРИ ПРЕКЪСВАЧ

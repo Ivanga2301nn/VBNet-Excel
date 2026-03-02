@@ -1306,7 +1306,6 @@ Public Class SheetSet_new
     ''' <param name="number">Номер на листа</param>
     ''' <param name="fileName">DWG файл за импортиране</param>
     ''' <param name="layout">Layout в DWG файла</param>
-    ''' <returns>Връща импортирания AcSmSheet</returns>
     Private Sub ImportASheet(component As IAcSmComponent,
                                   title As String,
                                   description As String,

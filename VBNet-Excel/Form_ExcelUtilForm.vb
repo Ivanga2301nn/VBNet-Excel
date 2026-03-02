@@ -1049,36 +1049,38 @@ Public Class Form_ExcelUtilForm
                             Visibility = ""
                         Case "Луминисцентна лампа"
                         Case "Качване"
-                            Dim ka4vane As strКачване
+                            Dim ka4vane As New strКачване
                             For Each objID As ObjectId In attCol
                                 Dim dbObj As DBObject = acTrans.GetObject(objID, OpenMode.ForRead)
                                 Dim acAttRef As AttributeReference = dbObj
-                                If acAttRef.Tag = "KOTA_1" Then ka4vane.KOTA_1 = acAttRef.TextString
-                                If acAttRef.Tag = "KOTA_2" Then ka4vane.KOTA_2 = acAttRef.TextString
-                                If acAttRef.Tag = "ТРЪБА_1" Then ka4vane.ТРЪБА_1 = acAttRef.TextString
-                                If acAttRef.Tag = "ТРЪБА_2" Then ka4vane.ТРЪБА_2 = acAttRef.TextString
-                                If acAttRef.Tag = "Kabel_d_0" Then ka4vane.Kabel_d_0 = acAttRef.TextString
-                                If acAttRef.Tag = "Kabel_d_1" Then ka4vane.Kabel_d_1 = acAttRef.TextString
-                                If acAttRef.Tag = "Kabel_d_2" Then ka4vane.Kabel_d_2 = acAttRef.TextString
-                                If acAttRef.Tag = "Kabel_d_3" Then ka4vane.Kabel_d_3 = acAttRef.TextString
-                                If acAttRef.Tag = "Kabel_d_4" Then ka4vane.Kabel_d_4 = acAttRef.TextString
-                                If acAttRef.Tag = "Kabel_d_5" Then ka4vane.Kabel_d_5 = acAttRef.TextString
-                                If acAttRef.Tag = "Kabel_d_6" Then ka4vane.Kabel_d_6 = acAttRef.TextString
-                                If acAttRef.Tag = "Kabel_d_7" Then ka4vane.Kabel_d_7 = acAttRef.TextString
-                                If acAttRef.Tag = "Kabel_d_8" Then ka4vane.Kabel_d_8 = acAttRef.TextString
-                                If acAttRef.Tag = "Kabel_d_9" Then ka4vane.Kabel_d_9 = acAttRef.TextString
-                                If acAttRef.Tag = "Kabel_d_10" Then ka4vane.Kabel_d_10 = acAttRef.TextString
-                                If acAttRef.Tag = "Kabel_g_0" Then ka4vane.Kabel_g_0 = acAttRef.TextString
-                                If acAttRef.Tag = "Kabel_g_1" Then ka4vane.Kabel_g_1 = acAttRef.TextString
-                                If acAttRef.Tag = "Kabel_g_2" Then ka4vane.Kabel_g_2 = acAttRef.TextString
-                                If acAttRef.Tag = "Kabel_g_3" Then ka4vane.Kabel_g_3 = acAttRef.TextString
-                                If acAttRef.Tag = "Kabel_g_4" Then ka4vane.Kabel_g_4 = acAttRef.TextString
-                                If acAttRef.Tag = "Kabel_g_5" Then ka4vane.Kabel_g_5 = acAttRef.TextString
-                                If acAttRef.Tag = "Kabel_g_6" Then ka4vane.Kabel_g_6 = acAttRef.TextString
-                                If acAttRef.Tag = "Kabel_g_7" Then ka4vane.Kabel_g_7 = acAttRef.TextString
-                                If acAttRef.Tag = "Kabel_g_8" Then ka4vane.Kabel_g_8 = acAttRef.TextString
-                                If acAttRef.Tag = "Kabel_g_9" Then ka4vane.Kabel_g_9 = acAttRef.TextString
-                                If acAttRef.Tag = "Kabel_g_10" Then ka4vane.Kabel_g_10 = acAttRef.TextString
+                                Select Case acAttRef.Tag
+                                    Case "KOTA_1" : ka4vane.KOTA_1 = acAttRef.TextString
+                                    Case "KOTA_2" : ka4vane.KOTA_2 = acAttRef.TextString
+                                    Case "ТРЪБА_1" : ka4vane.ТРЪБА_1 = acAttRef.TextString
+                                    Case "ТРЪБА_2" : ka4vane.ТРЪБА_2 = acAttRef.TextString
+                                    Case "Kabel_d_0" : ka4vane.Kabel_d_0 = acAttRef.TextString
+                                    Case "Kabel_d_1" : ka4vane.Kabel_d_1 = acAttRef.TextString
+                                    Case "Kabel_d_2" : ka4vane.Kabel_d_2 = acAttRef.TextString
+                                    Case "Kabel_d_3" : ka4vane.Kabel_d_3 = acAttRef.TextString
+                                    Case "Kabel_d_4" : ka4vane.Kabel_d_4 = acAttRef.TextString
+                                    Case "Kabel_d_5" : ka4vane.Kabel_d_5 = acAttRef.TextString
+                                    Case "Kabel_d_6" : ka4vane.Kabel_d_6 = acAttRef.TextString
+                                    Case "Kabel_d_7" : ka4vane.Kabel_d_7 = acAttRef.TextString
+                                    Case "Kabel_d_8" : ka4vane.Kabel_d_8 = acAttRef.TextString
+                                    Case "Kabel_d_9" : ka4vane.Kabel_d_9 = acAttRef.TextString
+                                    Case "Kabel_d_10" : ka4vane.Kabel_d_10 = acAttRef.TextString
+                                    Case "Kabel_g_0" : ka4vane.Kabel_g_0 = acAttRef.TextString
+                                    Case "Kabel_g_1" : ka4vane.Kabel_g_1 = acAttRef.TextString
+                                    Case "Kabel_g_2" : ka4vane.Kabel_g_2 = acAttRef.TextString
+                                    Case "Kabel_g_3" : ka4vane.Kabel_g_3 = acAttRef.TextString
+                                    Case "Kabel_g_4" : ka4vane.Kabel_g_4 = acAttRef.TextString
+                                    Case "Kabel_g_5" : ka4vane.Kabel_g_5 = acAttRef.TextString
+                                    Case "Kabel_g_6" : ka4vane.Kabel_g_6 = acAttRef.TextString
+                                    Case "Kabel_g_7" : ka4vane.Kabel_g_7 = acAttRef.TextString
+                                    Case "Kabel_g_8" : ka4vane.Kabel_g_8 = acAttRef.TextString
+                                    Case "Kabel_g_9" : ka4vane.Kabel_g_9 = acAttRef.TextString
+                                    Case "Kabel_g_10" : ka4vane.Kabel_g_10 = acAttRef.TextString
+                                End Select
                             Next
                             With wsKa4vane
                                 .Cells(index_Red, 1) = ka4vane.KOTA_1

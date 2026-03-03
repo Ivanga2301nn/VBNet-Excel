@@ -752,6 +752,59 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
             Next
         Next
         ' ==========================
+        ' MCB – Acti9 iC60N (6kA / 10kA)
+        ' ==========================
+        ' iC60N предлага изключително малки токове за защита на контролни вериги
+        Dim iC60_Currents = {0.5, 1, 2, 3, 4, 6, 10, 13, 16, 20, 25, 32, 40, 50, 63}
+        Dim iC60_Curves = {"B", "C", "D"}
+        Dim iC60_Poles = {1, 3} ' Добавяме 2P и 4P, които са стандарт тук
+
+        For Each Inom In iC60_Currents
+            For Each curve In iC60_Curves
+                For Each poles In iC60_Poles
+                    Breakers.Add(New BreakerInfo With {
+                .Brand = "Schneider",
+                .Series = "Acti9 iC60N",
+                .Category = "MCB",
+                .NominalCurrent = Inom,
+                .Poles = poles,
+                .Curve = curve,
+                .Ics_kA = 6,
+                .TripUnit = Nothing,
+                .IsAdjustable = False
+            })
+                Next
+            Next
+        Next
+        ' ==========================
+        ' MCCB – ComPacT NSXm (16A до 160A)
+        ' ==========================
+        Dim NSXm_Currents = {16, 25, 32, 40, 50, 63, 80, 100, 125, 160}
+        Dim NSXm_Poles = {3, 4} ' Предлага се основно в 3P и 4P
+        ' Дефинираме нивата на изключвателна способност (Icu @ 415V)
+        ' E=16kA, B=25kA, F=36kA, N=50kA, H=70kA
+        Dim NSXm_Levels = New Dictionary(Of String, Integer) From {
+            {"E", 16}, {"B", 25}, {"F", 36}, {"N", 50}, {"H", 70}
+        }
+
+        For Each Inom In NSXm_Currents
+            For Each level In NSXm_Levels
+                For Each poles In NSXm_Poles
+                    Breakers.Add(New BreakerInfo With {
+                .Brand = "Schneider",
+                .Series = "ComPacT NSXm",
+                .Category = "MCCB",
+                .NominalCurrent = Inom,
+                .Poles = poles,
+                .TripUnit = "TM-D",
+                .Ics_kA = level.Value,
+                .Curve = level.Key,
+                .IsAdjustable = True
+            })
+                Next
+            Next
+        Next
+        ' ==========================
         ' MCB – C120
         ' ==========================
         Dim C120_Currents = {80, 100, 125}
@@ -774,24 +827,111 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                 Next
             Next
         Next
-        ' ==========================
-        ' MCCB – NSX
-        ' ==========================
-        Dim NSX_Currents = {100, 125, 160, 200, 250, 320, 400, 500, 630}
-        Dim NSX_Icu = {25, 36, 50}
-        For Each Inom In NSX_Currents
-            For Each icuValue In NSX_Icu
-                Breakers.Add(New BreakerInfo With {
-                .Brand = "Schneider",
-                .Series = "ComPacT NSX",
-                .Category = "MCCB",
-                .NominalCurrent = Inom,
-                .Poles = 3,
-                .TripUnit = "TM-D",
-                .Ics_kA = icuValue,
-                .Curve = Nothing,
-                .IsAdjustable = True
-            })
+        ' NSX100 – TM‑D, TM‑DC
+        Dim NSX100_Currents = {16, 25, 32, 40, 63, 80, 100}
+        Dim NSX100_Curves = {"B", "F", "N", "H", "S", "L"}
+        Dim NSX100_TripUnits = {"TM-D", "TM-DC"}
+
+        For Each Inom In NSX100_Currents
+            For Each curve In NSX100_Curves
+                For Each trip In NSX100_TripUnits
+                    Breakers.Add(New BreakerInfo With {
+                        .Brand = "Schneider",
+                        .Series = "ComPacT NSX100",
+                        .Category = "MCCB",
+                        .NominalCurrent = Inom,
+                        .Poles = 3,
+                        .TripUnit = trip,
+                        .Ics_kA = 25,
+                        .Curve = curve,
+                        .IsAdjustable = True
+                    })
+                Next
+            Next
+        Next
+
+        ' NSX160 – TM‑D, TM‑DC
+        Dim NSX160_Currents = {80, 100, 125, 160}
+        Dim NSX160_Curves = {"B", "F", "N", "H", "S", "L"}
+        Dim NSX160_TripUnits = {"TM-D", "TM-DC"}
+
+        For Each Inom In NSX160_Currents
+            For Each curve In NSX160_Curves
+                For Each trip In NSX160_TripUnits
+                    Breakers.Add(New BreakerInfo With {
+                        .Brand = "Schneider",
+                        .Series = "ComPacT NSX160",
+                        .Category = "MCCB",
+                        .NominalCurrent = Inom,
+                        .Poles = 3,
+                        .TripUnit = trip,
+                        .Ics_kA = 36,
+                        .Curve = curve,
+                        .IsAdjustable = True
+                    })
+                Next
+            Next
+        Next
+
+        ' NSX250 – Micrologic (по‑големи токове обикновено с електронна защита)
+        Dim NSX250_Currents = {125, 160, 200, 250}
+        Dim NSX250_Curves = {"B", "F", "N", "H", "S", "L"}
+        Dim NSX250_TripUnits = {"Micrologic 2.0", "Micrologic 5.0"}
+
+        For Each Inom In NSX250_Currents
+            For Each curve In NSX250_Curves
+                For Each trip In NSX250_TripUnits
+                    Breakers.Add(New BreakerInfo With {
+                        .Brand = "Schneider",
+                        .Series = "ComPacT NSX250",
+                        .Category = "MCCB",
+                        .NominalCurrent = Inom,
+                        .Poles = 3,
+                        .TripUnit = trip,
+                        .Ics_kA = 50,
+                        .Curve = curve,
+                        .IsAdjustable = True
+                    })
+                Next
+            Next
+        Next
+        ' NSX400/NSX630 – Micrologic
+        Dim NSX400_Currents = {250, 320, 400}
+        Dim NSX400_Curves = {"F", "N", "H", "S", "L"}
+        Dim NSX_High_TripUnits = {"Micrologic 2.3"}
+        For Each Inom In NSX400_Currents
+            For Each curve In NSX400_Curves
+                For Each trip In NSX_High_TripUnits
+                    Breakers.Add(New BreakerInfo With {
+                        .Brand = "Schneider",
+                        .Series = "ComPacT NSX400",
+                        .Category = "MCCB",
+                        .NominalCurrent = Inom,
+                        .Poles = 3,
+                        .TripUnit = trip,
+                        .Ics_kA = 70,
+                        .Curve = curve,
+                        .IsAdjustable = True
+                    })
+                Next
+            Next
+        Next
+        Dim NSX630_Currents = {400, 500, 630}
+        For Each Inom In NSX630_Currents
+            For Each curve In NSX400_Curves
+                For Each trip In NSX_High_TripUnits
+                    Breakers.Add(New BreakerInfo With {
+                        .Brand = "Schneider",
+                        .Series = "ComPacT NSX630",
+                        .Category = "MCCB",
+                        .NominalCurrent = Inom,
+                        .Poles = 3,
+                        .TripUnit = trip,
+                        .Ics_kA = 100,
+                        .Curve = curve,
+                        .IsAdjustable = True
+                    })
+                Next
             Next
         Next
         ' ==========================

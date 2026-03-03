@@ -11,6 +11,7 @@ Imports Autodesk.AutoCAD.Geometry
 Imports Autodesk.AutoCAD.Internal.DatabaseServices
 Imports Autodesk.AutoCAD.PlottingServices
 Imports Autodesk.AutoCAD.Runtime
+Imports Org.BouncyCastle.Math.EC.ECCurve
 Imports VBNet_Excel.Form_Tablo_new
 
 'Imports System.IO
@@ -36,6 +37,9 @@ Public Class Form_Tablo_new
         CreateTokowList()
         InitializeBlockConfigs()
         CalculateCircuitLoads()
+        SortCircuits()
+
+
 
 
         BuildTreeViewFromKonsumatori()
@@ -58,6 +62,7 @@ Public Class Form_Tablo_new
     Private IcableDict As New Dictionary(Of String, Integer())
     Private Kable_Size_L As String()
     Private Kable_Size_N As String()
+    Private Kable_Type As String()
     Dim Disconnectors As New List(Of DisconnectorInfo)
     ' ============================================================
     ' КАТАЛОЖНИ СТРУКТУРИ
@@ -72,25 +77,23 @@ Public Class Form_Tablo_new
         New String() {"Изчислен ток", "A", "Text"},
         New String() {"Тип на апарата", "", "Combo"},
         New String() {"Номинален ток", "A", "Combo"},
-        New String() {"Изкл. възможн.", "", "Text"},
+        New String() {"Изкл. възможн.", "A", "Text"},
         New String() {"Крива", "", "Text"},
         New String() {"Защитен блок", "", "Combo"},
         New String() {"Брой полюси", "бр.", "Text"},
-        New String() {"---------", "", "Text"},
         New String() {"ДТЗ", "", "Text"},
         New String() {"Вид на апарата", "", "Text"},
         New String() {"Клас на апарата", "", "Text"},
         New String() {"Номинален ток", "A", "Text"},
-        New String() {"Изкл. възможн.", "mA", "Text"},
+        New String() {"Чувствителност", "mA", "Text"},
         New String() {"Брой полюси", "бр.", "Text"},
-        New String() {"---------", "", "Text"},
         New String() {"Брой лампи", "бр.", "Text"},
         New String() {"Брой контакти", "бр.", "Text"},
         New String() {"Инст. мощност", "kW", "Text"},
-        New String() {"---------", "", "Text"},
-        New String() {"Тип кабел", "---", "Combo"},
-        New String() {"Сечение", "---", "Combo"},
-        New String() {"Фаза", "---", "Text"},
+        New String() {"Кабел", "", "Text"},
+        New String() {"Тип", "---", "Combo"},
+        New String() {"Сечение", "mm²", "Combo"},
+        New String() {"Фаза", "mm²", "Text"},
         New String() {"---------", "", "Text"},
         New String() {"Консуматор", "---", "Text"},
         New String() {"предназначение", "---", "Text"},
@@ -99,14 +102,7 @@ Public Class Form_Tablo_new
         New String() {"Шина", "---", "Check"},
         New String() {"ДТЗ (RCD)", "---", "Check"}
     }
-    Public Structure BreakerInfo
-        Dim NominalCurrent As Integer        ' 6, 10, 16, 20...
-        Dim Type As String                   ' "EZ9", "C120", "NSX", "MTZ"
-        Dim Brand As String                  ' "Schneider"
-        Dim Poles As Integer                 ' 1, 2, 3, 4
-        Dim Curve As String                  ' "B", "C", "D"
-        Dim BreakingCapacity As Integer      ' 6000, 10000, 25000... (A)
-    End Structure
+
     Public Structure DisconnectorInfo
         Dim NominalCurrent As Integer    ' 20, 32, 40...
         Dim Type As String               ' "iSW", "INS", "IN"
@@ -146,7 +142,7 @@ Public Class Form_Tablo_new
         Dim Phase As Integer            ' Брой фази (1, 3)
     End Structure
     ''' <summary>
-    ''' Представя токов кръг в електрическо табло.
+    ''' Структура токов кръг в електрическо табло.
     ''' Съдържа идентификация, мощност, ток, кабел,
     ''' защитна апаратура (прекъсвач и ДТЗ),
     ''' както и списък с консуматори в кръга.
@@ -209,6 +205,48 @@ Public Class Form_Tablo_new
         Public Konsumator As List(Of strKonsumator)
         ' Списък с всички реални консуматори,
         ' принадлежащи към този токов кръг.
+    End Class
+    ''' <summary>
+    ''' Представя автоматичен прекъсвач – MCB, MCCB или ACB.
+    ''' Може да се използва за избор на прекъсвач за генераторни табла,
+    ''' както и за по-сложни сценарии с селективност и късо съединение.
+    ''' </summary>
+    Public Class BreakerInfo
+        Public Brand As String              ' Производител на прекъсвача (например "Schneider").
+        Public Series As String             ' Серия или модел на прекъсвача (например "EZ9", "C120", "NSX", "MTZ").
+        ''' <summary>
+        ''' Категория на прекъсвача:
+        ''' - "MCB" – миниатюрен автоматичен прекъсвач
+        ''' - "MCCB" – корпусен прекъсвач
+        ''' - "ACB" – въздушен прекъсвач
+        ''' </summary>
+        Public Category As String
+        Public NominalCurrent As Integer         ' Номинален ток на прекъсвача в ампери.
+        Public Poles As Integer ' Брой полюси (1P, 2P, 3P или 4P).
+        ''' <summary>
+        ''' Работна прекъсвателна способност (Ics) в kA.
+        ''' Това е стойността, до която прекъсвачът може да изключва многократно.
+        ''' </summary>
+        Public Ics_kA As Decimal
+        ''' <summary>
+        ''' Крива на MCB (B, C или D). 
+        ''' Само за миниатюрни автоматични прекъсвачи.  
+        ''' Определя характеристиката на изключване при късо съединение.
+        ''' MCCB и ACB не използват това поле.
+        ''' </summary>
+        Public Curve As String
+        ''' <summary>
+        ''' Тип на защитната единица (Trip Unit) – TM-D, Micrologic и т.н.
+        ''' Само за MCCB и ACB.  
+        ''' Определя електронната или термомагнитната защита.
+        ''' </summary>
+        Public TripUnit As String
+        ''' <summary>
+        ''' Дали прекъсвачът има регулируеми настройки на Ir, Ii, Isd и други параметри.
+        ''' True – може да се настройва (MCCB, ACB).  
+        ''' False – фиксирани характеристики (MCB).
+        ''' </summary>
+        Public IsAdjustable As Boolean
     End Class
     Public Structure strTablo
         Dim countTablo As Integer
@@ -444,7 +482,6 @@ Public Class Form_Tablo_new
         colUnit.DefaultCellStyle.ForeColor = Color.Gray
         colUnit.SortMode = DataGridViewColumnSortMode.NotSortable
         DataGridView1.Columns.Add(colUnit)
-
         ' Колона ОБЩО
         Dim colTotal As New DataGridViewTextBoxColumn()
         colTotal.Name = "colTotal"
@@ -455,7 +492,6 @@ Public Class Form_Tablo_new
         colTotal.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter
         colTotal.SortMode = DataGridViewColumnSortMode.NotSortable
         DataGridView1.Columns.Add(colTotal)
-
         For Each row As String() In rowData
             Dim dgvRow As New DataGridViewRow()
             dgvRow.CreateCells(DataGridView1)
@@ -482,13 +518,15 @@ Public Class Form_Tablo_new
                 dgvRow.Cells(colIndex) = cell
             Next
             ' Оцветяване
-            If row(0) = "---------" Then
-                dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(220, 220, 220)
-            ElseIf row(0) = "Прекъсвач" OrElse row(0) = "ДТЗ" Then
-                dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(180, 200, 255)
-                dgvRow.DefaultCellStyle.Font = New Drawing.Font("Arial", 10, FontStyle.Bold)
-            End If
-
+            Select Case row(0).ToString()
+                Case "---------"
+                    dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(220, 220, 220)
+                Case "Прекъсвач", "ДТЗ", "Кабел"
+                    dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(180, 200, 255)
+                    dgvRow.DefaultCellStyle.Font = New Drawing.Font("Arial", 10, FontStyle.Bold)
+                Case Else
+                    ' Тук можеш да сложиш форматиране по подразбиране, ако е необходимо
+            End Select
             DataGridView1.Rows.Add(dgvRow)
         Next
         ' =====================================================
@@ -513,7 +551,7 @@ Public Class Form_Tablo_new
             Case "Тип на апарата"
                 comboCell.Items.AddRange("EZ9 MCB", "EZ9 RCCB", "EZ9 RCBO", "iSW", "A9 MCB")
             Case "Номинален ток"
-                comboCell.Items.AddRange("6A", "10A", "16A", "20A", "25A", "32A", "40A", "50A", "63A")
+                comboCell.Items.AddRange("6", "10", "16", "20", "25", "32", "40", "50", "63")
             Case "Управление"
                 comboCell.Items.AddRange("Няма",
                                          "Импулсно реле",
@@ -524,10 +562,16 @@ Public Class Form_Tablo_new
                                          "Стълбищен автомат",
                                          "Електромер",
                                          "Фото реле")
+            Case "Сечение"
+                comboCell.Items.AddRange(Kable_Size_L)
+            Case "Тип"
+                comboCell.Items.AddRange(Kable_Type)
         End Select
         ' ✅ ЗАДАЙ ПЪРВИЯ ЕЛЕМЕНТ КАТО СТОЙНОСТ
         If comboCell.Items.Count > 0 Then comboCell.Value = comboCell.Items(0)
-        comboCell.DisplayStyle = ComboBoxStyle.DropDownList
+        'comboCell.DisplayStyle = ComboBoxStyle.Simple
+        comboCell.DisplayStyle = ComboBoxStyle.DropDown
+        'comboCell.DisplayStyle = ComboBoxStyle.DropDownList
     End Sub
     ' Добави това след SetupDataGridView()
     Private Sub DataGridView1_DataError(sender As Object, e As DataGridViewDataErrorEventArgs) Handles DataGridView1.DataError
@@ -554,112 +598,13 @@ Public Class Form_Tablo_new
         Kable_Size_L = {"1,5", "2,5", "4,0", "6,0", "10", "16", "25", "35", "50", "70", "95", "120", "150", "185", "240"}
         ' Общ масив за всички сечения НУЛЕВОТО ЖИЛО
         Kable_Size_N = {"0", "0", "0", "0", "0", "0", "16", "16", "25", "35", "50", "70", "70", "95", "120"}
+        ' Речник за типове кабели
+        Kable_Type = {"СВТ", "САВТ", "Al/R", "Al/R+СВТ", "Al/R+САВТ"}
         ' Речник за всички автоматични прекъсвачи
-        Breakers = New List(Of BreakerInfo) From {
-New BreakerInfo With {.NominalCurrent = 6, .Type = "EZ9", .Brand = "Schneider", .Poles = 1, .Curve = "B", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 10, .Type = "EZ9", .Brand = "Schneider", .Poles = 1, .Curve = "B", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 16, .Type = "EZ9", .Brand = "Schneider", .Poles = 1, .Curve = "B", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 20, .Type = "EZ9", .Brand = "Schneider", .Poles = 1, .Curve = "B", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 25, .Type = "EZ9", .Brand = "Schneider", .Poles = 1, .Curve = "B", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 32, .Type = "EZ9", .Brand = "Schneider", .Poles = 1, .Curve = "B", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 40, .Type = "EZ9", .Brand = "Schneider", .Poles = 1, .Curve = "B", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 50, .Type = "EZ9", .Brand = "Schneider", .Poles = 1, .Curve = "B", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 63, .Type = "EZ9", .Brand = "Schneider", .Poles = 1, .Curve = "B", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 6, .Type = "EZ9", .Brand = "Schneider", .Poles = 1, .Curve = "C", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 10, .Type = "EZ9", .Brand = "Schneider", .Poles = 1, .Curve = "C", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 16, .Type = "EZ9", .Brand = "Schneider", .Poles = 1, .Curve = "C", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 20, .Type = "EZ9", .Brand = "Schneider", .Poles = 1, .Curve = "C", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 25, .Type = "EZ9", .Brand = "Schneider", .Poles = 1, .Curve = "C", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 32, .Type = "EZ9", .Brand = "Schneider", .Poles = 1, .Curve = "C", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 40, .Type = "EZ9", .Brand = "Schneider", .Poles = 1, .Curve = "C", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 50, .Type = "EZ9", .Brand = "Schneider", .Poles = 1, .Curve = "C", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 63, .Type = "EZ9", .Brand = "Schneider", .Poles = 1, .Curve = "C", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 6, .Type = "EZ9", .Brand = "Schneider", .Poles = 1, .Curve = "D", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 10, .Type = "EZ9", .Brand = "Schneider", .Poles = 1, .Curve = "D", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 16, .Type = "EZ9", .Brand = "Schneider", .Poles = 1, .Curve = "D", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 20, .Type = "EZ9", .Brand = "Schneider", .Poles = 1, .Curve = "D", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 25, .Type = "EZ9", .Brand = "Schneider", .Poles = 1, .Curve = "D", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 32, .Type = "EZ9", .Brand = "Schneider", .Poles = 1, .Curve = "D", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 40, .Type = "EZ9", .Brand = "Schneider", .Poles = 1, .Curve = "D", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 50, .Type = "EZ9", .Brand = "Schneider", .Poles = 1, .Curve = "D", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 63, .Type = "EZ9", .Brand = "Schneider", .Poles = 1, .Curve = "D", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 6, .Type = "EZ9", .Brand = "Schneider", .Poles = 3, .Curve = "B", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 10, .Type = "EZ9", .Brand = "Schneider", .Poles = 3, .Curve = "B", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 16, .Type = "EZ9", .Brand = "Schneider", .Poles = 3, .Curve = "B", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 20, .Type = "EZ9", .Brand = "Schneider", .Poles = 3, .Curve = "B", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 25, .Type = "EZ9", .Brand = "Schneider", .Poles = 3, .Curve = "B", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 32, .Type = "EZ9", .Brand = "Schneider", .Poles = 3, .Curve = "B", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 40, .Type = "EZ9", .Brand = "Schneider", .Poles = 3, .Curve = "B", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 50, .Type = "EZ9", .Brand = "Schneider", .Poles = 3, .Curve = "B", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 6, .Type = "EZ9", .Brand = "Schneider", .Poles = 3, .Curve = "C", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 10, .Type = "EZ9", .Brand = "Schneider", .Poles = 3, .Curve = "C", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 16, .Type = "EZ9", .Brand = "Schneider", .Poles = 3, .Curve = "C", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 20, .Type = "EZ9", .Brand = "Schneider", .Poles = 3, .Curve = "C", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 25, .Type = "EZ9", .Brand = "Schneider", .Poles = 3, .Curve = "C", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 32, .Type = "EZ9", .Brand = "Schneider", .Poles = 3, .Curve = "C", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 40, .Type = "EZ9", .Brand = "Schneider", .Poles = 3, .Curve = "C", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 50, .Type = "EZ9", .Brand = "Schneider", .Poles = 3, .Curve = "C", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 63, .Type = "EZ9", .Brand = "Schneider", .Poles = 3, .Curve = "C", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 6, .Type = "EZ9", .Brand = "Schneider", .Poles = 3, .Curve = "D", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 10, .Type = "EZ9", .Brand = "Schneider", .Poles = 3, .Curve = "D", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 16, .Type = "EZ9", .Brand = "Schneider", .Poles = 3, .Curve = "D", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 20, .Type = "EZ9", .Brand = "Schneider", .Poles = 3, .Curve = "D", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 25, .Type = "EZ9", .Brand = "Schneider", .Poles = 3, .Curve = "D", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 32, .Type = "EZ9", .Brand = "Schneider", .Poles = 3, .Curve = "D", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 40, .Type = "EZ9", .Brand = "Schneider", .Poles = 3, .Curve = "D", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 50, .Type = "EZ9", .Brand = "Schneider", .Poles = 3, .Curve = "D", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 63, .Type = "EZ9", .Brand = "Schneider", .Poles = 3, .Curve = "D", .BreakingCapacity = 6000},
-New BreakerInfo With {.NominalCurrent = 80, .Type = "C120", .Brand = "Schneider", .Poles = 1, .Curve = "C", .BreakingCapacity = 10000},
-New BreakerInfo With {.NominalCurrent = 100, .Type = "C120", .Brand = "Schneider", .Poles = 1, .Curve = "C", .BreakingCapacity = 10000},
-New BreakerInfo With {.NominalCurrent = 125, .Type = "C120", .Brand = "Schneider", .Poles = 1, .Curve = "C", .BreakingCapacity = 10000},
-New BreakerInfo With {.NominalCurrent = 80, .Type = "C120", .Brand = "Schneider", .Poles = 1, .Curve = "D", .BreakingCapacity = 10000},
-New BreakerInfo With {.NominalCurrent = 100, .Type = "C120", .Brand = "Schneider", .Poles = 1, .Curve = "D", .BreakingCapacity = 10000},
-New BreakerInfo With {.NominalCurrent = 125, .Type = "C120", .Brand = "Schneider", .Poles = 1, .Curve = "D", .BreakingCapacity = 10000},
-New BreakerInfo With {.NominalCurrent = 80, .Type = "C120", .Brand = "Schneider", .Poles = 3, .Curve = "C", .BreakingCapacity = 10000},
-New BreakerInfo With {.NominalCurrent = 100, .Type = "C120", .Brand = "Schneider", .Poles = 3, .Curve = "C", .BreakingCapacity = 10000},
-New BreakerInfo With {.NominalCurrent = 125, .Type = "C120", .Brand = "Schneider", .Poles = 3, .Curve = "C", .BreakingCapacity = 10000},
-New BreakerInfo With {.NominalCurrent = 80, .Type = "C120", .Brand = "Schneider", .Poles = 3, .Curve = "D", .BreakingCapacity = 10000},
-New BreakerInfo With {.NominalCurrent = 100, .Type = "C120", .Brand = "Schneider", .Poles = 3, .Curve = "D", .BreakingCapacity = 10000},
-New BreakerInfo With {.NominalCurrent = 125, .Type = "C120", .Brand = "Schneider", .Poles = 3, .Curve = "D", .BreakingCapacity = 10000},
-New BreakerInfo With {.NominalCurrent = 100, .Type = "NSX", .Brand = "Schneider", .Poles = 3, .Curve = "C", .BreakingCapacity = 25000},
-New BreakerInfo With {.NominalCurrent = 125, .Type = "NSX", .Brand = "Schneider", .Poles = 3, .Curve = "C", .BreakingCapacity = 25000},
-New BreakerInfo With {.NominalCurrent = 160, .Type = "NSX", .Brand = "Schneider", .Poles = 3, .Curve = "C", .BreakingCapacity = 25000},
-New BreakerInfo With {.NominalCurrent = 200, .Type = "NSX", .Brand = "Schneider", .Poles = 3, .Curve = "C", .BreakingCapacity = 25000},
-New BreakerInfo With {.NominalCurrent = 250, .Type = "NSX", .Brand = "Schneider", .Poles = 3, .Curve = "C", .BreakingCapacity = 25000},
-New BreakerInfo With {.NominalCurrent = 320, .Type = "NSX", .Brand = "Schneider", .Poles = 3, .Curve = "C", .BreakingCapacity = 25000},
-New BreakerInfo With {.NominalCurrent = 400, .Type = "NSX", .Brand = "Schneider", .Poles = 3, .Curve = "C", .BreakingCapacity = 25000},
-New BreakerInfo With {.NominalCurrent = 500, .Type = "NSX", .Brand = "Schneider", .Poles = 3, .Curve = "C", .BreakingCapacity = 25000},
-New BreakerInfo With {.NominalCurrent = 630, .Type = "NSX", .Brand = "Schneider", .Poles = 3, .Curve = "C", .BreakingCapacity = 25000},
-New BreakerInfo With {.NominalCurrent = 100, .Type = "NSX", .Brand = "Schneider", .Poles = 3, .Curve = "D", .BreakingCapacity = 25000},
-New BreakerInfo With {.NominalCurrent = 125, .Type = "NSX", .Brand = "Schneider", .Poles = 3, .Curve = "D", .BreakingCapacity = 25000},
-New BreakerInfo With {.NominalCurrent = 160, .Type = "NSX", .Brand = "Schneider", .Poles = 3, .Curve = "D", .BreakingCapacity = 25000},
-New BreakerInfo With {.NominalCurrent = 200, .Type = "NSX", .Brand = "Schneider", .Poles = 3, .Curve = "D", .BreakingCapacity = 25000},
-New BreakerInfo With {.NominalCurrent = 250, .Type = "NSX", .Brand = "Schneider", .Poles = 3, .Curve = "D", .BreakingCapacity = 25000},
-New BreakerInfo With {.NominalCurrent = 320, .Type = "NSX", .Brand = "Schneider", .Poles = 3, .Curve = "D", .BreakingCapacity = 25000},
-New BreakerInfo With {.NominalCurrent = 400, .Type = "NSX", .Brand = "Schneider", .Poles = 3, .Curve = "D", .BreakingCapacity = 25000},
-New BreakerInfo With {.NominalCurrent = 500, .Type = "NSX", .Brand = "Schneider", .Poles = 3, .Curve = "D", .BreakingCapacity = 25000},
-New BreakerInfo With {.NominalCurrent = 630, .Type = "NSX", .Brand = "Schneider", .Poles = 3, .Curve = "D", .BreakingCapacity = 25000},
-New BreakerInfo With {.NominalCurrent = 800, .Type = "MTZ", .Brand = "Schneider", .Poles = 3, .Curve = "C", .BreakingCapacity = 50000},
-New BreakerInfo With {.NominalCurrent = 1000, .Type = "MTZ", .Brand = "Schneider", .Poles = 3, .Curve = "C", .BreakingCapacity = 50000},
-New BreakerInfo With {.NominalCurrent = 1250, .Type = "MTZ", .Brand = "Schneider", .Poles = 3, .Curve = "C", .BreakingCapacity = 50000},
-New BreakerInfo With {.NominalCurrent = 1600, .Type = "MTZ", .Brand = "Schneider", .Poles = 3, .Curve = "C", .BreakingCapacity = 50000},
-New BreakerInfo With {.NominalCurrent = 2000, .Type = "MTZ", .Brand = "Schneider", .Poles = 3, .Curve = "C", .BreakingCapacity = 50000},
-New BreakerInfo With {.NominalCurrent = 2500, .Type = "MTZ", .Brand = "Schneider", .Poles = 3, .Curve = "C", .BreakingCapacity = 50000},
-New BreakerInfo With {.NominalCurrent = 3200, .Type = "MTZ", .Brand = "Schneider", .Poles = 3, .Curve = "C", .BreakingCapacity = 50000},
-New BreakerInfo With {.NominalCurrent = 4000, .Type = "MTZ", .Brand = "Schneider", .Poles = 3, .Curve = "C", .BreakingCapacity = 50000},
-New BreakerInfo With {.NominalCurrent = 5000, .Type = "MTZ", .Brand = "Schneider", .Poles = 3, .Curve = "C", .BreakingCapacity = 50000},
-New BreakerInfo With {.NominalCurrent = 6300, .Type = "MTZ", .Brand = "Schneider", .Poles = 3, .Curve = "C", .BreakingCapacity = 50000},
-New BreakerInfo With {.NominalCurrent = 800, .Type = "MTZ", .Brand = "Schneider", .Poles = 3, .Curve = "D", .BreakingCapacity = 50000},
-New BreakerInfo With {.NominalCurrent = 1000, .Type = "MTZ", .Brand = "Schneider", .Poles = 3, .Curve = "D", .BreakingCapacity = 50000},
-New BreakerInfo With {.NominalCurrent = 1250, .Type = "MTZ", .Brand = "Schneider", .Poles = 3, .Curve = "D", .BreakingCapacity = 50000},
-New BreakerInfo With {.NominalCurrent = 1600, .Type = "MTZ", .Brand = "Schneider", .Poles = 3, .Curve = "D", .BreakingCapacity = 50000},
-New BreakerInfo With {.NominalCurrent = 2000, .Type = "MTZ", .Brand = "Schneider", .Poles = 3, .Curve = "D", .BreakingCapacity = 50000},
-New BreakerInfo With {.NominalCurrent = 2500, .Type = "MTZ", .Brand = "Schneider", .Poles = 3, .Curve = "D", .BreakingCapacity = 50000},
-New BreakerInfo With {.NominalCurrent = 3200, .Type = "MTZ", .Brand = "Schneider", .Poles = 3, .Curve = "D", .BreakingCapacity = 50000},
-New BreakerInfo With {.NominalCurrent = 4000, .Type = "MTZ", .Brand = "Schneider", .Poles = 3, .Curve = "D", .BreakingCapacity = 50000},
-New BreakerInfo With {.NominalCurrent = 5000, .Type = "MTZ", .Brand = "Schneider", .Poles = 3, .Curve = "D", .BreakingCapacity = 50000},
-New BreakerInfo With {.NominalCurrent = 6300, .Type = "MTZ", .Brand = "Schneider", .Poles = 3, .Curve = "D", .BreakingCapacity = 50000}
-}
+        ' Инициализиране на списъка
+        Breakers = New List(Of BreakerInfo)
+        ' Попълване на всички прекъсвачи чрез отделната процедура
+        FillBreakers()
         ' ============================================================
         ' РАЗЕДИНИТЕЛИ (Товарови прекъсвачи)
         ' ============================================================
@@ -777,6 +722,101 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
         New RCDInfo With {.NominalCurrent = 40, .Type = "AC", .Poles = "4p", .Sensitivity = 300, .DeviceType = "iID"},
         New RCDInfo With {.NominalCurrent = 63, .Type = "AC", .Poles = "4p", .Sensitivity = 300, .DeviceType = "iID"}
     }
+    End Sub
+    ''' <summary>
+    ''' Процедура за добавяне на всички прекъсвачи.
+    ''' Тук се генерират MCB, MCCB и ACB.
+    ''' </summary>
+    Private Sub FillBreakers()
+        ' ==========================
+        ' MCB – EZ9
+        ' ==========================
+        Dim EZ9_Currents = {6, 10, 16, 20, 25, 32, 40, 50, 63}
+        Dim EZ9_Curves = {"B", "C", "D"}
+        Dim EZ9_Poles = {1, 3}
+        For Each Inom In EZ9_Currents
+            For Each curve In EZ9_Curves
+                For Each poles In EZ9_Poles
+                    Breakers.Add(New BreakerInfo With {
+                    .Brand = "Schneider",
+                    .Series = "Easy9",
+                    .Category = "MCB",
+                    .NominalCurrent = Inom,
+                    .Poles = poles,
+                    .Curve = curve,
+                    .Ics_kA = 6,
+                    .TripUnit = Nothing,
+                    .IsAdjustable = False
+                })
+                Next
+            Next
+        Next
+        ' ==========================
+        ' MCB – C120
+        ' ==========================
+        Dim C120_Currents = {80, 100, 125}
+        Dim C120_Curves = {"C", "D"}
+        Dim C120_Poles = {1, 3}
+        For Each Inom In C120_Currents
+            For Each curve In C120_Curves
+                For Each poles In C120_Poles
+                    Breakers.Add(New BreakerInfo With {
+                    .Brand = "Schneider",
+                    .Series = "Acti9 C120",
+                    .Category = "MCB",
+                    .NominalCurrent = Inom,
+                    .Poles = poles,
+                    .Curve = curve,
+                    .Ics_kA = 10,
+                    .TripUnit = Nothing,
+                    .IsAdjustable = False
+                })
+                Next
+            Next
+        Next
+        ' ==========================
+        ' MCCB – NSX
+        ' ==========================
+        Dim NSX_Currents = {100, 125, 160, 200, 250, 320, 400, 500, 630}
+        Dim NSX_Icu = {25, 36, 50}
+        For Each Inom In NSX_Currents
+            For Each icuValue In NSX_Icu
+                Breakers.Add(New BreakerInfo With {
+                .Brand = "Schneider",
+                .Series = "ComPacT NSX",
+                .Category = "MCCB",
+                .NominalCurrent = Inom,
+                .Poles = 3,
+                .TripUnit = "TM-D",
+                .Ics_kA = icuValue,
+                .Curve = Nothing,
+                .IsAdjustable = True
+            })
+            Next
+        Next
+        ' ==========================
+        ' ACB – MTZ
+        ' ==========================
+        Dim MTZ_Currents = {800, 1000, 1250, 1600, 2000, 2500, 3200, 4000, 5000, 6300}
+        Dim MTZ_Icu = {42, 65, 100}
+        Dim MTZ_Poles = {3, 4}
+        For Each Inom In MTZ_Currents
+            For Each icuValue In MTZ_Icu
+                For Each poles In MTZ_Poles
+                    Breakers.Add(New BreakerInfo With {
+                    .Brand = "Schneider",
+                    .Series = "Masterpact MTZ",
+                    .Category = "ACB",
+                    .NominalCurrent = Inom,
+                    .Poles = poles,
+                    .TripUnit = "Micrologic 6.0",
+                    .Ics_kA = icuValue,
+                    .Curve = Nothing,
+                    .IsAdjustable = True
+                })
+                Next
+            Next
+        Next
     End Sub
     ''' <summary>
     ''' Обработва блока според неговото име и Visibility свойство
@@ -906,14 +946,14 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
             .DefaultPrednaz1 = "осветление",
             .VisibilityRules = New List(Of VisRule)()
         },
-                New BlockConfig With {        ' УЛИЧНО ОСВЕТЛЕНИЕ
+        New BlockConfig With {        ' УЛИЧНО ОСВЕТЛЕНИЕ
             .BlockNames = New List(Of String) From {"ULI4NO"},
             .Category = "Lamp",
             .DefaultPoles = "1p",
             .DefaultCable = "3x1,5",
             .DefaultBreaker = "10",
             .DefaultPrednaz = "Улично",
-            .DefaultPrednaz1 = "осветлене",
+            .DefaultPrednaz1 = "осветление",
             .VisibilityRules = New List(Of VisRule)()
         },
         New BlockConfig With {        ' АВАРИЙНО ОСВЕТЛЕНИЕ
@@ -923,7 +963,7 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
             .DefaultCable = "3x1,5",
             .DefaultBreaker = "10",
             .DefaultPrednaz = "Аварийно",
-            .DefaultPrednaz1 = "осветлене",
+            .DefaultPrednaz1 = "осветление",
             .VisibilityRules = New List(Of VisRule)()
         },
         New BlockConfig With {        ' БОЙЛЕРИ
@@ -988,60 +1028,49 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
     End Sub
     Private Sub ProcessConsumerByConfig(kons As strKonsumator, ByRef tokow As strTokow)
         Dim blockName As String = kons.Name.ToUpper()
-        ' ✅ БЕЗОПАСНО вземане на Visibility
-        Dim visibility As String = ""
-        If kons.Visibility IsNot Nothing Then visibility = kons.Visibility.ToUpper()
-        ' Намери конфигурацията за този блок
-        Dim config = BlockConfigs.FirstOrDefault(
-        Function(c) c.BlockNames.Any(Function(n) blockName.Contains(n)))
+        Dim visibility As String = If(kons.Visibility IsNot Nothing, kons.Visibility.ToUpper(), "")
+        ' 1. Намиране на основната конфигурация за блока
+        Dim config = BlockConfigs.FirstOrDefault(Function(c) c.BlockNames.Any(Function(n) blockName.Contains(n)))
         If config Is Nothing Then
-            ' Непознат блок - използвай настройки по подразбиране
-            tokow.brLamp += 1  ' По подразбиране брои като лампа
+            MsgBox("Блок '" & blockName & "' не е намерен в InitializeBlockConfigs!", MsgBoxStyle.Critical)
             Return
         End If
-        ' Извличане на брой от мощност (напр. "3x100" → 3)
+        ' 2. Намиране на специфично правило по Visibility (ако съществува)
+        Dim visRule = config.VisibilityRules.FirstOrDefault(Function(r) visibility.Contains(r.VisibilityPattern))
+        ' 3. ПРЕХВЪРЛЯНЕ НА ИНФОРМАЦИЯТА (Спрямо Config)
+        ' Кабел и Предпазител: Вземаме от правилото, ако има такова, иначе от Default на конфигурацията
+        tokow.Кабел_Сечение = If(visRule IsNot Nothing AndAlso Not String.IsNullOrEmpty(visRule.Cable), visRule.Cable, config.DefaultCable)
+        Dim breakerVal As String = If(visRule IsNot Nothing AndAlso Not String.IsNullOrEmpty(visRule.Breaker), visRule.Breaker, config.DefaultBreaker)
+        tokow.Номинален_Ток = breakerVal & "A"
+        ' Полюси
+        tokow.Брой_Полюси = If(visRule IsNot Nothing AndAlso Not String.IsNullOrEmpty(visRule.Poles), visRule.Poles, config.DefaultPoles)
+        tokow.БройПолюси = If(tokow.Брой_Полюси.ToLower() = "3p", 3, 1)
+        ' Фаза
+        If tokow.БройПолюси = 3 Then
+            tokow.Фаза = "L1,L2,L3"
+        Else
+            ' Ако не е 3P, запазваме съществуващата фаза (L1/L2/L3) или слагаме L1 по подразбиране
+            If String.IsNullOrEmpty(tokow.Фаза) Then tokow.Фаза = "L"
+        End If
+        ' Предназначение
+        tokow.Консуматор = config.DefaultPrednaz
+        tokow.предназначение = config.DefaultPrednaz1
+        ' 4. МОЩНОСТ И БРОЯЧИ
+        tokow.Мощност += kons.doubМОЩНОСТ / 1000.0 ' Превръщаме W в kW
         Dim count As Integer = ExtractCountFromPower(kons.strМОЩНОСТ)
-        ' ============================================================
-        ' БРОЕНЕ НА ЛАМПИ ИЛИ КОНТАКТИ
-        ' ============================================================
         Select Case config.Category
             Case "Lamp"
                 tokow.brLamp += count
             Case "Contact"
-                tokow.brKontakt += count
-                ' Провери за специални правила за контакти
-                If Not String.IsNullOrEmpty(visibility) Then
-                    Dim visRule = config.VisibilityRules.FirstOrDefault(
-                    Function(r) visibility.Contains(r.VisibilityPattern))
-                    If visRule IsNot Nothing AndAlso visRule.ContactCount > 0 Then
-                        tokow.brKontakt += (visRule.ContactCount - 1)
-                    End If
+                ' Ако в правилото има специфичен брой контакти (напр. за двугнездов), ползваме него
+                If visRule IsNot Nothing AndAlso visRule.ContactCount > 0 Then
+                    tokow.brKontakt += visRule.ContactCount
+                Else
+                    tokow.brKontakt += count
                 End If
-            Case "Device"
-
+                ' Автоматично маркираме, че за контакти се изисква ДТЗ
+                tokow.ДТЗ_RCD = True
         End Select
-        ' ============================================================
-        ' ПРОВЕРКА ЗА ТРИФАЗНОСТ
-        ' ============================================================
-        If kons.Phase = 3 Then
-            tokow.БройПолюси = 3
-            tokow.Фаза = "3P"
-        Else
-            ' Провери visibility правила за 3 фази
-            If Not String.IsNullOrEmpty(visibility) Then
-                Dim visRule = config.VisibilityRules.FirstOrDefault(
-                Function(r) visibility.Contains(r.VisibilityPattern) AndAlso r.Poles = "3p"
-            )
-                If visRule IsNot Nothing Then
-                    tokow.БройПолюси = 3
-                    tokow.Фаза = "3P"
-                End If
-            End If
-        End If
-        ' ============================================================
-        ' МОЩНОСТ
-        ' ============================================================
-        tokow.Мощност += kons.doubМОЩНОСТ / 1000.0  ' W → kW
     End Sub
     Private Sub CalculateCircuitLoads()
         ' Инициализирай конфигурацията (само веднъж)
@@ -1054,25 +1083,20 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
             tokow.brKontakt = 0
             tokow.Мощност = 0
             tokow.БройПолюси = 1
-            tokow.Фаза = "1P"
             ' Обработи всеки консуматор
             For Each kons As strKonsumator In tokow.Konsumator
                 ProcessConsumerByConfig(kons, tokow)
             Next
-
-
-
-
             ' Изчисли тока
-            tokow.Ток = calc_Inom(tokow.Мощност, tokow.Фаза)
+            tokow.Ток = calc_Inom(tokow.Мощност, tokow.Брой_Полюси)
             ' ✅ ИЗБЕРИ ПРЕКЪСВАЧ
             Dim poles As Integer = If(tokow.БройПолюси = 3, 3, 1)
             Dim breaker As BreakerInfo = SelectBreaker(tokow.Ток, poles, "C")
 
-            tokow.Тип_Апарат = breaker.Type
+            'tokow.Тип_Апарат = breaker.Type
             tokow.Номинален_Ток = breaker.NominalCurrent.ToString()
             tokow.Крива = breaker.Curve
-            tokow.Изкл_Възможност = breaker.BreakingCapacity.ToString() & "A"
+            'tokow.Изкл_Възможност = breaker.BreakingCapacity.ToString() & "A"
             tokow.Брой_Полюси = breaker.Poles & "P"
         Next
     End Sub
@@ -1123,7 +1147,7 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
             CosFI = 0.9                                             ' Задава фактор на мощността 0.9
             KPD = 1                                                 ' Задава КПД 1
         End If
-        If NumberPoles = "3P" Then                                  ' Проверява дали токовият кръг е трифазен (3 полюса)
+        If NumberPoles = "3p" Then                                  ' Проверява дали токовият кръг е трифазен (3 полюса)
             Inom = Pkryg / (U380 * Math.Sqrt(3) * CosFI * KPD)      ' Изчислява номиналния ток за трифазен кръг по формулата
         Else                                                        ' Ако токовият кръг е монофазен (2 полюса)
             Inom = Pkryg / (U220 * CosFI * KPD)                     ' Изчислява номиналния ток за монофазен кръг по формулата
@@ -1149,9 +1173,8 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
             selectedPanel = selectedPanel.Substring(0, selectedPanel.IndexOf("(")).Trim()
         End If
         ' Филтрирай токовите кръгове за това табло
-        Dim panelCircuits = ListTokow.Where(
-            Function(t) t.Tablo.ToUpper() = selectedPanel.ToUpper()
-        ).OrderBy(Function(t) t.ТоковКръг).ToList()
+        ' ListTokow вече е сортиран, така че просто вземи кръговете за това табло
+        Dim panelCircuits = ListTokow.Where(Function(t) t.Tablo.ToUpper() = selectedPanel.ToUpper()).ToList()
         ' Проверка дали има кръгове
         If panelCircuits Is Nothing OrElse panelCircuits.Count = 0 Then
             MsgBox($"Няма намерени токови кръгове за табло '{selectedPanel}'",
@@ -1183,61 +1206,48 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
         For Each row As DataGridViewRow In DataGridView1.Rows
             Dim paramName As String = row.Cells(0).Value.ToString()
             ' Пропусни разделителите и заглавията
-            If paramName = "---------" OrElse paramName = "Прекъсвач" OrElse paramName = "ДТЗ" OrElse paramName = "Управление" Then
+            If paramName = "---------" OrElse
+                paramName = "Прекъсвач" OrElse
+                paramName = "ДТЗ" OrElse
+                paramName = "Управление" OrElse
+                paramName = "Кабел" Then
+
                 Continue For
             End If
-            '        Dim rowData As String()() = {
-            '    New String() {"Прекъсвач", "", "Text"},
-            '    New String() {"Изчислен ток", "A", "Text"},
-            '    New String() {"Тип на апарата", "", "Combo"},
-            '    New String() {"Номинален ток", "A", "Combo"},
-            '    New String() {"Изкл. възможн.", "", "Text"},
-            '    New String() {"Крива", "", "Text"},
-            '    New String() {"Брой полюси", "бр.", "Text"},
-            '    New String() {"---------", "", "Text"},
-            '    New String() {"ДТЗ", "", "Text"},
-            '    New String() {"Вид на апарата", "", "Text"},
-            '    New String() {"Клас на апарата", "", "Text"},
-            '    New String() {"Номинален ток", "A", "Text"},
-            '    New String() {"Изкл. възможн.", "mA", "Text"},
-            '    New String() {"Брой полюси", "бр.", "Text"},
-            '    New String() {"---------", "", "Text"},
-            '    New String() {"Брой лампи", "бр.", "Text"},
-            '    New String() {"Брой контакти", "бр.", "Text"},
-            '    New String() {"Инст. мощност", "kW", "Text"},
-            '    New String() {"---------", "", "Text"},
-            '    New String() {"Тип кабел", "---", "Combo"},
-            '    New String() {"Сечение", "---", "Combo"},
-            '    New String() {"Фаза", "---", "Text"},
-            '    New String() {"---------", "", "Text"},
-            '    New String() {"Консуматор", "---", "Text"},
-            '    New String() {"предназначение", "---", "Text"},
-            '    New String() {"Управление", "---", "Combo"},
-            '    New String() {"---------", "", "Text"},
-            '    New String() {"Шина", "---", "Check"},
-            '    New String() {"ДТЗ (RCD)", "---", "Check"}
-            '}
             ' Попълни клетките за всеки кръг
             For i As Integer = 0 To panelCircuits.Count - 1
                 Dim circuit As strTokow = panelCircuits(i)
                 Dim colIndex As Integer = i + 2
                 If colIndex < DataGridView1.Columns.Count - 1 Then
                     Select Case paramName
+                        ' --- ЗАЩИТА (ПРЕКЪСВАЧ) ---
+                        Case "Тип на апарата" : row.Cells(colIndex).Value = panelCircuits(i).Тип_Апарат
+                        Case "Номинален ток" : row.Cells(colIndex).Value = panelCircuits(i).Номинален_Ток
+                        Case "Изкл. възможн." : row.Cells(colIndex).Value = panelCircuits(i).Изкл_Възможност
+                        Case "Крива" : row.Cells(colIndex).Value = panelCircuits(i).Крива
+                        Case "Защитен блок" : row.Cells(colIndex).Value = panelCircuits(i).Защитен_блок
+                        Case "Брой полюси" : row.Cells(colIndex).Value = panelCircuits(i).Брой_Полюси
+                        ' --- ДТЗ (RCD) ---
+                        Case "Вид на апарата" : row.Cells(colIndex).Value = panelCircuits(i).RCD_Тип
+                        Case "Номинален ток" : row.Cells(colIndex).Value = panelCircuits(i).RCD_Ток
+                        Case "Чувствителност" : row.Cells(colIndex).Value = panelCircuits(i).RCD_Чувствителност
+                        Case "Брой полюси" : row.Cells(colIndex).Value = panelCircuits(i).RCD_Полюси
+                        ' --- БРОЯЧИ И МОЩНОСТ ---
                         Case "Брой лампи" : row.Cells(colIndex).Value = panelCircuits(i).brLamp
                         Case "Брой контакти" : row.Cells(colIndex).Value = panelCircuits(i).brKontakt
-                        Case "Изчислен ток" : row.Cells(colIndex).Value = panelCircuits(i).Ток.ToString("N2")
                         Case "Инст. мощност" : row.Cells(colIndex).Value = panelCircuits(i).Мощност.ToString("N3")
-                        Case "Брой полюси" : row.Cells(colIndex).Value = panelCircuits(i).БройПолюси
-                        Case "Фаза" : row.Cells(colIndex).Value = If(panelCircuits(i).БройПолюси = 1, "L", "L1,L2,L3")
-
-
-                        Case "Тип на апарата" : row.Cells(colIndex).Value = If(panelCircuits(i).БройПолюси = 1, "L", "L1,L2,L3")
-                        Case "Номинален ток" : row.Cells(colIndex).Value = If(panelCircuits(i).БройПолюси = 1, "L", "L1,L2,L3")
-                        Case "Изкл. възможн." : row.Cells(colIndex).Value = If(panelCircuits(i).БройПолюси = 1, "L", "L1,L2,L3")
-                        Case "Крива" : row.Cells(colIndex).Value = If(panelCircuits(i).БройПолюси = 1, "L", "L1,L2,L3")
-                        Case "Брой полюси" : row.Cells(colIndex).Value = If(panelCircuits(i).БройПолюси = 1, "L", "L1,L2,L3")
-
-
+                        Case "Изчислен ток" : row.Cells(colIndex).Value = panelCircuits(i).Ток.ToString("N2")
+                        ' --- КАБЕЛ И ФАЗА ---
+                        Case "Тип" : row.Cells(colIndex).Value = panelCircuits(i).Кабел_Тип
+                        Case "Сечение" : row.Cells(colIndex).Value = panelCircuits(i).Кабел_Сечение
+                        Case "Фаза" : row.Cells(colIndex).Value = panelCircuits(i).Фаза
+                        ' --- ОПИСАНИЯ ---
+                        Case "Консуматор" : row.Cells(colIndex).Value = panelCircuits(i).Консуматор
+                        Case "предназначение" : row.Cells(colIndex).Value = panelCircuits(i).предназначение
+                        Case "Управление" : row.Cells(colIndex).Value = panelCircuits(i).Управление
+                        ' --- ФЛАГОВЕ ---
+                        Case "Шина" : row.Cells(colIndex).Value = panelCircuits(i).Шина
+                        Case "ДТЗ (RCD)" : row.Cells(colIndex).Value = panelCircuits(i).ДТЗ_RCD
                     End Select
                 End If
             Next
@@ -1328,5 +1338,112 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
             rowIndex += 1
         Next
     End Sub
-
+    ''' <summary>
+    ''' Връща ключ за сортиране на токов кръг със специален приоритет
+    ''' Порядок: 1.ав. → 2.до. → 3.други букви → 4.числа → 5.само букви
+    ''' </summary>
+    Private Function GetCircuitSortKey(circuitName As String) As String
+        If String.IsNullOrEmpty(circuitName) Then Return "ZZZZZZZZZZ"
+        Dim name As String = circuitName.Trim().ToUpper()
+        Dim priority As String = "9"  ' По подразбиране най-нисък приоритет
+        Dim numberPart As String = ""
+        Dim letterPart As String = ""
+        ' ============================================================
+        ' 1. ОПРЕДЕЛИ КАТЕГОРИЯТА (ПРИОРИТЕТ)
+        ' ============================================================
+        ' Проверка за "АВ." (авариен?)
+        If name.Contains("АВ.") OrElse name.EndsWith("АВ") Then
+            priority = "1"  ' Най-висок приоритет
+            numberPart = ExtractNumber(name)
+            letterPart = "АВ"
+            ' Проверка за "ДО." (допълнителен?)
+        ElseIf name.Contains("ДО.") OrElse name.EndsWith("ДО") Then
+            priority = "2"  ' Втори приоритет
+            numberPart = ExtractNumber(name)
+            letterPart = "ДО"
+            ' Проверка за други букви + число (напр. "1А", "2Б", "А1")
+        ElseIf HasNumberAndLetters(name) Then
+            priority = "3"  ' Трети приоритет
+            numberPart = ExtractNumber(name)
+            letterPart = ExtractLetters(name)
+            ' Проверка за само число (напр. "1", "2", "10")
+        ElseIf IsNumeric(name) Then
+            priority = "4"  ' Четвърти приоритет
+            numberPart = name
+            letterPart = ""
+            ' Проверка за само букви (напр. "А", "Б", "LIGHT")
+        Else
+            priority = "5"  ' Най-нисък приоритет
+            numberPart = ""
+            letterPart = name
+        End If
+        ' ============================================================
+        ' 2. СЪЗДАЙ КЛЮЧ ЗА СОРТИРАНЕ
+        ' ============================================================
+        ' Формат: Приоритет + Номер (с водещи нули) + Букви
+        ' Пример: "10000000001АВ" за "1ав."
+        If numberPart.Length > 0 Then
+            ' Подравняване на числото с водещи нули (до 10 цифри)
+            numberPart = numberPart.PadLeft(10, "0"c)
+            Return priority & numberPart & letterPart
+        Else
+            ' Само букви - сортирай азбучно
+            Return priority & "0000000000" & letterPart
+        End If
+    End Function
+    ''' <summary>
+    ''' Извлича числото от низ (напр. "1АВ" → "1", "А2Б" → "2")
+    ''' </summary>
+    Private Function ExtractNumber(text As String) As String
+        Dim result As String = ""
+        For Each c As Char In text
+            If Char.IsDigit(c) Then
+                result &= c
+            End If
+        Next
+        Return result
+    End Function
+    ''' <summary>
+    ''' Извлича буквите от низ (напр. "1АВ" → "АВ", "А2Б" → "АБ")
+    ''' </summary>
+    Private Function ExtractLetters(text As String) As String
+        Dim result As String = ""
+        For Each c As Char In text
+            If Char.IsLetter(c) Then
+                result &= c
+            End If
+        Next
+        Return result
+    End Function
+    ''' <summary>
+    ''' Проверява дали низът съдържа и букви и числа
+    ''' </summary>
+    Private Function HasNumberAndLetters(text As String) As Boolean
+        Dim hasNumber As Boolean = False
+        Dim hasLetter As Boolean = False
+        For Each c As Char In text
+            If Char.IsDigit(c) Then hasNumber = True
+            If Char.IsLetter(c) Then hasLetter = True
+        Next
+        Return hasNumber AndAlso hasLetter
+    End Function
+    ''' <summary>
+    ''' Проверява дали низът е само число
+    ''' </summary>
+    Private Function IsNumeric(text As String) As Boolean
+        For Each c As Char In text
+            If Not Char.IsDigit(c) Then Return False
+        Next
+        Return text.Length > 0
+    End Function
+    ''' <summary>
+    ''' Сортира ListTokow по специалния приоритет
+    ''' </summary>
+    Private Sub SortCircuits()
+        ListTokow = ListTokow.OrderBy(
+            Function(t) t.Tablo
+        ).ThenBy(
+            Function(t) GetCircuitSortKey(t.ТоковКръг)
+        ).ToList()
+    End Sub
 End Class

@@ -12,7 +12,6 @@ Imports Autodesk.AutoCAD.Internal.DatabaseServices
 Imports Autodesk.AutoCAD.PlottingServices
 Imports Autodesk.AutoCAD.Runtime
 Imports Org.BouncyCastle.Math.EC.ECCurve
-Imports VBNet_Excel.Form_Tablo_new
 
 'Imports System.IO
 'Imports System.Windows.Forms
@@ -30,7 +29,7 @@ End Module
 
 Public Class Form_Tablo_new
     Private Sub Form_Tablo_new_Load(sender As Object, e As EventArgs) Handles MyBase.Load
-        Me.Height = 850
+        Me.Height = 875
         Me.Width = 1600
         SetCatalog()
         GetKonsumatori()
@@ -64,7 +63,7 @@ Public Class Form_Tablo_new
     Private Kable_Size_L As String()
     Private Kable_Size_N As String()
     Private Kable_Type As String()
-    Private Breakers_For_combo As String()
+    Private Breakers_For_combo As List(Of String)
     Dim Disconnectors As New List(Of DisconnectorInfo)
     ' ============================================================
     ' КАТАЛОЖНИ СТРУКТУРИ
@@ -83,10 +82,11 @@ Public Class Form_Tablo_new
         New String() {"Крива", "", "Text"},
         New String() {"Защитен блок", "", "Combo"},
         New String() {"Брой полюси", "бр.", "Text"},
-        New String() {"ДТЗ", "", "Text"},
+        New String() {"ДТЗ (RCD)", "", "Text"},
+        New String() {"ДТЗ Нула", "", "Text"},
         New String() {"Вид на апарата", "", "Text"},
         New String() {"Клас на апарата", "", "Text"},
-        New String() {"Номинален ток", "A", "Text"},
+        New String() {"ДТЗ(RCD) Ном. ток", "A", "Text"},
         New String() {"Чувствителност", "mA", "Text"},
         New String() {"Брой полюси", "бр.", "Text"},
         New String() {"---------", "", "Text"},
@@ -104,7 +104,7 @@ Public Class Form_Tablo_new
         New String() {"Управление", "---", "Combo"},
         New String() {"---------", "", "Text"},
         New String() {"Шина", "---", "Check"},
-        New String() {"ДТЗ (RCD)", "---", "Check"}
+        New String() {"Постави ДТЗ (RCD)", "---", "Check"}
     }
     Public Structure DisconnectorInfo
         Dim NominalCurrent As Integer    ' 20, 32, 40...
@@ -527,7 +527,7 @@ Public Class Form_Tablo_new
             Select Case row(0).ToString()
                 Case "---------"
                     dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(220, 220, 220)
-                Case "Прекъсвач", "ДТЗ", "Кабел"
+                Case "Прекъсвач", "ДТЗ (RCD)", "Кабел"
                     dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(180, 200, 255)
                     dgvRow.DefaultCellStyle.Font = New Drawing.Font("Arial", 10, FontStyle.Bold)
                 Case Else
@@ -555,7 +555,8 @@ Public Class Form_Tablo_new
         Dim comboCell As DataGridViewComboBoxCell = CType(cell, DataGridViewComboBoxCell)
         Select Case parameter
             Case "Тип на апарата"
-                comboCell.Items.AddRange(Breakers_For_combo)
+                comboCell.Items.Clear() ' Добра практика е да изчистите старите
+                comboCell.Items.AddRange(Breakers_For_combo.ToArray())
             Case "Номинален ток"
                 comboCell.Items.AddRange("6", "10", "16", "20", "25", "32", "40", "50", "63")
             Case "Управление"
@@ -732,18 +733,7 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
     ''' Тук се генерират MCB, MCCB и ACB.
     ''' </summary>
     Private Sub FillBreakers()
-        Breakers_For_combo = {
-                            "EZ9",
-                            "iC60N",
-                            "C120",
-                            "NSXm",
-                            "NSX100",
-                            "NSX160",
-                            "NSX250",
-                            "NSX400",
-                            "NSX630",
-                            "Masterpact MTZ"
-        }
+        Breakers.Clear()
         ' ==========================
         ' MCB – EZ9
         ' ==========================
@@ -755,7 +745,7 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                 For Each poles In EZ9_Poles
                     Breakers.Add(New BreakerInfo With {
                     .Brand = "Schneider",
-                    .Series = "Easy9",
+                    .Series = "EZ9 MCB",
                     .Category = "MCB",
                     .NominalCurrent = Inom,
                     .Poles = poles,
@@ -771,7 +761,7 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
         ' MCB – Acti9 iC60N (6kA / 10kA)
         ' ==========================
         ' iC60N предлага изключително малки токове за защита на контролни вериги
-        Dim iC60_Currents = {0.5, 1, 2, 3, 4, 6, 10, 13, 16, 20, 25, 32, 40, 50, 63}
+        Dim iC60_Currents = {2, 3, 4, 6, 10, 16, 20, 25, 32, 40, 50, 63}
         Dim iC60_Curves = {"B", "C", "D"}
         Dim iC60_Poles = {1, 3} ' Добавяме 2P и 4P, които са стандарт тук
 
@@ -780,7 +770,7 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                 For Each poles In iC60_Poles
                     Breakers.Add(New BreakerInfo With {
                 .Brand = "Schneider",
-                .Series = "Acti9 iC60N",
+                .Series = "iC60N",
                 .Category = "MCB",
                 .NominalCurrent = Inom,
                 .Poles = poles,
@@ -789,6 +779,29 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                 .TripUnit = Nothing,
                 .IsAdjustable = False
             })
+                Next
+            Next
+        Next
+        ' ==========================
+        ' MCB – C120
+        ' ==========================
+        Dim C120_Currents = {80, 100, 125}
+        Dim C120_Curves = {"C", "D"}
+        Dim C120_Poles = {1, 3}
+        For Each Inom In C120_Currents
+            For Each curve In C120_Curves
+                For Each poles In C120_Poles
+                    Breakers.Add(New BreakerInfo With {
+                    .Brand = "Schneider",
+                    .Series = "C120",
+                    .Category = "MCB",
+                    .NominalCurrent = Inom,
+                    .Poles = poles,
+                    .Curve = curve,
+                    .Ics_kA = 10,
+                    .TripUnit = Nothing,
+                    .IsAdjustable = False
+                })
                 Next
             Next
         Next
@@ -802,7 +815,6 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
         Dim NSXm_Levels = New Dictionary(Of String, Integer) From {
             {"E", 16}, {"B", 25}, {"F", 36}, {"N", 50}, {"H", 70}
         }
-
         For Each Inom In NSXm_Currents
             For Each level In NSXm_Levels
                 For Each poles In NSXm_Poles
@@ -820,34 +832,10 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                 Next
             Next
         Next
-        ' ==========================
-        ' MCB – C120
-        ' ==========================
-        Dim C120_Currents = {80, 100, 125}
-        Dim C120_Curves = {"C", "D"}
-        Dim C120_Poles = {1, 3}
-        For Each Inom In C120_Currents
-            For Each curve In C120_Curves
-                For Each poles In C120_Poles
-                    Breakers.Add(New BreakerInfo With {
-                    .Brand = "Schneider",
-                    .Series = "Acti9 C120",
-                    .Category = "MCB",
-                    .NominalCurrent = Inom,
-                    .Poles = poles,
-                    .Curve = curve,
-                    .Ics_kA = 10,
-                    .TripUnit = Nothing,
-                    .IsAdjustable = False
-                })
-                Next
-            Next
-        Next
         ' NSX100 – TM‑D, TM‑DC
         Dim NSX100_Currents = {16, 25, 32, 40, 63, 80, 100}
         Dim NSX100_Curves = {"B", "F", "N", "H", "S", "L"}
         Dim NSX100_TripUnits = {"TM-D", "TM-DC"}
-
         For Each Inom In NSX100_Currents
             For Each curve In NSX100_Curves
                 For Each trip In NSX100_TripUnits
@@ -869,7 +857,6 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
         Dim NSX160_Currents = {80, 100, 125, 160}
         Dim NSX160_Curves = {"B", "F", "N", "H", "S", "L"}
         Dim NSX160_TripUnits = {"TM-D"}
-
         For Each Inom In NSX160_Currents
             For Each curve In NSX160_Curves
                 For Each trip In NSX160_TripUnits
@@ -947,9 +934,7 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                 Next
             Next
         Next
-        ' ==========================
         ' ACB – MTZ
-        ' ==========================
         Dim MTZ_Currents = {800, 1000, 1250, 1600, 2000, 2500, 3200, 4000, 5000, 6300}
         Dim MTZ_Icu = {42, 65, 100}
         Dim MTZ_Poles = {3, 4}
@@ -970,6 +955,8 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                 Next
             Next
         Next
+        ' ✅ Попълни ComboBox стойностите от Breakers
+        Breakers_For_combo = Breakers.Select(Function(b) b.Series).Distinct().ToList()
     End Sub
     ''' <summary>
     ''' Обработва блока според неговото име и Visibility свойство
@@ -1378,17 +1365,17 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                 ' ----------------------------------------------------
                 If breaker Is Nothing Then
                     Dim info As String = String.Format(
-                            "Внимание: Не е намерен прекъсвач в {0}!" & vbCrLf &
-                            "Детайли:" & vbCrLf &
-                            "- Табло: {1}" & vbCrLf &
-                            "- Кръг: {2}" & vbCrLf &
-                            "- Мощност: {3} kW" & vbCrLf &
-                            "- Ток: {4} A",
-                            tokow.Tablo,
-                            tokow.Tablo,
-                            tokow.ТоковКръг,
-                            tokow.Мощност,
-                            tokow.Ток)
+                                "Внимание: Не е намерен прекъсвач в {0}!" & vbCrLf &
+                                "Детайли:" & vbCrLf &
+                                "- Табло: {1}" & vbCrLf &
+                                "- Кръг: {2}" & vbCrLf &
+                                "- Мощност: {3} kW" & vbCrLf &
+                                "- Ток: {4} A",
+                                tokow.Tablo,
+                                tokow.Tablo,
+                                tokow.ТоковКръг,
+                                tokow.Мощност,
+                                tokow.Ток)
                     MsgBox(info, MsgBoxStyle.Exclamation, "Инфо за LayerPair")
                 Else
                     ' ------------------------------------------------
@@ -1551,7 +1538,7 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                         Case "Управление" : row.Cells(colIndex).Value = panelCircuits(i).Управление
                         ' --- ФЛАГОВЕ ---
                         Case "Шина" : row.Cells(colIndex).Value = panelCircuits(i).Шина
-                        Case "ДТЗ (RCD)" : row.Cells(colIndex).Value = panelCircuits(i).ДТЗ_RCD
+                        Case "Постави ДТЗ (RCD)" : row.Cells(colIndex).Value = panelCircuits(i).ДТЗ_RCD
                     End Select
                 End If
             Next
@@ -1775,20 +1762,126 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
             Function(t) GetCircuitSortKey(t.ТоковКръг)
         ).ToList()
     End Sub
+    ''' <summary>
+    ''' Събитие, което се изпълнява при промяна на стойност в клетка на DataGridView1.
+    '''
+    ''' Основна идея:
+    ''' Таблицата се използва като редактор на параметри за даден токов кръг.
+    ''' Първата колона съдържа името на параметъра (например "Тип на апарата",
+    ''' "Номинален ток", "Шина", "ДТЗ (RCD)" и др.), а останалите колони съдържат
+    ''' стойностите за конкретни кръгове или устройства.
+    '''
+    ''' Когато потребителят промени стойност:
+    ''' 1. Определя се редът и колоната на промяната.
+    ''' 2. От първата клетка на реда се взима името на параметъра.
+    ''' 3. От текущата клетка се взима новата стойност.
+    ''' 4. Чрез Select Case се определя какво действие трябва да се изпълни
+    '''    според типа на параметъра.
+    '''
+    ''' Забележка:
+    ''' Този метод служи като централизирана точка за обработка на всички
+    ''' промени в таблицата. Реалната логика за всяка настройка може да се
+    ''' добавя вътре в съответния Case.
+    ''' </summary>
     Private Sub DataGridView1_CellValueChanged(sender As Object, e As DataGridViewCellEventArgs) Handles DataGridView1.CellValueChanged
-        ' Проверка за валиден ред и колона
+        ' ------------------------------------------------------------
+        ' 1) Проверка дали индексите на реда и колоната са валидни.
+        '    При някои операции (например сортиране или инициализация)
+        '    DataGridView може да подаде -1 като индекс.
+        ' ------------------------------------------------------------
         If e.RowIndex < 0 OrElse e.ColumnIndex < 0 Then Return
+        ' ------------------------------------------------------------
+        ' 2) Вземане на текущия ред и колона от DataGridView
+        ' ------------------------------------------------------------
         Dim row As DataGridViewRow = DataGridView1.Rows(e.RowIndex)
         Dim col As DataGridViewColumn = DataGridView1.Columns(e.ColumnIndex)
+        ' ------------------------------------------------------------
+        ' 3) Името на параметъра се намира в първата колона (index 0)
+        '    Например:
+        '    "Тип на апарата"
+        '    "Номинален ток"
+        '    "Шина"
+        '    "ДТЗ (RCD)"
+        ' ------------------------------------------------------------
         Dim paramName As String = row.Cells(0).Value?.ToString()
+        ' ------------------------------------------------------------
+        ' 4) Новата стойност, въведена от потребителя в текущата клетка
+        ' ------------------------------------------------------------
         Dim selectedValue As String = row.Cells(e.ColumnIndex).Value?.ToString()
-        ' Избери действие според параметъра
+        ' ------------------------------------------------------------
+        ' 5) Избор на действие според типа параметър
+        ' ------------------------------------------------------------
         Select Case paramName
             Case "Тип на апарата"
+                ' ✅ ПРЕДАВАМЕ СТОЙНОСТТА ДИРЕКТНО!
+                Dim filteredBreakers = Breakers.Where(Function(b) b.Series = selectedValue).ToList()
+                UpdateComboBoxSimple(e.ColumnIndex, "Номинален ток", filteredBreakers, "NominalCurrent")
             Case "Номинален ток"
+            ' Тук може да се обработва промяна на номиналния ток
+            ' на защитния апарат (например 10A, 16A, 20A...)
             Case "Защитен блок"
+            ' Обработка на параметър свързан със защитен модул
+            ' или допълнителна защита
             Case "Шина"
+            ' Активиране или деактивиране на шинна връзка
+            ' между модулите в таблото
             Case "ДТЗ (RCD)"
+                ' Управление на дефектнотокова защита (RCD)
+                ' например включване/изключване на ДТЗ
         End Select
+    End Sub
+
+    ''' <summary>
+    ''' Универсална функция за обновяване на ComboBox
+    ''' </summary>
+    ''' <param name="colIndex">Колона която обновяваме</param>
+    ''' <param name="paramName">Име на параметъра (редът в DataGridView)</param>
+    ''' <param name="dataSource">Масив/каталог с данни (Breakers, Kable_Size_L, и т.н.)</param>
+    ''' <param name="propertyName">Свойство което извличаме (NominalCurrent, Ics_kA, и т.н.)</param>
+    ''' <param name="suffix">Суфикс (kA, p, или празно)</param>
+    Private Sub UpdateComboBoxSimple(colIndex As Integer,
+                                     paramName As String,
+                                     dataSource As IEnumerable,
+                                     propertyName As String,
+                                     Optional suffix As String = "")
+
+        ' Намираме реда по paramName
+        Dim targetRow As DataGridViewRow = Nothing
+        For Each row As DataGridViewRow In DataGridView1.Rows
+            If row.Cells(0).Value?.ToString() = paramName Then
+                targetRow = row
+                Exit For
+            End If
+        Next
+        If targetRow Is Nothing Then Return
+        ' Проверяваме дали клетката е ComboBox
+        If TypeOf targetRow.Cells(colIndex) Is DataGridViewComboBoxCell Then
+            Dim cell As DataGridViewComboBoxCell = CType(targetRow.Cells(colIndex), DataGridViewComboBoxCell)
+            ' Извличаме уникалните стойности от свойството
+            Dim items As New List(Of String)
+
+            For Each item In dataSource
+                ' Ако е BreakerInfo (обект)
+                If propertyName <> "ToString" Then
+                    Dim prop = item.GetType().GetProperty(propertyName)
+                    If prop IsNot Nothing Then
+                        Dim value = prop.GetValue(item)
+                        If value IsNot Nothing AndAlso Not String.IsNullOrEmpty(value.ToString()) Then
+                            items.Add(value.ToString() & suffix)
+                        End If
+                    End If
+                Else
+                    ' Ако е String (напр. Kable_Size_L)
+                    items.Add(item.ToString() & suffix)
+                End If
+            Next
+            ' Уникални стойности (без дубликати)
+            items = items.Distinct().ToList()
+            ' Попълваме ComboBox-а
+            cell.Items.Clear()
+            If items.Count > 0 Then
+                cell.Items.AddRange(items.ToArray())
+            End If
+        End If
     End Sub
 End Class

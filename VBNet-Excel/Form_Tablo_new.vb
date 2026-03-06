@@ -79,7 +79,7 @@ Public Class Form_Tablo_new
         New String() {"Тип на апарата", "", "Combo"},
         New String() {"Номинален ток", "A", "Combo"},
         New String() {"Изкл. възможн.", "A", "Text"},
-        New String() {"Крива", "", "Text"},
+        New String() {"Крива", "", "Combo"},
         New String() {"Защитен блок", "", "Combo"},
         New String() {"Брой полюси", "бр.", "Text"},
         New String() {"ДТЗ (RCD)", "", "Text"},
@@ -1500,7 +1500,6 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                 paramName = "ДТЗ" OrElse
                 paramName = "Управление" OrElse
                 paramName = "Кабел" Then
-
                 Continue For
             End If
             ' Попълни клетките за всеки кръг
@@ -1813,9 +1812,85 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
         ' ------------------------------------------------------------
         Select Case paramName
             Case "Тип на апарата"
-                ' ✅ ПРЕДАВАМЕ СТОЙНОСТТА ДИРЕКТНО!
+#Region "ФИЛТРИРАНЕ НА ПРЕКЪСВАЧИТЕ СПРЯМО ИЗБРАНАТА СЕРИЯ"
+                ' ------------------------------------------------------------
+                ' 1) ФИЛТРИРАНЕ НА ПРЕКЪСВАЧИТЕ СПРЯМО ИЗБРАНАТА СЕРИЯ
+                ' ------------------------------------------------------------
+                ' Breakers е каталог (List(Of BreakerInfo)), който съдържа всички
+                ' налични прекъсвачи – Easy9, C120, NSX, MTZ и т.н.
+                '
+                ' selectedValue идва от DataGridView и представлява избраната
+                ' серия прекъсвачи от потребителя (например "EZ9", "C120", "NSX").
+                '
+                ' Тук филтрираме каталога така, че да останат само прекъсвачите
+                ' от избраната серия.
+                '
+                ' Пример:
+                ' Ако selectedValue = "EZ9"
+                ' резултатът ще съдържа само прекъсвачите от серия Easy9.
+                '
+#End Region
                 Dim filteredBreakers = Breakers.Where(Function(b) b.Series = selectedValue).ToList()
-                UpdateComboBoxSimple(e.ColumnIndex, "Номинален ток", filteredBreakers, "NominalCurrent")
+#Region "ИЗВЛИЧАНЕ НА ВЪЗМОЖНИТЕ НОМИНАЛНИ ТОКОВЕ"
+                ' ------------------------------------------------------------
+                ' 2) ИЗВЛИЧАНЕ НА ВЪЗМОЖНИТЕ НОМИНАЛНИ ТОКОВЕ
+                ' ------------------------------------------------------------
+                ' След като имаме списък само с прекъсвачите от избраната серия,
+                ' трябва да извлечем всички възможни номинални токове (NominalCurrent).
+                '
+                ' Например серия EZ9 може да има:
+                ' 6A, 10A, 16A, 20A, 25A, 32A, 40A, 50A, 63A
+                '
+                ' Използваме LINQ Select(), за да вземем само колоната NominalCurrent.
+                '
+                ' След това:
+                ' .ToString() → превръщаме числото в текст (за ComboBox)
+                ' .Distinct() → премахваме дублиращите стойности
+                ' .ToList() → превръщаме резултата обратно в List(Of String)
+                '
+                ' Така получаваме чист списък със стойности,
+                ' които ще се покажат в ComboBox.
+                '
+#End Region
+                Dim valuesForCombo = filteredBreakers _
+                                    .Select(Function(b) b.NominalCurrent.ToString()) _
+                                    .Distinct() _
+                                    .ToList()
+#Region "ОБНОВЯВАНЕ НА COMBOBOX КЛЕТКАТА В DataGridView"
+                ' ------------------------------------------------------------
+                ' 3) ОБНОВЯВАНЕ НА COMBOBOX КЛЕТКАТА В DataGridView
+                ' ------------------------------------------------------------
+                ' Извикваме помощната процедура UpdateComboRow(),
+                ' която обновява стойностите на ComboBox клетка
+                ' в определен ред и колона на DataGridView.
+                '
+                ' Параметри:
+                '
+                ' "Номинален ток"
+                ' → името на параметъра (реда), който трябва да бъде намерен
+                '   в първата колона на DataGridView.
+                '
+                ' valuesForCombo
+                ' → новият списък със стойности, които ще се покажат
+                '   в ComboBox-а (напр. 6, 10, 16, 20, 25...).
+                '
+                ' e.ColumnIndex
+                ' → колоната, в която потребителят е направил промяната.
+                '   Това гарантира, че обновяваме само съответната колона,
+                '   а не всички колони в таблицата.
+                '
+#End Region
+                UpdateComboRow("Номинален ток", valuesForCombo, e.ColumnIndex)
+                Dim valuesCurve = filteredBreakers _
+                                    .Select(Function(b) b.Curve.ToString()) _
+                                    .Distinct() _
+                                    .ToList()
+                UpdateComboRow("Крива", valuesCurve, e.ColumnIndex)
+                Dim valuesTripUnit = filteredBreakers _
+                    .Select(Function(b) b.TripUnit) _
+                    .Distinct() _
+                    .ToList()
+                UpdateComboRow("Защитен блок", valuesTripUnit, e.ColumnIndex)
             Case "Номинален ток"
             ' Тук може да се обработва промяна на номиналния ток
             ' на защитния апарат (например 10A, 16A, 20A...)
@@ -1830,58 +1905,78 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                 ' например включване/изключване на ДТЗ
         End Select
     End Sub
-
     ''' <summary>
-    ''' Универсална функция за обновяване на ComboBox
+    ''' Помощна процедура за обновяване на стойностите в ComboBox клетка
+    ''' на определен ред и определена колона в DataGridView.
+    '''
+    ''' Основна идея:
+    ''' DataGridView се използва като таблица с параметри, където:
+    ''' - Първата колона (index 0) съдържа името на параметъра
+    '''   (например "Тип на апарата", "Номинален ток", "ДТЗ (RCD)" и др.)
+    ''' - Останалите колони съдържат стойности за конкретни обекти/кръгове.
+    '''
+    ''' Тази процедура намира реда, който съответства на даден параметър
+    ''' (targetParamName) и обновява списъка със стойности на ComboBox клетката
+    ''' в определена колона (columnIndex).
+    '''
+    ''' Типичен сценарий на използване:
+    ''' Когато потребителят избере нов "Тип на апарата", трябва да се обнови
+    ''' списъкът с възможни "Номинални токове" само в съответната колона.
+    '''
+    ''' Стъпки:
+    ''' 1. Обхождаме всички редове в DataGridView.
+    ''' 2. Търсим ред, чиято първа клетка съдържа името на параметъра.
+    ''' 3. Взимаме клетката от конкретната колона.
+    ''' 4. Проверяваме дали клетката е ComboBox.
+    ''' 5. Изчистваме старите стойности и добавяме новите.
+    ''' 6. Проверяваме дали текущата стойност е валидна спрямо новия списък.
+    '''    Ако не е – изчистваме я.
+    '''
+    ''' Това позволява динамично обновяване на възможните стойности
+    ''' в зависимост от други параметри в таблицата.
     ''' </summary>
-    ''' <param name="colIndex">Колона която обновяваме</param>
-    ''' <param name="paramName">Име на параметъра (редът в DataGridView)</param>
-    ''' <param name="dataSource">Масив/каталог с данни (Breakers, Kable_Size_L, и т.н.)</param>
-    ''' <param name="propertyName">Свойство което извличаме (NominalCurrent, Ics_kA, и т.н.)</param>
-    ''' <param name="suffix">Суфикс (kA, p, или празно)</param>
-    Private Sub UpdateComboBoxSimple(colIndex As Integer,
-                                     paramName As String,
-                                     dataSource As IEnumerable,
-                                     propertyName As String,
-                                     Optional suffix As String = "")
-
-        ' Намираме реда по paramName
-        Dim targetRow As DataGridViewRow = Nothing
+    Private Sub UpdateComboRow(targetParamName As String, values As List(Of String), columnIndex As Integer)
+        ' ------------------------------------------------------------
+        ' 1) Обхождаме всички редове на DataGridView,
+        '    за да намерим реда, който съответства на параметъра
+        ' ------------------------------------------------------------
         For Each row As DataGridViewRow In DataGridView1.Rows
-            If row.Cells(0).Value?.ToString() = paramName Then
-                targetRow = row
+            ' Проверяваме дали текстът в първата колона съвпада
+            ' с търсеното име на параметър
+            If row.Cells(0).Value?.ToString() = targetParamName Then
+                ' --------------------------------------------------------
+                ' 2) Вземаме клетката от съответната колона
+                ' --------------------------------------------------------
+                ' Използваме TryCast, за да сме сигурни, че клетката
+                ' е от тип DataGridViewComboBoxCell
+                Dim comboCell = TryCast(row.Cells(columnIndex), DataGridViewComboBoxCell)
+                If comboCell IsNot Nothing Then
+                    ' ----------------------------------------------------
+                    ' 3) Изчистваме старите стойности в ComboBox-а
+                    ' ----------------------------------------------------
+                    comboCell.Items.Clear()
+                    ' ----------------------------------------------------
+                    ' 4) Добавяме новите възможни стойности
+                    ' ----------------------------------------------------
+                    If values IsNot Nothing AndAlso values.Count > 0 Then
+                        comboCell.Items.AddRange(values.ToArray())
+                    End If
+                    ' ----------------------------------------------------
+                    ' 5) Проверяваме дали текущо избраната стойност
+                    '    все още съществува в новия списък
+                    ' ----------------------------------------------------
+                    If comboCell.Value IsNot Nothing AndAlso
+                   Not values.Contains(comboCell.Value.ToString()) Then
+                        ' Ако стойността вече не е валидна – изчистваме я
+                        comboCell.Value = Nothing
+                    End If
+                End If
+                ' --------------------------------------------------------
+                ' 6) Намерили сме правилния ред – няма нужда да
+                '    обхождаме останалите редове
+                ' --------------------------------------------------------
                 Exit For
             End If
         Next
-        If targetRow Is Nothing Then Return
-        ' Проверяваме дали клетката е ComboBox
-        If TypeOf targetRow.Cells(colIndex) Is DataGridViewComboBoxCell Then
-            Dim cell As DataGridViewComboBoxCell = CType(targetRow.Cells(colIndex), DataGridViewComboBoxCell)
-            ' Извличаме уникалните стойности от свойството
-            Dim items As New List(Of String)
-
-            For Each item In dataSource
-                ' Ако е BreakerInfo (обект)
-                If propertyName <> "ToString" Then
-                    Dim prop = item.GetType().GetProperty(propertyName)
-                    If prop IsNot Nothing Then
-                        Dim value = prop.GetValue(item)
-                        If value IsNot Nothing AndAlso Not String.IsNullOrEmpty(value.ToString()) Then
-                            items.Add(value.ToString() & suffix)
-                        End If
-                    End If
-                Else
-                    ' Ако е String (напр. Kable_Size_L)
-                    items.Add(item.ToString() & suffix)
-                End If
-            Next
-            ' Уникални стойности (без дубликати)
-            items = items.Distinct().ToList()
-            ' Попълваме ComboBox-а
-            cell.Items.Clear()
-            If items.Count > 0 Then
-                cell.Items.AddRange(items.ToArray())
-            End If
-        End If
     End Sub
 End Class

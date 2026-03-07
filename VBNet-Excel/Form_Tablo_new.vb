@@ -13,9 +13,6 @@ Imports Autodesk.AutoCAD.PlottingServices
 Imports Autodesk.AutoCAD.Runtime
 Imports Org.BouncyCastle.Math.EC.ECCurve
 
-'Imports System.IO
-'Imports System.Windows.Forms
-
 ' ============================================================
 ' 1. КОМАНДА ЗА СТАРТИРАНЕ (Трябва да е извън класа на формата)
 ' ============================================================
@@ -64,6 +61,9 @@ Public Class Form_Tablo_new
     Private Kable_Size_N As String()
     Private Kable_Type As String()
     Private Breakers_For_combo As List(Of String)
+    Private TripUnit_For_combo As List(Of String)
+    Private Curve_For_combo As List(Of String)
+
     Dim Disconnectors As New List(Of DisconnectorInfo)
     ' ============================================================
     ' КАТАЛОЖНИ СТРУКТУРИ
@@ -244,12 +244,6 @@ Public Class Form_Tablo_new
         ''' Определя електронната или термомагнитната защита.
         ''' </summary>
         Public TripUnit As String
-        ''' <summary>
-        ''' Дали прекъсвачът има регулируеми настройки на Ir, Ii, Isd и други параметри.
-        ''' True – може да се настройва (MCCB, ACB).  
-        ''' False – фиксирани характеристики (MCB).
-        ''' </summary>
-        Public IsAdjustable As Boolean
     End Class
     Public Structure strTablo
         Dim countTablo As Integer
@@ -553,12 +547,14 @@ Public Class Form_Tablo_new
     End Sub
     Private Sub SetupComboBoxCell(cell As DataGridViewCell, parameter As String)
         Dim comboCell As DataGridViewComboBoxCell = CType(cell, DataGridViewComboBoxCell)
+        comboCell.Items.Clear() ' Добра практика е да изчистите старите
         Select Case parameter
             Case "Тип на апарата"
-                comboCell.Items.Clear() ' Добра практика е да изчистите старите
                 comboCell.Items.AddRange(Breakers_For_combo.ToArray())
             Case "Номинален ток"
                 comboCell.Items.AddRange("6", "10", "16", "20", "25", "32", "40", "50", "63")
+            Case "Крива"
+                comboCell.Items.AddRange("B", "C", "D")
             Case "Управление"
                 comboCell.Items.AddRange("Няма",
                                          "Импулсно реле",
@@ -751,8 +747,7 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                     .Poles = poles,
                     .Curve = curve,
                     .Ics_kA = 6,
-                    .TripUnit = Nothing,
-                    .IsAdjustable = False
+                    .TripUnit = Nothing
                 })
                 Next
             Next
@@ -763,8 +758,7 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
         ' iC60N предлага изключително малки токове за защита на контролни вериги
         Dim iC60_Currents = {2, 3, 4, 6, 10, 16, 20, 25, 32, 40, 50, 63}
         Dim iC60_Curves = {"B", "C", "D"}
-        Dim iC60_Poles = {1, 3} ' Добавяме 2P и 4P, които са стандарт тук
-
+        Dim iC60_Poles = {1, 3}
         For Each Inom In iC60_Currents
             For Each curve In iC60_Curves
                 For Each poles In iC60_Poles
@@ -776,8 +770,7 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                 .Poles = poles,
                 .Curve = curve,
                 .Ics_kA = 6,
-                .TripUnit = Nothing,
-                .IsAdjustable = False
+                .TripUnit = Nothing
             })
                 Next
             Next
@@ -799,8 +792,7 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                     .Poles = poles,
                     .Curve = curve,
                     .Ics_kA = 10,
-                    .TripUnit = Nothing,
-                    .IsAdjustable = False
+                    .TripUnit = Nothing
                 })
                 Next
             Next
@@ -809,26 +801,21 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
         ' MCCB – ComPacT NSXm (16A до 160A)
         ' ==========================
         Dim NSXm_Currents = {16, 25, 32, 40, 50, 63, 80, 100, 125, 160}
-        Dim NSXm_Poles = {3, 4} ' Предлага се основно в 3P и 4P
-        ' Дефинираме нивата на изключвателна способност (Icu @ 415V)
-        ' E=16kA, B=25kA, F=36kA, N=50kA, H=70kA
-        Dim NSXm_Levels = New Dictionary(Of String, Integer) From {
-            {"E", 16}, {"B", 25}, {"F", 36}, {"N", 50}, {"H", 70}
-        }
+        Dim NSXm_Curves = {"E", "B", "F", "N", "H"}
+        Dim NSXm_TripUnits = {"TM-D", "TM-DC"}
         For Each Inom In NSXm_Currents
-            For Each level In NSXm_Levels
-                For Each poles In NSXm_Poles
+            For Each curve In NSXm_Curves
+                For Each trip In NSXm_TripUnits
                     Breakers.Add(New BreakerInfo With {
-                .Brand = "Schneider",
-                .Series = "NSXm",
-                .Category = "MCCB",
-                .NominalCurrent = Inom,
-                .Poles = poles,
-                .TripUnit = "TM-D",
-                .Ics_kA = level.Value,
-                .Curve = level.Key,
-                .IsAdjustable = True
-            })
+                       .Brand = "Schneider",
+                        .Series = "NSXm",
+                        .Category = "MCCB",
+                        .NominalCurrent = Inom,
+                        .Poles = 3,
+                        .TripUnit = trip,
+                        .Ics_kA = 25,
+                        .Curve = curve
+                        })
                 Next
             Next
         Next
@@ -847,8 +834,7 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                         .Poles = 3,
                         .TripUnit = trip,
                         .Ics_kA = 25,
-                        .Curve = curve,
-                        .IsAdjustable = True
+                        .Curve = curve
                     })
                 Next
             Next
@@ -868,8 +854,7 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                         .Poles = 3,
                         .TripUnit = trip,
                         .Ics_kA = 36,
-                        .Curve = curve,
-                        .IsAdjustable = True
+                        .Curve = curve
                     })
                 Next
             Next
@@ -877,7 +862,7 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
         ' NSX250 – Micrologic (по‑големи токове обикновено с електронна защита)
         Dim NSX250_Currents = {125, 160, 200, 250}
         Dim NSX250_Curves = {"B", "F", "N", "H", "S", "L"}
-        Dim NSX250_TripUnits = {"Micrologic 2.0", "Micrologic 5.0"}
+        Dim NSX250_TripUnits = {"TM-D", "Micrologic 2.0", "Micrologic 5.0"}
         For Each Inom In NSX250_Currents
             For Each curve In NSX250_Curves
                 For Each trip In NSX250_TripUnits
@@ -889,8 +874,7 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                         .Poles = 3,
                         .TripUnit = trip,
                         .Ics_kA = 50,
-                        .Curve = curve,
-                        .IsAdjustable = True
+                        .Curve = curve
                     })
                 Next
             Next
@@ -910,8 +894,7 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                         .Poles = 3,
                         .TripUnit = trip,
                         .Ics_kA = 70,
-                        .Curve = curve,
-                        .IsAdjustable = True
+                        .Curve = curve
                     })
                 Next
             Next
@@ -928,8 +911,7 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                         .Poles = 3,
                         .TripUnit = trip,
                         .Ics_kA = 100,
-                        .Curve = curve,
-                        .IsAdjustable = True
+                        .Curve = curve
                     })
                 Next
             Next
@@ -949,14 +931,15 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                     .Poles = poles,
                     .TripUnit = "Micrologic 6.0",
                     .Ics_kA = icuValue,
-                    .Curve = "MTZ",
-                    .IsAdjustable = True
+                    .Curve = "MTZ"
                 })
                 Next
             Next
         Next
         ' ✅ Попълни ComboBox стойностите от Breakers
         Breakers_For_combo = Breakers.Select(Function(b) b.Series).Distinct().ToList()
+        TripUnit_For_combo = Breakers.Select(Function(b) b.TripUnit).Distinct().ToList()
+        Curve_For_combo = Breakers.Select(Function(b) b.Curve).Distinct().ToList()
     End Sub
     ''' <summary>
     ''' Обработва блока според неговото име и Visibility свойство
@@ -1203,7 +1186,7 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
         ' Ако няма намерена конфигурация → прекратяваме
         If config Is Nothing Then
             MsgBox("Блок '" & blockName & "' не е намерен в InitializeBlockConfigs!",
-               MsgBoxStyle.Critical)
+        MsgBoxStyle.Critical)
             Return
         End If
         ' ------------------------------------------------------------
@@ -1327,6 +1310,8 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
             For Each kons As strKonsumator In tokow.Konsumator
                 ProcessConsumerByConfig(kons, tokow)
             Next
+            Dim I_Def As Double = 0
+            Double.TryParse(tokow.Номинален_Ток, I_Def)
             ' --------------------------------------------------------
             ' 4) Изчисляване на номиналния ток на кръга
             '    calc_Inom() изчислява тока според мощността и полюсите
@@ -1339,55 +1324,64 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
             Dim poles As Integer = If(tokow.БройПолюси = 3, 3, 1)
             ' Опит за парсване на конфигурирания номинален ток
             Dim configBreaker As Integer = 0
-            Integer.TryParse(tokow.Номинален_Ток, configBreaker)
             ' Ако реалният ток е по-голям от конфигурирания прекъсвач
-            If tokow.Ток > configBreaker Then
-                Dim breaker As BreakerInfo = Nothing
-                ' ----------------------------------------------------
-                ' Избор на серия според диапазона на тока
-                ' ----------------------------------------------------
-                Select Case tokow.Ток
-                    Case Is <= 63
-                        ' MCB (Easy9, iC60N) – крива C
-                        breaker = SelectBreaker(tokow.Ток, poles, "C")
-                    Case Is <= 125
-                        ' C120 – крива C
-                        breaker = SelectBreaker(tokow.Ток, poles, "C")
-                    Case Is <= 630
-                        ' NSX (MCCB) – крива N
-                        breaker = SelectBreaker(tokow.Ток, poles, "N")
-                    Case Else
-                        ' MTZ (ACB) – без стандартна крива
-                        breaker = SelectBreaker(tokow.Ток, poles, "MTZ")
-                End Select
-                ' ----------------------------------------------------
-                ' Ако не е намерен подходящ прекъсвач
-                ' ----------------------------------------------------
-                If breaker Is Nothing Then
-                    Dim info As String = String.Format(
-                                "Внимание: Не е намерен прекъсвач в {0}!" & vbCrLf &
-                                "Детайли:" & vbCrLf &
-                                "- Табло: {1}" & vbCrLf &
-                                "- Кръг: {2}" & vbCrLf &
-                                "- Мощност: {3} kW" & vbCrLf &
-                                "- Ток: {4} A",
-                                tokow.Tablo,
-                                tokow.Tablo,
-                                tokow.ТоковКръг,
-                                tokow.Мощност,
-                                tokow.Ток)
-                    MsgBox(info, MsgBoxStyle.Exclamation, "Инфо за LayerPair")
-                Else
-                    ' ------------------------------------------------
-                    ' Актуализиране на параметрите на токовия кръг
-                    ' според избрания прекъсвач
-                    ' ------------------------------------------------
-                    tokow.Номинален_Ток = breaker.NominalCurrent.ToString()
-                    tokow.Тип_Апарат = breaker.Series
-                    tokow.Крива = breaker.Curve
-                    tokow.Изкл_Възможност = breaker.Ics_kA & "kA"
-                    tokow.Брой_Полюси = breaker.Poles & "P"
-                End If
+            Dim breaker As BreakerInfo = Nothing
+            ' ----------------------------------------------------
+            ' Избор на серия според диапазона на тока
+            ' ----------------------------------------------------
+            Dim calculatedCurrent As Double = tokow.Ток
+            Select Case calculatedCurrent
+                Case Is <= 63
+                    ' MCB (Easy9, iC60N) – крива C
+                    breaker = SelectBreaker(calculatedCurrent, poles, "C")
+                Case Is <= 125
+                    ' C120 – крива C
+                    breaker = SelectBreaker(calculatedCurrent, poles, "C")
+                Case Is <= 160
+                    ' NSXm – крива N
+                    breaker = SelectBreaker(calculatedCurrent, poles, "N")
+                Case Is <= 630
+                    ' NSX (MCCB) – крива N
+                    breaker = SelectBreaker(calculatedCurrent, poles, "N")
+                Case Else
+                    ' MTZ (ACB) – без стандартна крива
+                    breaker = SelectBreaker(calculatedCurrent, poles, "MTZ")
+            End Select
+            ' ----------------------------------------------------
+            ' Ако не е намерен подходящ прекъсвач
+            ' ----------------------------------------------------
+            If breaker Is Nothing Then
+                Dim info As String = String.Format(
+                            "Внимание: Не е намерен прекъсвач в {0}!" & vbCrLf &
+                            "Детайли:" & vbCrLf &
+                            "- Табло: {1}" & vbCrLf &
+                            "- Кръг: {2}" & vbCrLf &
+                            "- Мощност: {3} kW" & vbCrLf &
+                            "- Ток: {4} A",
+                            tokow.Tablo,
+                            tokow.Tablo,
+                            tokow.ТоковКръг,
+                            tokow.Мощност,
+                            tokow.Ток)
+                MsgBox(info, MsgBoxStyle.Exclamation, "Инфо за LayerPair")
+            Else
+                ' ------------------------------------------------
+                ' Актуализиране на параметрите на токовия кръг
+                ' според избрания прекъсвач
+                ' ------------------------------------------------
+                tokow.Номинален_Ток = breaker.NominalCurrent.ToString()
+                tokow.Тип_Апарат = breaker.Series
+                tokow.Крива = breaker.Curve
+                tokow.Изкл_Възможност = breaker.Ics_kA & "kA"
+                tokow.Брой_Полюси = breaker.Poles & "P"
+                tokow.Защитен_блок = breaker.TripUnit
+            End If
+            Dim I_Get As Double = 0
+            Double.TryParse(tokow.Номинален_Ток, I_Get)
+            If I_Def > I_Get Then
+                tokow.Номинален_Ток = I_Def.ToString()
+            Else
+                tokow.Номинален_Ток = I_Get.ToString()
             End If
         Next
     End Sub
@@ -1399,18 +1393,34 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
     ''' <param name="curve">Крива по подразбиране ("C")</param>
     ''' <returns>BreakerInfo или Nothing ако не е намерен</returns>
     Private Function SelectBreaker(calculatedCurrent As Double,
-                                poles As Integer,
-                                Optional curve As String = "C") As BreakerInfo
-        ' 1. Коефициент на оразмеряване (1.25 за резерв)
-        Dim designCurrent As Double = calculatedCurrent * 1.25
-        ' 2. Филтрирай прекъсвачите по полюси и крива
+                               poles As Integer,
+                               Optional curve As String = "C") As BreakerInfo
+        ' Дефиниране на константи за диапазона (коефициенти)
+        Const MIN_FACTOR As Double = 1.15 ' Прекъсвачът трябва да е поне 15% над изчисления ток
+        Const MAX_FACTOR As Double = 1.25 ' Но не повече от 25% над него (примерно)
+
+        Dim minRange As Double = calculatedCurrent * MIN_FACTOR
+        Dim maxRange As Double = calculatedCurrent * MAX_FACTOR
+
+        ' Филтрираме прекъсвачите, които попадат точно в този "прозорец"
         Dim suitableBreakers = Breakers.Where(Function(b) b.Poles = poles AndAlso
-                               String.Equals(b.Curve, curve, StringComparison.OrdinalIgnoreCase)
-                               ).OrderBy(Function(b) b.NominalCurrent).ToList()
-        ' 3. Намери първия прекъсвач с номинален ток >= designCurrent
-        Dim selectedBreaker = suitableBreakers.FirstOrDefault(
-                              Function(b) b.NominalCurrent >= designCurrent
-                              )
+                            String.Equals(b.Curve, curve, StringComparison.OrdinalIgnoreCase) AndAlso
+                            b.NominalCurrent >= minRange AndAlso
+                            b.NominalCurrent <= maxRange
+                            ).OrderBy(Function(b) b.NominalCurrent).ToList()
+
+        ' Връщаме първия (най-малкия подходящ) от диапазона
+        Dim selectedBreaker = suitableBreakers.FirstOrDefault()
+
+        ' Ако не открием прекъсвач в този тесен диапазон, 
+        ' можем да върнем първия по-голям (fallback), за да не остане празен резултат
+        If selectedBreaker Is Nothing Then
+            selectedBreaker = Breakers.Where(Function(b) b.Poles = poles AndAlso
+                            String.Equals(b.Curve, curve, StringComparison.OrdinalIgnoreCase) AndAlso
+                            b.NominalCurrent >= calculatedCurrent
+                            ).OrderBy(Function(b) b.NominalCurrent).FirstOrDefault()
+        End If
+
         Return selectedBreaker
     End Function
     ''' <summary>
@@ -1433,7 +1443,7 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
             CosFI = 0.85                                            ' Ако е двигател, задава фактор на мощността 0.83
             KPD = 0.9                                               ' Ако е двигател, задава КПД 0.83
         Else                                                        ' Ако токовият кръг не е двигател
-            CosFI = 0.9                                             ' Задава фактор на мощността 0.9
+            CosFI = 0.9                                            ' Задава фактор на мощността 0.9
             KPD = 1                                                 ' Задава КПД 1
         End If
         If NumberPoles = "3p" Then                                  ' Проверява дали токовият кръг е трифазен (3 полюса)
@@ -1473,24 +1483,6 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
         GroupBox2.Text = $"Обработвам табло '{selectedPanel}'"
         ' 1. Добави колони за кръговете
         AddCircuitColumns(panelCircuits)
-        ' ============================================================
-        ' 1. ИЗЧИСЛИ ВСИЧКИ ОБЩИ СТОЙНОСТИ (САМО ВЕДНЪЖ!)
-        ' ============================================================
-        Dim totalLamps As Integer = panelCircuits.Sum(Function(c) c.brLamp)
-        Dim totalContacts As Integer = panelCircuits.Sum(Function(c) c.brKontakt)
-        Dim totalPower As Double = panelCircuits.Sum(Function(c) c.Мощност)
-
-        Dim hasThreePhase As Boolean = panelCircuits.Any(Function(c) c.БройПолюси = 3)
-        Dim totalCurrent As Double = If(hasThreePhase,
-                                        (totalPower * 1000) / (Math.Sqrt(3) * 400),
-                                        (totalPower * 1000) / 230)
-
-        Dim mostCommonPoles As String = panelCircuits.GroupBy(Function(c) c.Брой_Полюси) _
-                                             .OrderByDescending(Function(g) g.Count()) _
-                                             .FirstOrDefault()?.Key
-        If mostCommonPoles Is Nothing Then mostCommonPoles = "1p"
-
-        Dim totalPhase As String = If(hasThreePhase, "3P", "1P")
         ' 2. Попълни данните
         For Each row As DataGridViewRow In DataGridView1.Rows
             Dim paramName As String = row.Cells(0).Value.ToString()
@@ -1542,6 +1534,21 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                 End If
             Next
             ' 3. ОБЩО (последна колона)
+            Dim totalLamps As Integer = panelCircuits.Sum(Function(c) c.brLamp)
+            Dim totalContacts As Integer = panelCircuits.Sum(Function(c) c.brKontakt)
+            Dim totalPower As Double = panelCircuits.Sum(Function(c) c.Мощност)
+
+            Dim hasThreePhase As Boolean = panelCircuits.Any(Function(c) c.БройПолюси = 3)
+            Dim totalCurrent As Double = If(hasThreePhase,
+                                        (totalPower * 1000) / (Math.Sqrt(3) * 400),
+                                        (totalPower * 1000) / 230)
+
+            Dim mostCommonPoles As String = panelCircuits.GroupBy(Function(c) c.Брой_Полюси) _
+                                             .OrderByDescending(Function(g) g.Count()) _
+                                             .FirstOrDefault()?.Key
+            If mostCommonPoles Is Nothing Then mostCommonPoles = "1p"
+
+            Dim totalPhase As String = If(hasThreePhase, "3P", "1P")
             Dim totalColIndex As Integer = DataGridView1.Columns.Count - 1
             Select Case paramName
                 Case "Брой лампи"
@@ -1886,6 +1893,7 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                                     .Distinct() _
                                     .ToList()
                 UpdateComboRow("Крива", valuesCurve, e.ColumnIndex)
+
                 Dim valuesTripUnit = filteredBreakers _
                     .Select(Function(b) b.TripUnit) _
                     .Distinct() _
@@ -1958,8 +1966,10 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                     ' ----------------------------------------------------
                     ' 4) Добавяме новите възможни стойности
                     ' ----------------------------------------------------
-                    If values IsNot Nothing AndAlso values.Count > 0 Then
-                        comboCell.Items.AddRange(values.ToArray())
+                    ' Вземаме само елементите, които НЕ са Nothing
+                    Dim nonNullValues = values.Where(Function(v) v IsNot Nothing).ToArray()
+                    If nonNullValues.Length > 0 Then
+                        comboCell.Items.AddRange(nonNullValues)
                     End If
                     ' ----------------------------------------------------
                     ' 5) Проверяваме дали текущо избраната стойност

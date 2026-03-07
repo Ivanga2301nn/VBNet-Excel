@@ -33,8 +33,8 @@ Public Class Form_Tablo_new
         CreateTokowList()
         InitializeBlockConfigs()
         CalculateCircuitLoads()
-        SortCircuits()
 
+        SortCircuits()
 
 
 
@@ -1989,4 +1989,5 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
             End If
         Next
     End Sub
+
 End Class

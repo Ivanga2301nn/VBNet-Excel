@@ -11,6 +11,7 @@ Imports Autodesk.AutoCAD.Geometry
 Imports Autodesk.AutoCAD.Internal.DatabaseServices
 Imports Autodesk.AutoCAD.PlottingServices
 Imports Autodesk.AutoCAD.Runtime
+Imports AXDBLib
 Imports Org.BouncyCastle.Math.EC.ECCurve
 
 ' ============================================================
@@ -26,17 +27,14 @@ End Module
 
 Public Class Form_Tablo_new
     Private Sub Form_Tablo_new_Load(sender As Object, e As EventArgs) Handles MyBase.Load
-        Me.Height = 875
+        Me.Height = 935
         Me.Width = 1600
         SetCatalog()
         GetKonsumatori()
         CreateTokowList()
         InitializeBlockConfigs()
         CalculateCircuitLoads()
-
         SortCircuits()
-
-
 
         BuildTreeViewFromKonsumatori()
         SetupDataGridView()
@@ -56,10 +54,24 @@ Public Class Form_Tablo_new
     Private Busbars_Cu As New List(Of BusbarInfo)
     Private Busbars_Al As New List(Of BusbarInfo)
     Private RCD_Catalog As New List(Of RCDInfo)
+
+
     Private IcableDict As New Dictionary(Of String, Integer())
-    Private Kable_Size_L As String()
-    Private Kable_Size_N As String()
-    Private Kable_Type As String()
+    Private Catalog_Cables As New List(Of CableInfo)
+    Public Class CableInfo
+        Public Property PhaseSize As String         ' "2,5", "4", и т.н.
+        Public Property NeutralSize As String       ' "0", "1,5", "2,5", и т.н.
+        Public Property MaxCurrent_Air As Double    ' Допустим ток във въздух
+        Public Property MaxCurrent_Ground As Double ' Допустим ток в земя
+        Public Property Material As String          ' "Cu", "Al"
+        Public Property CableType As String         ' "СВТ", "САВТ", "Al/R"
+        Public Property MaxWorkingTemp As Double    ' ← ← ← НОВО! (65, 70, 90°C)
+        Public Property InsulationType As String    ' ← ← ← НОВО! ("ПВЦ", "XLPE", "GUM")
+    End Class
+
+    Private Cable_AlR_2 As New Dictionary(Of Integer, String)
+    Private Cable_AlR_4 As New Dictionary(Of Integer, String)
+
     Private Breakers_For_combo As List(Of String)
     Private TripUnit_For_combo As List(Of String)
     Private Curve_For_combo As List(Of String)
@@ -95,10 +107,13 @@ Public Class Form_Tablo_new
         New String() {"Инст. мощност", "kW", "Text"},
         New String() {"---------", "", "Text"},
         New String() {"Кабел", "", "Text"},
-        New String() {"Тип", "---", "Combo"},
-        New String() {"Сечение", "mm²", "Combo"},
-        New String() {"Фаза", "", "Text"},
+        New String() {"Начин на мантаж", "--", "Text"},
+        New String() {"Начин на полагане", "--", "Text"},
+        New String() {"Брой кабели", "---", "Text"},
+        New String() {"Тип", "---", "Text"},
+        New String() {"Сечение", "mm²", "Text"},
         New String() {"---------", "", "Text"},
+        New String() {"Фаза", "", "Text"},
         New String() {"Консуматор", "---", "Text"},
         New String() {"предназначение", "---", "Text"},
         New String() {"Управление", "---", "Combo"},
@@ -111,13 +126,6 @@ Public Class Form_Tablo_new
         Dim Type As String               ' "iSW", "INS", "IN"
         Dim Brand As String              ' "Acti9", "Easy9"
         Dim Poles As Integer             ' 2, 3, 4
-    End Structure
-    Public Structure CableInfo
-        Dim Section As String            ' "3x2.5", "5x16"
-        Dim Material As String           ' "Cu", "Al"
-        Dim Conductors As Integer        ' 2, 3, 4, 5
-        Dim CurrentCapacity As Integer   ' Допустим ток
-        Dim InstallationMethod As String ' "air", "ground"
     End Structure
     Public Structure BusbarInfo
         Dim CurrentCapacity As Integer   ' Допустим ток
@@ -173,8 +181,11 @@ Public Class Form_Tablo_new
         ' ============================================================
         ' КАБЕЛ
         ' ============================================================
+        Public Кабел_Монтаж As String        ' Сечение на кабела (пример: "3x2.5")
+        Public Кабел_Полагане As String        ' Сечение на кабела (пример: "3x2.5")
         Public Кабел_Сечение As String         ' Сечение на кабела (пример: "3x2.5")
         Public Кабел_Тип As String             ' Тип кабел (NYM, YJV, CBT и др.)
+        Public Кабел_Брой As String             ' Тип кабел (NYM, YJV, CBT и др.)
         ' ============================================================
         ' ЗАЩИТА (ПРЕКЪСВАЧ)
         ' ============================================================
@@ -566,7 +577,7 @@ Public Class Form_Tablo_new
                                          "Електромер",
                                          "Фото реле")
             Case "Тип"
-                comboCell.Items.AddRange(Kable_Type)
+                'comboCell.Items.AddRange(Kable_Type)
         End Select
         ' ✅ ЗАДАЙ ПЪРВИЯ ЕЛЕМЕНТ КАТО СТОЙНОСТ
         If comboCell.Items.Count > 0 Then comboCell.Value = comboCell.Items(0)
@@ -584,23 +595,8 @@ Public Class Form_Tablo_new
     ' ФУНКЦИЯ ЗА ЗАРЕЖДАНЕ НА КАТАЛОЗИТЕ
     ' ============================================================
     Private Sub SetCatalog()
-        'Допустими токови натоварвания на кабели и проводници
-        IcableDict = New Dictionary(Of String, Integer()) From {
-    {"0_0_0", {20, 27, 36, 45, 63, 82, 113, 138, 168, 210, 262, 307, 352, 405, 482}},   ' Меден 1 жило положен във въздух
-    {"0_0_1", {19, 25, 34, 43, 59, 79, 105, 126, 157, 199, 246, 285, 326, 374, 445}},   ' Меден 3 жилен положен във въздух
-    {"0_1_0", {0, 0, 28, 38, 48, 63, 85, 105, 127, 165, 205, 235, 270, 315, 375}},      ' Алуминиев 1 жило положен във въздух
-    {"0_1_1", {0, 20, 26, 34, 43, 64, 82, 100, 119, 152, 185, 215, 245, 285, 338}},     ' Алуминиев 3 жилен положен във въздух
-    {"1_0_0", {29, 38, 49, 62, 83, 104, 136, 162, 192, 236, 285, 322, 363, 410, 475}},  ' Меден 1 жило положен във земя
-    {"1_0_1", {25, 34, 45, 55, 76, 96, 126, 151, 178, 225, 270, 306, 346, 390, 458}},   ' Меден 3 жилен положен във земя
-    {"1_1_0", {0, 0, 38, 52, 63, 82, 106, 128, 150, 186, 220, 250, 282, 320, 375}},     ' Алуминиев 1 жило положен във земя
-    {"1_1_1", {0, 25, 32, 42, 53, 75, 92, 110, 134, 170, 210, 245, 274, 310, 360}}      ' Алуминиев 3 жилен положен във земя
-    }
-        ' Общ масив за всички сечения ФАЗОВОТО ЖИЛО
-        Kable_Size_L = {"1,5", "2,5", "4,0", "6,0", "10", "16", "25", "35", "50", "70", "95", "120", "150", "185", "240"}
-        ' Общ масив за всички сечения НУЛЕВОТО ЖИЛО
-        Kable_Size_N = {"0", "0", "0", "0", "0", "0", "16", "16", "25", "35", "50", "70", "70", "95", "120"}
-        ' Речник за типове кабели
-        Kable_Type = {"СВТ", "САВТ", "Al/R", "Al/R+СВТ", "Al/R+САВТ"}
+        ' Речник за всички кабели
+        FillCables()
         ' Речник за всички автоматични прекъсвачи
         ' Инициализиране на списъка
         Breakers = New List(Of BreakerInfo)
@@ -723,6 +719,137 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
         New RCDInfo With {.NominalCurrent = 40, .Type = "AC", .Poles = "4p", .Sensitivity = 300, .DeviceType = "iID"},
         New RCDInfo With {.NominalCurrent = 63, .Type = "AC", .Poles = "4p", .Sensitivity = 300, .DeviceType = "iID"}
     }
+    End Sub
+    Private Sub FillCables()
+        Catalog_Cables.Clear()
+        Catalog_Cables.Add(New CableInfo With {.CableType = "ПВ-А1", .Material = "Cu", .PhaseSize = "1,5", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 20, .MaxCurrent_Ground = 29, .NeutralSize = "0"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "ПВ-А1", .Material = "Cu", .PhaseSize = "2,5", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 27, .MaxCurrent_Ground = 38, .NeutralSize = "0"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "ПВ-А1", .Material = "Cu", .PhaseSize = "4", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 36, .MaxCurrent_Ground = 49, .NeutralSize = "0"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "ПВ-А1", .Material = "Cu", .PhaseSize = "6", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 45, .MaxCurrent_Ground = 62, .NeutralSize = "0"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "ПВ-А1", .Material = "Cu", .PhaseSize = "10", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 63, .MaxCurrent_Ground = 83, .NeutralSize = "0"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "ПВ-А1", .Material = "Cu", .PhaseSize = "16", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 82, .MaxCurrent_Ground = 104, .NeutralSize = "0"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "ПВ-А1", .Material = "Cu", .PhaseSize = "25", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 113, .MaxCurrent_Ground = 136, .NeutralSize = "0"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "ПВ-А1", .Material = "Cu", .PhaseSize = "35", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 138, .MaxCurrent_Ground = 162, .NeutralSize = "0"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "ПВ-А1", .Material = "Cu", .PhaseSize = "50", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 168, .MaxCurrent_Ground = 192, .NeutralSize = "0"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "ПВ-А1", .Material = "Cu", .PhaseSize = "70", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 210, .MaxCurrent_Ground = 236, .NeutralSize = "0"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "ПВ-А1", .Material = "Cu", .PhaseSize = "95", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 262, .MaxCurrent_Ground = 285, .NeutralSize = "0"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "ПВ-А1", .Material = "Cu", .PhaseSize = "120", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 307, .MaxCurrent_Ground = 322, .NeutralSize = "0"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "ПВ-А1", .Material = "Cu", .PhaseSize = "150", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 352, .MaxCurrent_Ground = 363, .NeutralSize = "0"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "ПВ-А1", .Material = "Cu", .PhaseSize = "185", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 405, .MaxCurrent_Ground = 410, .NeutralSize = "0"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "ПВ-А1", .Material = "Cu", .PhaseSize = "240", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 482, .MaxCurrent_Ground = 475, .NeutralSize = "0"})
+
+
+        Catalog_Cables.Add(New CableInfo With {.CableType = "СВТ", .Material = "Cu", .PhaseSize = "1,5", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 19, .MaxCurrent_Ground = 25, .NeutralSize = "1,5"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "СВТ", .Material = "Cu", .PhaseSize = "2,5", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 25, .MaxCurrent_Ground = 34, .NeutralSize = "2,5"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "СВТ", .Material = "Cu", .PhaseSize = "4", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 34, .MaxCurrent_Ground = 45, .NeutralSize = "4"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "СВТ", .Material = "Cu", .PhaseSize = "6", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 43, .MaxCurrent_Ground = 55, .NeutralSize = "6"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "СВТ", .Material = "Cu", .PhaseSize = "10", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 59, .MaxCurrent_Ground = 76, .NeutralSize = "10"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "СВТ", .Material = "Cu", .PhaseSize = "16", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 79, .MaxCurrent_Ground = 96, .NeutralSize = "16"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "СВТ", .Material = "Cu", .PhaseSize = "25", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 105, .MaxCurrent_Ground = 126, .NeutralSize = "16"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "СВТ", .Material = "Cu", .PhaseSize = "35", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 126, .MaxCurrent_Ground = 151, .NeutralSize = "16"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "СВТ", .Material = "Cu", .PhaseSize = "50", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 157, .MaxCurrent_Ground = 178, .NeutralSize = "25"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "СВТ", .Material = "Cu", .PhaseSize = "70", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 199, .MaxCurrent_Ground = 225, .NeutralSize = "35"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "СВТ", .Material = "Cu", .PhaseSize = "95", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 246, .MaxCurrent_Ground = 270, .NeutralSize = "50"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "СВТ", .Material = "Cu", .PhaseSize = "120", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 285, .MaxCurrent_Ground = 306, .NeutralSize = "70"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "СВТ", .Material = "Cu", .PhaseSize = "150", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 326, .MaxCurrent_Ground = 346, .NeutralSize = "70"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "СВТ", .Material = "Cu", .PhaseSize = "185", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 374, .MaxCurrent_Ground = 390, .NeutralSize = "95"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "СВТ", .Material = "Cu", .PhaseSize = "240", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 445, .MaxCurrent_Ground = 458, .NeutralSize = "120"})
+
+
+        Catalog_Cables.Add(New CableInfo With {.CableType = "САВТ", .Material = "Al", .PhaseSize = "1,5", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 0, .MaxCurrent_Ground = 0, .NeutralSize = "1,5"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "САВТ", .Material = "Al", .PhaseSize = "2,5", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 20, .MaxCurrent_Ground = 25, .NeutralSize = "2,5"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "САВТ", .Material = "Al", .PhaseSize = "4", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 26, .MaxCurrent_Ground = 32, .NeutralSize = "4"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "САВТ", .Material = "Al", .PhaseSize = "6", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 34, .MaxCurrent_Ground = 42, .NeutralSize = "6"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "САВТ", .Material = "Al", .PhaseSize = "10", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 43, .MaxCurrent_Ground = 53, .NeutralSize = "10"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "САВТ", .Material = "Al", .PhaseSize = "16", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 64, .MaxCurrent_Ground = 75, .NeutralSize = "16"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "САВТ", .Material = "Al", .PhaseSize = "25", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 82, .MaxCurrent_Ground = 92, .NeutralSize = "16"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "САВТ", .Material = "Al", .PhaseSize = "35", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 100, .MaxCurrent_Ground = 110, .NeutralSize = "16"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "САВТ", .Material = "Al", .PhaseSize = "50", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 119, .MaxCurrent_Ground = 134, .NeutralSize = "25"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "САВТ", .Material = "Al", .PhaseSize = "70", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 152, .MaxCurrent_Ground = 170, .NeutralSize = "35"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "САВТ", .Material = "Al", .PhaseSize = "95", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 185, .MaxCurrent_Ground = 210, .NeutralSize = "50"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "САВТ", .Material = "Al", .PhaseSize = "120", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 215, .MaxCurrent_Ground = 245, .NeutralSize = "70"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "САВТ", .Material = "Al", .PhaseSize = "150", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 245, .MaxCurrent_Ground = 274, .NeutralSize = "70"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "САВТ", .Material = "Al", .PhaseSize = "185", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 285, .MaxCurrent_Ground = 310, .NeutralSize = "95"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "САВТ", .Material = "Al", .PhaseSize = "240", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 338, .MaxCurrent_Ground = 360, .NeutralSize = "120"})
+
+
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NYY", .Material = "Cu", .PhaseSize = "1,5", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 19.5, .MaxCurrent_Ground = 27, .NeutralSize = "1,5"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NYY", .Material = "Cu", .PhaseSize = "2,5", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 25, .MaxCurrent_Ground = 36, .NeutralSize = "2,5"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NYY", .Material = "Cu", .PhaseSize = "4", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 34, .MaxCurrent_Ground = 47, .NeutralSize = "4"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NYY", .Material = "Cu", .PhaseSize = "6", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 43, .MaxCurrent_Ground = 59, .NeutralSize = "6"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NYY", .Material = "Cu", .PhaseSize = "10", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 59, .MaxCurrent_Ground = 79, .NeutralSize = "10"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NYY", .Material = "Cu", .PhaseSize = "16", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 79, .MaxCurrent_Ground = 102, .NeutralSize = "16"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NYY", .Material = "Cu", .PhaseSize = "25", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 106, .MaxCurrent_Ground = 133, .NeutralSize = "16"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NYY", .Material = "Cu", .PhaseSize = "35", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 129, .MaxCurrent_Ground = 159, .NeutralSize = "16"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NYY", .Material = "Cu", .PhaseSize = "50", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 157, .MaxCurrent_Ground = 188, .NeutralSize = "25"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NYY", .Material = "Cu", .PhaseSize = "70", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 199, .MaxCurrent_Ground = 232, .NeutralSize = "35"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NYY", .Material = "Cu", .PhaseSize = "95", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 246, .MaxCurrent_Ground = 280, .NeutralSize = "50"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NYY", .Material = "Cu", .PhaseSize = "120", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 285, .MaxCurrent_Ground = 318, .NeutralSize = "70"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NYY", .Material = "Cu", .PhaseSize = "150", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 326, .MaxCurrent_Ground = 359, .NeutralSize = "70"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NYY", .Material = "Cu", .PhaseSize = "185", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 374, .MaxCurrent_Ground = 406, .NeutralSize = "95"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NYY", .Material = "Cu", .PhaseSize = "240", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 445, .MaxCurrent_Ground = 473, .NeutralSize = "120"})
+
+
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NAYY", .Material = "Al", .PhaseSize = "1,5", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 0, .MaxCurrent_Ground = 0, .NeutralSize = "1,5"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NAYY", .Material = "Al", .PhaseSize = "2,5", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 0, .MaxCurrent_Ground = 0, .NeutralSize = "2,5"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NAYY", .Material = "Al", .PhaseSize = "4", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 0, .MaxCurrent_Ground = 0, .NeutralSize = "4"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NAYY", .Material = "Al", .PhaseSize = "6", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 0, .MaxCurrent_Ground = 0, .NeutralSize = "6"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NAYY", .Material = "Al", .PhaseSize = "10", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 0, .MaxCurrent_Ground = 0, .NeutralSize = "10"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NAYY", .Material = "Al", .PhaseSize = "16", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 0, .MaxCurrent_Ground = 0, .NeutralSize = "16"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NAYY", .Material = "Al", .PhaseSize = "25", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 82, .MaxCurrent_Ground = 102, .NeutralSize = "16"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NAYY", .Material = "Al", .PhaseSize = "35", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 100, .MaxCurrent_Ground = 123, .NeutralSize = "16"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NAYY", .Material = "Al", .PhaseSize = "50", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 119, .MaxCurrent_Ground = 144, .NeutralSize = "25"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NAYY", .Material = "Al", .PhaseSize = "70", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 152, .MaxCurrent_Ground = 179, .NeutralSize = "35"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NAYY", .Material = "Al", .PhaseSize = "95", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 186, .MaxCurrent_Ground = 215, .NeutralSize = "50"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NAYY", .Material = "Al", .PhaseSize = "120", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 216, .MaxCurrent_Ground = 245, .NeutralSize = "70"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NAYY", .Material = "Al", .PhaseSize = "150", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 246, .MaxCurrent_Ground = 275, .NeutralSize = "70"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NAYY", .Material = "Al", .PhaseSize = "185", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 285, .MaxCurrent_Ground = 313, .NeutralSize = "95"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NAYY", .Material = "Al", .PhaseSize = "240", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 338, .MaxCurrent_Ground = 364, .NeutralSize = "120"})
+
+
+        Catalog_Cables.Add(New CableInfo With {.CableType = "N2XY", .Material = "Cu", .PhaseSize = "1,5", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 24, .MaxCurrent_Ground = 31, .NeutralSize = "1,5"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "N2XY", .Material = "Cu", .PhaseSize = "2,5", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 32, .MaxCurrent_Ground = 40, .NeutralSize = "2,5"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "N2XY", .Material = "Cu", .PhaseSize = "4", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 42, .MaxCurrent_Ground = 52, .NeutralSize = "4"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "N2XY", .Material = "Cu", .PhaseSize = "6", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 53, .MaxCurrent_Ground = 64, .NeutralSize = "6"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "N2XY", .Material = "Cu", .PhaseSize = "10", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 74, .MaxCurrent_Ground = 86, .NeutralSize = "10"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "N2XY", .Material = "Cu", .PhaseSize = "16", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 98, .MaxCurrent_Ground = 112, .NeutralSize = "16"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "N2XY", .Material = "Cu", .PhaseSize = "25", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 133, .MaxCurrent_Ground = 145, .NeutralSize = "16"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "N2XY", .Material = "Cu", .PhaseSize = "35", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 162, .MaxCurrent_Ground = 174, .NeutralSize = "16"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "N2XY", .Material = "Cu", .PhaseSize = "50", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 197, .MaxCurrent_Ground = 206, .NeutralSize = "25"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "N2XY", .Material = "Cu", .PhaseSize = "70", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 250, .MaxCurrent_Ground = 254, .NeutralSize = "35"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "N2XY", .Material = "Cu", .PhaseSize = "95", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 308, .MaxCurrent_Ground = 305, .NeutralSize = "50"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "N2XY", .Material = "Cu", .PhaseSize = "120", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 359, .MaxCurrent_Ground = 348, .NeutralSize = "70"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "N2XY", .Material = "Cu", .PhaseSize = "150", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 412, .MaxCurrent_Ground = 392, .NeutralSize = "70"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "N2XY", .Material = "Cu", .PhaseSize = "185", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 475, .MaxCurrent_Ground = 444, .NeutralSize = "95"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "N2XY", .Material = "Cu", .PhaseSize = "240", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 564, .MaxCurrent_Ground = 517, .NeutralSize = "120"})
+
+
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NA2XY", .Material = "Al", .PhaseSize = "1,5", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 0, .MaxCurrent_Ground = 0, .NeutralSize = "1,5"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NA2XY", .Material = "Al", .PhaseSize = "2,5", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 0, .MaxCurrent_Ground = 0, .NeutralSize = "2,5"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NA2XY", .Material = "Al", .PhaseSize = "4", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 0, .MaxCurrent_Ground = 0, .NeutralSize = "4"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NA2XY", .Material = "Al", .PhaseSize = "6", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 0, .MaxCurrent_Ground = 0, .NeutralSize = "6"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NA2XY", .Material = "Al", .PhaseSize = "10", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 0, .MaxCurrent_Ground = 0, .NeutralSize = "10"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NA2XY", .Material = "Al", .PhaseSize = "16", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 0, .MaxCurrent_Ground = 0, .NeutralSize = "16"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NA2XY", .Material = "Al", .PhaseSize = "25", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 102, .MaxCurrent_Ground = 112, .NeutralSize = "16"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NA2XY", .Material = "Al", .PhaseSize = "35", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 126, .MaxCurrent_Ground = 135, .NeutralSize = "16"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NA2XY", .Material = "Al", .PhaseSize = "50", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 149, .MaxCurrent_Ground = 158, .NeutralSize = "25"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NA2XY", .Material = "Al", .PhaseSize = "70", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 191, .MaxCurrent_Ground = 196, .NeutralSize = "35"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NA2XY", .Material = "Al", .PhaseSize = "95", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 234, .MaxCurrent_Ground = 234, .NeutralSize = "50"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NA2XY", .Material = "Al", .PhaseSize = "120", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 273, .MaxCurrent_Ground = 268, .NeutralSize = "70"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NA2XY", .Material = "Al", .PhaseSize = "150", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 311, .MaxCurrent_Ground = 300, .NeutralSize = "70"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NA2XY", .Material = "Al", .PhaseSize = "185", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 360, .MaxCurrent_Ground = 342, .NeutralSize = "95"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "NA2XY", .Material = "Al", .PhaseSize = "240", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 427, .MaxCurrent_Ground = 398, .NeutralSize = "120"})
+
+
+        Catalog_Cables.Add(New CableInfo With {.CableType = "Al/R", .Material = "Al", .PhaseSize = "16", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 83, .MaxCurrent_Ground = 0, .NeutralSize = "16"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "Al/R", .Material = "Al", .PhaseSize = "25", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 111, .MaxCurrent_Ground = 0, .NeutralSize = "25"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "Al/R", .Material = "Al", .PhaseSize = "35", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 138, .MaxCurrent_Ground = 0, .NeutralSize = "54"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "Al/R", .Material = "Al", .PhaseSize = "50", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 164, .MaxCurrent_Ground = 0, .NeutralSize = "54"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "Al/R", .Material = "Al", .PhaseSize = "70", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 213, .MaxCurrent_Ground = 0, .NeutralSize = "54"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "Al/R", .Material = "Al", .PhaseSize = "95", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 258, .MaxCurrent_Ground = 0, .NeutralSize = "70"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "Al/R", .Material = "Al", .PhaseSize = "150", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 344, .MaxCurrent_Ground = 0, .NeutralSize = "70"})
+
+
     End Sub
     ''' <summary>
     ''' Процедура за добавяне на всички прекъсвачи.
@@ -1383,6 +1510,11 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
             Else
                 tokow.Номинален_Ток = I_Get.ToString()
             End If
+            ' ----------------------------------------------------
+            ' Избираме кабел според изчисления ток и брой полюси
+            ' ----------------------------------------------------
+            CalculateCable(tokow)
+
         Next
     End Sub
     ''' <summary>
@@ -1518,10 +1650,11 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                         Case "Инст. мощност" : row.Cells(colIndex).Value = panelCircuits(i).Мощност.ToString("N3")
                         Case "Изчислен ток" : row.Cells(colIndex).Value = panelCircuits(i).Ток.ToString("N2")
                         ' --- КАБЕЛ И ФАЗА ---
+                        Case "Начин на мантаж" : row.Cells(colIndex).Value = panelCircuits(i).Кабел_Монтаж
+                        Case "Начин на полагане" : row.Cells(colIndex).Value = panelCircuits(i).Кабел_Полагане
+                        Case "Брой кабели" : row.Cells(colIndex).Value = panelCircuits(i).Кабел_Брой
                         Case "Тип" : row.Cells(colIndex).Value = panelCircuits(i).Кабел_Тип
-                        Case "Сечение"
-                            InitCableCombo(row.Cells(colIndex), panelCircuits(i).Брой_Полюси)
-                            row.Cells(colIndex).Value = panelCircuits(i).Кабел_Сечение
+                        Case "Сечение" : row.Cells(colIndex).Value = panelCircuits(i).Кабел_Сечение
                         Case "Фаза" : row.Cells(colIndex).Value = panelCircuits(i).Фаза
                         ' --- ОПИСАНИЯ ---
                         Case "Консуматор" : row.Cells(colIndex).Value = panelCircuits(i).Консуматор
@@ -1533,6 +1666,8 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                     End Select
                 End If
             Next
+
+
             ' 3. ОБЩО (последна колона)
             Dim totalLamps As Integer = panelCircuits.Sum(Function(c) c.brLamp)
             Dim totalContacts As Integer = panelCircuits.Sum(Function(c) c.brKontakt)
@@ -1567,31 +1702,31 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
             End Select
         Next
     End Sub
-    Private Sub InitCableCombo(cell As DataGridViewCell, poles As String)
-        Dim comboCell = TryCast(cell, DataGridViewComboBoxCell)
-        If comboCell IsNot Nothing Then
-            comboCell.Items.Clear()
-            ' 1. Основно определяне на жилата
-            Dim basePrefix As String = "3"
-            If poles.Contains("3") Then basePrefix = "5"
-            ' 2. Пълним комбото
-            For Each sSize In Kable_Size_L
-                Dim currentPrefix As String = basePrefix
-                ' Логика за 4-жилен кабел: ако е трифазен и сечението е >= 25
-                If basePrefix = "5" Then
-                    ' Конвертираме "1,5" -> 1.5 за проверка
-                    Dim numericSize As Double = 0
-                    Double.TryParse(sSize.Replace(",", "."), numericSize)
-                    If numericSize >= 35 Then
-                        currentPrefix = "4"
-                    End If
-                End If
-                ' Резултат: "3х1,5" или "5х16", или "4х25"
-                comboCell.Items.Add(currentPrefix & ZnakX & sSize)
-            Next
+    'Private Sub InitCableCombo(cell As DataGridViewCell, poles As String)
+    '    Dim comboCell = TryCast(cell, DataGridViewComboBoxCell)
+    '    If comboCell IsNot Nothing Then
+    '        comboCell.Items.Clear()
+    '        ' 1. Основно определяне на жилата
+    '        Dim basePrefix As String = "3"
+    '        If poles.Contains("3") Then basePrefix = "5"
+    '        ' 2. Пълним комбото
+    '        For Each sSize In Kable_Size_L
+    '            Dim currentPrefix As String = basePrefix
+    '            ' Логика за 4-жилен кабел: ако е трифазен и сечението е >= 25
+    '            If basePrefix = "5" Then
+    '                ' Конвертираме "1,5" -> 1.5 за проверка
+    '                Dim numericSize As Double = 0
+    '                Double.TryParse(sSize.Replace(",", "."), numericSize)
+    '                If numericSize >= 35 Then
+    '                    currentPrefix = "4"
+    '                End If
+    '            End If
+    '            ' Резултат: "3х1,5" или "5х16", или "4х25"
+    '            comboCell.Items.Add(currentPrefix & ZnakX & sSize)
+    '        Next
 
-        End If
-    End Sub
+    '    End If
+    'End Sub
     ''' <summary>
     ''' Добавя колони за токовите кръгове на избраното табло
     ''' </summary>
@@ -1989,5 +2124,193 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
             End If
         Next
     End Sub
+    ''' <summary>
+    ''' Изчислява необходимото сечение на кабел според тока и условията на полагане
+    ''' Оптимизиран за сградни инсталации (90% под мазилка)
+    ''' </summary>
+    ''' <param name="tokow">        Токов кръг за който правим изчислението</param>
+    ''' <param name="Type">         Тип на кабела: "СВТ", "САВТ", "NYY" и др. (по подразбиране "СВТ")</param>
+    ''' <param name="layMethod">    Начин на полагане: 0 = във въздух (35°C), 1 = в земя (15°C) (по подразбиране 0)</param>
+    ''' <param name="mountMethod">  Метод на монтаж по IEC: "A1"=гипсокартон, "B2"=под мазилка, "C"=над таван (по подразбиране "B2")</param>
+    ''' <param name="Broj_Cable">   Брой кабели положени паралелно на скара (по подразбиране 1)</param>
+    ''' <param name="Tipe_Cable">   Тип на проводника: 0 = кабел (3-жилен), 1 = проводник (1-жилен) (по подразбиране 0)</param>
+    ''' <param name="matType">      Материал на проводника: 0 = мед (Cu), 1 = алуминий (Al) (по подразбиране 0)</param>
+    ''' <param name="RetType">      Тип на връщаната стойност: 0 = само сечение, 1 = пълно означение (по подразбиране 1)</param>
+    ''' <returns>Сечение на кабела като низ (напр. "СВТ3x2,5mm²" или "2,5")</returns>
+    Private Function CalculateCable(tokow As strTokow,
+                                Optional Type As String = "СВТ",        ' Тип кабел (СВТ, САВТ, NYY...)
+                                Optional layMethod As Integer = 0,      ' 0=въздух (35°C), 1=земя (15°C)
+                                Optional mountMethod As String = "B1",  ' "A1"=гипсокартон, "B2"=под мазилка, "C"=над таван
+                                Optional Broj_Cable As Integer = 1,     ' Брой паралелни кабели
+                                Optional Tipe_Cable As Integer = 0,     ' 0=кабел (3-жилен), 1=проводник (1-жилен)
+                                Optional matType As Integer = 0,        ' 0=мед (Cu), 1=алуминий (Al)
+                                Optional RetType As Integer = 1         ' 0=само сечение, 1=пълно означение
+                                ) As String
 
+        Dim Ibreaker As String = tokow.Номинален_Ток
+        Dim NumberPoles As String = tokow.Брой_Полюси
+        ' ============================================================
+        ' 1. МАТЕРИАЛ И ФИЛТРИРАНЕ НА КАТАЛОГА
+        ' ============================================================
+        Dim material As String = If(matType = 1, "Al", "Cu")
+        Dim filteredCables = Catalog_Cables.Where(
+                             Function(c) c.CableType = Type AndAlso c.Material = material
+                             ).OrderBy(
+                             Function(c) CDbl(c.PhaseSize.Replace(",", "."))
+                             ).ToList()
+        If filteredCables.Count = 0 Then Return "ERROR_NO_CABLE"
+        ' ============================================================
+        ' 2. КОРЕКЦИОННИ КОЕФИЦИЕНТИ
+        ' ============================================================
+        ' K1 - брой кабели на скара
+        Dim K1_Table As New Dictionary(Of Integer, Double) From {
+                                        {1, 1.0},   ' 1 кабел → 100%
+                                        {2, 0.88},  ' 2 кабела → 88%
+                                        {3, 0.82},  ' 3 кабела → 82%
+                                        {4, 0.77},  ' 4 кабела → 77%
+                                        {5, 0.73},  ' 5 кабела → 73%
+                                        {6, 0.7}   ' 6 кабела → 70%
+                                        }
+        Dim K1 As Double = If(K1_Table.ContainsKey(Broj_Cable), K1_Table(Broj_Cable), 0.7)
+        ' K2 - температура
+        Dim Qok As Double = If(layMethod = 1, 15, 35)  ' 15°C земя, 35°C въздух
+        Const Qokdef As Double = 25
+        Dim Q As Double = filteredCables(0).MaxWorkingTemp
+        Dim K2 As Double = 1.0
+        Dim ratio As Double = (Q - Qok) / (Q - Qokdef)
+        If ratio > 0 Then K2 = Math.Sqrt(ratio)
+        ' ✅ ТАБЛИЦА С КОЕФИЦИЕНТИ ЗА МОНТАЖ
+        Dim MountCoefficients As New Dictionary(Of String, Double) From {
+                        {"A1", 1.0},   ' Кабел в тръба в топлоизолирана стена
+                        {"B1", 1.0},   ' Кабел в тръба върху стена
+                        {"C", 1.0},    ' Кабел директно върху стена / кабелна скара
+                        {"D1", 1.0},   ' Кабел в тръба в земята
+                        {"D2", 1.0},   ' Кабел директно в земята
+                        {"E", 1.0},    ' Кабел на въздух / кабелна скара
+                        {"F", 1.0}     ' Кабели в пакет
+                        }
+        Dim K3 As Double = If(MountCoefficients.ContainsKey(mountMethod), MountCoefficients(mountMethod), 1.0)
+        ' ============================================================
+        ' 3. ИЗБОР НА СЕЧЕНИЕ
+        ' ============================================================
+        Dim calc As String = "######"
+        Dim Inom As Double = Val(Ibreaker)
+        Dim Idop As Double = Inom / (K1 * K2 * K3)
+        ' ✅ ТЪРСИМ ПЪРВОТО СЕЧЕНИЕ КОЕТО ИЗДЪРЖА Idop
+        For i As Integer = 0 To filteredCables.Count - 1
+            Dim cable As CableInfo = filteredCables(i)
+            ' ✅ ИЗБОР НА ТОК СПОРЕД layMethod
+            Dim Imax As Double = 0
+            If layMethod = 1 Then
+                Imax = cable.MaxCurrent_Ground    ' Ток в земя
+            Else
+                Imax = cable.MaxCurrent_Air       ' Ток във въздух
+            End If
+            ' ✅ ПРОВЕРКА: ДАЛИ КАБЕЛЪТ ИЗДЪРЖА?
+            If Imax >= Idop Then
+                calc = cable.PhaseSize            ' Намерихме сечение!
+                Exit For                          ' Излизаме от цикъла
+            End If
+        Next
+        ' ============================================================
+        ' 4. ИЗВЛИЧАНЕ НА ТОКОВЕ ЗА ГОЛЕМИ СЕЧЕНИЯ (за паралелни кабели)
+        ' ============================================================
+        Dim bestSection As String = ""
+        Dim bestNum As Integer = 0
+        Dim bestNeutral As String = ""
+        If calc = "######" Then
+            ' Променливи за съхранение на токовете
+            Dim Current_120 As Double = 0
+            Dim Current_150 As Double = 0
+            Dim Current_185 As Double = 0
+            Dim Current_240 As Double = 0
+            ' Променливи за нулевите жила
+            Dim Neutral_120 As String = ""
+            Dim Neutral_150 As String = ""
+            Dim Neutral_185 As String = ""
+            Dim Neutral_240 As String = ""
+            ' Търсим всяко сечение в filteredCables
+            ' Търсим всяко сечение в filteredCables
+            For Each cable As CableInfo In filteredCables
+                Select Case cable.PhaseSize
+                    Case "120"
+                        Current_120 = If(layMethod = 1, cable.MaxCurrent_Ground, cable.MaxCurrent_Air)
+                        Neutral_120 = cable.NeutralSize
+                    Case "150"
+                        Current_150 = If(layMethod = 1, cable.MaxCurrent_Ground, cable.MaxCurrent_Air)
+                        Neutral_150 = cable.NeutralSize
+                    Case "185"
+                        Current_185 = If(layMethod = 1, cable.MaxCurrent_Ground, cable.MaxCurrent_Air)
+                        Neutral_185 = cable.NeutralSize
+                    Case "240"
+                        Current_240 = If(layMethod = 1, cable.MaxCurrent_Ground, cable.MaxCurrent_Air)
+                        Neutral_240 = cable.NeutralSize
+                End Select
+            Next
+            Dim Idop_Adjusted As Double = Idop * 0.95
+
+            Dim cables_120 As Integer = If(Current_120 > 0, CInt(Math.Ceiling(Idop_Adjusted / Current_120)), 0)
+            Dim cables_150 As Integer = If(Current_150 > 0, CInt(Math.Ceiling(Idop_Adjusted / Current_150)), 0)
+            Dim cables_185 As Integer = If(Current_185 > 0, CInt(Math.Ceiling(Idop_Adjusted / Current_185)), 0)
+            Dim cables_240 As Integer = If(Current_240 > 0, CInt(Math.Ceiling(Idop_Adjusted / Current_240)), 0)
+
+            Dim bestCables As Integer = 999
+
+            Dim data = {
+                New With {.Size = "120", .Price = 21.17 * cables_120, .Nom = cables_120, .Neutral = Neutral_120},
+                New With {.Size = "150", .Price = 24.62 * cables_150, .Nom = cables_150, .Neutral = Neutral_150},
+                New With {.Size = "185", .Price = 30.7 * cables_185, .Nom = cables_185, .Neutral = Neutral_185},
+                New With {.Size = "240", .Price = 39.86 * cables_240, .Nom = cables_240, .Neutral = Neutral_240}
+            }
+            Dim bestMatch = data.Where(Function(x) x.Price > 0).OrderBy(Function(x) x.Price).FirstOrDefault()
+            If bestMatch IsNot Nothing Then
+                calc = bestMatch.Size
+                bestSection = bestMatch.Size
+                bestNum = bestMatch.Nom
+                bestNeutral = bestMatch.Neutral
+            End If
+        End If
+        ' ============================================================
+        ' 5. ФОРМАТИРАНЕ НА РЕЗУЛТАТА
+        ' ============================================================
+        ' Ако RetType = 0, връщаме само сечението (напр. "2,5")
+        If RetType = 0 Then Return calc
+        ' Определяне на броя жици според полюсите
+        Dim Poles As String = If(NumberPoles = "1P", "3x", "5x")
+        Dim calc_N As String = ""
+        ' Ако сечението е > 16mm², добавяме отделно нулево жило
+        If Val(calc.Replace(",", ".")) > 16 Then
+            Poles = "4х"
+            Dim index = filteredCables.FindIndex(Function(c) c.PhaseSize = calc)
+            If index >= 0 Then
+                calc_N = filteredCables(index).NeutralSize
+            End If
+        End If
+        ' Сглобяване на крайния низ
+        Dim Text As String = ""
+        Text = If(bestNum > 1, bestNum & "x", "")       ' Префикс за паралелни кабели
+        Text += Type                                    ' Тип кабел (СВТ, САВТ...)
+
+        If Poles = "4х" AndAlso Not String.IsNullOrEmpty(calc_N) Then
+            Text += "3х" & calc & "+" & calc_N              ' С нулево жило
+        Else
+            Text += Poles & calc                            ' Без нулево жило
+        End If
+        Text += "mm²"                                       ' Суфикс за единица
+        tokow.Кабел_Брой = bestNum
+        tokow.Кабел_Сечение = Text
+        tokow.Кабел_Тип = Type
+        tokow.Кабел_Полагане = If(layMethod = 0, "във въздух", "в земя")
+        Select Case mountMethod
+            Case "A1" : tokow.Кабел_Монтаж = "В топлоизолация"
+            Case "B1" : tokow.Кабел_Монтаж = "Тръба в стена"
+            Case "C" : tokow.Кабел_Монтаж = "Върху стена"
+            Case "D1" : tokow.Кабел_Монтаж = "Тръба в земята"
+            Case "E" : tokow.Кабел_Монтаж = "Кабелна скара"
+            Case "F" : tokow.Кабел_Монтаж = "Тръба в земята"
+            Case "G" : tokow.Кабел_Монтаж = "Във въздуха"
+            Case Else : tokow.Кабел_Монтаж = "Неизвестен метод"
+        End Select
+        Return Text
+    End Function
 End Class

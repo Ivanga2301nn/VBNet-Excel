@@ -271,6 +271,7 @@ Partial Class Form_Tablo_new
         Me.Margin = New System.Windows.Forms.Padding(4, 5, 4, 5)
         Me.Name = "Form_Tablo_new"
         Me.Padding = New System.Windows.Forms.Padding(5)
+        Me.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent
         Me.Text = "Генерира таблa"
         Me.StatusStrip1.ResumeLayout(False)
         Me.StatusStrip1.PerformLayout()

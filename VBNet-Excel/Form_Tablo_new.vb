@@ -27,14 +27,16 @@ End Module
 
 Public Class Form_Tablo_new
     Private Sub Form_Tablo_new_Load(sender As Object, e As EventArgs) Handles MyBase.Load
-        Me.Height = 935
+        Me.Height = 950
         Me.Width = 1600
         SetCatalog()
         GetKonsumatori()
         CreateTokowList()
         InitializeBlockConfigs()
         CalculateCircuitLoads()
-        SortCircuits()
+        CalculateRCD()
+
+
 
         BuildTreeViewFromKonsumatori()
         SetupDataGridView()
@@ -68,7 +70,11 @@ Public Class Form_Tablo_new
         Public Property MaxWorkingTemp As Double    ' ← ← ← НОВО! (65, 70, 90°C)
         Public Property InsulationType As String    ' ← ← ← НОВО! ("ПВЦ", "XLPE", "GUM")
     End Class
-
+    Public Structure strMountMethod
+        Dim Simbol As String
+        Dim Text As String
+    End Structure
+    Dim LiMountMethod As New List(Of strMountMethod)
     Private Cable_AlR_2 As New Dictionary(Of Integer, String)
     Private Cable_AlR_4 As New Dictionary(Of Integer, String)
 
@@ -107,10 +113,11 @@ Public Class Form_Tablo_new
         New String() {"Инст. мощност", "kW", "Text"},
         New String() {"---------", "", "Text"},
         New String() {"Кабел", "", "Text"},
-        New String() {"Начин на мантаж", "--", "Text"},
-        New String() {"Начин на полагане", "--", "Text"},
-        New String() {"Брой кабели", "---", "Text"},
-        New String() {"Тип", "---", "Text"},
+        New String() {"Начин на монтаж", "--", "Combo"},
+        New String() {"Начин на полагане", "--", "Combo"},
+        New String() {"Паралелни кабели (фаза):", "бр.", "Text"},
+        New String() {"Съседни кабели (група):", "бр.", "Text"},
+        New String() {"Тип", "---", "Combo"},
         New String() {"Сечение", "mm²", "Text"},
         New String() {"---------", "", "Text"},
         New String() {"Фаза", "", "Text"},
@@ -133,11 +140,13 @@ Public Class Form_Tablo_new
         Dim Material As String           ' "Cu", "Al"
     End Structure
     Public Structure RCDInfo
+        Dim Brand As String              ' Производител на ДТЗ (например "Schneider", "ABB", "Legrand")
         Dim NominalCurrent As Integer    ' 25, 40, 63...
         Dim Type As String               ' "AC", "A", "F"
         Dim Poles As String              ' "2p", "4p"
         Dim Sensitivity As Integer       ' 10, 30, 100, 300, 500 (mA)
         Dim DeviceType As String         ' "RCCB", "RCBO", "iID"
+        Dim Breaker As Boolean           ' Дали RCD има вграден прекъсвач (RCBO) или е само ДТЗ (RCCB)
     End Structure
     Public Structure strKonsumator
         Dim Name As String              ' Име на блока
@@ -181,11 +190,12 @@ Public Class Form_Tablo_new
         ' ============================================================
         ' КАБЕЛ
         ' ============================================================
-        Public Кабел_Монтаж As String        ' Сечение на кабела (пример: "3x2.5")
+        Public Кабел_Монтаж As String          ' Сечение на кабела (пример: "3x2.5")
         Public Кабел_Полагане As String        ' Сечение на кабела (пример: "3x2.5")
         Public Кабел_Сечение As String         ' Сечение на кабела (пример: "3x2.5")
         Public Кабел_Тип As String             ' Тип кабел (NYM, YJV, CBT и др.)
-        Public Кабел_Брой As String             ' Тип кабел (NYM, YJV, CBT и др.)
+        Public Кабел_Брой_Фаза As String       ' Брой на Паралелни Жила на Фаза
+        Public Кабел_Брой_Група As String      ' Брой на Паралелни кабели по скара
         ' ============================================================
         ' ЗАЩИТА (ПРЕКЪСВАЧ)
         ' ============================================================
@@ -198,10 +208,13 @@ Public Class Form_Tablo_new
         ' ============================================================
         ' ДТЗ (RCD)
         ' ============================================================
+        Public RCD_Бранд As String             ' Производител на ДТЗ
         Public RCD_Тип As String               ' Тип ДТЗ (AC, A, F)
         Public RCD_Чувствителност As String    ' Чувствителност ("30mA", "100mA", "300mA")
         Public RCD_Ток As String               ' Номинален ток на ДТЗ ("25A", "40A", "63A")
         Public RCD_Полюси As String            ' Полюси на ДТЗ ("2p", "4p")
+        Public RCD_Нула As String              ' номер 
+        Public RCD_Автомат As Boolean          ' трябва ли ДТЗ да е RCBO (с вграден прекъсвач) или може да е RCCB (само ДТЗ) 
         ' ============================================================
         ' ОПИСАНИЕ / ТЕКСТОВЕ
         ' ============================================================
@@ -474,7 +487,7 @@ Public Class Form_Tablo_new
         Dim colParam As New DataGridViewTextBoxColumn()
         colParam.Name = "colParameter"
         colParam.HeaderText = "Параметър"
-        colParam.Width = 150
+        colParam.Width = 200
         colParam.Frozen = True
         colParam.DefaultCellStyle.Font = New Drawing.Font("Arial", 10, FontStyle.Bold)
         colParam.DefaultCellStyle.BackColor = Color.FromArgb(200, 220, 255)
@@ -549,7 +562,7 @@ Public Class Form_Tablo_new
         DataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None
         DataGridView1.ColumnHeadersDefaultCellStyle.Font = New Drawing.Font("Arial", 10, FontStyle.Bold)
         DataGridView1.ColumnHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter
-        DataGridView1.ColumnHeadersHeight = 40
+        DataGridView1.ColumnHeadersHeight = 170
         DataGridView1.RowTemplate.Height = 25
         DataGridView1.BackgroundColor = Color.White
         DataGridView1.GridColor = Color.Gray
@@ -701,24 +714,41 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
     }
         ' --- 6. ДТЗ / RCD ---
         RCD_Catalog = New List(Of RCDInfo) From {
-        New RCDInfo With {.NominalCurrent = 25, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "RCCB"},
-        New RCDInfo With {.NominalCurrent = 25, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "RCCB"},
-        New RCDInfo With {.NominalCurrent = 40, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "RCCB"},
-        New RCDInfo With {.NominalCurrent = 40, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "RCCB"},
-        New RCDInfo With {.NominalCurrent = 63, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "RCCB"},
-        New RCDInfo With {.NominalCurrent = 63, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "RCCB"},
-        New RCDInfo With {.NominalCurrent = 16, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "RCBO"},
-        New RCDInfo With {.NominalCurrent = 20, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "RCBO"},
-        New RCDInfo With {.NominalCurrent = 25, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "RCBO"},
-        New RCDInfo With {.NominalCurrent = 32, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "RCBO"},
-        New RCDInfo With {.NominalCurrent = 40, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "RCBO"},
-        New RCDInfo With {.NominalCurrent = 25, .Type = "AC", .Poles = "2p", .Sensitivity = 300, .DeviceType = "iID"},
-        New RCDInfo With {.NominalCurrent = 40, .Type = "AC", .Poles = "2p", .Sensitivity = 300, .DeviceType = "iID"},
-        New RCDInfo With {.NominalCurrent = 63, .Type = "AC", .Poles = "2p", .Sensitivity = 300, .DeviceType = "iID"},
-        New RCDInfo With {.NominalCurrent = 25, .Type = "AC", .Poles = "4p", .Sensitivity = 300, .DeviceType = "iID"},
-        New RCDInfo With {.NominalCurrent = 40, .Type = "AC", .Poles = "4p", .Sensitivity = 300, .DeviceType = "iID"},
-        New RCDInfo With {.NominalCurrent = 63, .Type = "AC", .Poles = "4p", .Sensitivity = 300, .DeviceType = "iID"}
+        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "RCCB", .Breaker = False},
+        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "RCCB", .Breaker = False},
+        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "RCCB", .Breaker = False},
+        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "RCCB", .Breaker = False},
+        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 63, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "RCCB", .Breaker = False},
+        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 63, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "RCCB", .Breaker = False},
+        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 6, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "RCBO", .Breaker = True},
+        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 10, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "RCBO", .Breaker = True},
+        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 16, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "RCBO", .Breaker = True},
+        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 20, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "RCBO", .Breaker = True},
+        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "RCBO", .Breaker = True},
+        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 32, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "RCBO", .Breaker = True},
+        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "RCBO", .Breaker = True},
+        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "si", .Poles = "2p", .Sensitivity = 300, .DeviceType = "iID", .Breaker = False},
+        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "si", .Poles = "2p", .Sensitivity = 300, .DeviceType = "iID", .Breaker = False},
+        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 63, .Type = "si", .Poles = "2p", .Sensitivity = 300, .DeviceType = "iID", .Breaker = False},
+        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "si", .Poles = "4p", .Sensitivity = 300, .DeviceType = "iID", .Breaker = False},
+        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "si", .Poles = "4p", .Sensitivity = 300, .DeviceType = "iID", .Breaker = False},
+        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 63, .Type = "si", .Poles = "4p", .Sensitivity = 300, .DeviceType = "iID", .Breaker = False}
     }
+        LiMountMethod = New List(Of strMountMethod) From {
+            New strMountMethod With {.Simbol = "A1", .Text = "В изолация"},
+            New strMountMethod With {.Simbol = "B1", .Text = "Тръба (стена)"},
+            New strMountMethod With {.Simbol = "C", .Text = "Върху стена"},
+            New strMountMethod With {.Simbol = "D1", .Text = "Тръба (земя)"},
+            New strMountMethod With {.Simbol = "D2", .Text = "Кабел (земя)"},
+            New strMountMethod With {.Simbol = "E", .Text = "Кабелна скара"},
+            New strMountMethod With {.Simbol = "F", .Text = "Многож. скара"},
+            New strMountMethod With {.Simbol = "G", .Text = "Свободен въздух"}
+            }
+        ' 1. От Символ към Текст (за запълване на таблицата)
+        ' Return mountMethod.FirstOrDefault(Function(m) m.Simbol = simbol).Text
+        ' 2. От Текст към Символ (ако ти трябва да разбереш кода при избран елемент в UI)
+        ' Return mountMethod.FirstOrDefault(Function(m) m.Text = Text).Simbol
+
     End Sub
     Private Sub FillCables()
         Catalog_Cables.Clear()
@@ -1396,6 +1426,20 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                 ' За устройства – предназначението идва от консуматора
                 tokow.Консуматор = kons.Pewdn
                 tokow.предназначение = kons.PEWDN1
+                ' ============================================================
+                ' ПРОВЕРКА ЗА БОЙЛЕР - ТРЯБВА ЛИ ДЗТ ЗАЩИТА
+                ' ============================================================
+                Dim boilerTypes As String() = {
+                    "Хоризонтален",
+                    "Хоризонтален - 380V",
+                    "Вертикален",
+                    "Вертикален - 380V",
+                    "Проточен",
+                    "Проточен - 380V",
+                    "Бойлер кухня"
+                }
+                ' Проверяваме дали консуматорът е бойлер
+                If boilerTypes.Contains(kons.Visibility) Then tokow.ДТЗ_RCD = True
         End Select
     End Sub
     ''' <summary>
@@ -1650,13 +1694,14 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                         Case "Инст. мощност" : row.Cells(colIndex).Value = panelCircuits(i).Мощност.ToString("N3")
                         Case "Изчислен ток" : row.Cells(colIndex).Value = panelCircuits(i).Ток.ToString("N2")
                         ' --- КАБЕЛ И ФАЗА ---
-                        Case "Начин на мантаж" : row.Cells(colIndex).Value = panelCircuits(i).Кабел_Монтаж
+                        Case "Начин на монтаж" : row.Cells(colIndex).Value = panelCircuits(i).Кабел_Монтаж
                         Case "Начин на полагане" : row.Cells(colIndex).Value = panelCircuits(i).Кабел_Полагане
-                        Case "Брой кабели" : row.Cells(colIndex).Value = panelCircuits(i).Кабел_Брой
+                        Case "Паралелни кабели (фаза):" : row.Cells(colIndex).Value = panelCircuits(i).Кабел_Брой_Фаза
+                        Case "Съседни кабели (група):" : row.Cells(colIndex).Value = panelCircuits(i).Кабел_Брой_Група
                         Case "Тип" : row.Cells(colIndex).Value = panelCircuits(i).Кабел_Тип
                         Case "Сечение" : row.Cells(colIndex).Value = panelCircuits(i).Кабел_Сечение
-                        Case "Фаза" : row.Cells(colIndex).Value = panelCircuits(i).Фаза
                         ' --- ОПИСАНИЯ ---
+                        Case "Фаза" : row.Cells(colIndex).Value = panelCircuits(i).Фаза
                         Case "Консуматор" : row.Cells(colIndex).Value = panelCircuits(i).Консуматор
                         Case "предназначение" : row.Cells(colIndex).Value = panelCircuits(i).предназначение
                         Case "Управление" : row.Cells(colIndex).Value = panelCircuits(i).Управление
@@ -1666,8 +1711,6 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                     End Select
                 End If
             Next
-
-
             ' 3. ОБЩО (последна колона)
             Dim totalLamps As Integer = panelCircuits.Sum(Function(c) c.brLamp)
             Dim totalContacts As Integer = panelCircuits.Sum(Function(c) c.brKontakt)
@@ -2044,8 +2087,26 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
             ' Активиране или деактивиране на шинна връзка
             ' между модулите в таблото
             Case "ДТЗ (RCD)"
-                ' Управление на дефектнотокова защита (RCD)
+                ' Управление на дефектнотокова защита (RCD) 
                 ' например включване/изключване на ДТЗ
+            Case "Начин на монтаж"
+                ' Взимаме само текстовата част за комбобокса, 
+                ' или подаваме целия списък, ако клетката е настроена за обекти
+                Dim displayValues = LiMountMethod.Select(Function(m) m.Text).ToList()
+                UpdateComboRow("Начин на монтаж", displayValues, e.ColumnIndex)
+            Case "Начин на полагане"
+                ' Правим прост списък само с двете опции
+                Dim valuesLaying As New List(Of String) From {"Във въздух", "В земя"}
+                ' Подаваме го към твоята процедура
+                UpdateComboRow("Начин на полагане", valuesLaying, e.ColumnIndex)
+            Case "Тип"
+                ' Взимаме само уникалните имена на кабели от главния списък
+                Dim uniqueCableTypes As List(Of String) = Catalog_Cables _
+                    .Select(Function(c) c.CableType) _
+                    .Distinct() _
+                    .ToList()
+                ' Подаваме списъка към твоята процедура
+                UpdateComboRow("Тип", uniqueCableTypes, e.ColumnIndex)
         End Select
     End Sub
     ''' <summary>
@@ -2137,7 +2198,7 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
     ''' <param name="matType">      Материал на проводника: 0 = мед (Cu), 1 = алуминий (Al) (по подразбиране 0)</param>
     ''' <param name="RetType">      Тип на връщаната стойност: 0 = само сечение, 1 = пълно означение (по подразбиране 1)</param>
     ''' <returns>Сечение на кабела като низ (напр. "СВТ3x2,5mm²" или "2,5")</returns>
-    Private Function CalculateCable(tokow As strTokow,
+    Private Sub CalculateCable(tokow As strTokow,
                                 Optional Type As String = "СВТ",        ' Тип кабел (СВТ, САВТ, NYY...)
                                 Optional layMethod As Integer = 0,      ' 0=въздух (35°C), 1=земя (15°C)
                                 Optional mountMethod As String = "B1",  ' "A1"=гипсокартон, "B2"=под мазилка, "C"=над таван
@@ -2145,8 +2206,7 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                                 Optional Tipe_Cable As Integer = 0,     ' 0=кабел (3-жилен), 1=проводник (1-жилен)
                                 Optional matType As Integer = 0,        ' 0=мед (Cu), 1=алуминий (Al)
                                 Optional RetType As Integer = 1         ' 0=само сечение, 1=пълно означение
-                                ) As String
-
+                                )
         Dim Ibreaker As String = tokow.Номинален_Ток
         Dim NumberPoles As String = tokow.Брой_Полюси
         ' ============================================================
@@ -2158,7 +2218,6 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                              ).OrderBy(
                              Function(c) CDbl(c.PhaseSize.Replace(",", "."))
                              ).ToList()
-        If filteredCables.Count = 0 Then Return "ERROR_NO_CABLE"
         ' ============================================================
         ' 2. КОРЕКЦИОННИ КОЕФИЦИЕНТИ
         ' ============================================================
@@ -2274,43 +2333,52 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
         ' 5. ФОРМАТИРАНЕ НА РЕЗУЛТАТА
         ' ============================================================
         ' Ако RetType = 0, връщаме само сечението (напр. "2,5")
-        If RetType = 0 Then Return calc
-        ' Определяне на броя жици според полюсите
-        Dim Poles As String = If(NumberPoles = "1P", "3x", "5x")
-        Dim calc_N As String = ""
-        ' Ако сечението е > 16mm², добавяме отделно нулево жило
-        If Val(calc.Replace(",", ".")) > 16 Then
-            Poles = "4х"
-            Dim index = filteredCables.FindIndex(Function(c) c.PhaseSize = calc)
-            If index >= 0 Then
-                calc_N = filteredCables(index).NeutralSize
-            End If
-        End If
-        ' Сглобяване на крайния низ
         Dim Text As String = ""
-        Text = If(bestNum > 1, bestNum & "x", "")       ' Префикс за паралелни кабели
-        Text += Type                                    ' Тип кабел (СВТ, САВТ...)
-
-        If Poles = "4х" AndAlso Not String.IsNullOrEmpty(calc_N) Then
-            Text += "3х" & calc & "+" & calc_N              ' С нулево жило
+        If RetType = 0 Then
+            Text = calc
         Else
-            Text += Poles & calc                            ' Без нулево жило
+            ' Определяне на броя жици според полюсите
+            Dim Poles As String = If(NumberPoles = "1P", "3x", "5x")
+            Dim calc_N As String = ""
+            ' Ако сечението е > 16mm², добавяме отделно нулево жило
+            If Val(calc.Replace(",", ".")) > 16 Then
+                Poles = "4х"
+                Dim index = filteredCables.FindIndex(Function(c) c.PhaseSize = calc)
+                If index >= 0 Then
+                    calc_N = filteredCables(index).NeutralSize
+                End If
+            End If
+            ' Сглобяване на крайния низ
+            Text = If(bestNum > 1, bestNum & "x", "")       ' Префикс за паралелни кабели
+            Text += Type                                    ' Тип кабел (СВТ, САВТ...)
+            If Poles = "4х" AndAlso Not String.IsNullOrEmpty(calc_N) Then
+                Text += "3х" & calc & "+" & calc_N              ' С нулево жило
+            Else
+                Text += Poles & calc                            ' Без нулево жило
+            End If
+            Text += "mm²"                                       ' Суфикс за единица
         End If
-        Text += "mm²"                                       ' Суфикс за единица
-        tokow.Кабел_Брой = bestNum
+        tokow.Кабел_Брой_Фаза = bestNum
+        tokow.Кабел_Брой_Група = Broj_Cable
         tokow.Кабел_Сечение = Text
         tokow.Кабел_Тип = Type
-        tokow.Кабел_Полагане = If(layMethod = 0, "във въздух", "в земя")
-        Select Case mountMethod
-            Case "A1" : tokow.Кабел_Монтаж = "В топлоизолация"
-            Case "B1" : tokow.Кабел_Монтаж = "Тръба в стена"
-            Case "C" : tokow.Кабел_Монтаж = "Върху стена"
-            Case "D1" : tokow.Кабел_Монтаж = "Тръба в земята"
-            Case "E" : tokow.Кабел_Монтаж = "Кабелна скара"
-            Case "F" : tokow.Кабел_Монтаж = "Тръба в земята"
-            Case "G" : tokow.Кабел_Монтаж = "Във въздуха"
-            Case Else : tokow.Кабел_Монтаж = "Неизвестен метод"
-        End Select
-        Return Text
-    End Function
+        tokow.Кабел_Полагане = If(layMethod = 0, "Във въздух", "В земя")
+        tokow.Кабел_Монтаж = LiMountMethod.FirstOrDefault(Function(m) m.Simbol = mountMethod).Text
+    End Sub
+    Private Sub CalculateRCD()
+        For Each tokow As strTokow In ListTokow
+            If tokow.ДТЗ_RCD Then
+
+
+                tokow.RCD_Бранд = selectedRCD.Brand
+                tokow.RCD_Ток = selectedRCD.NominalCurrent
+                tokow.RCD_Тип = selectedRCD.Type
+                tokow.RCD_Полюси = selectedRCD.Poles
+                tokow.RCD_Чувствителност = selectedRCD.Sensitivity
+                tokow.RCD_Нула = selectedRCD.DeviceType
+            End If
+        Next
+    End Sub
+
+
 End Class

@@ -38,6 +38,8 @@ Public Class Form_Tablo_new
 
 
 
+
+        SortCircuits()
         BuildTreeViewFromKonsumatori()
         SetupDataGridView()
     End Sub
@@ -209,7 +211,8 @@ Public Class Form_Tablo_new
         ' ДТЗ (RCD)
         ' ============================================================
         Public RCD_Бранд As String             ' Производител на ДТЗ
-        Public RCD_Тип As String               ' Тип ДТЗ (AC, A, F)
+        Public RCD_Клас As String              ' Тип ДТЗ (AC, A, F)
+        Public RCD_Тип As String               ' EZ RCCB, EZ RCBO, iID
         Public RCD_Чувствителност As String    ' Чувствителност ("30mA", "100mA", "300mA")
         Public RCD_Ток As String               ' Номинален ток на ДТЗ ("25A", "40A", "63A")
         Public RCD_Полюси As String            ' Полюси на ДТЗ ("2p", "4p")
@@ -714,19 +717,19 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
     }
         ' --- 6. ДТЗ / RCD ---
         RCD_Catalog = New List(Of RCDInfo) From {
-        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "RCCB", .Breaker = False},
-        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "RCCB", .Breaker = False},
-        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "RCCB", .Breaker = False},
-        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "RCCB", .Breaker = False},
-        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 63, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "RCCB", .Breaker = False},
-        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 63, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "RCCB", .Breaker = False},
-        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 6, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "RCBO", .Breaker = True},
-        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 10, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "RCBO", .Breaker = True},
-        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 16, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "RCBO", .Breaker = True},
-        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 20, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "RCBO", .Breaker = True},
-        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "RCBO", .Breaker = True},
-        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 32, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "RCBO", .Breaker = True},
-        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "RCBO", .Breaker = True},
+        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCCB", .Breaker = False},
+        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "EZ RCCB", .Breaker = False},
+        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCCB", .Breaker = False},
+        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "EZ RCCB", .Breaker = False},
+        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 63, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCCB", .Breaker = False},
+        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 63, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "EZ RCCB", .Breaker = False},
+        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 6, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCBO", .Breaker = True},
+        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 10, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCBO", .Breaker = True},
+        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 16, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCBO", .Breaker = True},
+        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 20, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCBO", .Breaker = True},
+        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCBO", .Breaker = True},
+        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 32, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCBO", .Breaker = True},
+        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCBO", .Breaker = True},
         New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "si", .Poles = "2p", .Sensitivity = 300, .DeviceType = "iID", .Breaker = False},
         New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "si", .Poles = "2p", .Sensitivity = 300, .DeviceType = "iID", .Breaker = False},
         New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 63, .Type = "si", .Poles = "2p", .Sensitivity = 300, .DeviceType = "iID", .Breaker = False},
@@ -1421,7 +1424,7 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                     tokow.brKontakt += count
                 End If
                 ' За контакти автоматично изискваме ДТЗ
-                tokow.ДТЗ_RCD = True
+               'tokow.ДТЗ_RCD = True
             Case "Device"
                 ' За устройства – предназначението идва от консуматора
                 tokow.Консуматор = kons.Pewdn
@@ -1439,7 +1442,10 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                     "Бойлер кухня"
                 }
                 ' Проверяваме дали консуматорът е бойлер
-                If boilerTypes.Contains(kons.Visibility) Then tokow.ДТЗ_RCD = True
+                If boilerTypes.Contains(kons.Visibility) Then
+                    tokow.ДТЗ_RCD = True
+                    tokow.RCD_Автомат = True
+                End If
         End Select
     End Sub
     ''' <summary>
@@ -1684,11 +1690,13 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                         Case "Защитен блок" : row.Cells(colIndex).Value = panelCircuits(i).Защитен_блок
                         Case "Брой полюси" : row.Cells(colIndex).Value = panelCircuits(i).Брой_Полюси
                         ' --- ДТЗ (RCD) ---
+                        Case "ДТЗ Нула" : row.Cells(colIndex).Value = panelCircuits(i).RCD_Нула
                         Case "Вид на апарата" : row.Cells(colIndex).Value = panelCircuits(i).RCD_Тип
-                        Case "Номинален ток" : row.Cells(colIndex).Value = panelCircuits(i).RCD_Ток
+                        Case "Клас на апарата" : row.Cells(colIndex).Value = panelCircuits(i).RCD_Клас
+                        Case "ДТЗ(RCD) Ном. ток" : row.Cells(colIndex).Value = panelCircuits(i).RCD_Ток
                         Case "Чувствителност" : row.Cells(colIndex).Value = panelCircuits(i).RCD_Чувствителност
                         Case "Брой полюси" : row.Cells(colIndex).Value = panelCircuits(i).RCD_Полюси
-                        ' --- БРОЯЧИ И МОЩНОСТ ---
+                            ' --- БРОЯЧИ И МОЩНОСТ ---
                         Case "Брой лампи" : row.Cells(colIndex).Value = panelCircuits(i).brLamp
                         Case "Брой контакти" : row.Cells(colIndex).Value = panelCircuits(i).brKontakt
                         Case "Инст. мощност" : row.Cells(colIndex).Value = panelCircuits(i).Мощност.ToString("N3")
@@ -2367,18 +2375,26 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
     End Sub
     Private Sub CalculateRCD()
         For Each tokow As strTokow In ListTokow
-            If tokow.ДТЗ_RCD Then
-
-
-                tokow.RCD_Бранд = selectedRCD.Brand
-                tokow.RCD_Ток = selectedRCD.NominalCurrent
-                tokow.RCD_Тип = selectedRCD.Type
-                tokow.RCD_Полюси = selectedRCD.Poles
-                tokow.RCD_Чувствителност = selectedRCD.Sensitivity
-                tokow.RCD_Нула = selectedRCD.DeviceType
-            End If
+            If tokow.ДТЗ_RCD Then SetRCD(tokow)
         Next
     End Sub
-
-
+    Private Sub SetRCD(tokow As strTokow)
+        Dim poles As String = If(tokow.Брой_Полюси = "3p", "4p", "2p")
+        Dim requiredCurrent As Double = tokow.Ток * 1.2
+        Dim needRCBO As Boolean = tokow.RCD_Автомат
+        Dim matchingRCDs = RCD_Catalog.Where(
+                                    Function(r) r.NominalCurrent >= requiredCurrent AndAlso
+                                    r.Poles = poles AndAlso
+                                    r.Breaker = needRCBO
+                                    ).ToList()
+        Dim selectedRCD As RCDInfo = matchingRCDs.First()
+        tokow.RCD_Бранд = selectedRCD.Brand
+        tokow.RCD_Тип = selectedRCD.DeviceType
+        tokow.RCD_Клас = selectedRCD.Type
+        tokow.RCD_Чувствителност = selectedRCD.Sensitivity
+        tokow.RCD_Ток = selectedRCD.NominalCurrent
+        tokow.RCD_Полюси = selectedRCD.Poles
+        tokow.RCD_Нула = "N"
+        tokow.RCD_Автомат = selectedRCD.Breaker
+    End Sub
 End Class

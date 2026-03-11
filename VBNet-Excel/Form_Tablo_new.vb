@@ -177,7 +177,7 @@ Public Class Form_Tablo_new
         ' ============================================================
         Public Tablo As String                 ' Табло към което принадлежи кръгът
         Public ТоковКръг As String             ' Име или номер на токовия кръг
-        Public БройПолюси As Integer           ' 1 или 3 – използва се при избор на апарат
+        Public Брой_Полюси As Integer           ' Брой на фазите на токовия кръг
         ' ============================================================
         ' БРОЯЧИ
         ' ============================================================
@@ -202,7 +202,6 @@ Public Class Form_Tablo_new
         ' ЗАЩИТА (ПРЕКЪСВАЧ)
         ' ============================================================
         Public Тип_Апарат As String            ' Серия апарат (EZ9, C120, NSX, MTZ)
-        Public Брой_Полюси As String           ' Брой полюси на прекъсвача ("1p", "3p")
         Public Крива As String                 ' Характеристика (B, C, D)
         Public Номинален_Ток As String         ' Номинален ток (пример: "16A")
         Public Изкл_Възможност As String       ' Изключвателна способност ("6000A", "10000A")
@@ -296,7 +295,7 @@ Public Class Form_Tablo_new
     Public Class BlockConfig
         Public BlockNames As List(Of String)        ' Възможни имена на блока
         Public Category As String                   ' "Lamp", "Contact", "Device", "Panel"
-        Public DefaultPoles As String               ' "1p" или "3p"
+        Public DefaultPoles As Integer               ' "1p" или "3p"
         Public DefaultCable As String               ' "3x1.5", "3x2.5", "5x2.5"
         Public DefaultBreaker As String             ' "10", "16", "20"
         Public DefaultBreakerType As String         ' "10", "16", "20"
@@ -309,7 +308,7 @@ Public Class Form_Tablo_new
     ''' </summary>
     Public Class VisRule
         Public VisibilityPattern As String        ' "3P", "Двугнездов", "Проточен"
-        Public Poles As String                    ' "1p" или "3p"
+        Public Poles As Integer                    ' "1p" или "3p"
         Public Cable As String                    ' "3x2.5", "5x4"
         Public Breaker As String                  ' "16", "25", "32"
         Public Phase As String                    ' "L" или "L1,L2,L3"
@@ -622,71 +621,71 @@ Public Class Form_Tablo_new
         ' РАЗЕДИНИТЕЛИ (Товарови прекъсвачи)
         ' ============================================================
         Disconnectors = New List(Of DisconnectorInfo) From {
- New DisconnectorInfo With {.NominalCurrent = 20, .Type = "iSW", .Brand = "Acti9", .Poles = 1},
-New DisconnectorInfo With {.NominalCurrent = 25, .Type = "iSW", .Brand = "Acti9", .Poles = 1},
-New DisconnectorInfo With {.NominalCurrent = 32, .Type = "iSW", .Brand = "Acti9", .Poles = 1},
-New DisconnectorInfo With {.NominalCurrent = 40, .Type = "iSW", .Brand = "Acti9", .Poles = 1},
-New DisconnectorInfo With {.NominalCurrent = 63, .Type = "iSW", .Brand = "Acti9", .Poles = 1},
-New DisconnectorInfo With {.NominalCurrent = 80, .Type = "iSW", .Brand = "Acti9", .Poles = 1},
-New DisconnectorInfo With {.NominalCurrent = 100, .Type = "iSW", .Brand = "Acti9", .Poles = 1},
-New DisconnectorInfo With {.NominalCurrent = 125, .Type = "iSW", .Brand = "Acti9", .Poles = 1},
-New DisconnectorInfo With {.NominalCurrent = 20, .Type = "iSW", .Brand = "Acti9", .Poles = 2},
-New DisconnectorInfo With {.NominalCurrent = 25, .Type = "iSW", .Brand = "Acti9", .Poles = 2},
-New DisconnectorInfo With {.NominalCurrent = 32, .Type = "iSW", .Brand = "Acti9", .Poles = 2},
-New DisconnectorInfo With {.NominalCurrent = 40, .Type = "iSW", .Brand = "Acti9", .Poles = 2},
-New DisconnectorInfo With {.NominalCurrent = 63, .Type = "iSW", .Brand = "Acti9", .Poles = 2},
-New DisconnectorInfo With {.NominalCurrent = 80, .Type = "iSW", .Brand = "Acti9", .Poles = 2},
-New DisconnectorInfo With {.NominalCurrent = 100, .Type = "iSW", .Brand = "Acti9", .Poles = 2},
-New DisconnectorInfo With {.NominalCurrent = 125, .Type = "iSW", .Brand = "Acti9", .Poles = 2},
-New DisconnectorInfo With {.NominalCurrent = 20, .Type = "iSW", .Brand = "Acti9", .Poles = 3},
-New DisconnectorInfo With {.NominalCurrent = 25, .Type = "iSW", .Brand = "Acti9", .Poles = 3},
-New DisconnectorInfo With {.NominalCurrent = 32, .Type = "iSW", .Brand = "Acti9", .Poles = 3},
-New DisconnectorInfo With {.NominalCurrent = 40, .Type = "iSW", .Brand = "Acti9", .Poles = 3},
-New DisconnectorInfo With {.NominalCurrent = 63, .Type = "iSW", .Brand = "Acti9", .Poles = 3},
-New DisconnectorInfo With {.NominalCurrent = 80, .Type = "iSW", .Brand = "Acti9", .Poles = 3},
-New DisconnectorInfo With {.NominalCurrent = 100, .Type = "iSW", .Brand = "Acti9", .Poles = 3},
-New DisconnectorInfo With {.NominalCurrent = 125, .Type = "iSW", .Brand = "Acti9", .Poles = 3},
-New DisconnectorInfo With {.NominalCurrent = 20, .Type = "iSW", .Brand = "Acti9", .Poles = 4},
-New DisconnectorInfo With {.NominalCurrent = 25, .Type = "iSW", .Brand = "Acti9", .Poles = 4},
-New DisconnectorInfo With {.NominalCurrent = 32, .Type = "iSW", .Brand = "Acti9", .Poles = 4},
-New DisconnectorInfo With {.NominalCurrent = 40, .Type = "iSW", .Brand = "Acti9", .Poles = 4},
-New DisconnectorInfo With {.NominalCurrent = 63, .Type = "iSW", .Brand = "Acti9", .Poles = 4},
-New DisconnectorInfo With {.NominalCurrent = 80, .Type = "iSW", .Brand = "Acti9", .Poles = 4},
-New DisconnectorInfo With {.NominalCurrent = 100, .Type = "iSW", .Brand = "Acti9", .Poles = 4},
-New DisconnectorInfo With {.NominalCurrent = 125, .Type = "iSW", .Brand = "Acti9", .Poles = 4},
-New DisconnectorInfo With {.NominalCurrent = 100, .Type = "INS", .Brand = "Easy9", .Poles = 3},
-New DisconnectorInfo With {.NominalCurrent = 125, .Type = "INS", .Brand = "Easy9", .Poles = 3},
-New DisconnectorInfo With {.NominalCurrent = 160, .Type = "INS", .Brand = "Easy9", .Poles = 3},
-New DisconnectorInfo With {.NominalCurrent = 200, .Type = "INS", .Brand = "Easy9", .Poles = 3},
-New DisconnectorInfo With {.NominalCurrent = 250, .Type = "INS", .Brand = "Easy9", .Poles = 3},
-New DisconnectorInfo With {.NominalCurrent = 315, .Type = "INS", .Brand = "Easy9", .Poles = 3},
-New DisconnectorInfo With {.NominalCurrent = 400, .Type = "INS", .Brand = "Easy9", .Poles = 3},
-New DisconnectorInfo With {.NominalCurrent = 500, .Type = "INS", .Brand = "Easy9", .Poles = 3},
-New DisconnectorInfo With {.NominalCurrent = 630, .Type = "INS", .Brand = "Easy9", .Poles = 3},
-New DisconnectorInfo With {.NominalCurrent = 800, .Type = "INS", .Brand = "Easy9", .Poles = 3},
-New DisconnectorInfo With {.NominalCurrent = 1000, .Type = "INS", .Brand = "Easy9", .Poles = 3},
-New DisconnectorInfo With {.NominalCurrent = 1250, .Type = "INS", .Brand = "Easy9", .Poles = 3},
-New DisconnectorInfo With {.NominalCurrent = 1600, .Type = "INS", .Brand = "Easy9", .Poles = 3},
-New DisconnectorInfo With {.NominalCurrent = 100, .Type = "INS", .Brand = "Easy9", .Poles = 4},
-New DisconnectorInfo With {.NominalCurrent = 125, .Type = "INS", .Brand = "Easy9", .Poles = 4},
-New DisconnectorInfo With {.NominalCurrent = 160, .Type = "INS", .Brand = "Easy9", .Poles = 4},
-New DisconnectorInfo With {.NominalCurrent = 200, .Type = "INS", .Brand = "Easy9", .Poles = 4},
-New DisconnectorInfo With {.NominalCurrent = 250, .Type = "INS", .Brand = "Easy9", .Poles = 4},
-New DisconnectorInfo With {.NominalCurrent = 315, .Type = "INS", .Brand = "Easy9", .Poles = 4},
-New DisconnectorInfo With {.NominalCurrent = 400, .Type = "INS", .Brand = "Easy9", .Poles = 4},
-New DisconnectorInfo With {.NominalCurrent = 500, .Type = "INS", .Brand = "Easy9", .Poles = 4},
-New DisconnectorInfo With {.NominalCurrent = 630, .Type = "INS", .Brand = "Easy9", .Poles = 4},
-New DisconnectorInfo With {.NominalCurrent = 800, .Type = "INS", .Brand = "Easy9", .Poles = 4},
-New DisconnectorInfo With {.NominalCurrent = 1000, .Type = "INS", .Brand = "Easy9", .Poles = 4},
-New DisconnectorInfo With {.NominalCurrent = 1250, .Type = "INS", .Brand = "Easy9", .Poles = 4},
-New DisconnectorInfo With {.NominalCurrent = 1600, .Type = "INS", .Brand = "Easy9", .Poles = 4},
-New DisconnectorInfo With {.NominalCurrent = 1600, .Type = "IN", .Brand = "Acti9", .Poles = 3},
-New DisconnectorInfo With {.NominalCurrent = 2000, .Type = "IN", .Brand = "Acti9", .Poles = 3},
-New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9", .Poles = 3},
-New DisconnectorInfo With {.NominalCurrent = 1600, .Type = "IN", .Brand = "Acti9", .Poles = 4},
-New DisconnectorInfo With {.NominalCurrent = 2000, .Type = "IN", .Brand = "Acti9", .Poles = 4},
-New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9", .Poles = 4}
-}
+                            New DisconnectorInfo With {.NominalCurrent = 20, .Type = "iSW", .Brand = "Acti9", .Poles = 1},
+                            New DisconnectorInfo With {.NominalCurrent = 25, .Type = "iSW", .Brand = "Acti9", .Poles = 1},
+                            New DisconnectorInfo With {.NominalCurrent = 32, .Type = "iSW", .Brand = "Acti9", .Poles = 1},
+                            New DisconnectorInfo With {.NominalCurrent = 40, .Type = "iSW", .Brand = "Acti9", .Poles = 1},
+                            New DisconnectorInfo With {.NominalCurrent = 63, .Type = "iSW", .Brand = "Acti9", .Poles = 1},
+                            New DisconnectorInfo With {.NominalCurrent = 80, .Type = "iSW", .Brand = "Acti9", .Poles = 1},
+                            New DisconnectorInfo With {.NominalCurrent = 100, .Type = "iSW", .Brand = "Acti9", .Poles = 1},
+                            New DisconnectorInfo With {.NominalCurrent = 125, .Type = "iSW", .Brand = "Acti9", .Poles = 1},
+                            New DisconnectorInfo With {.NominalCurrent = 20, .Type = "iSW", .Brand = "Acti9", .Poles = 2},
+                            New DisconnectorInfo With {.NominalCurrent = 25, .Type = "iSW", .Brand = "Acti9", .Poles = 2},
+                            New DisconnectorInfo With {.NominalCurrent = 32, .Type = "iSW", .Brand = "Acti9", .Poles = 2},
+                            New DisconnectorInfo With {.NominalCurrent = 40, .Type = "iSW", .Brand = "Acti9", .Poles = 2},
+                            New DisconnectorInfo With {.NominalCurrent = 63, .Type = "iSW", .Brand = "Acti9", .Poles = 2},
+                            New DisconnectorInfo With {.NominalCurrent = 80, .Type = "iSW", .Brand = "Acti9", .Poles = 2},
+                            New DisconnectorInfo With {.NominalCurrent = 100, .Type = "iSW", .Brand = "Acti9", .Poles = 2},
+                            New DisconnectorInfo With {.NominalCurrent = 125, .Type = "iSW", .Brand = "Acti9", .Poles = 2},
+                            New DisconnectorInfo With {.NominalCurrent = 20, .Type = "iSW", .Brand = "Acti9", .Poles = 3},
+                            New DisconnectorInfo With {.NominalCurrent = 25, .Type = "iSW", .Brand = "Acti9", .Poles = 3},
+                            New DisconnectorInfo With {.NominalCurrent = 32, .Type = "iSW", .Brand = "Acti9", .Poles = 3},
+                            New DisconnectorInfo With {.NominalCurrent = 40, .Type = "iSW", .Brand = "Acti9", .Poles = 3},
+                            New DisconnectorInfo With {.NominalCurrent = 63, .Type = "iSW", .Brand = "Acti9", .Poles = 3},
+                            New DisconnectorInfo With {.NominalCurrent = 80, .Type = "iSW", .Brand = "Acti9", .Poles = 3},
+                            New DisconnectorInfo With {.NominalCurrent = 100, .Type = "iSW", .Brand = "Acti9", .Poles = 3},
+                            New DisconnectorInfo With {.NominalCurrent = 125, .Type = "iSW", .Brand = "Acti9", .Poles = 3},
+                            New DisconnectorInfo With {.NominalCurrent = 20, .Type = "iSW", .Brand = "Acti9", .Poles = 4},
+                            New DisconnectorInfo With {.NominalCurrent = 25, .Type = "iSW", .Brand = "Acti9", .Poles = 4},
+                            New DisconnectorInfo With {.NominalCurrent = 32, .Type = "iSW", .Brand = "Acti9", .Poles = 4},
+                            New DisconnectorInfo With {.NominalCurrent = 40, .Type = "iSW", .Brand = "Acti9", .Poles = 4},
+                            New DisconnectorInfo With {.NominalCurrent = 63, .Type = "iSW", .Brand = "Acti9", .Poles = 4},
+                            New DisconnectorInfo With {.NominalCurrent = 80, .Type = "iSW", .Brand = "Acti9", .Poles = 4},
+                            New DisconnectorInfo With {.NominalCurrent = 100, .Type = "iSW", .Brand = "Acti9", .Poles = 4},
+                            New DisconnectorInfo With {.NominalCurrent = 125, .Type = "iSW", .Brand = "Acti9", .Poles = 4},
+                            New DisconnectorInfo With {.NominalCurrent = 100, .Type = "INS", .Brand = "Easy9", .Poles = 3},
+                            New DisconnectorInfo With {.NominalCurrent = 125, .Type = "INS", .Brand = "Easy9", .Poles = 3},
+                            New DisconnectorInfo With {.NominalCurrent = 160, .Type = "INS", .Brand = "Easy9", .Poles = 3},
+                            New DisconnectorInfo With {.NominalCurrent = 200, .Type = "INS", .Brand = "Easy9", .Poles = 3},
+                            New DisconnectorInfo With {.NominalCurrent = 250, .Type = "INS", .Brand = "Easy9", .Poles = 3},
+                            New DisconnectorInfo With {.NominalCurrent = 315, .Type = "INS", .Brand = "Easy9", .Poles = 3},
+                            New DisconnectorInfo With {.NominalCurrent = 400, .Type = "INS", .Brand = "Easy9", .Poles = 3},
+                            New DisconnectorInfo With {.NominalCurrent = 500, .Type = "INS", .Brand = "Easy9", .Poles = 3},
+                            New DisconnectorInfo With {.NominalCurrent = 630, .Type = "INS", .Brand = "Easy9", .Poles = 3},
+                            New DisconnectorInfo With {.NominalCurrent = 800, .Type = "INS", .Brand = "Easy9", .Poles = 3},
+                            New DisconnectorInfo With {.NominalCurrent = 1000, .Type = "INS", .Brand = "Easy9", .Poles = 3},
+                            New DisconnectorInfo With {.NominalCurrent = 1250, .Type = "INS", .Brand = "Easy9", .Poles = 3},
+                            New DisconnectorInfo With {.NominalCurrent = 1600, .Type = "INS", .Brand = "Easy9", .Poles = 3},
+                            New DisconnectorInfo With {.NominalCurrent = 100, .Type = "INS", .Brand = "Easy9", .Poles = 4},
+                            New DisconnectorInfo With {.NominalCurrent = 125, .Type = "INS", .Brand = "Easy9", .Poles = 4},
+                            New DisconnectorInfo With {.NominalCurrent = 160, .Type = "INS", .Brand = "Easy9", .Poles = 4},
+                            New DisconnectorInfo With {.NominalCurrent = 200, .Type = "INS", .Brand = "Easy9", .Poles = 4},
+                            New DisconnectorInfo With {.NominalCurrent = 250, .Type = "INS", .Brand = "Easy9", .Poles = 4},
+                            New DisconnectorInfo With {.NominalCurrent = 315, .Type = "INS", .Brand = "Easy9", .Poles = 4},
+                            New DisconnectorInfo With {.NominalCurrent = 400, .Type = "INS", .Brand = "Easy9", .Poles = 4},
+                            New DisconnectorInfo With {.NominalCurrent = 500, .Type = "INS", .Brand = "Easy9", .Poles = 4},
+                            New DisconnectorInfo With {.NominalCurrent = 630, .Type = "INS", .Brand = "Easy9", .Poles = 4},
+                            New DisconnectorInfo With {.NominalCurrent = 800, .Type = "INS", .Brand = "Easy9", .Poles = 4},
+                            New DisconnectorInfo With {.NominalCurrent = 1000, .Type = "INS", .Brand = "Easy9", .Poles = 4},
+                            New DisconnectorInfo With {.NominalCurrent = 1250, .Type = "INS", .Brand = "Easy9", .Poles = 4},
+                            New DisconnectorInfo With {.NominalCurrent = 1600, .Type = "INS", .Brand = "Easy9", .Poles = 4},
+                            New DisconnectorInfo With {.NominalCurrent = 1600, .Type = "IN", .Brand = "Acti9", .Poles = 3},
+                            New DisconnectorInfo With {.NominalCurrent = 2000, .Type = "IN", .Brand = "Acti9", .Poles = 3},
+                            New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9", .Poles = 3},
+                            New DisconnectorInfo With {.NominalCurrent = 1600, .Type = "IN", .Brand = "Acti9", .Poles = 4},
+                            New DisconnectorInfo With {.NominalCurrent = 2000, .Type = "IN", .Brand = "Acti9", .Poles = 4},
+                            New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9", .Poles = 4}
+        }
         ' --- 4. МЕДНИ ШИНИ ---
         Busbars_Cu = New List(Of BusbarInfo) From {
         New BusbarInfo With {.CurrentCapacity = 210, .Section = "15x3", .Material = "Cu"},
@@ -717,26 +716,26 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
     }
         ' --- 6. ДТЗ / RCD ---
         RCD_Catalog = New List(Of RCDInfo) From {
-        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCCB", .Breaker = False},
-        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "EZ RCCB", .Breaker = False},
-        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCCB", .Breaker = False},
-        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "EZ RCCB", .Breaker = False},
-        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 63, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCCB", .Breaker = False},
-        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 63, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "EZ RCCB", .Breaker = False},
-        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 6, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCBO", .Breaker = True},
-        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 10, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCBO", .Breaker = True},
-        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 16, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCBO", .Breaker = True},
-        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 20, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCBO", .Breaker = True},
-        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCBO", .Breaker = True},
-        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 32, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCBO", .Breaker = True},
-        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCBO", .Breaker = True},
-        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "si", .Poles = "2p", .Sensitivity = 300, .DeviceType = "iID", .Breaker = False},
-        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "si", .Poles = "2p", .Sensitivity = 300, .DeviceType = "iID", .Breaker = False},
-        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 63, .Type = "si", .Poles = "2p", .Sensitivity = 300, .DeviceType = "iID", .Breaker = False},
-        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "si", .Poles = "4p", .Sensitivity = 300, .DeviceType = "iID", .Breaker = False},
-        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "si", .Poles = "4p", .Sensitivity = 300, .DeviceType = "iID", .Breaker = False},
-        New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 63, .Type = "si", .Poles = "4p", .Sensitivity = 300, .DeviceType = "iID", .Breaker = False}
-    }
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCCB", .Breaker = False},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "EZ RCCB", .Breaker = False},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCCB", .Breaker = False},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "EZ RCCB", .Breaker = False},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 63, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCCB", .Breaker = False},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 63, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "EZ RCCB", .Breaker = False},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 6, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCBO", .Breaker = True},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 10, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCBO", .Breaker = True},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 16, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCBO", .Breaker = True},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 20, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCBO", .Breaker = True},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCBO", .Breaker = True},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 32, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCBO", .Breaker = True},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCBO", .Breaker = True},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "si", .Poles = "2p", .Sensitivity = 300, .DeviceType = "iID", .Breaker = False},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "si", .Poles = "2p", .Sensitivity = 300, .DeviceType = "iID", .Breaker = False},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 63, .Type = "si", .Poles = "2p", .Sensitivity = 300, .DeviceType = "iID", .Breaker = False},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "si", .Poles = "4p", .Sensitivity = 300, .DeviceType = "iID", .Breaker = False},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "si", .Poles = "4p", .Sensitivity = 300, .DeviceType = "iID", .Breaker = False},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 63, .Type = "si", .Poles = "4p", .Sensitivity = 300, .DeviceType = "iID", .Breaker = False}
+                        }
         LiMountMethod = New List(Of strMountMethod) From {
             New strMountMethod With {.Simbol = "A1", .Text = "В изолация"},
             New strMountMethod With {.Simbol = "B1", .Text = "Тръба (стена)"},
@@ -1218,103 +1217,103 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
     End Function
     Private Sub InitializeBlockConfigs()
         BlockConfigs = New List(Of BlockConfig) From {
-        New BlockConfig With {        ' LED ОСВЕТЛЕНИЕ
-            .BlockNames = New List(Of String) From {"LED_DENIMA", "LED_LENTA", "LED_ULTRALUX", "LED_ULTRALUX_100", "LED_ULTRALUX_НОВ",
-                                                    "LED_ЛУНА", "ПЛАФОНИ", "МЕТАЛХАОГЕННА ЛАМПА", "ЛИНИЯ МХЛ - 220V", "ПОЛИЛЕЙ", "ПРОЖЕКТОР"},
-            .Category = "Lamp",
-            .DefaultPoles = "1p",
-            .DefaultCable = "3" & ZnakX & "1,5",
-            .DefaultBreaker = "10",
-            .DefaultPrednaz = "Общо",
-            .DefaultBreakerType = "EZ9 MCB",
-            .DefaultPrednaz1 = "осветление",
-            .VisibilityRules = New List(Of VisRule)()
-        },
-        New BlockConfig With {        ' УЛИЧНО ОСВЕТЛЕНИЕ
-            .BlockNames = New List(Of String) From {"ULI4NO"},
-            .Category = "Lamp",
-            .DefaultPoles = "1p",
-            .DefaultCable = "3" & ZnakX & "1,5",
-            .DefaultBreaker = "10",
-            .DefaultBreakerType = "EZ9 MCB",
-            .DefaultPrednaz = "Улично",
-            .DefaultPrednaz1 = "осветление",
-            .VisibilityRules = New List(Of VisRule)()
-        },
-        New BlockConfig With {        ' АВАРИЙНО ОСВЕТЛЕНИЕ
-            .BlockNames = New List(Of String) From {"АВАРИЯ", "АВАРИЯ_100"},
-            .Category = "Lamp",
-            .DefaultPoles = "1p",
-            .DefaultCable = "3" & ZnakX & "1,5",
-            .DefaultBreakerType = "EZ9 MCB",
-            .DefaultBreaker = "10",
-            .DefaultPrednaz = "Аварийно",
-            .DefaultPrednaz1 = "осветление",
-            .VisibilityRules = New List(Of VisRule)()
-        },
-        New BlockConfig With {        ' БОЙЛЕРНО ТАБЛО
-            .BlockNames = New List(Of String) From {"БОЙЛЕРНО ТАБЛО"},
-            .Category = "Contact",
-            .DefaultPoles = "1p",
-            .DefaultBreakerType = "EZ9 MCB",
-            .DefaultCable = "3" & ZnakX & "2,5",
-            .DefaultBreaker = "10",
-            .VisibilityRules = New List(Of VisRule) From {
-                New VisRule With {.VisibilityPattern = "КЛЮЧ И КОНТАКТ", .ContactCount = 1},
-                New VisRule With {.VisibilityPattern = "С ДВА КОНТАКТА", .ContactCount = 2},
-                New VisRule With {.VisibilityPattern = "С ДВА КЛЮЧА", .ContactCount = 2}
+                New BlockConfig With {        ' LED ОСВЕТЛЕНИЕ
+                    .BlockNames = New List(Of String) From {"LED_DENIMA", "LED_LENTA", "LED_ULTRALUX", "LED_ULTRALUX_100", "LED_ULTRALUX_НОВ",
+                                                            "LED_ЛУНА", "ПЛАФОНИ", "МЕТАЛХАОГЕННА ЛАМПА", "ЛИНИЯ МХЛ - 220V", "ПОЛИЛЕЙ", "ПРОЖЕКТОР"},
+                    .Category = "Lamp",
+                    .DefaultPoles = 1,
+                    .DefaultCable = "3" & ZnakX & "1,5",
+                    .DefaultBreaker = "10",
+                    .DefaultPrednaz = "Общо",
+                    .DefaultBreakerType = "EZ9 MCB",
+                    .DefaultPrednaz1 = "осветление",
+                    .VisibilityRules = New List(Of VisRule)()
+                },
+                New BlockConfig With {        ' УЛИЧНО ОСВЕТЛЕНИЕ
+                    .BlockNames = New List(Of String) From {"ULI4NO"},
+                    .Category = "Lamp",
+                    .DefaultPoles = 1,
+                    .DefaultCable = "3" & ZnakX & "1,5",
+                    .DefaultBreaker = "10",
+                    .DefaultBreakerType = "EZ9 MCB",
+                    .DefaultPrednaz = "Улично",
+                    .DefaultPrednaz1 = "осветление",
+                    .VisibilityRules = New List(Of VisRule)()
+                },
+                New BlockConfig With {        ' АВАРИЙНО ОСВЕТЛЕНИЕ
+                    .BlockNames = New List(Of String) From {"АВАРИЯ", "АВАРИЯ_100"},
+                    .Category = "Lamp",
+                    .DefaultPoles = 1,
+                    .DefaultCable = "3" & ZnakX & "1,5",
+                    .DefaultBreakerType = "EZ9 MCB",
+                    .DefaultBreaker = "10",
+                    .DefaultPrednaz = "Аварийно",
+                    .DefaultPrednaz1 = "осветление",
+                    .VisibilityRules = New List(Of VisRule)()
+                },
+                New BlockConfig With {        ' БОЙЛЕРНО ТАБЛО
+                    .BlockNames = New List(Of String) From {"БОЙЛЕРНО ТАБЛО"},
+                    .Category = "Contact",
+                    .DefaultPoles = 1,
+                    .DefaultBreakerType = "EZ9 MCB",
+                    .DefaultCable = "3" & ZnakX & "2,5",
+                    .DefaultBreaker = "10",
+                    .VisibilityRules = New List(Of VisRule) From {
+                        New VisRule With {.VisibilityPattern = "КЛЮЧ И КОНТАКТ", .ContactCount = 1},
+                        New VisRule With {.VisibilityPattern = "С ДВА КОНТАКТА", .ContactCount = 2},
+                        New VisRule With {.VisibilityPattern = "С ДВА КЛЮЧА", .ContactCount = 2}
+                    }
+                },
+                New BlockConfig With {        ' КОНТАКТИ
+                    .BlockNames = New List(Of String) From {"КОНТАКТ"},
+                    .Category = "Contact",
+                    .DefaultPoles = 1,
+                    .DefaultCable = "3" & ZnakX & "2,5",
+                    .DefaultBreakerType = "EZ9 MCB",
+                    .DefaultBreaker = "20",
+                    .DefaultPrednaz = "Контакти",
+                    .DefaultPrednaz1 = "",
+                    .VisibilityRules = New List(Of VisRule) From {
+                        New VisRule With {.VisibilityPattern = "ДВУГНЕЗДОВ", .ContactCount = 1},
+                        New VisRule With {.VisibilityPattern = "ТРИГНЕЗДОВ", .ContactCount = 2},
+                        New VisRule With {.VisibilityPattern = "ТРИФАЗЕН", .Poles = 3, .Cable = "5" & ZnakX & "2,5", .Phase = "L1,L2,L3"},
+                        New VisRule With {.VisibilityPattern = "ТР+2МФ", .Poles = 3, .Cable = "5" & ZnakX & "2,5", .Phase = "L1,L2,L3", .ContactCount = 2},
+                        New VisRule With {.VisibilityPattern = "ТВЪРДА ВРЪЗКА", .Cable = "3" & ZnakX & "4,0"},
+                        New VisRule With {.VisibilityPattern = "УСИЛЕН", .Cable = "3" & ZnakX & "4,0"},
+                        New VisRule With {.VisibilityPattern = "IP 54", .Cable = "3" & ZnakX & "2,5"},
+                        New VisRule With {.VisibilityPattern = "МОНТАЖ В КАНАЛ", .Cable = "3" & ZnakX & "2,5"}
+                    }
+                },
+                New BlockConfig With {        ' ВЕНТИЛАЦИИ, КЛИМАТИЦИ, КОНВЕКТОРИ
+                    .BlockNames = New List(Of String) From {"ВЕНТИЛАЦИИ"},
+                    .Category = "Device",
+                    .DefaultPoles = 1,
+                    .DefaultCable = "3" & ZnakX & "1,5",
+                    .DefaultBreakerType = "EZ9 MCB",
+                    .DefaultBreaker = "10",
+                    .VisibilityRules = New List(Of VisRule) From {
+                        New VisRule With {.VisibilityPattern = "3P", .Poles = 3, .Cable = "5x2,5", .Phase = "L1,L2,L3"},
+                        New VisRule With {.VisibilityPattern = "КАНАЛЕН 3P", .Poles = 3, .Cable = "5x2,5", .Phase = "L1,L2,L3"},
+                        New VisRule With {.VisibilityPattern = "ПРОЗОРЧЕН 3P", .Poles = 3, .Cable = "5x2,5", .Phase = "L1,L2,L3"}
+                    }
+                },
+                New BlockConfig With {        ' БОЙЛЕРИ
+                    .BlockNames = New List(Of String) From {"БОЙЛЕР"},
+                    .Category = "Device",
+                    .DefaultPoles = 1,
+                    .DefaultCable = "3" & ZnakX & "2,5",
+                    .DefaultBreakerType = "EZ9 MCB",
+                    .DefaultBreaker = "20",
+                    .VisibilityRules = New List(Of VisRule) From {
+                        New VisRule With {.VisibilityPattern = "ИЗХОД 3P", .Poles = 3, .Cable = "5" & ZnakX & "2,5", .Phase = "L1,L2,L3"},
+                        New VisRule With {.VisibilityPattern = "380V", .Poles = 3, .Cable = "5" & ZnakX & "2,5", .Phase = "L1,L2,L3"},
+                        New VisRule With {.VisibilityPattern = "ПРОТОЧЕН", .Breaker = "20"},
+                        New VisRule With {.VisibilityPattern = "СЕШОАР", .Breaker = "16"},
+                        New VisRule With {.VisibilityPattern = "СЕШОАР С КОНТАКТ", .Breaker = "16"},
+                        New VisRule With {.VisibilityPattern = "ИЗХОД ГАЗ", .Cable = "3" & ZnakX & "2,5", .Breaker = "6"}
+                    }
+                }
             }
-        },
-        New BlockConfig With {        ' КОНТАКТИ
-            .BlockNames = New List(Of String) From {"КОНТАКТ"},
-            .Category = "Contact",
-            .DefaultPoles = "1p",
-            .DefaultCable = "3" & ZnakX & "2,5",
-            .DefaultBreakerType = "EZ9 MCB",
-            .DefaultBreaker = "20",
-            .DefaultPrednaz = "Контакти",
-            .DefaultPrednaz1 = "",
-            .VisibilityRules = New List(Of VisRule) From {
-                New VisRule With {.VisibilityPattern = "ДВУГНЕЗДОВ", .ContactCount = 1},
-                New VisRule With {.VisibilityPattern = "ТРИГНЕЗДОВ", .ContactCount = 2},
-                New VisRule With {.VisibilityPattern = "ТРИФАЗЕН", .Poles = "3p", .Cable = "5" & ZnakX & "2,5", .Phase = "L1,L2,L3"},
-                New VisRule With {.VisibilityPattern = "ТР+2МФ", .Poles = "3p", .Cable = "5" & ZnakX & "2,5", .Phase = "L1,L2,L3", .ContactCount = 2},
-                New VisRule With {.VisibilityPattern = "ТВЪРДА ВРЪЗКА", .Cable = "3" & ZnakX & "4,0"},
-                New VisRule With {.VisibilityPattern = "УСИЛЕН", .Cable = "3" & ZnakX & "4,0"},
-                New VisRule With {.VisibilityPattern = "IP 54", .Cable = "3" & ZnakX & "2,5"},
-                New VisRule With {.VisibilityPattern = "МОНТАЖ В КАНАЛ", .Cable = "3" & ZnakX & "2,5"}
-            }
-        },
-        New BlockConfig With {        ' ВЕНТИЛАЦИИ, КЛИМАТИЦИ, КОНВЕКТОРИ
-            .BlockNames = New List(Of String) From {"ВЕНТИЛАЦИИ"},
-            .Category = "Device",
-            .DefaultPoles = "1p",
-            .DefaultCable = "3" & ZnakX & "1,5",
-            .DefaultBreakerType = "EZ9 MCB",
-            .DefaultBreaker = "10",
-            .VisibilityRules = New List(Of VisRule) From {
-                New VisRule With {.VisibilityPattern = "3P", .Poles = "3p", .Cable = "5x2,5", .Phase = "L1,L2,L3"},
-                New VisRule With {.VisibilityPattern = "КАНАЛЕН 3P", .Poles = "3p", .Cable = "5x2,5", .Phase = "L1,L2,L3"},
-                New VisRule With {.VisibilityPattern = "ПРОЗОРЧЕН 3P", .Poles = "3p", .Cable = "5x2,5", .Phase = "L1,L2,L3"}
-            }
-        },
-        New BlockConfig With {        ' БОЙЛЕРИ
-            .BlockNames = New List(Of String) From {"БОЙЛЕР"},
-            .Category = "Device",
-            .DefaultPoles = "1p",
-            .DefaultCable = "3" & ZnakX & "2,5",
-            .DefaultBreakerType = "EZ9 MCB",
-            .DefaultBreaker = "25",
-            .VisibilityRules = New List(Of VisRule) From {
-                New VisRule With {.VisibilityPattern = "ИЗХОД 3P", .Poles = "3p", .Cable = "5" & ZnakX & "2,5", .Phase = "L1,L2,L3"},
-                New VisRule With {.VisibilityPattern = "380V", .Poles = "3p", .Cable = "5" & ZnakX & "2,5", .Phase = "L1,L2,L3"},
-                New VisRule With {.VisibilityPattern = "ПРОТОЧЕН", .Breaker = "20"},
-                New VisRule With {.VisibilityPattern = "СЕШОАР", .Breaker = "16"},
-                New VisRule With {.VisibilityPattern = "СЕШОАР С КОНТАКТ", .Breaker = "16"},
-                New VisRule With {.VisibilityPattern = "ИЗХОД ГАЗ", .Cable = "3" & ZnakX & "2,5", .Breaker = "6"}
-            }
-        }
-    }
     End Sub
     ''' <summary>
     ''' Обработва един консуматор спрямо конфигурацията му (BlockConfigs)
@@ -1340,9 +1339,9 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
         '    в BlockNames списъка.
         ' ------------------------------------------------------------
         Dim config = BlockConfigs.FirstOrDefault(
-        Function(c) c.BlockNames.Any(
-            Function(n) blockName.Contains(n))
-            )
+                                 Function(c) c.BlockNames.Any(
+                                 Function(n) blockName.Contains(n))
+                                 )
         ' Ако няма намерена конфигурация → прекратяваме
         If config Is Nothing Then
             MsgBox("Блок '" & blockName & "' не е намерен в InitializeBlockConfigs!",
@@ -1352,8 +1351,7 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
         ' ------------------------------------------------------------
         ' 2) Проверяваме дали има специфично правило според Visibility
         ' ------------------------------------------------------------
-        Dim visRule = config.VisibilityRules.
-        FirstOrDefault(Function(r) visibility.Contains(r.VisibilityPattern))
+        Dim visRule = config.VisibilityRules.FirstOrDefault(Function(r) visibility.Contains(r.VisibilityPattern))
         ' ------------------------------------------------------------
         ' 3) ПРЕХВЪРЛЯНЕ НА ДАННИ ОТ КОНФИГУРАЦИЯТА
         ' ------------------------------------------------------------
@@ -1378,8 +1376,6 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                             visRule.Poles,
                             config.DefaultPoles)
         ' Числова стойност на полюсите (1 или 3)
-        tokow.БройПолюси =
-        If(tokow.Брой_Полюси.ToLower() = "3p", 3, 1)
         ' Тип апарат – от правило или default
         tokow.Тип_Апарат = If(visRule IsNot Nothing AndAlso
                             Not String.IsNullOrEmpty(visRule.BreakerType),
@@ -1389,7 +1385,7 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
         ' ФАЗА
         ' ------------------------------------------------------------
         ' Ако е триполюсен → автоматично задаваме трите фази
-        If tokow.БройПолюси = 3 Then
+        If tokow.Брой_Полюси = 3 Then
             tokow.Фаза = "L1,L2,L3"
         Else
             ' Ако не е 3P – запазваме съществуващата фаза
@@ -1480,7 +1476,7 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
             tokow.brLamp = 0
             tokow.brKontakt = 0
             tokow.Мощност = 0
-            tokow.БройПолюси = 1
+            tokow.Брой_Полюси = 1
             ' --------------------------------------------------------
             ' 3) Обработка на всички консуматори в кръга
             ' --------------------------------------------------------
@@ -1498,7 +1494,7 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
             ' 5) Проверка и избор на прекъсвач
             ' --------------------------------------------------------
             ' Определяме реалния брой полюси (1 или 3)
-            Dim poles As Integer = If(tokow.БройПолюси = 3, 3, 1)
+            Dim poles As Integer = tokow.Брой_Полюси
             ' Опит за парсване на конфигурирания номинален ток
             Dim configBreaker As Integer = 0
             ' Ако реалният ток е по-голям от конфигурирания прекъсвач
@@ -1550,7 +1546,7 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
                 tokow.Тип_Апарат = breaker.Series
                 tokow.Крива = breaker.Curve
                 tokow.Изкл_Възможност = breaker.Ics_kA & "kA"
-                tokow.Брой_Полюси = breaker.Poles & "P"
+                tokow.Брой_Полюси = breaker.Poles
                 tokow.Защитен_блок = breaker.TripUnit
             End If
             Dim I_Get As Double = 0
@@ -1564,9 +1560,12 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
             ' Избираме кабел според изчисления ток и брой полюси
             ' ----------------------------------------------------
             CalculateCable(tokow)
-
         Next
     End Sub
+    Private Sub CalculateBreaker(tokow As strTokow)
+
+    End Sub
+
     ''' <summary>
     ''' Автоматично избира прекъсвач от каталога според тока и броя полюси
     ''' </summary>
@@ -1724,7 +1723,7 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
             Dim totalContacts As Integer = panelCircuits.Sum(Function(c) c.brKontakt)
             Dim totalPower As Double = panelCircuits.Sum(Function(c) c.Мощност)
 
-            Dim hasThreePhase As Boolean = panelCircuits.Any(Function(c) c.БройПолюси = 3)
+            Dim hasThreePhase As Boolean = panelCircuits.Any(Function(c) c.Брой_Полюси = 3)
             Dim totalCurrent As Double = If(hasThreePhase,
                                         (totalPower * 1000) / (Math.Sqrt(3) * 400),
                                         (totalPower * 1000) / 230)
@@ -2205,7 +2204,6 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
     ''' <param name="Tipe_Cable">   Тип на проводника: 0 = кабел (3-жилен), 1 = проводник (1-жилен) (по подразбиране 0)</param>
     ''' <param name="matType">      Материал на проводника: 0 = мед (Cu), 1 = алуминий (Al) (по подразбиране 0)</param>
     ''' <param name="RetType">      Тип на връщаната стойност: 0 = само сечение, 1 = пълно означение (по подразбиране 1)</param>
-    ''' <returns>Сечение на кабела като низ (напр. "СВТ3x2,5mm²" или "2,5")</returns>
     Private Sub CalculateCable(tokow As strTokow,
                                 Optional Type As String = "СВТ",        ' Тип кабел (СВТ, САВТ, NYY...)
                                 Optional layMethod As Integer = 0,      ' 0=въздух (35°C), 1=земя (15°C)
@@ -2379,8 +2377,9 @@ New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9
         Next
     End Sub
     Private Sub SetRCD(tokow As strTokow)
-        Dim poles As String = If(tokow.Брой_Полюси = "3p", "4p", "2p")
-        Dim requiredCurrent As Double = tokow.Ток * 1.2
+        Dim poles As String = If(tokow.Брой_Полюси = 3, "4p", "2p")
+        Dim requiredCurrent As Double = If(tokow.Ток * 1.2 < 20, 20, tokow.Ток * 1.2)
+
         Dim needRCBO As Boolean = tokow.RCD_Автомат
         Dim matchingRCDs = RCD_Catalog.Where(
                                     Function(r) r.NominalCurrent >= requiredCurrent AndAlso

@@ -234,7 +234,7 @@ Public Class Form_Tablo_new
         ' принадлежащи към този токов кръг.
     End Class
     ''' <summary>
-    ''' Представя автоматичен прекъсвач – MCB, MCCB или ACB.
+    ''' КАТАЛОГ автоматичен прекъсвач – MCB, MCCB или ACB.
     ''' Може да се използва за избор на прекъсвач за генераторни табла,
     ''' както и за по-сложни сценарии с селективност и късо съединение.
     ''' </summary>
@@ -269,31 +269,13 @@ Public Class Form_Tablo_new
         ''' </summary>
         Public TripUnit As String
     End Class
-    Public Structure strTablo
-        Dim countTablo As Integer
-        Dim Name As String              ' "АП-1"
-        Dim prevTablo As String         ' "Гл.Р.Т."
-        Dim countTokKryg As Integer
-        ' За TreeView групиране - ДОБАВЕНО:
-        Dim Floor As String             ' "Първи етаж", "Подземен"
-        Dim Building As String          ' "Сграда А" (по желание)
-        Dim Tokowkryg As List(Of strTokow)  ' ПРОМЯНА: масив → List
-        Dim TabloType As String
-        ' Изчислени (за показване в TreeView)
-        Dim TotalPower As Double        ' Сума от кръговете
-        Dim SupplyCable As String       ' "NYM 5x16"
-        ' Допълнителни за таблото (по желание)
-        Dim Width As Integer
-        Dim Height As Integer
-        Dim IP_Rating As String
-    End Structure
     ''' <summary>
     ''' Конфигурация за всеки тип блок
     ''' </summary>
     Public Class BlockConfig
         Public BlockNames As List(Of String)        ' Възможни имена на блока
         Public Category As String                   ' "Lamp", "Contact", "Device", "Panel"
-        Public DefaultPoles As Integer               ' "1p" или "3p"
+        Public DefaultPoles As Integer              ' "1p" или "3p"
         Public DefaultCable As String               ' "3x1.5", "3x2.5", "5x2.5"
         Public DefaultBreaker As String             ' "10", "16", "20"
         Public DefaultBreakerType As String         ' "10", "16", "20"
@@ -313,59 +295,150 @@ Public Class Form_Tablo_new
         Public BreakerType As String              ' опционално за специфични правила
         Public ContactCount As Integer            ' Колко контакта добавя (1, 2, 3)
     End Class
+    ''' <summary>
+    ''' Извлича информация за всички избрани блокове от AutoCAD,
+    ''' създава обекти от тип strKonsumator и ги добавя в списъка ListKonsumator.
+    '''
+    ''' Основна идея:
+    ''' Процедурата обхожда избраните блокове (INSERT) в чертежа,
+    ''' извлича атрибути и динамични свойства от всеки блок и
+    ''' попълва структурата strKonsumator.
+    '''
+    ''' Основни стъпки:
+    ''' 1) Потребителят избира блокове от чертежа.
+    ''' 2) За всеки блок се прочитат:
+    '''    - Атрибутите (ТАБЛО, КРЪГ, МОЩНОСТ и др.)
+    '''    - Dynamic properties (Visibility, Дължина)
+    ''' 3) Изчислява се мощността на консуматора.
+    ''' 4) Определя се типът на блока чрез ProcessBlockByType().
+    ''' 5) Ако консуматорът има валидна мощност → добавя се в ListKonsumator.
+    '''
+    ''' Допълнително:
+    ''' - Показва прогрес чрез ToolStripProgressBar.
+    ''' - Работи в Transaction за безопасен достъп до AutoCAD Database.
+    ''' </summary>
     Private Sub GetKonsumatori()
-        Dim acDoc As Document = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument
+        ' ------------------------------------------------------------
+        ' 1) Вземане на текущия AutoCAD документ, редактор и база
+        ' ------------------------------------------------------------
+        Dim acDoc As Document =
+        Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument
         Dim edt As Editor = acDoc.Editor
         Dim acCurDb As Database = acDoc.Database
+        ' ------------------------------------------------------------
+        ' 2) Избор на обекти от потребителя
+        ' ------------------------------------------------------------
+        ' cu.GetObjects() връща всички избрани обекти от тип INSERT (блокове)
         Dim SelectedSet = cu.GetObjects("INSERT", "Изберете блок")
+        ' Ако не е избран нито един блок → прекратяваме процедурата
         If SelectedSet Is Nothing Then
             MsgBox("НЕ Е маркиран нито един блок.")
             Exit Sub
         End If
+        ' ObjectId на текущия блок
         Dim blkRecId As ObjectId = ObjectId.Null
+        ' ------------------------------------------------------------
+        ' 3) Стартиране на Transaction за работа с AutoCAD Database
+        ' ------------------------------------------------------------
         Using acTrans As Transaction = acCurDb.TransactionManager.StartTransaction()
             Try
+                ' Отваряне на BlockTable за четене
                 Dim acBlkTbl As BlockTable
                 acBlkTbl = acTrans.GetObject(acCurDb.BlockTableId, OpenMode.ForRead)
+                ' --------------------------------------------------------
+                ' Инициализация на ProgressBar
+                ' --------------------------------------------------------
                 ToolStripProgressBar1.Maximum = SelectedSet.Count
                 ToolStripProgressBar1.Value = 0
+                ' --------------------------------------------------------
+                ' 4) Обработка на всеки избран блок
+                ' --------------------------------------------------------
                 For Each sObj As SelectedObject In SelectedSet
+                    ' Вземаме ObjectId на блока
                     blkRecId = sObj.ObjectId
+                    ' Създаваме нов обект за консуматора
                     Dim Kons As New strKonsumator
-                    Dim acBlkRef As BlockReference = DirectCast(acTrans.GetObject(blkRecId, OpenMode.ForRead), BlockReference)
+                    ' Отваряме блока за четене
+                    Dim acBlkRef As BlockReference =
+                    DirectCast(acTrans.GetObject(blkRecId, OpenMode.ForRead), BlockReference)
+                    ' Колекция с атрибутите на блока
                     Dim attCol As AttributeCollection = acBlkRef.AttributeCollection
-                    Dim props As DynamicBlockReferencePropertyCollection = acBlkRef.DynamicBlockReferencePropertyCollection
-                    Kons.Name = (CType(acBlkRef.DynamicBlockTableRecord.GetObject(OpenMode.ForRead), BlockTableRecord)).Name
+                    ' Колекция с Dynamic Properties
+                    Dim props As DynamicBlockReferencePropertyCollection =
+                    acBlkRef.DynamicBlockReferencePropertyCollection
+                    ' ----------------------------------------------------
+                    ' Извличане на името на блока
+                    ' ----------------------------------------------------
+                    Kons.Name =
+                    (CType(acBlkRef.DynamicBlockTableRecord.GetObject(OpenMode.ForRead),
+                    BlockTableRecord)).Name
+                    ' Записване на ObjectId на блока
                     Kons.ID_Block = blkRecId
+                    ' ----------------------------------------------------
+                    ' 5) Четене на всички атрибути на блока
+                    ' ----------------------------------------------------
                     For Each attId As ObjectId In attCol
+                        ' Отваряме обекта
                         Dim dbObj As DBObject = acTrans.GetObject(attId, OpenMode.ForRead)
-                        ' Преобразува обекта в AttributeReference, за да работи с атрибутите.
+                        ' Преобразуваме го в AttributeReference
                         Dim acAttRef As AttributeReference = dbObj
-                        If acAttRef.Tag = "ТАБЛО" Then Kons.ТАБЛО = acAttRef.TextString
-                        If acAttRef.Tag = "КРЪГ" Then Kons.ТоковКръг = acAttRef.TextString
-                        If acAttRef.Tag = "Pewdn" Then Kons.Pewdn = acAttRef.TextString
-                        If acAttRef.Tag = "PEWDN1" Then Kons.PEWDN1 = acAttRef.TextString
-                        If acAttRef.Tag = "LED" Then Kons.strМОЩНОСТ = acAttRef.TextString
-                        If acAttRef.Tag = "МОЩНОСТ" Then Kons.strМОЩНОСТ = acAttRef.TextString
+                        ' ------------------------------------------------
+                        ' Проверка на Tag на атрибута и записване
+                        ' ------------------------------------------------
+                        Select Case acAttRef.Tag
+                            Case "ТАБЛО" : Kons.ТАБЛО = acAttRef.TextString
+                            Case "КРЪГ" : Kons.ТоковКръг = acAttRef.TextString
+                            Case "Pewdn" : Kons.Pewdn = acAttRef.TextString
+                            Case "PEWDN1" : Kons.PEWDN1 = acAttRef.TextString
+                            Case "LED", "МОЩНОСТ" ' Двете стойности водят до едно и също действие
+                                Kons.strМОЩНОСТ = acAttRef.TextString
+                        End Select
                     Next
-
+                    ' ----------------------------------------------------
+                    ' 6) Четене на Dynamic Block Properties
+                    ' ----------------------------------------------------
                     Dim Visibility As String = ""
                     For Each prop As DynamicBlockReferenceProperty In props
+                        ' Visibility на блока
                         If prop.PropertyName = "Visibility1" Then Kons.Visibility = prop.Value
                         If prop.PropertyName = "Visibility" Then Kons.Visibility = prop.Value
+                        ' Дължина (използва се при LED линии)
                         If prop.PropertyName = "Дължина" Then Kons.Dylvina_Led = prop.Value
                     Next
-
-                    Kons.doubМОЩНОСТ = CalcPower(Kons.strМОЩНОСТ, Kons.Dylvina_Led)
+                    ' ----------------------------------------------------
+                    ' 7) Изчисляване на мощността
+                    ' ----------------------------------------------------
+                    ' CalcPower() изчислява реалната мощност на консуматора
+                    ' според текста на мощността и дължината (ако има)
+                    Kons.doubМОЩНОСТ =
+                    CalcPower(Kons.strМОЩНОСТ, Kons.Dylvina_Led)
+                    ' ----------------------------------------------------
+                    ' 8) Допълнителна обработка според типа на блока
+                    ' ----------------------------------------------------
                     ProcessBlockByType(Kons, Kons.Name, Kons.Visibility)
-
+                    ' ----------------------------------------------------
+                    ' 9) Добавяне в списъка с консуматори
+                    ' ----------------------------------------------------
+                    ' Добавяме само ако има валидна мощност
                     If Kons.doubМОЩНОСТ > 0 Then ListKonsumator.Add(Kons)
-
+                    ' ----------------------------------------------------
+                    ' 10) Обновяване на ProgressBar
+                    ' ----------------------------------------------------
                     ToolStripProgressBar1.Value += 1
                 Next
+                ' --------------------------------------------------------
+                ' Потвърждаване на Transaction
+                ' --------------------------------------------------------
                 acTrans.Commit()
             Catch ex As Exception
-                MsgBox("Възникна грешка:  " & ex.Message & vbCrLf & vbCrLf & ex.StackTrace.ToString)
+                ' --------------------------------------------------------
+                ' Обработка на грешки
+                ' --------------------------------------------------------
+                MsgBox("Възникна грешка:  " &
+                   ex.Message &
+                   vbCrLf & vbCrLf &
+                   ex.StackTrace.ToString)
+                ' Прекратяване на Transaction
                 acTrans.Abort()
             End Try
         End Using
@@ -598,10 +671,47 @@ Public Class Form_Tablo_new
         comboCell.DisplayStyle = ComboBoxStyle.DropDown
         'comboCell.DisplayStyle = ComboBoxStyle.DropDownList
     End Sub
-    ' Добави това след SetupDataGridView()
+    ''' <summary>
+    ''' Обработва грешки, възникнали при въвеждане или обработка на данни в DataGridView.
+    '''
+    ''' DataError събитието се извиква когато:
+    ''' - въведената стойност не може да се конвертира към типа на колоната
+    '''   (например текст в числова колона)
+    ''' - стойността на ComboBox не съществува в списъка
+    ''' - възникне грешка при запис в DataSource
+    ''' - има проблем при parsing или validation на данните
+    '''
+    ''' В тази реализация грешките се потискат, за да не се показва
+    ''' стандартният диалог на DataGridView и да не се прекъсва работата
+    ''' на приложението.
+    '''
+    ''' Свойства:
+    ''' e.ThrowException = False
+    '''     → предотвратява хвърлянето на exception след обработката
+    '''       на събитието. Това спира стандартния crash или popup. :contentReference[oaicite:0]{index=0}
+    '''
+    ''' e.Cancel = True
+    '''     → отменя текущата операция върху клетката и предотвратява
+    '''       продължаването на грешната операция.
+    '''
+    ''' Цел:
+    ''' Да се избегнат runtime грешки в DataGridView при невалидни
+    ''' стойности (например при ComboBox клетки или при грешни типове).
+    '''
+    ''' Забележка:
+    ''' Ако е необходимо, тук може да се добави логика за:
+    ''' - показване на MessageBox
+    ''' - записване в лог
+    ''' - визуално маркиране на грешната клетка
+    ''' </summary>
     Private Sub DataGridView1_DataError(sender As Object, e As DataGridViewDataErrorEventArgs) Handles DataGridView1.DataError
-        ' Игнорирай грешките при форматиране
+        ' ------------------------------------------------------------
+        ' Забранява хвърлянето на exception след обработката на събитието
+        ' ------------------------------------------------------------
         e.ThrowException = False
+        ' ------------------------------------------------------------
+        ' Отменя текущата операция върху клетката
+        ' ------------------------------------------------------------
         e.Cancel = True
     End Sub
     ' ============================================================
@@ -2329,7 +2439,7 @@ Public Class Form_Tablo_new
             Text = calc
         Else
             ' Определяне на броя жици според полюсите
-            Dim Poles As String = If(NumberPoles = "1P", "3x", "5x")
+            Dim Poles As String = If(NumberPoles = "1", "3x", "5x")
             Dim calc_N As String = ""
             ' Ако сечението е > 16mm², добавяме отделно нулево жило
             If Val(calc.Replace(",", ".")) > 16 Then

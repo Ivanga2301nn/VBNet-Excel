@@ -34,10 +34,8 @@ Public Class Form_Tablo_new
         CreateTokowList()
         InitializeBlockConfigs()
         CalculateCircuitLoads()
+
         CalculateRCD()
-
-
-
 
         SortCircuits()
         BuildTreeViewFromKonsumatori()
@@ -58,7 +56,6 @@ Public Class Form_Tablo_new
     Private Busbars_Cu As New List(Of BusbarInfo)
     Private Busbars_Al As New List(Of BusbarInfo)
     Private RCD_Catalog As New List(Of RCDInfo)
-
 
     Private IcableDict As New Dictionary(Of String, Integer())
     Private Catalog_Cables As New List(Of CableInfo)
@@ -175,8 +172,9 @@ Public Class Form_Tablo_new
         ' ============================================================
         ' ИДЕНТИФИКАЦИЯ
         ' ============================================================
-        Public Tablo As String                 ' Табло към което принадлежи кръгът
-        Public ТоковКръг As String             ' Име или номер на токовия кръг
+        Public Defolt As Boolean                ' Дали токовия кръг има 
+        Public Tablo As String                  ' Табло към което принадлежи кръгът
+        Public ТоковКръг As String              ' Име или номер на токовия кръг
         Public Брой_Полюси As Integer           ' Брой на фазите на токовия кръг
         ' ============================================================
         ' БРОЯЧИ
@@ -192,8 +190,8 @@ Public Class Form_Tablo_new
         ' ============================================================
         ' КАБЕЛ
         ' ============================================================
-        Public Кабел_Монтаж As String          ' Сечение на кабела (пример: "3x2.5")
-        Public Кабел_Полагане As String        ' Сечение на кабела (пример: "3x2.5")
+        Public Кабел_Монтаж As String          ' Начин на монтаж 
+        Public Кабел_Полагане As String        ' Въздух или земя
         Public Кабел_Сечение As String         ' Сечение на кабела (пример: "3x2.5")
         Public Кабел_Тип As String             ' Тип кабел (NYM, YJV, CBT и др.)
         Public Кабел_Брой_Фаза As String       ' Брой на Паралелни Жила на Фаза
@@ -1345,7 +1343,7 @@ Public Class Form_Tablo_new
         ' Ако няма намерена конфигурация → прекратяваме
         If config Is Nothing Then
             MsgBox("Блок '" & blockName & "' не е намерен в InitializeBlockConfigs!",
-        MsgBoxStyle.Critical)
+                   MsgBoxStyle.Critical)
             Return
         End If
         ' ------------------------------------------------------------
@@ -1390,9 +1388,7 @@ Public Class Form_Tablo_new
         Else
             ' Ако не е 3P – запазваме съществуващата фаза
             ' или задаваме по подразбиране
-            If String.IsNullOrEmpty(tokow.Фаза) Then
-                tokow.Фаза = "L"
-            End If
+            If String.IsNullOrEmpty(tokow.Фаза) Then tokow.Фаза = "L"
         End If
         ' ------------------------------------------------------------
         ' ПРЕДНАЗНАЧЕНИЕ (Default от глобалната Config)
@@ -1429,13 +1425,13 @@ Public Class Form_Tablo_new
                 ' ПРОВЕРКА ЗА БОЙЛЕР - ТРЯБВА ЛИ ДЗТ ЗАЩИТА
                 ' ============================================================
                 Dim boilerTypes As String() = {
-                    "Хоризонтален",
-                    "Хоризонтален - 380V",
-                    "Вертикален",
-                    "Вертикален - 380V",
-                    "Проточен",
-                    "Проточен - 380V",
-                    "Бойлер кухня"
+                                   "Хоризонтален",
+                                   "Хоризонтален - 380V",
+                                   "Вертикален",
+                                   "Вертикален - 380V",
+                                   "Проточен",
+                                   "Проточен - 380V",
+                                   "Бойлер кухня"
                 }
                 ' Проверяваме дали консуматорът е бойлер
                 If boilerTypes.Contains(kons.Visibility) Then
@@ -1465,9 +1461,7 @@ Public Class Form_Tablo_new
         ' 1) Проверка дали конфигурацията е инициализирана.
         '    Изпълнява се само ако списъкът е празен или не е създаден.
         ' ------------------------------------------------------------
-        If BlockConfigs Is Nothing OrElse BlockConfigs.Count = 0 Then
-            InitializeBlockConfigs()
-        End If
+        If BlockConfigs Is Nothing OrElse BlockConfigs.Count = 0 Then InitializeBlockConfigs()
         ' ------------------------------------------------------------
         ' 2) Обработка на всеки токов кръг
         ' ------------------------------------------------------------
@@ -1491,64 +1485,9 @@ Public Class Form_Tablo_new
             ' --------------------------------------------------------
             tokow.Ток = calc_Inom(tokow.Мощност, tokow.Брой_Полюси)
             ' --------------------------------------------------------
-            ' 5) Проверка и избор на прекъсвач
+            ' 5) Избор на прекъсвач
             ' --------------------------------------------------------
-            ' Определяме реалния брой полюси (1 или 3)
-            Dim poles As Integer = tokow.Брой_Полюси
-            ' Опит за парсване на конфигурирания номинален ток
-            Dim configBreaker As Integer = 0
-            ' Ако реалният ток е по-голям от конфигурирания прекъсвач
-            Dim breaker As BreakerInfo = Nothing
-            ' ----------------------------------------------------
-            ' Избор на серия според диапазона на тока
-            ' ----------------------------------------------------
-            Dim calculatedCurrent As Double = tokow.Ток
-            Select Case calculatedCurrent
-                Case Is <= 63
-                    ' MCB (Easy9, iC60N) – крива C
-                    breaker = SelectBreaker(calculatedCurrent, poles, "C")
-                Case Is <= 125
-                    ' C120 – крива C
-                    breaker = SelectBreaker(calculatedCurrent, poles, "C")
-                Case Is <= 160
-                    ' NSXm – крива N
-                    breaker = SelectBreaker(calculatedCurrent, poles, "N")
-                Case Is <= 630
-                    ' NSX (MCCB) – крива N
-                    breaker = SelectBreaker(calculatedCurrent, poles, "N")
-                Case Else
-                    ' MTZ (ACB) – без стандартна крива
-                    breaker = SelectBreaker(calculatedCurrent, poles, "MTZ")
-            End Select
-            ' ----------------------------------------------------
-            ' Ако не е намерен подходящ прекъсвач
-            ' ----------------------------------------------------
-            If breaker Is Nothing Then
-                Dim info As String = String.Format(
-                            "Внимание: Не е намерен прекъсвач в {0}!" & vbCrLf &
-                            "Детайли:" & vbCrLf &
-                            "- Табло: {1}" & vbCrLf &
-                            "- Кръг: {2}" & vbCrLf &
-                            "- Мощност: {3} kW" & vbCrLf &
-                            "- Ток: {4} A",
-                            tokow.Tablo,
-                            tokow.Tablo,
-                            tokow.ТоковКръг,
-                            tokow.Мощност,
-                            tokow.Ток)
-                MsgBox(info, MsgBoxStyle.Exclamation, "Инфо за LayerPair")
-            Else
-                ' ------------------------------------------------
-                ' Актуализиране на параметрите на токовия кръг
-                ' според избрания прекъсвач
-                ' ------------------------------------------------
-                tokow.Номинален_Ток = breaker.NominalCurrent.ToString()
-                tokow.Тип_Апарат = breaker.Series
-                tokow.Крива = breaker.Curve
-                tokow.Изкл_Възможност = breaker.Ics_kA & "kA"
-                tokow.Брой_Полюси = breaker.Poles
-                tokow.Защитен_блок = breaker.TripUnit
-            End If
+            CalculateBreaker(tokow)
             Dim I_Get As Double = 0
             Double.TryParse(tokow.Номинален_Ток, I_Get)
             If I_Def > I_Get Then
@@ -1563,7 +1502,52 @@ Public Class Form_Tablo_new
         Next
     End Sub
     Private Sub CalculateBreaker(tokow As strTokow)
+        ' Ако реалният ток е по-голям от конфигурирания прекъсвач
+        Dim breaker As BreakerInfo = Nothing
+        ' ----------------------------------------------------
+        ' Избор на серия според диапазона на тока
+        ' ----------------------------------------------------
+        Select Case tokow.Ток
+            Case Is <= 63
+                ' MCB (Easy9, iC60N) – крива C
+                breaker = SelectBreaker(tokow.Ток, tokow.Брой_Полюси, "C")
+            Case Is <= 125
+                ' C120 – крива C
+                breaker = SelectBreaker(tokow.Ток, tokow.Брой_Полюси, "C")
+            Case Is <= 160
+                ' NSXm – крива N
+                breaker = SelectBreaker(tokow.Ток, tokow.Брой_Полюси, "N")
+            Case Is <= 630
+                ' NSX (MCCB) – крива N
+                breaker = SelectBreaker(tokow.Ток, tokow.Брой_Полюси, "N")
+            Case Else
+                ' MTZ (ACB) – без стандартна крива
+                breaker = SelectBreaker(tokow.Ток, tokow.Брой_Полюси, "MTZ")
+        End Select
+        ' ----------------------------------------------------
+        ' Ако не е намерен подходящ прекъсвач
+        ' ----------------------------------------------------
+        If breaker Is Nothing Then
+            Dim info As String = $"Внимание: Не е намерен прекъсвач в {tokow.Tablo}!" & vbCrLf &
+                     "Детайли:" & vbCrLf &
+                     $"- Табло: {tokow.Tablo}" & vbCrLf &
+                     $"- Кръг: {tokow.ТоковКръг}" & vbCrLf &
+                     $"- Мощност: {tokow.Мощност} kW" & vbCrLf &
+                     $"- Ток: {tokow.Ток} A"
 
+            MsgBox(info, MsgBoxStyle.Exclamation, "Инфо за LayerPair")
+        Else
+            ' ------------------------------------------------
+            ' Актуализиране на параметрите на токовия кръг
+            ' според избрания прекъсвач
+            ' ------------------------------------------------
+            tokow.Номинален_Ток = breaker.NominalCurrent.ToString()
+            tokow.Тип_Апарат = breaker.Series
+            tokow.Крива = breaker.Curve
+            tokow.Изкл_Възможност = breaker.Ics_kA & "kA"
+            tokow.Брой_Полюси = breaker.Poles
+            tokow.Защитен_блок = breaker.TripUnit
+        End If
     End Sub
 
     ''' <summary>
@@ -1624,10 +1608,10 @@ Public Class Form_Tablo_new
             CosFI = 0.85                                            ' Ако е двигател, задава фактор на мощността 0.83
             KPD = 0.9                                               ' Ако е двигател, задава КПД 0.83
         Else                                                        ' Ако токовият кръг не е двигател
-            CosFI = 0.9                                            ' Задава фактор на мощността 0.9
+            CosFI = 0.9                                             ' Задава фактор на мощността 0.9
             KPD = 1                                                 ' Задава КПД 1
         End If
-        If NumberPoles = "3p" Then                                  ' Проверява дали токовият кръг е трифазен (3 полюса)
+        If NumberPoles = "3" Then                                   ' Проверява дали токовият кръг е трифазен (3 полюса)
             Inom = Pkryg / (U380 * Math.Sqrt(3) * CosFI * KPD)      ' Изчислява номиналния ток за трифазен кръг по формулата
         Else                                                        ' Ако токовият кръг е монофазен (2 полюса)
             Inom = Pkryg / (U220 * CosFI * KPD)                     ' Изчислява номиналния ток за монофазен кръг по формулата
@@ -2386,14 +2370,33 @@ Public Class Form_Tablo_new
                                     r.Poles = poles AndAlso
                                     r.Breaker = needRCBO
                                     ).ToList()
-        Dim selectedRCD As RCDInfo = matchingRCDs.First()
-        tokow.RCD_Бранд = selectedRCD.Brand
-        tokow.RCD_Тип = selectedRCD.DeviceType
-        tokow.RCD_Клас = selectedRCD.Type
-        tokow.RCD_Чувствителност = selectedRCD.Sensitivity
-        tokow.RCD_Ток = selectedRCD.NominalCurrent
-        tokow.RCD_Полюси = selectedRCD.Poles
-        tokow.RCD_Нула = "N"
-        tokow.RCD_Автомат = selectedRCD.Breaker
+        ' ----------------------------------------------------
+        ' Ако не е намерен подходяща ДЗТ
+        ' ----------------------------------------------------
+        If matchingRCDs.Count = 0 Then
+            Dim info As String = $"ВНИМАНИЕ: Не е намерена подходяща ДЗТ!{vbCrLf}{vbCrLf}" &
+                     $"Търсени параметри:{vbCrLf}" &
+                     $"- Мин. номинален ток: {requiredCurrent} A{vbCrLf}" &
+                     $"- Комбинирана (RCBO): {If(tokow.RCD_Автомат, "Да", "Не")}{vbCrLf}" &
+                     $"- Брой полюси: {poles}{vbCrLf}{vbCrLf}" &
+                     $"Местоположение:{vbCrLf}" &
+                     $"- Табло: {tokow.Tablo}{vbCrLf}" &
+                     $"- Токов кръг: {tokow.ТоковКръг}"
+            MsgBox(info, MsgBoxStyle.Exclamation, "Липсваща апаратура в каталога")
+        Else
+            Dim selectedRCD As RCDInfo = matchingRCDs.First()
+            ' ------------------------------------------------
+            ' Актуализиране на параметрите на токовия кръг
+            ' според избраната ДЗТ
+            ' ------------------------------------------------
+            tokow.RCD_Бранд = selectedRCD.Brand
+            tokow.RCD_Тип = selectedRCD.DeviceType
+            tokow.RCD_Клас = selectedRCD.Type
+            tokow.RCD_Чувствителност = selectedRCD.Sensitivity
+            tokow.RCD_Ток = selectedRCD.NominalCurrent
+            tokow.RCD_Полюси = selectedRCD.Poles
+            tokow.RCD_Нула = "N"
+            tokow.RCD_Автомат = selectedRCD.Breaker
+        End If
     End Sub
 End Class

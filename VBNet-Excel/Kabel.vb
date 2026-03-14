@@ -583,9 +583,9 @@ Public Class Kabel
         Dim acDoc As Document = Application.DocumentManager.MdiActiveDocument
         ' Взема базата данни на документа
         Dim acCurDb As Database = acDoc.Database
-        Dim br As Integer  ' Променлива за брояч/индекс на кабелите
-        Dim posokaText As String = "" ' Променлива за посоката на кабела
-        Dim KotaText As String = ""   ' Променлива за котата на кабела
+        Dim br As Integer                       ' Променлива за брояч/индекс на кабелите
+        Dim posokaText As String = ""           ' Променлива за посоката на кабела
+        Dim KotaText As String = ""             ' Променлива за котата на кабела
         ' Търси кабел с дължина = 100 и запазва неговата кота и посока
         For i = 0 To Kabel.GetUpperBound(0)
             If Kabel(i, 2) = 100 Then
@@ -640,8 +640,11 @@ Public Class Kabel
         Dim polag As String = Kabel(0, 1) ' Запазва първоначалното място на полагане
 
         ' Добавя първия кабел в помощния масив, ако има дължина > 0
-        Kabel_Pom(0) = IIf(Val(Kabel(0, 2)) > 0,
-                           Kabel(0, 2) & "л. " & Kabel(0, 0), "")
+        Kabel_Pom(0) = If(Val(Kabel(0, 2)) > 0,
+                           If(Polagane = "Канал",
+                              Kabel(0, 0),
+                              Kabel(0, 2) & "л. " & Kabel(0, 0)),
+                              "")
 
         ' Обхожда останалите кабели и подготвя текстовете за атрибутите
         For i = 1 To Kabel.GetUpperBound(0)
@@ -657,7 +660,7 @@ Public Class Kabel
                 br += 1
             End If
             ' Записва текста за атрибута, различно в зависимост от Polagane
-            Kabel_Pom(br) = IIf(Polagane = "Канал", Kabel(i, 0), Kabel(i, 2) & "л. " & Kabel(i, 0))
+            Kabel_Pom(br) = If(Polagane = "Канал", Kabel(i, 0), Kabel(i, 2) & "л. " & Kabel(i, 0))
             br += 1
         Next
         '--------------------------------------------------------------------------------------------
@@ -684,15 +687,11 @@ Public Class Kabel
                 If acAttRef.Tag.StartsWith("NA4IN_") Then
                     Dim idx As Integer
                     If Integer.TryParse(acAttRef.Tag.Substring(6), idx) Then
-                        If idx <= UBound(Kabel_Pom) Then
-                            acAttRef.TextString = Kabel_Pom(idx)
-                        End If
+                        If idx <= UBound(Kabel_Pom) Then acAttRef.TextString = Kabel_Pom(idx)
                     End If
                 End If
             Next
             acTrans.Commit() ' Потвърждава промените
         End Using
     End Sub
-
-
 End Class

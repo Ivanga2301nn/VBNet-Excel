@@ -172,7 +172,7 @@ Public Class Form_Tablo_new
         ' ============================================================
         ' ИДЕНТИФИКАЦИЯ
         ' ============================================================
-        Public Defolt As Boolean                ' Дали токовия кръг има 
+        Public boDefault As Boolean             ' Дали токовия кръг има дефолтни параметри
         Public Tablo As String                  ' Табло към което принадлежи кръгът
         Public ТоковКръг As String              ' Име или номер на токовия кръг
         Public Брой_Полюси As Integer           ' Брой на фазите на токовия кръг
@@ -199,11 +199,11 @@ Public Class Form_Tablo_new
         ' ============================================================
         ' ЗАЩИТА (ПРЕКЪСВАЧ)
         ' ============================================================
-        Public Тип_Апарат As String            ' Серия апарат (EZ9, C120, NSX, MTZ)
-        Public Крива As String                 ' Характеристика (B, C, D)
-        Public Номинален_Ток As String         ' Номинален ток (пример: "16A")
-        Public Изкл_Възможност As String       ' Изключвателна способност ("6000A", "10000A")
-        Public Защитен_блок As String          ' Изключвателна способност ("6000A", "10000A")
+        Public Breaker_Тип_Апарат As String    ' Серия апарат (EZ9, C120, NSX, MTZ)
+        Public Breaker_Крива As String                 ' Характеристика (B, C, D)
+        Public Breaker_Номинален_Ток As String         ' Номинален ток (пример: "16A")
+        Public Breaker_Изкл_Възможност As String       ' Изключвателна способност ("6000A", "10000A")
+        Public Breaker_Защитен_блок As String          ' Изключвателна способност ("6000A", "10000A")
         ' ============================================================
         ' ДТЗ (RCD)
         ' ============================================================
@@ -1353,7 +1353,7 @@ Public Class Form_Tablo_new
         ' ------------------------------------------------------------
         ' 3) ПРЕХВЪРЛЯНЕ НА ДАННИ ОТ КОНФИГУРАЦИЯТА
         ' ------------------------------------------------------------
-
+        '
         ' Кабел – ако има правило по Visibility → вземаме от него,
         ' иначе използваме Default стойност от конфигурацията
         tokow.Кабел_Сечение = If(visRule IsNot Nothing AndAlso
@@ -1367,7 +1367,7 @@ Public Class Form_Tablo_new
                                     Not String.IsNullOrEmpty(visRule.Breaker),
                                     visRule.Breaker,
                                     config.DefaultBreaker)
-        tokow.Номинален_Ток = breakerVal
+        tokow.Breaker_Номинален_Ток = breakerVal
         ' Полюси – от правило или default
         tokow.Брой_Полюси = If(visRule IsNot Nothing AndAlso
                             Not String.IsNullOrEmpty(visRule.Poles),
@@ -1375,7 +1375,7 @@ Public Class Form_Tablo_new
                             config.DefaultPoles)
         ' Числова стойност на полюсите (1 или 3)
         ' Тип апарат – от правило или default
-        tokow.Тип_Апарат = If(visRule IsNot Nothing AndAlso
+        tokow.Breaker_Тип_Апарат = If(visRule IsNot Nothing AndAlso
                             Not String.IsNullOrEmpty(visRule.BreakerType),
                             visRule.BreakerType,
                             config.DefaultBreakerType)
@@ -1471,6 +1471,7 @@ Public Class Form_Tablo_new
             tokow.brKontakt = 0
             tokow.Мощност = 0
             tokow.Брой_Полюси = 1
+            tokow.boDefault = False
             ' --------------------------------------------------------
             ' 3) Обработка на всички консуматори в кръга
             ' --------------------------------------------------------
@@ -1478,7 +1479,7 @@ Public Class Form_Tablo_new
                 ProcessConsumerByConfig(kons, tokow)
             Next
             Dim I_Def As Double = 0
-            Double.TryParse(tokow.Номинален_Ток, I_Def)
+            Double.TryParse(tokow.Breaker_Номинален_Ток, I_Def)
             ' --------------------------------------------------------
             ' 4) Изчисляване на номиналния ток на кръга
             '    calc_Inom() изчислява тока според мощността и полюсите
@@ -1489,11 +1490,11 @@ Public Class Form_Tablo_new
             ' --------------------------------------------------------
             CalculateBreaker(tokow)
             Dim I_Get As Double = 0
-            Double.TryParse(tokow.Номинален_Ток, I_Get)
+            Double.TryParse(tokow.Breaker_Номинален_Ток, I_Get)
             If I_Def > I_Get Then
-                tokow.Номинален_Ток = I_Def.ToString()
+                tokow.Breaker_Номинален_Ток = I_Def.ToString()
             Else
-                tokow.Номинален_Ток = I_Get.ToString()
+                tokow.Breaker_Номинален_Ток = I_Get.ToString()
             End If
             ' ----------------------------------------------------
             ' Избираме кабел според изчисления ток и брой полюси
@@ -1541,12 +1542,12 @@ Public Class Form_Tablo_new
             ' Актуализиране на параметрите на токовия кръг
             ' според избрания прекъсвач
             ' ------------------------------------------------
-            tokow.Номинален_Ток = breaker.NominalCurrent.ToString()
-            tokow.Тип_Апарат = breaker.Series
-            tokow.Крива = breaker.Curve
-            tokow.Изкл_Възможност = breaker.Ics_kA & "kA"
+            tokow.Breaker_Номинален_Ток = breaker.NominalCurrent.ToString()
+            tokow.Breaker_Тип_Апарат = breaker.Series
+            tokow.Breaker_Крива = breaker.Curve
+            tokow.Breaker_Изкл_Възможност = breaker.Ics_kA & "kA"
             tokow.Брой_Полюси = breaker.Poles
-            tokow.Защитен_блок = breaker.TripUnit
+            tokow.Breaker_Защитен_блок = breaker.TripUnit
         End If
     End Sub
 
@@ -1666,11 +1667,11 @@ Public Class Form_Tablo_new
                 If colIndex < DataGridView1.Columns.Count - 1 Then
                     Select Case paramName
                         ' --- ЗАЩИТА (ПРЕКЪСВАЧ) ---
-                        Case "Тип на апарата" : row.Cells(colIndex).Value = panelCircuits(i).Тип_Апарат
-                        Case "Номинален ток" : row.Cells(colIndex).Value = panelCircuits(i).Номинален_Ток
-                        Case "Изкл. възможн." : row.Cells(colIndex).Value = panelCircuits(i).Изкл_Възможност
-                        Case "Крива" : row.Cells(colIndex).Value = panelCircuits(i).Крива
-                        Case "Защитен блок" : row.Cells(colIndex).Value = panelCircuits(i).Защитен_блок
+                        Case "Тип на апарата" : row.Cells(colIndex).Value = panelCircuits(i).Breaker_Тип_Апарат
+                        Case "Номинален ток" : row.Cells(colIndex).Value = panelCircuits(i).Breaker_Номинален_Ток
+                        Case "Изкл. възможн." : row.Cells(colIndex).Value = panelCircuits(i).Breaker_Изкл_Възможност
+                        Case "Крива" : row.Cells(colIndex).Value = panelCircuits(i).Breaker_Крива
+                        Case "Защитен блок" : row.Cells(colIndex).Value = panelCircuits(i).Breaker_Защитен_блок
                         Case "Брой полюси" : row.Cells(colIndex).Value = panelCircuits(i).Брой_Полюси
                         ' --- ДТЗ (RCD) ---
                         Case "ДТЗ Нула" : row.Cells(colIndex).Value = panelCircuits(i).RCD_Нула
@@ -2197,7 +2198,7 @@ Public Class Form_Tablo_new
                                 Optional matType As Integer = 0,        ' 0=мед (Cu), 1=алуминий (Al)
                                 Optional RetType As Integer = 1         ' 0=само сечение, 1=пълно означение
                                 )
-        Dim Ibreaker As String = tokow.Номинален_Ток
+        Dim Ibreaker As String = tokow.Breaker_Номинален_Ток
         Dim NumberPoles As String = tokow.Брой_Полюси
         ' ============================================================
         ' 1. МАТЕРИАЛ И ФИЛТРИРАНЕ НА КАТАЛОГА

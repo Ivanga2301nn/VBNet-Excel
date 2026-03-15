@@ -2253,7 +2253,25 @@ Public Class Form_Tablo_new
         End If
         Return Inom                                                 ' Връща изчисления номинален ток
     End Function
+    ''' <summary>
+    ''' Събитие: TreeView1_AfterSelect
+    ''' </summary>
+    ''' <remarks>
+    ''' Това събитие се извиква веднага след като потребителят избере (кликне) елемент в TreeView1.
+    ''' 
+    ''' Основната логика на процедурата е:
+    ''' - Извикване на FillDataGridViewForPanel(), която актуализира съдържанието на DataGridView
+    '''   според избрания панел или група в дървовидната структура.
+    '''
+    ''' Потенциални особености:
+    ''' - Предполага се, че методът FillDataGridViewForPanel() използва текущо избрания елемент
+    '''   (TreeView1.SelectedNode) за определяне на кои токови кръгове или табла да покаже данни.
+    ''' - Ако FillDataGridViewForPanel() е тежка операция, често селектирането на различни елементи
+    '''   може да забави интерфейса; в такива случаи може да се наложи оптимизация или асинхронно обновяване.
+    ''' - Това е стандартен подход за синхронизация на TreeView с DataGridView в WinForms.
+    ''' </remarks>
     Private Sub TreeView1_AfterSelect(sender As Object, e As TreeViewEventArgs) Handles TreeView1.AfterSelect
+        ' Обновяване на DataGridView според избрания панел/група в TreeView
         FillDataGridViewForPanel()
     End Sub
     ''' <summary>

@@ -8,6 +8,7 @@ Imports Autodesk.AutoCAD.DatabaseServices
 Imports Autodesk.AutoCAD.DatabaseServices.Filters
 Imports Autodesk.AutoCAD.EditorInput
 Imports Autodesk.AutoCAD.Geometry
+Imports Autodesk.AutoCAD.GraphicsSystem
 Imports Autodesk.AutoCAD.Internal.DatabaseServices
 Imports Autodesk.AutoCAD.PlottingServices
 Imports Autodesk.AutoCAD.Runtime
@@ -146,6 +147,9 @@ Public Class Form_Tablo_new
 #End Region
         SetupDataGridView()
     End Sub
+
+    'Dim updateInProgress As Boolean = True
+
     Dim PI As Double = 3.1415926535897931
     Dim cu As CommonUtil = New CommonUtil()
     Private ListKonsumator As New List(Of strKonsumator)
@@ -232,38 +236,370 @@ Public Class Form_Tablo_new
         New String() {"Шина", "---", "Check"},
         New String() {"Постави ДТЗ (RCD)", "---", "Check"}
     }
+    ''' <summary>
+    ''' Структура: DisconnectorInfo
+    ''' </summary>
+    ''' <remarks>
+    ''' Тази структура съдържа информация за прекъсвач (изключвател/разединител),
+    ''' използван в електрически инсталации или автоматизация на табла.
+    ''' Структурата се използва за съхранение на основни характеристики на прекъсвача,
+    ''' необходими за избор, документиране и електрически изчисления.
+    ''' </remarks>
     Public Structure DisconnectorInfo
-        Dim NominalCurrent As Integer    ' 20, 32, 40...
-        Dim Type As String               ' "iSW", "INS", "IN"
-        Dim Brand As String              ' "Acti9", "Easy9"
-        Dim Poles As Integer             ' 2, 3, 4
+        ''' <summary>
+        ''' Номинален ток на прекъсвача в ампери.
+        ''' </summary>
+        ''' <remarks>
+        ''' Стойности като 20, 32, 40 и т.н. съответстват на тока, при който прекъсвачът
+        ''' може безопасно да работи без да се изключва.
+        ''' Използва се за:
+        ''' - оразмеряване на електрическата линия
+        ''' - избор на подходящ прекъсвач за токовата натовареност
+        ''' Потенциален проблем:
+        ''' - стойността трябва да съвпада с допустимите стойности на производителя.
+        ''' </remarks>
+        Dim NominalCurrent As Integer
+        ''' <summary>
+        ''' Тип на прекъсвача.
+        ''' </summary>
+        ''' <remarks>
+        ''' Например:
+        ''' - "iSW" – изключвател/разединител с индикатор
+        ''' - "INS" – разединител с термична защита
+        ''' - "IN" – стандартен изключвател
+        ''' Типът влияе върху функционалността, монтаж и съвместимост с таблото.
+        ''' </remarks>
+        Dim Type As String
+        ''' <summary>
+        ''' Марка на прекъсвача.
+        ''' </summary>
+        ''' <remarks>
+        ''' Примерни стойности:
+        ''' - "Acti9"
+        ''' - "Easy9"
+        ''' Марката се използва за документиране и избор на съвместими компоненти.
+        ''' </remarks>
+        Dim Brand As String
+        ''' <summary>
+        ''' Брой полюси на прекъсвача.
+        ''' </summary>
+        ''' <remarks>
+        ''' Стойности като 2, 3, 4 показват колко отделни вериги прекъсвачът управлява.
+        ''' Използва се за:
+        ''' - определяне на конфигурацията на инсталацията
+        ''' - избор на подходящ тип за еднофазни или трифазни вериги
+        ''' - осигуряване на баланс между фазите
+        ''' Потенциален проблем:
+        ''' - несъответствие между брой полюси и фазовостта на консуматора може да доведе до неправилна работа.
+        ''' </remarks>
+        Dim Poles As Integer
     End Structure
+    ''' <summary>
+    ''' Структура: BusbarInfo
+    ''' </summary>
+    ''' <remarks>
+    ''' Тази структура съдържа информация за шинопровод (Busbar) в електрическо табло или инсталация.
+    ''' Използва се за оразмеряване, документиране и проверка на допустимия ток на шините.
+    ''' </remarks>
     Public Structure BusbarInfo
-        Dim CurrentCapacity As Integer   ' Допустим ток
-        Dim Section As String            ' "30x4", "50x5"
-        Dim Material As String           ' "Cu", "Al"
+        ''' <summary>
+        ''' Допустим ток на шината в ампери.
+        ''' </summary>
+        ''' <remarks>
+        ''' Стойността показва максималния ток, който шината може да поеме без риск от прегряване.
+        ''' Използва се при:
+        ''' - изчисляване на токове на веригата
+        ''' - избор на подходящ прекъсвач
+        ''' - проверка на съвместимост между шинопровода и консуматорите.
+        ''' Потенциален проблем: ако токовата натовареност на шината се надвиши, може да се получи повреда.
+        ''' </remarks>
+        Dim CurrentCapacity As Integer
+        ''' <summary>
+        ''' Сечение на шината.
+        ''' </summary>
+        ''' <remarks>
+        ''' Представено във формат "ширина x дебелина", напр. "30x4", "50x5" (мм).
+        ''' Използва се за определяне на допустим ток и механична здравина.
+        ''' Сечението влияе върху:
+        ''' - токовата проводимост
+        ''' - падовете на напрежение
+        ''' - избор на табло и монтажни аксесоари.
+        ''' </remarks>
+        Dim Section As String
+        ''' <summary>
+        ''' Материал на шината.
+        ''' </summary>
+        ''' <remarks>
+        ''' Възможни стойности:
+        ''' - "Cu" – мед
+        ''' - "Al" – алуминий
+        ''' Материалът определя електрическата проводимост, допустимия ток и механичните свойства.
+        ''' </remarks>
+        Dim Material As String
     End Structure
+    ''' <summary>
+    ''' Структура: RCDInfo
+    ''' </summary>
+    ''' <remarks>
+    ''' Тази структура съхранява информация за защитно устройство от тип диференциална токова защита (ДТЗ/RCD),
+    ''' използвана за защита на хора и оборудване от токови утечки.
+    ''' Структурата описва основните характеристики на RCD, необходими за избор, монтаж и документиране.
+    ''' </remarks>
     Public Structure RCDInfo
-        Dim Brand As String              ' Производител на ДТЗ (например "Schneider", "ABB", "Legrand")
-        Dim NominalCurrent As Integer    ' 25, 40, 63...
-        Dim Type As String               ' "AC", "A", "F"
-        Dim Poles As String              ' "2p", "4p"
-        Dim Sensitivity As Integer       ' 10, 30, 100, 300, 500 (mA)
-        Dim DeviceType As String         ' "RCCB", "RCBO", "iID"
-        Dim Breaker As Boolean           ' Дали RCD има вграден прекъсвач (RCBO) или е само ДТЗ (RCCB)
+        ''' <summary>
+        ''' Производител на RCD устройството.
+        ''' </summary>
+        ''' <remarks>
+        ''' Примерни стойности:
+        ''' - "Schneider"
+        ''' - "ABB"
+        ''' - "Legrand"
+        ''' Марката се използва за документиране, избор на съвместими компоненти
+        ''' и осигуряване на надеждност според стандартите.
+        ''' </remarks>
+        Dim Brand As String
+        ''' <summary>
+        ''' Номинален ток на RCD в ампери.
+        ''' </summary>
+        ''' <remarks>
+        ''' Обикновено стойности като 25, 40, 63 и т.н.
+        ''' Определя максималния ток, при който устройството може да работи без да се изключва.
+        ''' Използва се за оразмеряване на веригата и съвместимост с прекъсвачи.
+        ''' </remarks>
+        Dim NominalCurrent As Integer
+        ''' <summary>
+        ''' Тип на чувствителността на RCD спрямо диференциален ток.
+        ''' </summary>
+        ''' <remarks>
+        ''' Примерни стойности:
+        ''' - "AC" – реагира на синусоидален променлив ток
+        ''' - "A" – реагира на променлив и пулсиращ постоянен ток
+        ''' - "F" – висока чувствителност, бърза реакция на различни видове ток
+        ''' Типът влияе на приложимостта в различни електрически инсталации.
+        ''' </remarks>
+        Dim Type As String
+        ''' <summary>
+        ''' Брой полюси на устройството.
+        ''' </summary>
+        ''' <remarks>
+        ''' Стойности като:
+        ''' - "2p" – двуполюсен
+        ''' - "4p" – четириполюсен
+        ''' Броят на полюсите определя фазовостта на веригата, която RCD защитава.
+        ''' </remarks>
+        Dim Poles As String
+        ''' <summary>
+        ''' Чувствителност на RCD в милиампери (mA).
+        ''' </summary>
+        ''' <remarks>
+        ''' Примерни стойности:
+        ''' - 10, 30, 100, 300, 500
+        ''' Определя токът на утечка, при който устройството ще сработи.
+        ''' Използва се за защита на хора (обикновено 30 mA) или оборудване (100–500 mA).
+        ''' </remarks>
+        Dim Sensitivity As Integer
+        ''' <summary>
+        ''' Вид на устройството.
+        ''' </summary>
+        ''' <remarks>
+        ''' Примерни стойности:
+        ''' - "RCCB" – само диференциална защита без прекъсвач
+        ''' - "RCBO" – комбинира диференциална защита с прекъсвач
+        ''' - "iID" – интелигентен диференциален изключвател
+        ''' Видът определя функционалността и начина на защита на веригата.
+        ''' </remarks>
+        Dim DeviceType As String
+        ''' <summary>
+        ''' Показва дали устройството има вграден прекъсвач.
+        ''' </summary>
+        ''' <remarks>
+        ''' True – устройството е RCBO (комбиниран прекъсвач + ДТЗ)
+        ''' False – устройството е RCCB (само диференциална защита)
+        ''' Това поле се използва при изчисления и избор на защита за конкретна електрическа линия.
+        ''' </remarks>
+        Dim Breaker As Boolean
     End Structure
+    ''' <summary>
+    ''' Структура: strKonsumator
+    ''' </summary>
+    ''' <remarks>
+    ''' Тази структура описва един електрически консуматор (товар), извлечен от блок в AutoCAD чертеж.
+    ''' Използва се като контейнер за съхранение на информацията, прочетена от атрибутите на блока,
+    ''' както и на допълнително изчислени или обработени стойности.
+    '''
+    ''' Всеки елемент от този тип представлява един обект от електрическата инсталация
+    ''' (например осветително тяло, контакт, консуматор, LED лента и др.).
+    '''
+    ''' Данните в структурата се използват по-късно за:
+    ''' - изчисляване на мощности
+    ''' - групиране по токови кръгове
+    ''' - определяне на табла
+    ''' - електрически изчисления
+    ''' - създаване на таблици и отчети
+    '''
+    ''' Структурата е създадена като Value Type (Structure), което означава:
+    ''' - съхранява се по стойност
+    ''' - при копиране се копират всички полета
+    ''' - използва се удобно в списъци (List(Of strKonsumator)) при обработка на множество консуматори
+    ''' </remarks>
     Public Structure strKonsumator
-        Dim Name As String              ' Име на блока
-        Dim ID_Block As ObjectId        ' Връзка към AutoCAD
-        Dim ТоковКръг As String         ' Токов кръг
-        Dim strМОЩНОСТ As String        ' Мощност като текст от атрибут
-        Dim doubМОЩНОСТ As Double       ' Мощност като число
-        Dim ТАБЛО As String             ' Табло
-        Dim Pewdn As String             ' Предназначение
-        Dim PEWDN1 As String            ' Доп. предназначение
-        Dim Dylvina_Led As Double       ' За LED ленти
-        Dim Visibility As String        ' За динамични блокове
-        Dim Phase As Integer            ' Брой фази (1, 3)
+        ''' <summary>
+        ''' Име на блока в AutoCAD.
+        ''' </summary>
+        ''' <remarks>
+        ''' Това е името на блока, който представлява консуматора в чертежа.
+        ''' Често чрез него може да се определи типът на консуматора
+        ''' (например осветително тяло, контакт, LED лента и др.).
+        '''
+        ''' Полето се използва основно за:
+        ''' - идентификация на типа елемент
+        ''' - филтриране на блокове
+        ''' - диагностични проверки
+        ''' </remarks>
+        Dim Name As String
+        ''' <summary>
+        ''' Уникален идентификатор на блока в AutoCAD.
+        ''' </summary>
+        ''' <remarks>
+        ''' ObjectId е специален тип от AutoCAD API, който сочи към конкретен обект в чертежа.
+        ''' Чрез този идентификатор може по-късно:
+        ''' - да се достъпи самият блок
+        ''' - да се четат или променят неговите атрибути
+        ''' - да се извършват операции върху него.
+        '''
+        ''' Това поле представлява директна връзка между структурата и реалния AutoCAD обект.
+        ''' </remarks>
+        Dim ID_Block As ObjectId
+        ''' <summary>
+        ''' Име или номер на токовия кръг.
+        ''' </summary>
+        ''' <remarks>
+        ''' Токовият кръг определя към коя електрическа линия е свързан консуматорът.
+        ''' Тази информация обикновено се извлича от атрибут на блока.
+        '''
+        ''' Използва се за:
+        ''' - групиране на консуматорите по кръгове
+        ''' - изчисляване на общата мощност на кръга
+        ''' - избор на прекъсвачи
+        ''' - избор на кабели
+        ''' </remarks>
+        Dim ТоковКръг As String
+        ''' <summary>
+        ''' Мощност на консуматора като текст.
+        ''' </summary>
+        ''' <remarks>
+        ''' Стойността се чете директно от атрибут на блока в AutoCAD.
+        ''' Обикновено съдържа текстова стойност като:
+        ''' - "60W"
+        ''' - "0.1 kW"
+        ''' - "12"
+        '''
+        ''' Тази стойност се съхранява в оригиналния си вид, както е записана в чертежа.
+        ''' По-късно тя може да бъде обработена и конвертирана в числова стойност.
+        '''
+        ''' Потенциален проблем:
+        ''' Ако текстът съдържа нестандартни символи или различни единици,
+        ''' може да се наложи допълнителна обработка преди конвертиране.
+        ''' </remarks>
+        Dim strМОЩНОСТ As String
+        ''' <summary>
+        ''' Мощност на консуматора като числова стойност.
+        ''' </summary>
+        ''' <remarks>
+        ''' Това е числовата версия на мощността, извлечена от strМОЩНОСТ.
+        '''
+        ''' След обработка текстовата стойност се преобразува в Double,
+        ''' което позволява извършването на математически операции:
+        ''' - сумиране на мощности
+        ''' - изчисляване на токове
+        ''' - оразмеряване на кабели
+        '''
+        ''' Единицата на измерване трябва да бъде предварително унифицирана
+        ''' (например всички стойности да са във ватове или киловати).
+        ''' </remarks>
+        Dim doubМОЩНОСТ As Double
+        ''' <summary>
+        ''' Име или обозначение на електрическото табло.
+        ''' </summary>
+        ''' <remarks>
+        ''' Показва към кое електрическо табло е свързан консуматорът.
+        '''
+        ''' Използва се за:
+        ''' - групиране на консуматорите по табла
+        ''' - изчисляване на общата мощност на таблото
+        ''' - създаване на електрически схеми
+        ''' </remarks>
+        Dim ТАБЛО As String
+        ''' <summary>
+        ''' Основно предназначение на консуматора.
+        ''' </summary>
+        ''' <remarks>
+        ''' Това поле описва функционалното предназначение на консуматора.
+        ''' Например:
+        ''' - Осветление
+        ''' - Контакти
+        ''' - Технологично оборудване
+        '''
+        ''' Данните обикновено се извличат от атрибут на блока.
+        ''' </remarks>
+        Dim Pewdn As String
+        ''' <summary>
+        ''' Допълнително предназначение на консуматора.
+        ''' </summary>
+        ''' <remarks>
+        ''' Това поле служи за уточняване или допълване на основното предназначение.
+        ''' Например:
+        ''' - тип осветление
+        ''' - зона на използване
+        ''' - специфична функция
+        '''
+        ''' Може да бъде празно, ако няма допълнителна информация.
+        ''' </remarks>
+        Dim PEWDN1 As String
+        ''' <summary>
+        ''' Дължина на LED лента.
+        ''' </summary>
+        ''' <remarks>
+        ''' Използва се когато консуматорът представлява LED осветление тип лента.
+        '''
+        ''' Стойността представлява физическата дължина на лентата,
+        ''' която по-късно може да се използва за:
+        ''' - изчисляване на мощност
+        ''' - определяне на захранване
+        ''' - оразмеряване на кабели.
+        '''
+        ''' Ако консуматорът не е LED лента,
+        ''' това поле обикновено остава със стойност 0.
+        ''' </remarks>
+        Dim Dylvina_Led As Double
+        ''' <summary>
+        ''' Състояние на Visibility параметъра на динамичен блок.
+        ''' </summary>
+        ''' <remarks>
+        ''' Някои AutoCAD блокове са динамични и съдържат параметър Visibility,
+        ''' който определя визуалния вариант на блока.
+        '''
+        ''' Това поле съхранява текущото състояние на този параметър.
+        '''
+        ''' Използва се например за:
+        ''' - определяне на типа осветително тяло
+        ''' - избор между различни конфигурации на блока
+        ''' </remarks>
+        Dim Visibility As String
+        ''' <summary>
+        ''' Брой фази на консуматора.
+        ''' </summary>
+        ''' <remarks>
+        ''' Определя дали консуматорът е:
+        ''' - еднофазен (1)
+        ''' - трифазен (3)
+        '''
+        ''' Тази информация е важна за:
+        ''' - изчисляване на токове
+        ''' - балансиране на фазите
+        ''' - избор на защити
+        ''' </remarks>
+        Dim Phase As Integer
     End Structure
     ''' <summary>
     ''' Структура токов кръг в електрическо табло.
@@ -277,7 +613,7 @@ Public Class Form_Tablo_new
         ' ============================================================
         ' ИДЕНТИФИКАЦИЯ
         ' ============================================================
-        Public boDefault As Boolean             ' Дали токовия кръг има дефолтни параметри
+        Public Device As String                 ' какъв тип консуматор е (осветление, контакти, технологично оборудване)
         Public Tablo As String                  ' Табло към което принадлежи кръгът
         Public ТоковКръг As String              ' Име или номер на токовия кръг
         Public Брой_Полюси As Integer           ' Брой на фазите на токовия кръг
@@ -295,20 +631,20 @@ Public Class Form_Tablo_new
         ' ============================================================
         ' КАБЕЛ
         ' ============================================================
-        Public Кабел_Монтаж As String          ' Начин на монтаж 
-        Public Кабел_Полагане As String        ' Въздух или земя
-        Public Кабел_Сечение As String         ' Сечение на кабела (пример: "3x2.5")
-        Public Кабел_Тип As String             ' Тип кабел (NYM, YJV, CBT и др.)
-        Public Кабел_Брой_Фаза As String       ' Брой на Паралелни Жила на Фаза
-        Public Кабел_Брой_Група As String      ' Брой на Паралелни кабели по скара
+        Public Кабел_Монтаж As String               ' Начин на монтаж 
+        Public Кабел_Полагане As String             ' Въздух или земя
+        Public Кабел_Сечение As String              ' Сечение на кабела (пример: "3x2.5")
+        Public Кабел_Тип As String                  ' Тип кабел (NYM, YJV, CBT и др.)
+        Public Кабел_Брой_Фаза As String            ' Брой на Паралелни Жила на Фаза
+        Public Кабел_Брой_Група As String           ' Брой на Паралелни кабели по скара
         ' ============================================================
         ' ЗАЩИТА (ПРЕКЪСВАЧ)
         ' ============================================================
-        Public Breaker_Тип_Апарат As String    ' Серия апарат (EZ9, C120, NSX, MTZ)
-        Public Breaker_Крива As String                 ' Характеристика (B, C, D)
-        Public Breaker_Номинален_Ток As String         ' Номинален ток (пример: "16A")
-        Public Breaker_Изкл_Възможност As String       ' Изключвателна способност ("6000A", "10000A")
-        Public Breaker_Защитен_блок As String          ' Изключвателна способност ("6000A", "10000A")
+        Public Breaker_Тип_Апарат As String         ' Серия апарат (EZ9, C120, NSX, MTZ)
+        Public Breaker_Крива As String              ' Характеристика (B, C, D)
+        Public Breaker_Номинален_Ток As String      ' Номинален ток (пример: "16A")
+        Public Breaker_Изкл_Възможност As String    ' Изключвателна способност ("6000A", "10000A")
+        Public Breaker_Защитен_блок As String       ' Изключвателна способност ("6000A", "10000A")
         ' ============================================================
         ' ДТЗ (RCD)
         ' ============================================================
@@ -329,7 +665,7 @@ Public Class Form_Tablo_new
         ' ДОПЪЛНИТЕЛНИ ФЛАГОВЕ
         ' ============================================================
         Public Управление As String            ' Тип управление (ако има)
-        Public Шина As Boolean                 ' Дали кръгът е на шинена
+        Public Шина As Boolean                 ' Дали кръгът е на отделна шина
         Public ДТЗ_RCD As Boolean              ' Дали има задължително трявба да има ДТЗ
         ' ============================================================
         ' КОНСУМАТОРИ В КРЪГА
@@ -747,9 +1083,35 @@ Public Class Form_Tablo_new
         DataGridView1.BorderStyle = BorderStyle.Fixed3D
         DataGridView1.CellBorderStyle = DataGridViewCellBorderStyle.Single
     End Sub
+    ''' <summary>
+    ''' Настройва DataGridViewComboBoxCell с подходящи елементи според подаден параметър.
+    ''' </summary>
+    ''' <param name="cell">Клетката от DataGridView, която ще бъде превърната в ComboBox.</param>
+    ''' <param name="parameter">
+    ''' Параметърът определя какви стойности да се добавят в ComboBox:
+    ''' - "Тип на апарата" – зарежда списък с прекъсвачи (Breakers_For_combo)
+    ''' - "Номинален ток" – зарежда стандартни номинални токове
+    ''' - "Крива" – зарежда типове токови криви B, C, D
+    ''' - "Управление" – зарежда възможни видове управление (например импулсно реле, моторна защита и др.)
+    ''' - "Тип" – може да зарежда типове кабели (коментарът показва, че е оставено за бъдеща имплементация)
+    ''' </param>
+    ''' <remarks>
+    ''' ✅ Добра практика:
+    ''' - Изчиства старите елементи в ComboBox преди добавяне на нови.
+    ''' - Задава първия елемент като стойност на клетката, за да се избегне празна стойност.
+    ''' - Настройва DisplayStyle на DropDown, позволявайки потребителя да вижда падащия списък.
+    '''
+    ''' Потенциални фрапиращи моменти:
+    ''' - Ако Breakers_For_combo е празен, клетката ще зададе стойност на първия елемент, което може да хвърли изключение.
+    ''' - Коментарът при "Тип" показва, че добавянето на Kable_Type не е реализирано, което може да доведе до липсващи данни.
+    ''' - Не се проверява дали подаденият cell е наистина DataGridViewComboBoxCell извън CType кастинга.
+    ''' </remarks>
     Private Sub SetupComboBoxCell(cell As DataGridViewCell, parameter As String)
+        ' Преобразуваме клетката към ComboBoxCell
         Dim comboCell As DataGridViewComboBoxCell = CType(cell, DataGridViewComboBoxCell)
-        comboCell.Items.Clear() ' Добра практика е да изчистите старите
+        ' Изчистваме всички стари елементи, за да не се дублират
+        comboCell.Items.Clear()
+        ' Добавяме елементи според типа параметър
         Select Case parameter
             Case "Тип на апарата"
                 comboCell.Items.AddRange(Breakers_For_combo.ToArray())
@@ -759,22 +1121,23 @@ Public Class Form_Tablo_new
                 comboCell.Items.AddRange("B", "C", "D")
             Case "Управление"
                 comboCell.Items.AddRange("Няма",
-                                         "Импулсно реле",
-                                         "Моторна защита",
-                                         "Контактор",
-                                         "Моторен механизъм",
-                                         "Честотен регулатор",
-                                         "Стълбищен автомат",
-                                         "Електромер",
-                                         "Фото реле")
+                                     "Импулсно реле",
+                                     "Моторна защита",
+                                     "Контактор",
+                                     "Моторен механизъм",
+                                     "Честотен регулатор",
+                                     "Стълбищен автомат",
+                                     "Електромер",
+                                     "Фото реле")
             Case "Тип"
-                'comboCell.Items.AddRange(Kable_Type)
+                ' Възможно зареждане на Kable_Type в бъдеще
         End Select
-        ' ✅ ЗАДАЙ ПЪРВИЯ ЕЛЕМЕНТ КАТО СТОЙНОСТ
+        ' ✅ Задаваме първия елемент като стойност, за да избегнем празна клетка
         If comboCell.Items.Count > 0 Then comboCell.Value = comboCell.Items(0)
-        'comboCell.DisplayStyle = ComboBoxStyle.Simple
+        ' Настройка на вида на ComboBox:
+        ' - DropDown позволява избор от списъка с възможност за писане
+        ' - DropDownList ограничава избора само до елементите от списъка
         comboCell.DisplayStyle = ComboBoxStyle.DropDown
-        'comboCell.DisplayStyle = ComboBoxStyle.DropDownList
     End Sub
     ''' <summary>
     ''' Обработва грешки, възникнали при въвеждане или обработка на данни в DataGridView.
@@ -947,8 +1310,12 @@ Public Class Form_Tablo_new
                             New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 63, .Type = "si", .Poles = "2p", .Sensitivity = 300, .DeviceType = "iID", .Breaker = False},
                             New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "si", .Poles = "4p", .Sensitivity = 300, .DeviceType = "iID", .Breaker = False},
                             New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "si", .Poles = "4p", .Sensitivity = 300, .DeviceType = "iID", .Breaker = False},
-                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 63, .Type = "si", .Poles = "4p", .Sensitivity = 300, .DeviceType = "iID", .Breaker = False}
-                        }
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 63, .Type = "si", .Poles = "4p", .Sensitivity = 300, .DeviceType = "iID", .Breaker = False},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "iID", .Breaker = False},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "iID", .Breaker = False},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 80, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "iID", .Breaker = False},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 100, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "iID", .Breaker = False}
+        }
         LiMountMethod = New List(Of strMountMethod) From {
             New strMountMethod With {.Simbol = "A1", .Text = "В изолация"},
             New strMountMethod With {.Simbol = "B1", .Text = "Тръба (стена)"},
@@ -1486,14 +1853,14 @@ Public Class Form_Tablo_new
                     .DefaultPrednaz = "Контакти",
                     .DefaultPrednaz1 = "",
                     .VisibilityRules = New List(Of VisRule) From {
-                        New VisRule With {.VisibilityPattern = "ДВУГНЕЗДОВ", .ContactCount = 1},
-                        New VisRule With {.VisibilityPattern = "ТРИГНЕЗДОВ", .ContactCount = 2},
+                        New VisRule With {.VisibilityPattern = "ДВУГНЕЗДОВ", .Poles = 1, .ContactCount = 2},
+                        New VisRule With {.VisibilityPattern = "ТРИГНЕЗДОВ", .Poles = 1, .ContactCount = 3},
                         New VisRule With {.VisibilityPattern = "ТРИФАЗЕН", .Poles = 3, .Cable = "5" & ZnakX & "2,5", .Phase = "L1,L2,L3"},
                         New VisRule With {.VisibilityPattern = "ТР+2МФ", .Poles = 3, .Cable = "5" & ZnakX & "2,5", .Phase = "L1,L2,L3", .ContactCount = 2},
-                        New VisRule With {.VisibilityPattern = "ТВЪРДА ВРЪЗКА", .Cable = "3" & ZnakX & "4,0"},
-                        New VisRule With {.VisibilityPattern = "УСИЛЕН", .Cable = "3" & ZnakX & "4,0"},
-                        New VisRule With {.VisibilityPattern = "IP 54", .Cable = "3" & ZnakX & "2,5"},
-                        New VisRule With {.VisibilityPattern = "МОНТАЖ В КАНАЛ", .Cable = "3" & ZnakX & "2,5"}
+                        New VisRule With {.VisibilityPattern = "ТВЪРДА ВРЪЗКА", .Poles = 1, .Cable = "3" & ZnakX & "4,0"},
+                        New VisRule With {.VisibilityPattern = "УСИЛЕН", .Poles = 1, .Cable = "3" & ZnakX & "4,0"},
+                        New VisRule With {.VisibilityPattern = "IP 54", .Poles = 1, .Cable = "3" & ZnakX & "2,5"},
+                        New VisRule With {.VisibilityPattern = "МОНТАЖ В КАНАЛ", .Poles = 1, .Cable = "3" & ZnakX & "2,5"}
                     }
                 },
                 New BlockConfig With {        ' ВЕНТИЛАЦИИ, КЛИМАТИЦИ, КОНВЕКТОРИ
@@ -1519,9 +1886,9 @@ Public Class Form_Tablo_new
                     .VisibilityRules = New List(Of VisRule) From {
                         New VisRule With {.VisibilityPattern = "ИЗХОД 3P", .Poles = 3, .Cable = "5" & ZnakX & "2,5", .Phase = "L1,L2,L3"},
                         New VisRule With {.VisibilityPattern = "380V", .Poles = 3, .Cable = "5" & ZnakX & "2,5", .Phase = "L1,L2,L3"},
-                        New VisRule With {.VisibilityPattern = "ПРОТОЧЕН", .Breaker = "20"},
-                        New VisRule With {.VisibilityPattern = "СЕШОАР", .Breaker = "16"},
-                        New VisRule With {.VisibilityPattern = "СЕШОАР С КОНТАКТ", .Breaker = "16"},
+                        New VisRule With {.VisibilityPattern = "ПРОТОЧЕН", .Poles = 1, .Breaker = "20"},
+                        New VisRule With {.VisibilityPattern = "СЕШОАР", .Poles = 1, .Breaker = "16"},
+                        New VisRule With {.VisibilityPattern = "СЕШОАР С КОНТАКТ", .Poles = 1, .Breaker = "16"},
                         New VisRule With {.VisibilityPattern = "ИЗХОД ГАЗ", .Cable = "3" & ZnakX & "2,5", .Breaker = "6"}
                     }
                 }
@@ -1583,10 +1950,9 @@ Public Class Form_Tablo_new
                                     config.DefaultBreaker)
         tokow.Breaker_Номинален_Ток = breakerVal
         ' Полюси – от правило или default
-        tokow.Брой_Полюси = If(visRule IsNot Nothing AndAlso
-                            Not String.IsNullOrEmpty(visRule.Poles),
-                            visRule.Poles,
-                            config.DefaultPoles)
+        tokow.Брой_Полюси = If(visRule IsNot Nothing AndAlso visRule.Poles <> 0,
+                                     visRule.Poles,
+                                     config.DefaultPoles)
         ' Числова стойност на полюсите (1 или 3)
         ' Тип апарат – от правило или default
         tokow.Breaker_Тип_Апарат = If(visRule IsNot Nothing AndAlso
@@ -1621,6 +1987,7 @@ Public Class Form_Tablo_new
             Case "Lamp"
                 ' Увеличаваме броя лампи
                 tokow.brLamp += count
+                tokow.Device = "Лампа"
             Case "Contact"
                 ' Ако има специфично правило за брой контакти
                 If visRule IsNot Nothing AndAlso
@@ -1629,8 +1996,7 @@ Public Class Form_Tablo_new
                 Else
                     tokow.brKontakt += count
                 End If
-                ' За контакти автоматично изискваме ДТЗ
-               'tokow.ДТЗ_RCD = True
+                tokow.Device = "Контакт"
             Case "Device"
                 ' За устройства – предназначението идва от консуматора
                 tokow.Консуматор = kons.Pewdn
@@ -1651,6 +2017,7 @@ Public Class Form_Tablo_new
                 If boilerTypes.Contains(kons.Visibility) Then
                     tokow.ДТЗ_RCD = True
                     tokow.RCD_Автомат = True
+                    tokow.Device = "Бойлер"
                 End If
         End Select
     End Sub
@@ -1685,7 +2052,7 @@ Public Class Form_Tablo_new
             tokow.brKontakt = 0
             tokow.Мощност = 0
             tokow.Брой_Полюси = 1
-            tokow.boDefault = False
+            tokow.Device = ""
             ' --------------------------------------------------------
             ' 3) Обработка на всички консуматори в кръга
             ' --------------------------------------------------------
@@ -1753,27 +2120,48 @@ Public Class Form_Tablo_new
         ' ------------------------------------------------------------
         ' Избор на серия прекъсвач според изчисления ток
         ' ------------------------------------------------------------
-        Select Case tokow.Ток
-            Case Is <= 63
-                ' MCB – модулни прекъсвачи (Easy9, iC60N)
-                ' Използва се характеристика C (подходяща за смесени товари)
-                breaker = SelectBreaker(tokow.Ток, tokow.Брой_Полюси, "C")
-            Case Is <= 125
-                ' C120 – модулни прекъсвачи за по-големи токове
-                ' Също използва крива C
-                breaker = SelectBreaker(tokow.Ток, tokow.Брой_Полюси, "C")
-            Case Is <= 160
-                ' NSXm – компактни MCCB прекъсвачи
-                ' Обикновено се използва характеристика N
-                breaker = SelectBreaker(tokow.Ток, tokow.Брой_Полюси, "N")
-            Case Is <= 630
-                ' NSX – MCCB прекъсвачи за индустриални табла
-                ' Характеристика N
-                breaker = SelectBreaker(tokow.Ток, tokow.Брой_Полюси, "N")
+        Select Case tokow.Device
+            Case "Бойлер"
+                If tokow.Ток > 17 Then
+                    breaker = SelectBreaker(tokow.Ток, tokow.Брой_Полюси, "C")
+                Else
+                    breaker = SelectBreaker(17, tokow.Брой_Полюси, "C")
+                End If
+                ' За бойлери използваме по-строги критерии (крива C)
+            Case "Контакт"
+                ' За контакти също използваме крива C
+                If tokow.Ток > 17 Then
+                    breaker = SelectBreaker(tokow.Ток, tokow.Брой_Полюси, "C")
+                Else
+                    breaker = SelectBreaker(17, tokow.Брой_Полюси, "C")
+                End If
+            Case "Лампа"
+                ' За лампи може да се използва по-лека крива (B), но за по-големи токове – C
+                breaker = SelectBreaker(8.5, tokow.Брой_Полюси, "C")
             Case Else
-                ' MTZ – въздушни прекъсвачи (ACB)
-                ' Тук вместо крива се използва специална серия
-                breaker = SelectBreaker(tokow.Ток, tokow.Брой_Полюси, "MTZ")
+                ' За други устройства – използваме крива C като универсална
+                Select Case tokow.Ток
+                    Case Is <= 63
+                        ' MCB – модулни прекъсвачи (Easy9, iC60N)
+                        ' Използва се характеристика C (подходяща за смесени товари)
+                        breaker = SelectBreaker(tokow.Ток, tokow.Брой_Полюси, "C")
+                    Case Is <= 125
+                        ' C120 – модулни прекъсвачи за по-големи токове
+                        ' Също използва крива C
+                        breaker = SelectBreaker(tokow.Ток, tokow.Брой_Полюси, "C")
+                    Case Is <= 160
+                        ' NSXm – компактни MCCB прекъсвачи
+                        ' Обикновено се използва характеристика N
+                        breaker = SelectBreaker(tokow.Ток, tokow.Брой_Полюси, "N")
+                    Case Is <= 630
+                        ' NSX – MCCB прекъсвачи за индустриални табла
+                        ' Характеристика N
+                        breaker = SelectBreaker(tokow.Ток, tokow.Брой_Полюси, "N")
+                    Case Else
+                        ' MTZ – въздушни прекъсвачи (ACB)
+                        ' Тук вместо крива се използва специална серия
+                        breaker = SelectBreaker(tokow.Ток, tokow.Брой_Полюси, "MTZ")
+                End Select
         End Select
         ' ------------------------------------------------------------
         ' Проверка дали е намерен подходящ прекъсвач
@@ -1815,29 +2203,24 @@ Public Class Form_Tablo_new
         ' Дефиниране на константи за диапазона (коефициенти)
         Const MIN_FACTOR As Double = 1.15 ' Прекъсвачът трябва да е поне 15% над изчисления ток
         Const MAX_FACTOR As Double = 1.25 ' Но не повече от 25% над него (примерно)
-
         Dim minRange As Double = calculatedCurrent * MIN_FACTOR
         Dim maxRange As Double = calculatedCurrent * MAX_FACTOR
-
         ' Филтрираме прекъсвачите, които попадат точно в този "прозорец"
         Dim suitableBreakers = Breakers.Where(Function(b) b.Poles = poles AndAlso
                             String.Equals(b.Curve, curve, StringComparison.OrdinalIgnoreCase) AndAlso
                             b.NominalCurrent >= minRange AndAlso
                             b.NominalCurrent <= maxRange
                             ).OrderBy(Function(b) b.NominalCurrent).ToList()
-
         ' Връщаме първия (най-малкия подходящ) от диапазона
         Dim selectedBreaker = suitableBreakers.FirstOrDefault()
-
         ' Ако не открием прекъсвач в този тесен диапазон, 
         ' можем да върнем първия по-голям (fallback), за да не остане празен резултат
         If selectedBreaker Is Nothing Then
             selectedBreaker = Breakers.Where(Function(b) b.Poles = poles AndAlso
                             String.Equals(b.Curve, curve, StringComparison.OrdinalIgnoreCase) AndAlso
-                            b.NominalCurrent >= calculatedCurrent
+                            b.NominalCurrent >= minRange
                             ).OrderBy(Function(b) b.NominalCurrent).FirstOrDefault()
         End If
-
         Return selectedBreaker
     End Function
     ''' <summary>
@@ -1916,42 +2299,7 @@ Public Class Form_Tablo_new
                 Dim circuit As strTokow = panelCircuits(i)
                 Dim colIndex As Integer = i + 2
                 If colIndex < DataGridView1.Columns.Count - 1 Then
-                    Select Case paramName
-                        ' --- ЗАЩИТА (ПРЕКЪСВАЧ) ---
-                        Case "Тип на апарата" : row.Cells(colIndex).Value = panelCircuits(i).Breaker_Тип_Апарат
-                        Case "Номинален ток" : row.Cells(colIndex).Value = panelCircuits(i).Breaker_Номинален_Ток
-                        Case "Изкл. възможн." : row.Cells(colIndex).Value = panelCircuits(i).Breaker_Изкл_Възможност
-                        Case "Крива" : row.Cells(colIndex).Value = panelCircuits(i).Breaker_Крива
-                        Case "Защитен блок" : row.Cells(colIndex).Value = panelCircuits(i).Breaker_Защитен_блок
-                        Case "Брой полюси" : row.Cells(colIndex).Value = panelCircuits(i).Брой_Полюси
-                        ' --- ДТЗ (RCD) ---
-                        Case "ДТЗ Нула" : row.Cells(colIndex).Value = panelCircuits(i).RCD_Нула
-                        Case "Вид на апарата" : row.Cells(colIndex).Value = panelCircuits(i).RCD_Тип
-                        Case "Клас на апарата" : row.Cells(colIndex).Value = panelCircuits(i).RCD_Клас
-                        Case "ДТЗ(RCD) Ном. ток" : row.Cells(colIndex).Value = panelCircuits(i).RCD_Ток
-                        Case "Чувствителност" : row.Cells(colIndex).Value = panelCircuits(i).RCD_Чувствителност
-                        Case "Брой полюси" : row.Cells(colIndex).Value = panelCircuits(i).RCD_Полюси
-                            ' --- БРОЯЧИ И МОЩНОСТ ---
-                        Case "Брой лампи" : row.Cells(colIndex).Value = panelCircuits(i).brLamp
-                        Case "Брой контакти" : row.Cells(colIndex).Value = panelCircuits(i).brKontakt
-                        Case "Инст. мощност" : row.Cells(colIndex).Value = panelCircuits(i).Мощност.ToString("N3")
-                        Case "Изчислен ток" : row.Cells(colIndex).Value = panelCircuits(i).Ток.ToString("N2")
-                        ' --- КАБЕЛ И ФАЗА ---
-                        Case "Начин на монтаж" : row.Cells(colIndex).Value = panelCircuits(i).Кабел_Монтаж
-                        Case "Начин на полагане" : row.Cells(colIndex).Value = panelCircuits(i).Кабел_Полагане
-                        Case "Паралелни кабели (фаза):" : row.Cells(colIndex).Value = panelCircuits(i).Кабел_Брой_Фаза
-                        Case "Съседни кабели (група):" : row.Cells(colIndex).Value = panelCircuits(i).Кабел_Брой_Група
-                        Case "Тип" : row.Cells(colIndex).Value = panelCircuits(i).Кабел_Тип
-                        Case "Сечение" : row.Cells(colIndex).Value = panelCircuits(i).Кабел_Сечение
-                        ' --- ОПИСАНИЯ ---
-                        Case "Фаза" : row.Cells(colIndex).Value = panelCircuits(i).Фаза
-                        Case "Консуматор" : row.Cells(colIndex).Value = panelCircuits(i).Консуматор
-                        Case "предназначение" : row.Cells(colIndex).Value = panelCircuits(i).предназначение
-                        Case "Управление" : row.Cells(colIndex).Value = panelCircuits(i).Управление
-                        ' --- ФЛАГОВЕ ---
-                        Case "Шина" : row.Cells(colIndex).Value = panelCircuits(i).Шина
-                        Case "Постави ДТЗ (RCD)" : row.Cells(colIndex).Value = panelCircuits(i).ДТЗ_RCD
-                    End Select
+                    UpdateCircuitColumn(circuit, colIndex)
                 End If
             Next
             ' 3. ОБЩО (последна колона)
@@ -1985,6 +2333,85 @@ Public Class Form_Tablo_new
                         totalCurrent = (totalPower * 1000) / 230
                     End If
                     row.Cells(totalColIndex).Value = totalCurrent.ToString("0.00")
+            End Select
+        Next
+    End Sub
+    ''' <summary>
+    ''' Актуализира стойностите на конкретна колона в DataGridView за даден токов кръг.
+    ''' </summary>
+    ''' <param name="circuit">Обект от тип strTokow, съдържащ информация за токовия кръг.</param>
+    ''' <param name="colIndex">Индекс на колоната в DataGridView, която ще се обнови.</param>
+    ''' <remarks>
+    ''' Тази процедура обхожда всички редове на DataGridView1 и за всеки ред:
+    ''' - Чете първата клетка (Cells(0)), която съдържа името на параметъра.
+    ''' - Според името на параметъра, присвоява съответното поле от strTokow
+    '''   на клетката в колоната colIndex.
+    '''
+    ''' Категориите параметри са структурирани по вид:
+    ''' 1. Прекъсвач:
+    '''    - Тип на апарата, Номинален ток, Изкл. възможн., Крива, Защитен блок, Брой полюси
+    ''' 2. ДТЗ / RCD:
+    '''    - ДТЗ Нула, Вид на апарата, Клас на апарата, ДТЗ(RCD) Ном. ток, Чувствителност, Брой полюси
+    ''' 3. Мощност:
+    '''    - Брой лампи, Брой контакти, Инст. мощност (форматирано N3), Изчислен ток (форматирано N2)
+    ''' 4. Кабел:
+    '''    - Начин на монтаж, Начин на полагане, Паралелни кабели (фаза), Съседни кабели (група), Тип, Сечение
+    ''' 5. Описание:
+    '''    - Фаза, Консуматор, предназначение, Управление
+    ''' 6. Флагове:
+    '''    - Шина, Постави ДТЗ (RCD)
+    '''
+    ''' Потенциални особености и предупреждения:
+    ''' - Ако някой ред няма стойност в Cells(0), ToString() може да хвърли изключение.
+    ''' - strTokow се предполага като вече инициализиран и попълнен с всички необходими данни.
+    ''' - Форматирането на стойности (N3, N2) гарантира четимост за мощност и ток.
+    ''' - Ако DataGridView съдържа редове с имена, които не са включени в Select Case,
+    '''   те ще останат непроменени.
+    ''' - Полетата като ДТЗ_RCD и Шина са логически/флагови и служат за управление на допълнителни действия в интерфейса.
+    ''' </remarks>
+    Private Sub UpdateCircuitColumn(circuit As strTokow, colIndex As Integer)
+        ' Проверка дали обектът е инициализиран
+        If circuit Is Nothing Then Return
+        ' Обхождане на всички редове в DataGridView
+        For Each row As DataGridViewRow In DataGridView1.Rows
+            ' Името на параметъра се чете от първата клетка
+            Dim paramName As String = row.Cells(0).Value.ToString()
+            ' Присвояване на стойност от strTokow според името на параметъра
+            Select Case paramName
+            ' --- ПРЕКЪСВАЧ ---
+                Case "Тип на апарата" : row.Cells(colIndex).Value = circuit.Breaker_Тип_Апарат
+                Case "Номинален ток" : row.Cells(colIndex).Value = circuit.Breaker_Номинален_Ток
+                Case "Изкл. възможн." : row.Cells(colIndex).Value = circuit.Breaker_Изкл_Възможност
+                Case "Крива" : row.Cells(colIndex).Value = circuit.Breaker_Крива
+                Case "Защитен блок" : row.Cells(colIndex).Value = circuit.Breaker_Защитен_блок
+                Case "Брой полюси" : row.Cells(colIndex).Value = circuit.Брой_Полюси
+            ' --- ДТЗ ---
+                Case "ДТЗ Нула" : row.Cells(colIndex).Value = circuit.RCD_Нула
+                Case "Вид на апарата" : row.Cells(colIndex).Value = circuit.RCD_Тип
+                Case "Клас на апарата" : row.Cells(colIndex).Value = circuit.RCD_Клас
+                Case "ДТЗ(RCD) Ном. ток" : row.Cells(colIndex).Value = circuit.RCD_Ток
+                Case "Чувствителност" : row.Cells(colIndex).Value = circuit.RCD_Чувствителност
+                Case "Брой полюси" : row.Cells(colIndex).Value = circuit.RCD_Полюси
+            ' --- МОЩНОСТ ---
+                Case "Брой лампи" : row.Cells(colIndex).Value = circuit.brLamp
+                Case "Брой контакти" : row.Cells(colIndex).Value = circuit.brKontakt
+                Case "Инст. мощност" : row.Cells(colIndex).Value = circuit.Мощност.ToString("N3")
+                Case "Изчислен ток" : row.Cells(colIndex).Value = circuit.Ток.ToString("N2")
+            ' --- КАБЕЛ ---
+                Case "Начин на монтаж" : row.Cells(colIndex).Value = circuit.Кабел_Монтаж
+                Case "Начин на полагане" : row.Cells(colIndex).Value = circuit.Кабел_Полагане
+                Case "Паралелни кабели (фаза):" : row.Cells(colIndex).Value = circuit.Кабел_Брой_Фаза
+                Case "Съседни кабели (група):" : row.Cells(colIndex).Value = circuit.Кабел_Брой_Група
+                Case "Тип" : row.Cells(colIndex).Value = circuit.Кабел_Тип
+                Case "Сечение" : row.Cells(colIndex).Value = circuit.Кабел_Сечение
+            ' --- ОПИСАНИЕ ---
+                Case "Фаза" : row.Cells(colIndex).Value = circuit.Фаза
+                Case "Консуматор" : row.Cells(colIndex).Value = circuit.Консуматор
+                Case "предназначение" : row.Cells(colIndex).Value = circuit.предназначение
+                Case "Управление" : row.Cells(colIndex).Value = circuit.Управление
+            ' --- ФЛАГОВЕ ---
+                Case "Шина" : row.Cells(colIndex).Value = circuit.Шина
+                Case "Постави ДТЗ (RCD)" : row.Cells(colIndex).Value = circuit.ДТЗ_RCD
             End Select
         Next
     End Sub
@@ -2216,6 +2643,8 @@ Public Class Form_Tablo_new
         '    При някои операции (например сортиране или инициализация)
         '    DataGridView може да подаде -1 като индекс.
         ' ------------------------------------------------------------
+        'If updateInProgress Then Return ' Защита от рекурсия при програма промяна на клетки
+
         If e.RowIndex < 0 OrElse e.ColumnIndex < 0 Then Return
         ' ------------------------------------------------------------
         ' 2) Вземане на текущия ред и колона от DataGridView
@@ -2238,76 +2667,16 @@ Public Class Form_Tablo_new
         ' ------------------------------------------------------------
         ' 5) Избор на действие според типа параметър
         ' ------------------------------------------------------------
+
+        Dim tokow As strTokow = FindTokowByColumn(e)
+
         Select Case paramName
             Case "Тип на апарата"
-#Region "ФИЛТРИРАНЕ НА ПРЕКЪСВАЧИТЕ СПРЯМО ИЗБРАНАТА СЕРИЯ"
-                ' ------------------------------------------------------------
-                ' 1) ФИЛТРИРАНЕ НА ПРЕКЪСВАЧИТЕ СПРЯМО ИЗБРАНАТА СЕРИЯ
-                ' ------------------------------------------------------------
-                ' Breakers е каталог (List(Of BreakerInfo)), който съдържа всички
-                ' налични прекъсвачи – Easy9, C120, NSX, MTZ и т.н.
-                '
-                ' selectedValue идва от DataGridView и представлява избраната
-                ' серия прекъсвачи от потребителя (например "EZ9", "C120", "NSX").
-                '
-                ' Тук филтрираме каталога така, че да останат само прекъсвачите
-                ' от избраната серия.
-                '
-                ' Пример:
-                ' Ако selectedValue = "EZ9"
-                ' резултатът ще съдържа само прекъсвачите от серия Easy9.
-                '
-#End Region
                 Dim filteredBreakers = Breakers.Where(Function(b) b.Series = selectedValue).ToList()
-#Region "ИЗВЛИЧАНЕ НА ВЪЗМОЖНИТЕ НОМИНАЛНИ ТОКОВЕ"
-                ' ------------------------------------------------------------
-                ' 2) ИЗВЛИЧАНЕ НА ВЪЗМОЖНИТЕ НОМИНАЛНИ ТОКОВЕ
-                ' ------------------------------------------------------------
-                ' След като имаме списък само с прекъсвачите от избраната серия,
-                ' трябва да извлечем всички възможни номинални токове (NominalCurrent).
-                '
-                ' Например серия EZ9 може да има:
-                ' 6A, 10A, 16A, 20A, 25A, 32A, 40A, 50A, 63A
-                '
-                ' Използваме LINQ Select(), за да вземем само колоната NominalCurrent.
-                '
-                ' След това:
-                ' .ToString() → превръщаме числото в текст (за ComboBox)
-                ' .Distinct() → премахваме дублиращите стойности
-                ' .ToList() → превръщаме резултата обратно в List(Of String)
-                '
-                ' Така получаваме чист списък със стойности,
-                ' които ще се покажат в ComboBox.
-                '
-#End Region
                 Dim valuesForCombo = filteredBreakers _
                                     .Select(Function(b) b.NominalCurrent.ToString()) _
                                     .Distinct() _
                                     .ToList()
-#Region "ОБНОВЯВАНЕ НА COMBOBOX КЛЕТКАТА В DataGridView"
-                ' ------------------------------------------------------------
-                ' 3) ОБНОВЯВАНЕ НА COMBOBOX КЛЕТКАТА В DataGridView
-                ' ------------------------------------------------------------
-                ' Извикваме помощната процедура UpdateComboRow(),
-                ' която обновява стойностите на ComboBox клетка
-                ' в определен ред и колона на DataGridView.
-                '
-                ' Параметри:
-                '
-                ' "Номинален ток"
-                ' → името на параметъра (реда), който трябва да бъде намерен
-                '   в първата колона на DataGridView.
-                '
-                ' valuesForCombo
-                ' → новият списък със стойности, които ще се покажат
-                '   в ComboBox-а (напр. 6, 10, 16, 20, 25...).
-                '
-                ' e.ColumnIndex
-                ' → колоната, в която потребителят е направил промяната.
-                '   Това гарантира, че обновяваме само съответната колона,
-                '   а не всички колони в таблицата.
-                '
-#End Region
                 UpdateComboRow("Номинален ток", valuesForCombo, e.ColumnIndex)
                 Dim valuesCurve = filteredBreakers _
                                     .Select(Function(b) b.Curve.ToString()) _
@@ -2320,6 +2689,10 @@ Public Class Form_Tablo_new
                     .Distinct() _
                     .ToList()
                 UpdateComboRow("Защитен блок", valuesTripUnit, e.ColumnIndex)
+            Case "Постави ДТЗ (RCD)"
+                ' ✅ Първо обнови tokow от клетката!
+                tokow.ДТЗ_RCD = CBool(DataGridView1.Rows(e.RowIndex).Cells(e.ColumnIndex).Value)
+                HandleRCDCheckboxChange(tokow)
             Case "Номинален ток"
             ' Тук може да се обработва промяна на номиналния ток
             ' на защитния апарат (например 10A, 16A, 20A...)
@@ -2351,6 +2724,43 @@ Public Class Form_Tablo_new
                 ' Подаваме списъка към твоята процедура
                 UpdateComboRow("Тип", uniqueCableTypes, e.ColumnIndex)
         End Select
+        UpdateCircuitColumn(tokow, col.Index)
+    End Sub
+    ''' <summary>
+    ''' Обработва промяна на checkbox "Постави ДТЗ (RCD)"
+    ''' </summary>
+    Private Sub HandleRCDCheckboxChange(tokow As strTokow)
+        If tokow.ДТЗ_RCD = True Then
+            ' ✅ СЛАГАМЕ ДТЗ
+            SetRCD(tokow)           ' Избираме ДТЗ от каталога
+            ClearBreaker(tokow)     ' Изчистваме MCB данните
+        Else
+            ' ✅ СЛАГАМЕ ПРЕКЪСВАЧ
+            CalculateBreaker(tokow)    ' Избираме прекъсвач
+            ClearRCD(tokow)         ' Изчистваме ДТЗ данните
+        End If
+    End Sub
+    ''' <summary>
+    ''' Изчиства данните за прекъсвач (MCB)
+    ''' </summary>
+    Private Sub ClearBreaker(tokow As strTokow)
+        tokow.Breaker_Тип_Апарат = ""           ' Серия апарат (EZ9, C120, NSX, MTZ)
+        tokow.Breaker_Крива = ""                ' Характеристика (B, C, D)
+        tokow.Breaker_Номинален_Ток = ""        ' Номинален ток (пример: "16A")
+        tokow.Breaker_Изкл_Възможност = ""      ' Изключвателна способност ("6000A", "10000A")
+        tokow.Breaker_Защитен_блок = ""         ' Изключвателна способност ("6000A", "10000A")
+    End Sub
+    ''' <summary>
+    ''' Изчиства данните за ДТЗ (RCD)
+    ''' </summary>
+    Private Sub ClearRCD(tokow As strTokow)
+        tokow.RCD_Бранд = ""
+        tokow.RCD_Тип = ""
+        tokow.RCD_Клас = ""
+        tokow.RCD_Чувствителност = ""
+        tokow.RCD_Ток = ""
+        tokow.RCD_Полюси = ""
+        tokow.RCD_Нула = ""
     End Sub
     ''' <summary>
     ''' Помощна процедура за обновяване на стойностите в ComboBox клетка
@@ -2612,30 +3022,63 @@ Public Class Form_Tablo_new
             If tokow.ДТЗ_RCD Then SetRCD(tokow)
         Next
     End Sub
+    ''' <summary>
+    ''' Определя подходяща диференциална токова защита (RCD/ДЗТ) за даден токов кръг (strTokow).
+    ''' </summary>
+    ''' <param name="tokow">Обект от тип strTokow, представляващ токов кръг или консуматор.</param>
+    ''' <remarks>
+    ''' Функцията избира RCD от каталога RCD_Catalog според следните критерии:
+    ''' 1. Номинален ток >= 1.2 * ток на токовия кръг (минимум 20 A)
+    ''' 2. Брой полюси (2p или 4p) спрямо фазовостта на кръга
+    ''' 3. Дали устройството трябва да бъде RCBO (комбиниран с прекъсвач) или само RCCB
+    '''
+    ''' Стъпки на логиката:
+    ''' - Определя се броят на полюсите според tokow.Брой_Полюси
+    ''' - Изчислява се минималният необходим номинален ток (1.2 пъти токът на кръга или минимум 20 A)
+    ''' - Филтрира се каталога RCD_Catalog по номинален ток, брой полюси и тип устройство (RCBO/RCCB)
+    ''' - Ако няма съвпадение:
+    '''   - Показва се предупреждение с всички търсени параметри и местоположението на токовия кръг (табло, токов кръг)
+    ''' - Ако има съвпадение:
+    '''   - Избира се първият подходящ RCD
+    '''   - Актуализират се параметрите на tokow, включително:
+    '''     Brand, DeviceType, Type, Sensitivity, NominalCurrent, Poles, Нула (N) и RCD_Автомат (Breaker)
+    '''
+    ''' Потенциални забележки:
+    ''' - Ако RCD_Catalog е празен или няма подходящ RCD, се показва съобщение, но функцията не връща грешка програмно.
+    ''' - Използването на First() предполага, че списъкът matchingRCDs е сортиран или е достатъчно добър избор първият елемент.
+    ''' - Полето tokow се модифицира по стойност; ако strTokow е структура (Value Type), може да се наложи връщане на обновения обект или използване на ByRef.
+    ''' - Изчислението на requiredCurrent включва коефициент 1.2; това е запас за безопасност според стандарти.
+    ''' </remarks>
     Private Sub SetRCD(tokow As strTokow)
+        ' Определяне на броя полюси на RCD: 4p за трифазен, 2p за еднофазен
         Dim poles As String = If(tokow.Брой_Полюси = 3, "4p", "2p")
+        ' Минимален номинален ток: 1.2 * ток на кръга, но не по-малко от 20 A
         Dim requiredCurrent As Double = If(tokow.Ток * 1.2 < 20, 20, tokow.Ток * 1.2)
-
+        ' Проверка дали е необходим RCBO (RCD с прекъсвач)
         Dim needRCBO As Boolean = tokow.RCD_Автомат
+        If poles = "4p" Then needRCBO = False
+        ' Филтриране на каталога за подходящи RCD
         Dim matchingRCDs = RCD_Catalog.Where(
-                                    Function(r) r.NominalCurrent >= requiredCurrent AndAlso
-                                    r.Poles = poles AndAlso
-                                    r.Breaker = needRCBO
-                                    ).ToList()
+                                Function(r) r.NominalCurrent >= requiredCurrent AndAlso
+                                r.Poles = poles AndAlso
+                                r.Breaker = needRCBO
+                                ).ToList()
         ' ----------------------------------------------------
-        ' Ако не е намерен подходяща ДЗТ
+        ' Ако не е намерена подходяща ДЗТ
         ' ----------------------------------------------------
         If matchingRCDs.Count = 0 Then
+
             Dim info As String = $"ВНИМАНИЕ: Не е намерена подходяща ДЗТ!{vbCrLf}{vbCrLf}" &
-                     $"Търсени параметри:{vbCrLf}" &
-                     $"- Мин. номинален ток: {requiredCurrent} A{vbCrLf}" &
-                     $"- Комбинирана (RCBO): {If(tokow.RCD_Автомат, "Да", "Не")}{vbCrLf}" &
-                     $"- Брой полюси: {poles}{vbCrLf}{vbCrLf}" &
-                     $"Местоположение:{vbCrLf}" &
-                     $"- Табло: {tokow.Tablo}{vbCrLf}" &
-                     $"- Токов кръг: {tokow.ТоковКръг}"
+                 $"Търсени параметри:{vbCrLf}" &
+                 $"- Мин. номинален ток: {requiredCurrent} A{vbCrLf}" &
+                 $"- Комбинирана (RCBO): {If(tokow.RCD_Автомат, "Да", "Не")}{vbCrLf}" &
+                 $"- Брой полюси: {poles}{vbCrLf}{vbCrLf}" &
+                 $"Местоположение:{vbCrLf}" &
+                 $"- Табло: {tokow.Tablo}{vbCrLf}" &
+                 $"- Токов кръг: {tokow.ТоковКръг}"
             MsgBox(info, MsgBoxStyle.Exclamation, "Липсваща апаратура в каталога")
         Else
+            ' Избира се първият подходящ RCD
             Dim selectedRCD As RCDInfo = matchingRCDs.First()
             ' ------------------------------------------------
             ' Актуализиране на параметрите на токовия кръг
@@ -2649,6 +3092,84 @@ Public Class Form_Tablo_new
             tokow.RCD_Полюси = selectedRCD.Poles
             tokow.RCD_Нула = "N"
             tokow.RCD_Автомат = selectedRCD.Breaker
+            If tokow.RCD_Тип = "EZ RCBO" Then ClearBreaker(tokow)
         End If
     End Sub
+    ''' <summary>
+    ''' Намира токовия кръг в ListTokow базиран на:
+    ''' 1. Избраното табло в TreeView1
+    ''' 2. Заглавието на колоната в DataGridView (име на кръга)
+    ''' </summary>
+    Private Function FindTokowByColumn(e As DataGridViewCellEventArgs) As strTokow
+        ' 1. Взимаме таблото от TreeView
+        Dim selectedTablo As String = TreeView1.SelectedNode?.Text
+        If String.IsNullOrEmpty(selectedTablo) Then
+            Return Nothing  ' Няма избрано табло
+        End If
+        ' 2. ИЗЧИСТВАНЕ НА ИМЕТО ОТ ДОПЪЛНИТЕЛЕН ТЕКСТ
+        ' Пример: "Табло 1 (3 кръга, 5.2kW)" → "Табло 1"
+        If selectedTablo.Contains("(") Then
+            selectedTablo = selectedTablo.Substring(0, selectedTablo.IndexOf("(")).Trim()
+        End If
+        ' 2. Взимаме името на кръга от заглавието на колоната
+        Dim circuitName As String = DataGridView1.Columns(e.ColumnIndex).HeaderText
+        If String.IsNullOrEmpty(circuitName) Then
+            Return Nothing  ' Няма име на кръг
+        End If
+        ' 3. Търсим в ListTokow по Табло + ТоковКръг
+        Dim tokow As strTokow = ListTokow.FirstOrDefault(
+            Function(t) t.Tablo = selectedTablo AndAlso t.ТоковКръг = circuitName
+        )
+        Return tokow  ' Може да е Nothing ако не е намерен
+    End Function
+    ''' <summary>
+    ''' Събитие: DataGridView1_CurrentCellDirtyStateChanged
+    ''' </summary>
+    ''' <remarks>
+    ''' Това събитие се извиква когато текущата клетка в DataGridView промени състоянието си
+    ''' от "чиста" към "мръсна" (Dirty), което означава, че стойността в клетката е променена,
+    ''' но все още не е записана окончателно в модела на данните.
+    '''
+    ''' Основната цел на тази процедура е да принуди DataGridView да запише веднага
+    ''' новата стойност на клетката, когато тя е от тип:
+    ''' - DataGridViewCheckBoxCell
+    ''' - DataGridViewComboBoxCell
+    '''
+    ''' По подразбиране DataGridView записва новата стойност едва след като клетката загуби фокус.
+    ''' Това може да създаде проблеми, когато логиката на програмата разчита на събитието
+    ''' CellValueChanged да се изпълни веднага след промяна на стойността.
+    '''
+    ''' Чрез извикването на CommitEdit() стойността се записва незабавно,
+    ''' което позволява на събития като:
+    ''' - CellValueChanged
+    ''' - CellValidated
+    ''' да се задействат веднага.
+    '''
+    ''' Типични случаи на използване:
+    ''' - когато Checkbox трябва да активира или деактивира други клетки
+    ''' - когато ComboBox определя какви други параметри да се променят
+    ''' - когато таблицата управлява логика на електрически параметри или избор на апаратура
+    '''
+    ''' Потенциални особености:
+    ''' - Ако CommitEdit не се извика, CellValueChanged няма да се задейства веднага
+    '''   при Checkbox и ComboBox.
+    ''' - Това поведение е стандартна особеност на DataGridView в WinForms.
+    ''' </remarks>
+    Private Sub DataGridView1_CurrentCellDirtyStateChanged(sender As Object, e As EventArgs) Handles DataGridView1.CurrentCellDirtyStateChanged
+        ' Проверява дали текущата клетка е от тип CheckBox или ComboBox.
+        ' Тези типове клетки често изискват незабавно записване на новата стойност.
+        If TypeOf DataGridView1.CurrentCell Is DataGridViewCheckBoxCell OrElse
+            TypeOf DataGridView1.CurrentCell Is DataGridViewComboBoxCell Then
+            ' Проверява дали текущата клетка има незаписана промяна (Dirty state).
+            If DataGridView1.IsCurrentCellDirty Then
+                ' Принуждава DataGridView да запише новата стойност веднага.
+                ' Това гарантира, че събитията за промяна на стойността ще се задействат незабавно.
+                DataGridView1.CommitEdit(DataGridViewDataErrorContexts.Commit)
+            End If
+        End If
+    End Sub
+
+
+
+
 End Class

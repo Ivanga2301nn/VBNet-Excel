@@ -117,6 +117,8 @@ Public Class Form_Tablo_new
         ' - тип товар
 #End Region
         SortCircuits()
+        ' 8. ✅ ГРУПИРАНЕ НА КОНТАКТИТЕ ПО ДЗТ (НОВО!)
+        GroupContactsForRCD()
 #Region "Създаване на TreeView структура"
         ' Изгражда йерархично представяне на консуматорите:
         '
@@ -3186,8 +3188,103 @@ Public Class Form_Tablo_new
             End If
         End If
     End Sub
-
-
-
-
+    ''' <summary>
+    ''' Групира токовите кръгове с контакти по ДЗТ
+    ''' Извиква се веднага след SortCircuits()
+    ''' За всяко табло има отделен брояч на ДЗТ
+    ''' </summary>
+    Private Sub GroupContactsForRCD()
+        ' 1. Групирай по ТАБЛО
+        Dim panels = ListTokow.GroupBy(Function(t) t.Tablo)
+        For Each panelGroup In panels
+            ' 2. Филтрирай ТК с контакти (brKontakt > 0 И ДТЗ_RCD = True)
+            Dim contactCircuits = panelGroup.Where(
+                Function(t) t.brKontakt > 0
+            ).ToList()
+            Dim n As Integer = contactCircuits.Count
+            ' 3. Няма контакти → продължи
+            If n = 0 Then Continue For
+            ' 4. Брояч на ДЗТ за това табло (отделен за всяко табло!)
+            Dim rcdCounter As Integer = 0
+            ' 5. Обработка според броя
+            If n = 1 Then
+                ' ✅ 1 ТК → остава RCBO (вече избрано в CalculateRCD())
+                rcdCounter += 1
+                contactCircuits(0).RCD_Нула = "N" & rcdCounter
+            ElseIf n = 2 Then
+                ' ✅ 2 ТК → 1 RCCB за двата
+                rcdCounter += 1
+                CreateRCDGroup(contactCircuits, rcdCounter)
+            ElseIf n >= 3 Then
+                ' ✅ 3+ ТК → групиране по правилата
+                GroupByThrees(contactCircuits, n, rcdCounter)
+            End If
+        Next
+    End Sub
+    ''' <summary>
+    ''' Групира ТК по 3, 4 или 2 според правилата
+    ''' </summary>
+    ''' <param name="circuits">Списък с ТК за групиране</param>
+    ''' <param name="n">Брой ТК</param>
+    ''' <param name="rcdCounter">Брояч на ДЗТ (ByRef за да се запази)</param>
+    Private Sub GroupByThrees(circuits As List(Of strTokow), n As Integer, ByRef rcdCounter As Integer)
+        Dim fullGroups = n \ 3
+        Dim remainder As Integer = n Mod 3
+        Dim groups As New List(Of List(Of strTokow))
+        ' Определяне на групите според остатъка
+        Select Case remainder
+            Case 0
+                ' ✅ Кратно на 3 → всички групи по 3
+                For i As Integer = 0 To fullGroups - 1
+                    groups.Add(circuits.Skip(i * 3).Take(3).ToList())
+                Next
+            Case 1
+                ' ✅ Остатък 1 → (fullGroups-1) по 3 + 1 група от 4
+                For i As Integer = 0 To fullGroups - 2
+                    groups.Add(circuits.Skip(i * 3).Take(3).ToList())
+                Next
+                ' Последната група от 4
+                groups.Add(circuits.Skip((fullGroups - 1) * 3).Take(4).ToList())
+            Case 2
+                ' ✅ Остатък 2 → fullGroups по 3 + 1 група от 2
+                For i As Integer = 0 To fullGroups - 1
+                    groups.Add(circuits.Skip(i * 3).Take(3).ToList())
+                Next
+                ' Последната група от 2
+                groups.Add(circuits.Skip(fullGroups * 3).Take(2).ToList())
+        End Select
+        ' Обработка на всяка група
+        For Each group In groups
+            rcdCounter += 1
+            CreateRCDGroup(group, rcdCounter)
+        Next
+    End Sub
+    ''' <summary>
+    ''' Създава ДЗТ група за даден набор от ТК
+    ''' Използва SetRCD() за избор на ДЗТ от каталога
+    ''' </summary>
+    ''' <param name="circuits">Списък с ТК в групата</param>
+    ''' <param name="rcdNumber">Номер на ДЗТ за това табло</param>
+    Private Sub CreateRCDGroup(circuits As List(Of strTokow), rcdNumber As Integer)
+        ' 1. Сумирай токовете (БЕЗ 1.2!)
+        Dim totalCurrent As Double = circuits.Sum(Function(t) t.Ток)
+        ' 2. За всеки ТК в групата:
+        For Each circuit In circuits
+            ' ✅ Запиши номера на ДЗТ
+            circuit.RCD_Нула = "N" & rcdNumber
+            ' ✅ Промени на RCCB (от RCBO)
+            circuit.RCD_Автомат = False  ' RCCB, не RCBO
+            ' ✅ Запази оригиналния ток (за другите изчисления)
+            Dim originalTok As Double = circuit.Ток
+            ' ✅ Временно промени тока за SetRCD() да избере правилното ДЗТ
+            circuit.Ток = totalCurrent
+            ' ✅ Извикай SetRCD() за избор на ДЗТ
+            SetRCD(circuit)
+            ' ✅ Върни оригиналния ток (за кабел/прекъсвач изчисления)
+            circuit.Ток = originalTok
+            ' ✅ Увери се че е RCCB (не RCBO)
+            circuit.RCD_Тип = "EZ9 RCCB"
+            circuit.RCD_Автомат = False
+        Next
+    End Sub
 End Class

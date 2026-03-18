@@ -150,8 +150,6 @@ Public Class Form_Tablo_new
         SetupDataGridView()
     End Sub
 
-    'Dim updateInProgress As Boolean = True
-
     Dim PI As Double = 3.1415926535897931
     Dim cu As CommonUtil = New CommonUtil()
     Private ListKonsumator As New List(Of strKonsumator)
@@ -2735,6 +2733,14 @@ Public Class Form_Tablo_new
                 Dim valuesLaying As New List(Of String) From {"Във въздух", "В земя"}
                 ' Подаваме го към твоята процедура
                 UpdateComboRow("Начин на полагане", valuesLaying, e.ColumnIndex)
+            Case "ДТЗ Нула"
+                Dim inputValue As String = selectedValue?.ToString()
+                ' Извикай функцията за валидация
+                Dim validatedValue As String = ValidateRCDNulla(inputValue)
+                ' Ако е валидно → запиши, иначе → върни старата стойност
+                If validatedValue IsNot Nothing Then
+                    tokow.RCD_Нула = validatedValue
+                End If
             Case "Тип"
                 ' Взимаме само уникалните имена на кабели от главния списък
                 Dim uniqueCableTypes As List(Of String) = Catalog_Cables _
@@ -2746,6 +2752,28 @@ Public Class Form_Tablo_new
         End Select
         UpdateCircuitColumn(tokow, col.Index)
     End Sub
+    ''' <summary>
+    ''' Валидира и форматира стойност за RCD_Нула
+    ''' </summary>
+    ''' <param name="inputValue">Входна стойност (напр. "N1", "n2", "N10")</param>
+    ''' <returns>Валидирана стойност или Nothing ако е невалидна</returns>
+    Private Function ValidateRCDNulla(inputValue As String) As String
+        ' Проверка 1: Дали е празно и дали започва с "N"
+        If String.IsNullOrEmpty(inputValue) OrElse Not inputValue.ToUpper().StartsWith("N") Then Return Nothing
+        ' Извлечи числото след "N"
+        Dim numberPart As String = inputValue.Substring(1).Trim()
+        ' Премахни всичко което НЕ е цифра
+        numberPart = New String(numberPart.Where(Function(c) Char.IsDigit(c)).ToArray())
+        ' Проверка 2: Дали има число
+        If String.IsNullOrEmpty(numberPart) Then Return Nothing
+        ' Проверка 3: Дали числото е валидно
+        Dim rcdNumber As Integer
+        If Not Integer.TryParse(numberPart, rcdNumber) Then Return Nothing
+        ' Проверка 4: Дали числото е > 0
+        If rcdNumber <= 0 Then Return Nothing
+        ' ✅ Всички проверки минаха → върни валидираната стойност
+        Return "N" & rcdNumber.ToString()
+    End Function
     ''' <summary>
     ''' Обработва промяна на checkbox "Постави ДТЗ (RCD)"
     ''' </summary>
@@ -3337,9 +3365,7 @@ Public Class Form_Tablo_new
         Dim originalTok As Double = lastCircuit.Ток
         Dim originalPoles As Integer = lastCircuit.Брой_Полюси
         ' Проверка дали има трифазен консуматор в групата
-        Dim hasThreePhase As Boolean = circuits.Any(
-                Function(t) t.Брой_Полюси = 3 OrElse t.Фаза = "L1,L2,L3"
-                        )
+        Dim hasThreePhase As Boolean = circuits.Any(Function(t) t.Брой_Полюси = 3)
         ' Ако има трифазен консуматор → използва се 3-полюсна конфигурация
         If hasThreePhase Then lastCircuit.Брой_Полюси = 3
         ' Временно задаване на сумарния ток
@@ -3352,6 +3378,81 @@ Public Class Form_Tablo_new
         Next
         ' Възстановяване на оригиналните стойности
         lastCircuit.Ток = originalTok
+        lastCircuit.Брой_Полюси = originalPoles
+    End Sub
+    Private Sub ToolStripButton_Поправи_ДЗТ_Click(sender As Object, e As EventArgs) Handles ToolStripButton_Поправи_ДЗТ.Click
+        RedistributeRCDGroups()
+        ' Refresh на DataGridView за да се видят новите ДЗТ настройки
+        FillDataGridViewForPanel()
+    End Sub
+    ''' <summary>
+    ''' Преразпределя ДЗТ според RCD_Нула стойностите в ListTokow
+    ''' Извиква се при натискане на бутон "Поправи ДЗТ"
+    ''' РАБОТИ САМО С ИЗБРАНОТО ТАБЛО В TREEVIEW!
+    ''' </summary>
+    Private Sub RedistributeRCDGroups()
+        ' 1. ✅ Вземи избраното табло от TreeView
+        Dim selectedTablo As String = TreeView1.SelectedNode?.Text
+        If String.IsNullOrEmpty(selectedTablo) Then
+            Return  ' Няма избрано табло
+        End If
+        ' 2. ✅ Изчисти името от допълнителен текст (ако има)
+        If selectedTablo.Contains("(") Then
+            selectedTablo = selectedTablo.Substring(0, selectedTablo.IndexOf("(")).Trim()
+        End If
+        ' 3. ✅ Филтрирай само ТК за избраното табло
+        Dim panelCircuits = ListTokow.Where(Function(t) t.Tablo = selectedTablo).ToList()
+        If panelCircuits.Count = 0 Then Return
+        ' 4. Филтрирай ТК с контакти
+        Dim contactCircuits = panelCircuits.Where(Function(t) t.brKontakt > 0).ToList()
+        If contactCircuits.Count = 0 Then Return
+        ' 5. ✅ Изчистване на ТК без RCD_Нула
+        For Each circuit In contactCircuits
+            If String.IsNullOrEmpty(circuit.RCD_Нула) Then
+                ClearRCDFields(circuit)
+            End If
+        Next
+        ' 6. ✅ Групиране по RCD_Нула (само тези които имат стойност)
+        Dim rcdGroups = contactCircuits.Where(Function(t) Not String.IsNullOrEmpty(t.RCD_Нула)
+                                              ).GroupBy(Function(t) t.RCD_Нула)
+        ' 7. За всяка група → пресметни ДЗТ
+        For Each rcdGroup In rcdGroups
+            Dim circuitsInGroup = rcdGroup.ToList()
+            ProcessRCDGroup(circuitsInGroup)
+        Next
+    End Sub
+    Private Sub ClearRCDFields(circuit As strTokow)
+        circuit.RCD_Бранд = ""
+        circuit.RCD_Клас = ""
+        circuit.RCD_Тип = ""
+        circuit.RCD_Чувствителност = ""
+        circuit.RCD_Ток = ""
+        circuit.RCD_Полюси = ""
+        circuit.RCD_Нула = ""
+        circuit.RCD_Автомат = False
+    End Sub
+    ''' <summary>
+    ''' Обработва една група ТК с еднакво RCD_Нула
+    ''' Подобно на CreateRCDGroup() но без rcdNumber параметър
+    ''' </summary>
+    Private Sub ProcessRCDGroup(circuits As List(Of strTokow))
+        ' 1. Сумирай токовете (БЕЗ 1.2!)
+        Dim totalCurrent As Double = circuits.Sum(Function(t) t.Ток)
+        ' 2. Проверка за 3-фазни кръгове
+        Dim hasThreePhase As Boolean = circuits.Any(Function(t) t.Брой_Полюси = 3 OrElse t.Фаза = "L1,L2,L3")
+        ' 3. Вземи последния ТК
+        Dim lastCircuit As strTokow = circuits.Last()
+        ' 4. Запази оригиналните полюси и фаза
+        Dim originalPoles As Integer = lastCircuit.Брой_Полюси
+        Dim originalFaza As String = lastCircuit.Фаза
+        ' 5. Ако има 3-фазен → временно промени
+        If hasThreePhase Then lastCircuit.Брой_Полюси = 3
+        ' 6. Извикай SetRCD()
+        Dim originalTok As Double = lastCircuit.Ток
+        lastCircuit.Ток = totalCurrent
+        SetRCD(lastCircuit)
+        lastCircuit.Ток = originalTok
+        ' 7. Върни оригиналните полюси и фаза
         lastCircuit.Брой_Полюси = originalPoles
     End Sub
 End Class

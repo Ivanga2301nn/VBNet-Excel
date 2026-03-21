@@ -737,6 +737,56 @@ Public Class Form_Tablo_new
         Public ContactCount As Integer            ' Колко контакта добавя (1, 2, 3)
     End Class
     ''' <summary>
+    ''' Клас за групиране на токови кръгове за балансиране на фазите
+    ''' </summary>
+    Public Class BalanceGroup
+        ''' <summary>
+        ''' Списък с токови кръгове в групата
+        ''' </summary>
+        Public Circuits As List(Of strTokow)
+        ''' <summary>
+        ''' Тип на групата: "ThreePhase", "RCD", "SmallBus", "LargeBus", "Normal"
+        ''' </summary>
+        Public GroupType As String
+        ''' <summary>
+        ''' Ключ на групата: RCD_Нула (N1, N2...), "Bus" или Nothing
+        ''' </summary>
+        Public GroupKey As String
+        ''' <summary>
+        ''' Сумарен ток на групата (сума от токовете на всички ТК)
+        ''' </summary>
+        Public TotalCurrent As Double
+        ''' <summary>
+        ''' Зададена фаза след балансиране (L1, L2, L3 или "L1,L2,L3")
+        ''' </summary>
+        Public AssignedPhase As String
+        ''' <summary>
+        ''' Конструктор - инициализира списъка с ТК
+        ''' </summary>
+        Public Sub New()
+            Circuits = New List(Of strTokow)
+        End Sub
+        ''' <summary>
+        ''' Брой токови кръгове в групата
+        ''' </summary>
+        Public ReadOnly Property CircuitCount As Integer
+            Get
+                Return Circuits.Count
+            End Get
+        End Property
+        ''' <summary>
+        ''' Сумарна мощност на групата
+        ''' </summary>
+        Public ReadOnly Property TotalPower As Double
+            Get
+                Return Circuits.Sum(Function(t) t.Мощност)
+            End Get
+        End Property
+    End Class
+
+
+
+    ''' <summary>
     ''' Извлича информация за всички избрани блокове от AutoCAD,
     ''' създава обекти от тип strKonsumator и ги добавя в списъка ListKonsumator.
     '''
@@ -3457,21 +3507,16 @@ Public Class Form_Tablo_new
     ''' Работи само с избраното табло от TreeView
     ''' </summary>
     Private Sub BalancePhases()
-        ' 1. ✅ Вземи избраното табло от TreeView
         Dim selectedTablo As String = TreeView1.SelectedNode?.Text
-        ' Няма избрано табло
         If String.IsNullOrEmpty(selectedTablo) Then Return
-        ' 2. ✅ Изчисти името от допълнителен текст (ако има)
         If selectedTablo.Contains("(") Then selectedTablo = selectedTablo.Substring(0, selectedTablo.IndexOf("(")).Trim()
-        ' 3. ✅ Филтрирай само ТК за избраното табло
         Dim panelCircuits = ListTokow.Where(Function(t) t.Tablo = selectedTablo).ToList()
         If panelCircuits.Count = 0 Then Return
         Dim hasThreePhase As Boolean = panelCircuits.Any(Function(t) t.Брой_Полюси = 3 OrElse t.Фаза = "L1,L2,L3")
         If Not hasThreePhase Then
-            ' ⚠️ Няма 3-фазни → пита потребителя
             Dim result As MsgBoxResult = MessageBox.Show(
                 "Няма трифазни консуматори в това табло." & vbCrLf & vbCrLf &
-                "Искате ли да балансирате като еднофазно табло?",
+                "Искате ли да балансирате таблото?",
                 "Балансиране на фазите",
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question
@@ -3479,15 +3524,6 @@ Public Class Form_Tablo_new
 
             If result = MsgBoxResult.No Then Return
         End If
-        ' ─────────────────────────────────────────────────────────
-        ' СТЪПКА 3: Проверка за шини (10% праг)
-        ' ─────────────────────────────────────────────────────────
-        Dim totalPower As Double = panelCircuits.Sum(Function(t) t.Мощност)
-        Dim busPower As Double = panelCircuits.Where(Function(t) t.Шина = True).Sum(Function(t) t.Мощност)
-
-        Dim busPowerPercent As Double = 0
-        If totalPower > 0 Then busPowerPercent = (busPower / totalPower) * 100
-        Dim smallBus As Boolean = (busPowerPercent < 10)
         Dim phaseCurrents As New Dictionary(Of String, Double) From {
                 {"L1", 0},
                 {"L2", 0},
@@ -3502,12 +3538,122 @@ Public Class Form_Tablo_new
             phaseCurrents("L3") += circuit.Ток
         Next
 
+        Dim busCircuits = panelCircuits.Where(
+                                Function(t) t.Шина = True
+                                ).ToList()
 
-
-
-
+        Dim balanceGroups As List(Of BalanceGroup) = CreateBalanceGroups(panelCircuits)
 
 
 
     End Sub
+    ''' <summary>
+    ''' Създава групи от токови кръгове за целите на балансиране на фазите.
+    ''' </summary>
+    ''' <param name="panelCircuits">Списък от токови кръгове (strTokow), принадлежащи към едно табло.</param>
+    ''' <returns>Списък от групи (BalanceGroup), използвани за по-нататъшно разпределение по фази.</returns>
+    ''' <remarks>
+    ''' Функцията разделя всички токови кръгове в три основни типа групи:
+    '''
+    ''' 1. Шинни групи (Bus):
+    '''    - Включва кръгове, които са маркирани с Шина = True и са еднофазни.
+    '''    - Изчислява се процентното участие на шинните консуматори спрямо общата мощност.
+    '''    - В зависимост от процента:
+    '''         < 10% → "SmallBus"
+    '''         ≥ 10% → "LargeBus"
+    '''
+    ''' 2. Групи по ДТЗ (RCD):
+    '''    - Включва еднофазни кръгове, които имат зададена RCD_Нула (N1, N2, ...)
+    '''    - Изключва кръговете, които вече са част от шинна група.
+    '''    - Групира се по стойността на RCD_Нула.
+    '''
+    ''' 3. Нормални групи (Normal):
+    '''    - Включва всички останали еднофазни кръгове:
+    '''         - без ДТЗ
+    '''         - не са част от шинна група
+    '''
+    ''' За всяка група се изчислява:
+    ''' - списък с кръгове
+    ''' - общ ток (TotalCurrent)
+    ''' - тип на групата (GroupType)
+    ''' - ключ (GroupKey), използван за идентификация
+    '''
+    ''' Функцията връща списък от BalanceGroup, които могат да се използват за:
+    ''' - балансиране на фазите
+    ''' - оптимално разпределение на товарите
+    ''' - анализ на натоварването
+    '''
+    ''' Потенциални особености:
+    ''' - Само еднофазни кръгове (Брой_Полюси = 1) се включват в логиката за балансиране.
+    ''' - Трифазните консуматори не се обработват тук (вероятно се третират отделно).
+    ''' - Ако общата мощност е 0, се избягва деление на нула при изчисляване на процента.
+    ''' - Използването на IIf може да доведе до изпълнение и на двата клона (VB особеност),
+    '''   но в този контекст няма странични ефекти.
+    ''' - Debug.Print се използва за диагностика и проследяване на създадените групи.
+    ''' </remarks>
+    Private Function CreateBalanceGroups(panelCircuits As List(Of strTokow)) As List(Of BalanceGroup)
+        ' Списък с резултатните групи
+        Dim groups As New List(Of BalanceGroup)
+        ' ----------------------------------------------------
+        ' 1. ШИННИ ГРУПИ (Bus)
+        ' ----------------------------------------------------
+        Dim busCircuits = panelCircuits.Where(
+                                Function(t) t.Шина = True AndAlso t.Брой_Полюси = 1
+                                ).ToList()
+        If busCircuits.Count > 0 Then
+            ' Обща мощност на таблото
+            Dim totalPower As Double = panelCircuits.Sum(Function(t) t.Мощност)
+            ' Мощност на шинните консуматори
+            Dim busPower As Double = busCircuits.Sum(Function(t) t.Мощност)
+            ' Процентно участие на шината
+            Dim busPowerPercent As Double = 0
+            If totalPower > 0 Then
+                busPowerPercent = (busPower / totalPower) * 100
+            End If
+            ' Създаване на група за шината
+            Dim busGroup As New BalanceGroup With {
+                                .GroupType = IIf(busPowerPercent < 10, "SmallBus", "LargeBus"),
+                                .GroupKey = "Bus",
+                                .Circuits = busCircuits,
+                                .TotalCurrent = busCircuits.Sum(Function(t) t.Ток)
+            }
+
+            groups.Add(busGroup)
+        End If
+        ' ----------------------------------------------------
+        ' 2. ГРУПИ ПО ДТЗ (RCD)
+        ' ----------------------------------------------------
+        Dim rcdGroups = panelCircuits.Where(
+        Function(t) t.Брой_Полюси = 1 AndAlso
+                    Not String.IsNullOrEmpty(t.RCD_Нула) AndAlso
+                    t.Шина = False   ' Изключва вече включените в шинна група
+                    ).GroupBy(Function(t) t.RCD_Нула)
+        For Each rcdGroup In rcdGroups
+            Dim balanceGroup As New BalanceGroup With {
+                            .GroupType = "RCD",
+                            .GroupKey = rcdGroup.Key,  ' Например: N1, N2, N3
+                            .Circuits = rcdGroup.ToList(),
+                            .TotalCurrent = rcdGroup.Sum(Function(t) t.Ток)
+                        }
+            groups.Add(balanceGroup)
+        Next
+        ' ----------------------------------------------------
+        ' 3. НОРМАЛНИ ГРУПИ (без ДТЗ и без шина)
+        ' ----------------------------------------------------
+        Dim normalCircuits = panelCircuits.Where(
+        Function(t) t.Брой_Полюси = 1 AndAlso
+                    String.IsNullOrEmpty(t.RCD_Нула) AndAlso
+                    t.Шина = False
+                    ).ToList()
+        If normalCircuits.Count > 0 Then
+            Dim normalGroup As New BalanceGroup With {
+                        .GroupType = "Normal",
+                        .GroupKey = Nothing,
+                        .Circuits = normalCircuits,
+                        .TotalCurrent = normalCircuits.Sum(Function(t) t.Ток)
+                    }
+            groups.Add(normalGroup)
+        End If
+        Return groups
+    End Function
 End Class

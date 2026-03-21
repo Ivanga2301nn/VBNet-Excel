@@ -2539,32 +2539,28 @@ Public Class Form_Tablo_new
         ' ============================================================
         ' 1. ОПРЕДЕЛИ КАТЕГОРИЯТА (ПРИОРИТЕТ)
         ' ============================================================
-        ' Проверка за "АВ." (авариен?)
-        If name.Contains("АВ.") OrElse name.EndsWith("АВ") Then
-            priority = "1"  ' Най-висок приоритет
-            numberPart = ExtractNumber(name)
-            letterPart = "АВ"
-            ' Проверка за "ДО." (допълнителен?)
-        ElseIf name.Contains("ДО.") OrElse name.EndsWith("ДО") Then
-            priority = "2"  ' Втори приоритет
-            numberPart = ExtractNumber(name)
-            letterPart = "ДО"
-            ' Проверка за други букви + число (напр. "1А", "2Б", "А1")
-        ElseIf HasNumberAndLetters(name) Then
-            priority = "3"  ' Трети приоритет
-            numberPart = ExtractNumber(name)
-            letterPart = ExtractLetters(name)
-            ' Проверка за само число (напр. "1", "2", "10")
-        ElseIf IsNumeric(name) Then
-            priority = "4"  ' Четвърти приоритет
-            numberPart = name
-            letterPart = ""
-            ' Проверка за само букви (напр. "А", "Б", "LIGHT")
-        Else
-            priority = "5"  ' Най-нисък приоритет
-            numberPart = ""
-            letterPart = name
-        End If
+        Select Case True
+            Case name.Contains("АВ.") Or name.EndsWith("АВ")    ' Проверка за "АВ." (авариен?)
+                priority = "1"
+                numberPart = ExtractNumber(name)
+                letterPart = "АВ"
+            Case name.Contains("ДО.") Or name.EndsWith("ДО")    ' Проверка за "ДО." (допълнителен?)
+                priority = "2"
+                numberPart = ExtractNumber(name)
+                letterPart = "ДО"
+            Case HasNumberAndLetters(name)                      ' Проверка за други букви + число (напр. "1А", "2Б", "А1")
+                priority = "3"
+                numberPart = ExtractNumber(name)
+                letterPart = ExtractLetters(name)
+            Case IsNumeric(name)                                ' Проверка за само число (напр. "1", "2", "10")
+                priority = "4"
+                numberPart = name
+                letterPart = ""
+            Case Else                                           ' Всичко останало - само букви (напр. "А", "Б", "LIGHT")
+                priority = "5"
+                numberPart = ""
+                letterPart = name
+        End Select
         ' ============================================================
         ' 2. СЪЗДАЙ КЛЮЧ ЗА СОРТИРАНЕ
         ' ============================================================
@@ -2718,8 +2714,8 @@ Public Class Form_Tablo_new
             ' Обработка на параметър свързан със защитен модул
             ' или допълнителна защита
             Case "Шина"
-            ' Активиране или деактивиране на шинна връзка
-            ' между модулите в таблото
+                ' Шина е Boolean → True = на отделна шина, False = основна шина
+                tokow.Шина = CBool(selectedValue)
             Case "ДТЗ (RCD)"
                 ' Управление на дефектнотокова защита (RCD) 
                 ' например включване/изключване на ДТЗ
@@ -3393,9 +3389,8 @@ Public Class Form_Tablo_new
     Private Sub RedistributeRCDGroups()
         ' 1. ✅ Вземи избраното табло от TreeView
         Dim selectedTablo As String = TreeView1.SelectedNode?.Text
-        If String.IsNullOrEmpty(selectedTablo) Then
-            Return  ' Няма избрано табло
-        End If
+        ' Няма избрано табло
+        If String.IsNullOrEmpty(selectedTablo) Then Return
         ' 2. ✅ Изчисти името от допълнителен текст (ако има)
         If selectedTablo.Contains("(") Then
             selectedTablo = selectedTablo.Substring(0, selectedTablo.IndexOf("(")).Trim()
@@ -3408,13 +3403,10 @@ Public Class Form_Tablo_new
         If contactCircuits.Count = 0 Then Return
         ' 5. ✅ Изчистване на ТК без RCD_Нула
         For Each circuit In contactCircuits
-            If String.IsNullOrEmpty(circuit.RCD_Нула) Then
-                ClearRCDFields(circuit)
-            End If
+            ClearRCDFields(circuit)
         Next
         ' 6. ✅ Групиране по RCD_Нула (само тези които имат стойност)
-        Dim rcdGroups = contactCircuits.Where(Function(t) Not String.IsNullOrEmpty(t.RCD_Нула)
-                                              ).GroupBy(Function(t) t.RCD_Нула)
+        Dim rcdGroups = contactCircuits.Where(Function(t) Not String.IsNullOrEmpty(t.RCD_Нула)).GroupBy(Function(t) t.RCD_Нула)
         ' 7. За всяка група → пресметни ДЗТ
         For Each rcdGroup In rcdGroups
             Dim circuitsInGroup = rcdGroup.ToList()
@@ -3428,7 +3420,6 @@ Public Class Form_Tablo_new
         circuit.RCD_Чувствителност = ""
         circuit.RCD_Ток = ""
         circuit.RCD_Полюси = ""
-        circuit.RCD_Нула = ""
         circuit.RCD_Автомат = False
     End Sub
     ''' <summary>
@@ -3436,7 +3427,7 @@ Public Class Form_Tablo_new
     ''' Подобно на CreateRCDGroup() но без rcdNumber параметър
     ''' </summary>
     Private Sub ProcessRCDGroup(circuits As List(Of strTokow))
-        ' 1. Сумирай токовете (БЕЗ 1.2!)
+        ' 1. Сумирай токовете
         Dim totalCurrent As Double = circuits.Sum(Function(t) t.Ток)
         ' 2. Проверка за 3-фазни кръгове
         Dim hasThreePhase As Boolean = circuits.Any(Function(t) t.Брой_Полюси = 3 OrElse t.Фаза = "L1,L2,L3")
@@ -3445,6 +3436,7 @@ Public Class Form_Tablo_new
         ' 4. Запази оригиналните полюси и фаза
         Dim originalPoles As Integer = lastCircuit.Брой_Полюси
         Dim originalFaza As String = lastCircuit.Фаза
+        Dim originalNula As String = lastCircuit.RCD_Нула
         ' 5. Ако има 3-фазен → временно промени
         If hasThreePhase Then lastCircuit.Брой_Полюси = 3
         ' 6. Извикай SetRCD()
@@ -3454,5 +3446,68 @@ Public Class Form_Tablo_new
         lastCircuit.Ток = originalTok
         ' 7. Върни оригиналните полюси и фаза
         lastCircuit.Брой_Полюси = originalPoles
+        lastCircuit.RCD_Нула = originalNula
+    End Sub
+    Private Sub ToolStripButton_Балансирай_фазите_Click(sender As Object, e As EventArgs) Handles ToolStripButton_Балансирай_фазите.Click
+        BalancePhases()
+        FillDataGridViewForPanel()
+    End Sub
+    ''' <summary>
+    ''' Балансира фазите за 1-полюсни ТК без зададена фаза
+    ''' Работи само с избраното табло от TreeView
+    ''' </summary>
+    Private Sub BalancePhases()
+        ' 1. ✅ Вземи избраното табло от TreeView
+        Dim selectedTablo As String = TreeView1.SelectedNode?.Text
+        ' Няма избрано табло
+        If String.IsNullOrEmpty(selectedTablo) Then Return
+        ' 2. ✅ Изчисти името от допълнителен текст (ако има)
+        If selectedTablo.Contains("(") Then selectedTablo = selectedTablo.Substring(0, selectedTablo.IndexOf("(")).Trim()
+        ' 3. ✅ Филтрирай само ТК за избраното табло
+        Dim panelCircuits = ListTokow.Where(Function(t) t.Tablo = selectedTablo).ToList()
+        If panelCircuits.Count = 0 Then Return
+        Dim hasThreePhase As Boolean = panelCircuits.Any(Function(t) t.Брой_Полюси = 3 OrElse t.Фаза = "L1,L2,L3")
+        If Not hasThreePhase Then
+            ' ⚠️ Няма 3-фазни → пита потребителя
+            Dim result As MsgBoxResult = MessageBox.Show(
+                "Няма трифазни консуматори в това табло." & vbCrLf & vbCrLf &
+                "Искате ли да балансирате като еднофазно табло?",
+                "Балансиране на фазите",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question
+            )
+
+            If result = MsgBoxResult.No Then Return
+        End If
+        ' ─────────────────────────────────────────────────────────
+        ' СТЪПКА 3: Проверка за шини (10% праг)
+        ' ─────────────────────────────────────────────────────────
+        Dim totalPower As Double = panelCircuits.Sum(Function(t) t.Мощност)
+        Dim busPower As Double = panelCircuits.Where(Function(t) t.Шина = True).Sum(Function(t) t.Мощност)
+
+        Dim busPowerPercent As Double = 0
+        If totalPower > 0 Then busPowerPercent = (busPower / totalPower) * 100
+        Dim smallBus As Boolean = (busPowerPercent < 10)
+        Dim phaseCurrents As New Dictionary(Of String, Double) From {
+                {"L1", 0},
+                {"L2", 0},
+                {"L3", 0}
+        }
+        Dim threePhaseCircuits = panelCircuits.Where(
+                                    Function(t) t.Брой_Полюси = 3 OrElse t.Фаза = "L1,L2,L3"
+                                    ).ToList()
+        For Each circuit In threePhaseCircuits
+            phaseCurrents("L1") += circuit.Ток
+            phaseCurrents("L2") += circuit.Ток
+            phaseCurrents("L3") += circuit.Ток
+        Next
+
+
+
+
+
+
+
+
     End Sub
 End Class

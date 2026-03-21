@@ -39,16 +39,16 @@ Partial Class Form_Tablo_new
         Me.ToolStripSeparator2 = New System.Windows.Forms.ToolStripSeparator()
         Me.ToolStripComboBox1 = New System.Windows.Forms.ToolStripComboBox()
         Me.ToolStripSeparator4 = New System.Windows.Forms.ToolStripSeparator()
-        Me.ToolStripButton1 = New System.Windows.Forms.ToolStripButton()
+        Me.ToolStripButton_Балансирай_фазите = New System.Windows.Forms.ToolStripButton()
         Me.ToolStripSeparator1 = New System.Windows.Forms.ToolStripSeparator()
         Me.ToolStripButton2 = New System.Windows.Forms.ToolStripButton()
         Me.ToolStripSeparator3 = New System.Windows.Forms.ToolStripSeparator()
+        Me.ToolStripButton_Поправи_ДЗТ = New System.Windows.Forms.ToolStripButton()
         Me.TableLayoutPanel1 = New System.Windows.Forms.TableLayoutPanel()
         Me.GroupBox1 = New System.Windows.Forms.GroupBox()
         Me.TreeView1 = New System.Windows.Forms.TreeView()
         Me.GroupBox2 = New System.Windows.Forms.GroupBox()
         Me.DataGridView1 = New System.Windows.Forms.DataGridView()
-        Me.ToolStripButton_Поправи_ДЗТ = New System.Windows.Forms.ToolStripButton()
         Me.StatusStrip1.SuspendLayout()
         Me.ToolStrip1.SuspendLayout()
         Me.TableLayoutPanel1.SuspendLayout()
@@ -76,7 +76,7 @@ Partial Class Form_Tablo_new
         '
         'ToolStrip1
         '
-        Me.ToolStrip1.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.NewToolStripButton, Me.OpenToolStripButton, Me.SaveToolStripButton, Me.PrintToolStripButton, Me.toolStripSeparator6, Me.CutToolStripButton, Me.CopyToolStripButton, Me.PasteToolStripButton, Me.toolStripSeparator7, Me.HelpToolStripButton, Me.ToolStripSeparator2, Me.ToolStripComboBox1, Me.ToolStripSeparator4, Me.ToolStripButton1, Me.ToolStripSeparator1, Me.ToolStripButton2, Me.ToolStripSeparator3, Me.ToolStripButton_Поправи_ДЗТ})
+        Me.ToolStrip1.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.NewToolStripButton, Me.OpenToolStripButton, Me.SaveToolStripButton, Me.PrintToolStripButton, Me.toolStripSeparator6, Me.CutToolStripButton, Me.CopyToolStripButton, Me.PasteToolStripButton, Me.toolStripSeparator7, Me.HelpToolStripButton, Me.ToolStripSeparator2, Me.ToolStripComboBox1, Me.ToolStripSeparator4, Me.ToolStripButton_Балансирай_фазите, Me.ToolStripSeparator1, Me.ToolStripButton2, Me.ToolStripSeparator3, Me.ToolStripButton_Поправи_ДЗТ})
         Me.ToolStrip1.Location = New System.Drawing.Point(5, 5)
         Me.ToolStrip1.Name = "ToolStrip1"
         Me.ToolStrip1.Size = New System.Drawing.Size(1373, 25)
@@ -179,13 +179,13 @@ Partial Class Form_Tablo_new
         Me.ToolStripSeparator4.Name = "ToolStripSeparator4"
         Me.ToolStripSeparator4.Size = New System.Drawing.Size(6, 25)
         '
-        'ToolStripButton1
+        'ToolStripButton_Балансирай_фазите
         '
-        Me.ToolStripButton1.Image = CType(resources.GetObject("ToolStripButton1.Image"), System.Drawing.Image)
-        Me.ToolStripButton1.ImageTransparentColor = System.Drawing.Color.Magenta
-        Me.ToolStripButton1.Name = "ToolStripButton1"
-        Me.ToolStripButton1.Size = New System.Drawing.Size(134, 22)
-        Me.ToolStripButton1.Text = "Балансирай фазите"
+        Me.ToolStripButton_Балансирай_фазите.Image = CType(resources.GetObject("ToolStripButton_Балансирай_фазите.Image"), System.Drawing.Image)
+        Me.ToolStripButton_Балансирай_фазите.ImageTransparentColor = System.Drawing.Color.Magenta
+        Me.ToolStripButton_Балансирай_фазите.Name = "ToolStripButton_Балансирай_фазите"
+        Me.ToolStripButton_Балансирай_фазите.Size = New System.Drawing.Size(134, 22)
+        Me.ToolStripButton_Балансирай_фазите.Text = "Балансирай фазите"
         '
         'ToolStripSeparator1
         '
@@ -204,6 +204,14 @@ Partial Class Form_Tablo_new
         '
         Me.ToolStripSeparator3.Name = "ToolStripSeparator3"
         Me.ToolStripSeparator3.Size = New System.Drawing.Size(6, 25)
+        '
+        'ToolStripButton_Поправи_ДЗТ
+        '
+        Me.ToolStripButton_Поправи_ДЗТ.Image = CType(resources.GetObject("ToolStripButton_Поправи_ДЗТ.Image"), System.Drawing.Image)
+        Me.ToolStripButton_Поправи_ДЗТ.ImageTransparentColor = System.Drawing.Color.Magenta
+        Me.ToolStripButton_Поправи_ДЗТ.Name = "ToolStripButton_Поправи_ДЗТ"
+        Me.ToolStripButton_Поправи_ДЗТ.Size = New System.Drawing.Size(101, 22)
+        Me.ToolStripButton_Поправи_ДЗТ.Text = "Поправи ДЗТ"
         '
         'TableLayoutPanel1
         '
@@ -260,14 +268,6 @@ Partial Class Form_Tablo_new
         Me.DataGridView1.Size = New System.Drawing.Size(1131, 799)
         Me.DataGridView1.TabIndex = 0
         '
-        'ToolStripButton_Поправи_ДЗТ
-        '
-        Me.ToolStripButton_Поправи_ДЗТ.Image = CType(resources.GetObject("ToolStripButton_Поправи_ДЗТ.Image"), System.Drawing.Image)
-        Me.ToolStripButton_Поправи_ДЗТ.ImageTransparentColor = System.Drawing.Color.Magenta
-        Me.ToolStripButton_Поправи_ДЗТ.Name = "ToolStripButton_Поправи_ДЗТ"
-        Me.ToolStripButton_Поправи_ДЗТ.Size = New System.Drawing.Size(101, 22)
-        Me.ToolStripButton_Поправи_ДЗТ.Text = "Поправи ДЗТ"
-        '
         'Form_Tablo_new
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(9.0!, 20.0!)
@@ -307,7 +307,7 @@ Partial Class Form_Tablo_new
     Friend WithEvents toolStripSeparator7 As Windows.Forms.ToolStripSeparator
     Friend WithEvents HelpToolStripButton As Windows.Forms.ToolStripButton
     Friend WithEvents ToolStripProgressBar1 As Windows.Forms.ToolStripProgressBar
-    Friend WithEvents ToolStripButton1 As Windows.Forms.ToolStripButton
+    Friend WithEvents ToolStripButton_Балансирай_фазите As Windows.Forms.ToolStripButton
     Friend WithEvents TableLayoutPanel1 As Windows.Forms.TableLayoutPanel
     Friend WithEvents GroupBox1 As Windows.Forms.GroupBox
     Friend WithEvents TreeView1 As Windows.Forms.TreeView

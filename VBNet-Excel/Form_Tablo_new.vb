@@ -1,5 +1,6 @@
 ﻿Imports System.Collections.Generic
 Imports System.Drawing
+Imports System.Drawing.Drawing2D
 Imports System.Security.Cryptography
 Imports System.Windows.Forms
 Imports System.Windows.Forms.VisualStyles.VisualStyleElement
@@ -13,9 +14,9 @@ Imports Autodesk.AutoCAD.Internal.DatabaseServices
 Imports Autodesk.AutoCAD.PlottingServices
 Imports Autodesk.AutoCAD.Runtime
 Imports AXDBLib
+Imports Newtonsoft.Json
 Imports Org.BouncyCastle.Math.EC.ECCurve
 Imports VBNet_Excel.Form_Tablo_new
-Imports Newtonsoft.Json
 
 ' ============================================================
 ' 1. КОМАНДА ЗА СТАРТИРАНЕ (Трябва да е извън класа на формата)
@@ -1079,11 +1080,13 @@ Public Class Form_Tablo_new
         colUnit.DefaultCellStyle.ForeColor = Color.Gray
         colUnit.SortMode = DataGridViewColumnSortMode.NotSortable
         DataGridView1.Columns.Add(colUnit)
-        ' Колона ОБЩО
+        ' selectedBreaker = Breakers.Where(Function(b) b.Poles = poles AndAlso 
+        B.NominalCurrent >= minRange
+                                ).OrderBy(Function(b) b.NominalCurrent).FirstOrDefault() ОБЩО
         Dim colTotal As New DataGridViewTextBoxColumn()
         colTotal.Name = "colTotal"
         colTotal.HeaderText = "ОБЩО"
-        colTotal.Width = 90
+        colTotal.Width = 150
         colTotal.DefaultCellStyle.Font = New Drawing.Font("Arial", 10, FontStyle.Bold)
         colTotal.DefaultCellStyle.BackColor = Color.FromArgb(230, 240, 255)
         colTotal.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter
@@ -2333,9 +2336,8 @@ Public Class Form_Tablo_new
         ' можем да върнем първия по-голям (fallback), за да не остане празен резултат
         If selectedBreaker Is Nothing Then
             selectedBreaker = Breakers.Where(Function(b) b.Poles = poles AndAlso
-                            String.Equals(b.Curve, curve, StringComparison.OrdinalIgnoreCase) AndAlso
-                            b.NominalCurrent >= minRange
-                            ).OrderBy(Function(b) b.NominalCurrent).FirstOrDefault()
+                                b.NominalCurrent >= minRange
+                                ).OrderBy(Function(b) b.NominalCurrent).FirstOrDefault()
         End If
         Return selectedBreaker
     End Function
@@ -2844,36 +2846,12 @@ Public Class Form_Tablo_new
             Case "Начин на полагане"
                 ' Правим прост списък само с двете опции
                 Dim valuesLaying As New List(Of String) From {"Във въздух", "В земя"}
-
-                'Public Кабел_Монтаж As String               ' Начин на монтаж                       "A1"=гипсокартон, "B2"=под мазилка, "C"=над таван   
-                'Public Кабел_Полагане As String             ' Въздух или земя                       0=въздух (35°C), 1=земя (15°C)
-                'Public Кабел_Сечение As String              ' Сечение на кабела (пример: "3x2.5")
-                'Public Кабел_Тип As String                  ' Тип кабел (NYM, YJV, CBT и др.)
-                'Public Кабел_Брой_Фаза As String            ' Брой на Паралелни Жила на Фаза
-                'Public Кабел_Брой_Група As String           ' Брой на Паралелни кабели по скара
-
-                'CalculateCable(tokow,
-                '                Type = selectedValue,                  ' Тип кабел (СВТ, САВТ, NYY...)
-                '                Optional layMethod As Integer = 0,      ' 0=въздух (35°C), 1=земя (15°C)
-                '                Optional mountMethod As String = "B1",  ' "A1"=гипсокартон, "B2"=под мазилка, "C"=над таван
-                '                Optional Broj_Cable As Integer = 1,     ' Брой паралелни кабели
-                '                Optional Tipe_Cable As Integer = 0,     ' 0=кабел (3-жилен), 1=проводник (1-жилен)
-                '                Optional matType As Integer = 0,        ' 0=мед (Cu), 1=алуминий (Al)
-                '                Optional RetType As Integer = 1         ' 0=само сечение, 1=пълно означение
-                '                )
-
-
-
-
-
-
-
-
-
-
-
-
-
+                CalculateCable(tokow,
+                               Type:=tokow.Кабел_Тип,
+                               layMethod:=If(selectedValue = "Във въздух", 0, 1),
+                               mountMethod:=GetMountMethodInfo(tokow.Кабел_Монтаж),
+                               matType:=GetCableTypeResult(tokow.Кабел_Тип)
+                               )
                 ' Подаваме го към твоята процедура
                 UpdateComboRow("Начин на полагане", valuesLaying, e.ColumnIndex)
             Case "Тип"
@@ -2882,39 +2860,66 @@ Public Class Form_Tablo_new
                     .Select(Function(c) c.CableType) _
                     .Distinct() _
                     .ToList()
-                Dim aluminumCables As String() = {"САВТ", "NA2XY", "Al/R"}
                 ' Проверка дали стойността съществува в списъка
-                If uniqueCableTypes.Contains(selectedValue) Then
-                    If aluminumCables.Contains(selectedValue) Then
-                        CalculateCable(tokow,
-                                       layMethod:=If(tokow.Кабел_Полагане = "Във въздух", 0, 1),
-                                       mountMethod:=GetMountMethodInfo(tokow.Кабел_Монтаж),
-                                       Type:=selectedValue,
-                                       matType:=1
-                                       )
-                    Else
-                        CalculateCable(tokow,
-                                       layMethod:=If(tokow.Кабел_Полагане = "Във въздух", 0, 1),
-                                       mountMethod:=GetMountMethodInfo(tokow.Кабел_Монтаж),
-                                       Type:=selectedValue,
-                                       matType:=0
-                                       )
-                    End If
-                End If
+                CalculateCable(tokow,
+                               Type:=selectedValue,
+                               layMethod:=If(tokow.Кабел_Полагане = "Във въздух", 0, 1),
+                               mountMethod:=GetMountMethodInfo(tokow.Кабел_Монтаж),
+                               matType:=GetCableTypeResult(selectedValue)
+                               )
                 ' Подаваме списъка към твоята процедура
                 UpdateComboRow("Тип", uniqueCableTypes, e.ColumnIndex)
-        Case "ДТЗ Нула"
-        Dim inputValue As String = selectedValue?.ToString()
-        ' Извикай функцията за валидация
-        Dim validatedValue As String = ValidateRCDNulla(inputValue)
-        ' Ако е валидно → запиши, иначе → върни старата стойност
-        If validatedValue IsNot Nothing Then
-            tokow.RCD_Нула = validatedValue
-        End If
+            Case "ДТЗ Нула"
+                Dim inputValue As String = selectedValue?.ToString()
+                ' Извикай функцията за валидация
+                Dim validatedValue As String = ValidateRCDNulla(inputValue)
+                ' Ако е валидно → запиши, иначе → върни старата стойност
+                If validatedValue IsNot Nothing Then
+                    tokow.RCD_Нула = validatedValue
+                End If
 
         End Select
         UpdateCircuitColumn(tokow, col.Index)
     End Sub
+    ''' <summary>
+    ''' Проверява дали даден тип кабел принадлежи към предварително дефинирана група.
+    ''' </summary>
+    ''' <param name="cableName">Име/тип на кабела (например "САВТ", "NAYY" и др.)</param>
+    ''' <returns>
+    ''' Връща:
+    ''' - 1 → ако кабелът принадлежи към зададената група
+    ''' - 0 → ако не принадлежи
+    ''' </returns>
+    ''' <remarks>
+    ''' Функцията сравнява подаденото име на кабел със списък от "целеви" кабели:
+    '''     {"САВТ", "NA2XY", "Al/R", "NAYY"}
+    '''
+    ''' Използва се методът Contains(), който проверява дали има точно съвпадение.
+    '''
+    ''' Типично приложение:
+    ''' - класификация на кабели (например алуминиеви)
+    ''' - избор на коефициенти при изчисления
+    ''' - условна логика при оразмеряване
+    '''
+    ''' Потенциални особености:
+    ''' - Сравнението е case-sensitive (например "na2xy" няма да съвпадне)
+    ''' - Ако входът е Nothing → ще върне 0 (без грешка)
+    ''' - При нужда от разширение, списъкът може да се направи динамичен (List или база данни)
+    '''
+    ''' Възможно подобрение:
+    ''' - Да се използва StringComparer.OrdinalIgnoreCase за нечувствително към регистъра сравнение
+    ''' - Да се върне Boolean вместо Integer за по-ясна логика
+    ''' </remarks>
+    Public Function GetCableTypeResult(cableName As String) As Integer
+        ' Списък с кабели, които попадат в конкретната група
+        Dim targetCables As String() = {"САВТ", "NA2XY", "Al/R", "NAYY"}
+        ' Проверка дали подаденият кабел е в списъка
+        If targetCables.Contains(cableName) Then
+            Return 1
+        Else
+            Return 0
+        End If
+    End Function
     ''' <summary>
     ''' Валидира и форматира стойност за RCD_Нула
     ''' </summary>

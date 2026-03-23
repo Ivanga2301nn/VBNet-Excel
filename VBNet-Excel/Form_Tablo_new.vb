@@ -1080,9 +1080,7 @@ Public Class Form_Tablo_new
         colUnit.DefaultCellStyle.ForeColor = Color.Gray
         colUnit.SortMode = DataGridViewColumnSortMode.NotSortable
         DataGridView1.Columns.Add(colUnit)
-        ' selectedBreaker = Breakers.Where(Function(b) b.Poles = poles AndAlso 
-        B.NominalCurrent >= minRange
-                                ).OrderBy(Function(b) b.NominalCurrent).FirstOrDefault() ОБЩО
+        ' Колона ОБЩО
         Dim colTotal As New DataGridViewTextBoxColumn()
         colTotal.Name = "colTotal"
         colTotal.HeaderText = "ОБЩО"

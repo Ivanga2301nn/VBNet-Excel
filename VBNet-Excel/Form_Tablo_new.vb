@@ -14,6 +14,8 @@ Imports Autodesk.AutoCAD.PlottingServices
 Imports Autodesk.AutoCAD.Runtime
 Imports AXDBLib
 Imports Org.BouncyCastle.Math.EC.ECCurve
+Imports VBNet_Excel.Form_Tablo_new
+Imports Newtonsoft.Json
 
 ' ============================================================
 ' 1. КОМАНДА ЗА СТАРТИРАНЕ (Трябва да е извън класа на формата)
@@ -461,15 +463,23 @@ Public Class Form_Tablo_new
         ''' Уникален идентификатор на блока в AutoCAD.
         ''' </summary>
         ''' <remarks>
-        ''' ObjectId е специален тип от AutoCAD API, който сочи към конкретен обект в чертежа.
-        ''' Чрез този идентификатор може по-късно:
-        ''' - да се достъпи самият блок
-        ''' - да се четат или променят неговите атрибути
-        ''' - да се извършват операции върху него.
-        '''
-        ''' Това поле представлява директна връзка между структурата и реалния AutoCAD обект.
+        ''' Прекият идентификатор на блока в AutoCAD за текущата сесия.
+        ''' Това поле (ID_Block) представлява директна връзка между структурата и реалния AutoCAD обект.
+        ''' Използва се само по време на runtime, за да се достъпят атрибутите на блока или да се извършат промени в чертежа.
+        ''' 
+        ''' ВНИМАНИЕ: ObjectId не е постоянен между различни сесии на AutoCAD.
+        ''' След затваряне и отваряне на файла, ID_Block може да стане невалиден.
+        ''' За дългосрочно съхранение се използва Handle_Block.
         ''' </remarks>
         Dim ID_Block As ObjectId
+        ''' <summary>
+        ''' Постоянният идентификатор на блока, който може да се записва и чете от файл (JSON).
+        ''' </summary>
+        ''' <remarks>
+        ''' Handle_Block съхранява Handle на блока като низ. Той е стабилен и остава валиден след затваряне и отваряне на DWG файла.
+        ''' След зареждане на данните, Handle_Block може да се използва за възстановяване на ID_Block чрез AutoCAD API.
+        ''' </remarks>
+        Dim Handle_Block As String
         ''' <summary>
         ''' Име или номер на токовия кръг.
         ''' </summary>
@@ -631,8 +641,8 @@ Public Class Form_Tablo_new
         ' ============================================================
         ' КАБЕЛ
         ' ============================================================
-        Public Кабел_Монтаж As String               ' Начин на монтаж 
-        Public Кабел_Полагане As String             ' Въздух или земя
+        Public Кабел_Монтаж As String               ' Начин на монтаж                       "A1"=гипсокартон, "B2"=под мазилка, "C"=над таван   
+        Public Кабел_Полагане As String             ' Въздух или земя                       0=въздух (35°C), 1=земя (15°C)
         Public Кабел_Сечение As String              ' Сечение на кабела (пример: "3x2.5")
         Public Кабел_Тип As String                  ' Тип кабел (NYM, YJV, CBT и др.)
         Public Кабел_Брой_Фаза As String            ' Брой на Паралелни Жила на Фаза
@@ -648,25 +658,25 @@ Public Class Form_Tablo_new
         ' ============================================================
         ' ДТЗ (RCD)
         ' ============================================================
-        Public RCD_Бранд As String             ' Производител на ДТЗ
-        Public RCD_Клас As String              ' Тип ДТЗ (AC, A, F)
-        Public RCD_Тип As String               ' EZ RCCB, EZ RCBO, iID
-        Public RCD_Чувствителност As String    ' Чувствителност ("30mA", "100mA", "300mA")
-        Public RCD_Ток As String               ' Номинален ток на ДТЗ ("25A", "40A", "63A")
-        Public RCD_Полюси As String            ' Полюси на ДТЗ ("2p", "4p")
-        Public RCD_Нула As String              ' номер 
-        Public RCD_Автомат As Boolean          ' трябва ли ДТЗ да е RCBO (с вграден прекъсвач) или може да е RCCB (само ДТЗ) 
+        Public RCD_Бранд As String                  ' Производител на ДТЗ
+        Public RCD_Клас As String                   ' Тип ДТЗ (AC, A, F)
+        Public RCD_Тип As String                    ' EZ RCCB, EZ RCBO, iID
+        Public RCD_Чувствителност As String         ' Чувствителност ("30mA", "100mA", "300mA")
+        Public RCD_Ток As String                    ' Номинален ток на ДТЗ ("25A", "40A", "63A")
+        Public RCD_Полюси As String                 ' Полюси на ДТЗ ("2p", "4p")
+        Public RCD_Нула As String                   ' номер 
+        Public RCD_Автомат As Boolean               ' трябва ли ДТЗ да е RCBO (с вграден прекъсвач) или може да е RCCB (само ДТЗ) 
         ' ============================================================
         ' ОПИСАНИЕ / ТЕКСТОВЕ
         ' ============================================================
-        Public Консуматор As String            ' Обобщен текст за консуматора
-        Public предназначение As String        ' Предназначение на кръга
+        Public Консуматор As String                 ' Обобщен текст за консуматора
+        Public предназначение As String             ' Предназначение на кръга
         ' ============================================================
         ' ДОПЪЛНИТЕЛНИ ФЛАГОВЕ
         ' ============================================================
-        Public Управление As String            ' Тип управление (ако има)
-        Public Шина As Boolean                 ' Дали кръгът е на отделна шина
-        Public ДТЗ_RCD As Boolean              ' Дали има задължително трявба да има ДТЗ
+        Public Управление As String                 ' Тип управление (ако има)
+        Public Шина As Boolean                      ' Дали кръгът е на отделна шина
+        Public ДТЗ_RCD As Boolean                   ' Дали има задължително трявба да има ДТЗ
         ' ============================================================
         ' КОНСУМАТОРИ В КРЪГА
         ' ============================================================
@@ -783,9 +793,6 @@ Public Class Form_Tablo_new
             End Get
         End Property
     End Class
-
-
-
     ''' <summary>
     ''' Извлича информация за всички избрани блокове от AutoCAD,
     ''' създава обекти от тип strKonsumator и ги добавя в списъка ListKonsumator.
@@ -863,8 +870,10 @@ Public Class Form_Tablo_new
                     Kons.Name =
                     (CType(acBlkRef.DynamicBlockTableRecord.GetObject(OpenMode.ForRead),
                     BlockTableRecord)).Name
-                    ' Записване на ObjectId на блока
+                    ' Записване на ObjectId за runtime (само текущата сесия)
                     Kons.ID_Block = blkRecId
+                    ' Записване на Handle за дългосрочно съхранение и JSON
+                    Kons.Handle_Block = blkRecId.Handle.ToString()
                     ' ----------------------------------------------------
                     ' 5) Четене на всички атрибути на блока
                     ' ----------------------------------------------------
@@ -1380,7 +1389,6 @@ Public Class Form_Tablo_new
         ' Return mountMethod.FirstOrDefault(Function(m) m.Simbol = simbol).Text
         ' 2. От Текст към Символ (ако ти трябва да разбереш кода при избран елемент в UI)
         ' Return mountMethod.FirstOrDefault(Function(m) m.Text = Text).Simbol
-
     End Sub
     Private Sub FillCables()
         Catalog_Cables.Clear()
@@ -2134,6 +2142,64 @@ Public Class Form_Tablo_new
         Next
     End Sub
     ''' <summary>
+    ''' Връща информация за начин на монтаж на база подадена стойност (символ или текст).
+    ''' </summary>
+    ''' <param name="inputValue">
+    ''' Входна стойност за търсене.
+    ''' Може да бъде:
+    ''' - символ (например "A1", "B2" и т.н.)
+    ''' - текстово описание на начина на монтаж
+    ''' </param>
+    ''' <returns>
+    ''' Връща съответстващата стойност:
+    ''' - ако е подаден символ → връща текстовото описание
+    ''' - ако е подаден текст → връща символа
+    ''' - ако няма съвпадение → връща "Не е намерено"
+    ''' </returns>
+    ''' <remarks>
+    ''' Функцията използва колекцията LiMountMethod, която съдържа обекти с поне две свойства:
+    ''' - Simbol (символ на метода)
+    ''' - Text (описание на метода)
+    '''
+    ''' Логика на работа:
+    ''' 1. Търси първия елемент, при който:
+    '''    - Simbol съвпада с inputValue
+    '''    ИЛИ
+    '''    - Text съвпада с inputValue
+    '''
+    ''' 2. Ако бъде намерен резултат:
+    '''    - ако входът е символ → връща текст
+    '''    - ако входът е текст → връща символ
+    '''
+    ''' 3. Ако няма намерен резултат:
+    '''    - връща "Не е намерено"
+    '''
+    ''' Типично приложение:
+    ''' - преобразуване между кодове и описания
+    ''' - визуализация в UI (например ComboBox, DataGridView)
+    ''' - валидиране на въведени данни
+    '''
+    ''' Потенциални особености:
+    ''' - FirstOrDefault връща "празен" обект (Nothing за референтен тип или default за структура),
+    '''   затова проверката result.Simbol IsNot Nothing се използва за валидност.
+    ''' - Ако Simbol е String, проверката IsNot Nothing не гарантира, че е намерен реален запис
+    '''   (възможно е да е празен низ "").
+    ''' - Ако има дублиращи се записи, ще се върне първият срещнат.
+    ''' - Сравнението е case-sensitive (зависи от настройките), което може да доведе до пропуснати съвпадения.
+    ''' </remarks>
+    Public Function GetMountMethodInfo(inputValue As String) As String
+        ' Търсене на първия запис, който съвпада по символ или текст
+        Dim result = LiMountMethod.FirstOrDefault(Function(m) m.Simbol = inputValue Or m.Text = inputValue)
+        ' Проверка дали е намерен резултат
+        If result.Simbol IsNot Nothing Then
+            ' Ако входът съвпада със символ → връща текст
+            ' Ако входът съвпада с текст → връща символ
+            Return If(result.Simbol = inputValue, result.Text, result.Simbol)
+        End If
+        ' Ако няма съвпадение
+        Return "Не е намерено"
+    End Function
+    ''' <summary>
     ''' Определя и задава подходящ прекъсвач за даден токов кръг.
     '''
     ''' Процедурата използва изчисления ток на кръга (tokow.Ток) и
@@ -2753,6 +2819,7 @@ Public Class Form_Tablo_new
                     .Distinct() _
                     .ToList()
                 UpdateComboRow("Защитен блок", valuesTripUnit, e.ColumnIndex)
+
             Case "Постави ДТЗ (RCD)"
                 ' ✅ Първо обнови tokow от клетката!
                 tokow.ДТЗ_RCD = CBool(DataGridView1.Rows(e.RowIndex).Cells(e.ColumnIndex).Value)
@@ -2777,24 +2844,74 @@ Public Class Form_Tablo_new
             Case "Начин на полагане"
                 ' Правим прост списък само с двете опции
                 Dim valuesLaying As New List(Of String) From {"Във въздух", "В земя"}
+
+                'Public Кабел_Монтаж As String               ' Начин на монтаж                       "A1"=гипсокартон, "B2"=под мазилка, "C"=над таван   
+                'Public Кабел_Полагане As String             ' Въздух или земя                       0=въздух (35°C), 1=земя (15°C)
+                'Public Кабел_Сечение As String              ' Сечение на кабела (пример: "3x2.5")
+                'Public Кабел_Тип As String                  ' Тип кабел (NYM, YJV, CBT и др.)
+                'Public Кабел_Брой_Фаза As String            ' Брой на Паралелни Жила на Фаза
+                'Public Кабел_Брой_Група As String           ' Брой на Паралелни кабели по скара
+
+                'CalculateCable(tokow,
+                '                Type = selectedValue,                  ' Тип кабел (СВТ, САВТ, NYY...)
+                '                Optional layMethod As Integer = 0,      ' 0=въздух (35°C), 1=земя (15°C)
+                '                Optional mountMethod As String = "B1",  ' "A1"=гипсокартон, "B2"=под мазилка, "C"=над таван
+                '                Optional Broj_Cable As Integer = 1,     ' Брой паралелни кабели
+                '                Optional Tipe_Cable As Integer = 0,     ' 0=кабел (3-жилен), 1=проводник (1-жилен)
+                '                Optional matType As Integer = 0,        ' 0=мед (Cu), 1=алуминий (Al)
+                '                Optional RetType As Integer = 1         ' 0=само сечение, 1=пълно означение
+                '                )
+
+
+
+
+
+
+
+
+
+
+
+
+
                 ' Подаваме го към твоята процедура
                 UpdateComboRow("Начин на полагане", valuesLaying, e.ColumnIndex)
-            Case "ДТЗ Нула"
-                Dim inputValue As String = selectedValue?.ToString()
-                ' Извикай функцията за валидация
-                Dim validatedValue As String = ValidateRCDNulla(inputValue)
-                ' Ако е валидно → запиши, иначе → върни старата стойност
-                If validatedValue IsNot Nothing Then
-                    tokow.RCD_Нула = validatedValue
-                End If
             Case "Тип"
                 ' Взимаме само уникалните имена на кабели от главния списък
                 Dim uniqueCableTypes As List(Of String) = Catalog_Cables _
                     .Select(Function(c) c.CableType) _
                     .Distinct() _
                     .ToList()
+                Dim aluminumCables As String() = {"САВТ", "NA2XY", "Al/R"}
+                ' Проверка дали стойността съществува в списъка
+                If uniqueCableTypes.Contains(selectedValue) Then
+                    If aluminumCables.Contains(selectedValue) Then
+                        CalculateCable(tokow,
+                                       layMethod:=If(tokow.Кабел_Полагане = "Във въздух", 0, 1),
+                                       mountMethod:=GetMountMethodInfo(tokow.Кабел_Монтаж),
+                                       Type:=selectedValue,
+                                       matType:=1
+                                       )
+                    Else
+                        CalculateCable(tokow,
+                                       layMethod:=If(tokow.Кабел_Полагане = "Във въздух", 0, 1),
+                                       mountMethod:=GetMountMethodInfo(tokow.Кабел_Монтаж),
+                                       Type:=selectedValue,
+                                       matType:=0
+                                       )
+                    End If
+                End If
                 ' Подаваме списъка към твоята процедура
                 UpdateComboRow("Тип", uniqueCableTypes, e.ColumnIndex)
+        Case "ДТЗ Нула"
+        Dim inputValue As String = selectedValue?.ToString()
+        ' Извикай функцията за валидация
+        Dim validatedValue As String = ValidateRCDNulla(inputValue)
+        ' Ако е валидно → запиши, иначе → върни старата стойност
+        If validatedValue IsNot Nothing Then
+            tokow.RCD_Нула = validatedValue
+        End If
+
         End Select
         UpdateCircuitColumn(tokow, col.Index)
     End Sub
@@ -3110,7 +3227,7 @@ Public Class Form_Tablo_new
         tokow.Кабел_Сечение = Text
         tokow.Кабел_Тип = Type
         tokow.Кабел_Полагане = If(layMethod = 0, "Във въздух", "В земя")
-        tokow.Кабел_Монтаж = LiMountMethod.FirstOrDefault(Function(m) m.Simbol = mountMethod).Text
+        tokow.Кабел_Монтаж = GetMountMethodInfo(mountMethod)
     End Sub
     Private Sub CalculateRCD()
         For Each tokow As strTokow In ListTokow
@@ -3524,6 +3641,12 @@ Public Class Form_Tablo_new
 
             If result = MsgBoxResult.No Then Return
         End If
+
+        Dim busCircuits = panelCircuits.Where(
+                                Function(t) t.Шина = True
+                                ).ToList()
+
+        Dim balanceGroups As List(Of BalanceGroup) = CreateBalanceGroups(panelCircuits)
         Dim phaseCurrents As New Dictionary(Of String, Double) From {
                 {"L1", 0},
                 {"L2", 0},
@@ -3538,14 +3661,30 @@ Public Class Form_Tablo_new
             phaseCurrents("L3") += circuit.Ток
         Next
 
-        Dim busCircuits = panelCircuits.Where(
-                                Function(t) t.Шина = True
-                                ).ToList()
+        For Each group In balanceGroups
+            ' 1. Намери фазата с най-малък текущ ток
+            Dim minPhase As String = phaseCurrents.Keys.OrderByDescending(
+                                    Function(p) phaseCurrents(p)
+                                    ).Last()
+            ' 2. Задай фазата на групата
+            group.AssignedPhase = minPhase
+            ' 3. Задай фазата на всички ТК в групата
+            For Each circuit In group.Circuits
+                circuit.Фаза = group.AssignedPhase
+            Next
+            ' 4. Добави тока към съответната фаза
+            phaseCurrents(minPhase) += group.TotalCurrent
+        Next
 
-        Dim balanceGroups As List(Of BalanceGroup) = CreateBalanceGroups(panelCircuits)
 
+        For Each group In balanceGroups
+            ' За всеки ТК в групата → запиши фазата в ListTokow
+            For Each circuit In group.Circuits
+                circuit.Фаза = group.AssignedPhase
+            Next
+        Next
 
-
+        FillDataGridViewForPanel()
     End Sub
     ''' <summary>
     ''' Създава групи от токови кръгове за целите на балансиране на фазите.
@@ -3625,9 +3764,9 @@ Public Class Form_Tablo_new
         ' ----------------------------------------------------
         Dim rcdGroups = panelCircuits.Where(
         Function(t) t.Брой_Полюси = 1 AndAlso
-                    Not String.IsNullOrEmpty(t.RCD_Нула) AndAlso
-                    t.Шина = False   ' Изключва вече включените в шинна група
-                    ).GroupBy(Function(t) t.RCD_Нула)
+                            Not String.IsNullOrEmpty(t.RCD_Нула) AndAlso
+                            t.Шина = False   ' Изключва вече включените в шинна група
+                            ).GroupBy(Function(t) t.RCD_Нула)
         For Each rcdGroup In rcdGroups
             Dim balanceGroup As New BalanceGroup With {
                             .GroupType = "RCD",
@@ -3641,19 +3780,100 @@ Public Class Form_Tablo_new
         ' 3. НОРМАЛНИ ГРУПИ (без ДТЗ и без шина)
         ' ----------------------------------------------------
         Dim normalCircuits = panelCircuits.Where(
-        Function(t) t.Брой_Полюси = 1 AndAlso
-                    String.IsNullOrEmpty(t.RCD_Нула) AndAlso
-                    t.Шина = False
-                    ).ToList()
-        If normalCircuits.Count > 0 Then
+                                Function(t) t.Брой_Полюси = 1 AndAlso
+                                String.IsNullOrEmpty(t.RCD_Нула) AndAlso
+                                t.Шина = False
+                                ).ToList()
+
+        For Each circuit In normalCircuits
             Dim normalGroup As New BalanceGroup With {
                         .GroupType = "Normal",
                         .GroupKey = Nothing,
-                        .Circuits = normalCircuits,
-                        .TotalCurrent = normalCircuits.Sum(Function(t) t.Ток)
+                        .Circuits = New List(Of strTokow) From {circuit},
+                        .TotalCurrent = circuit.Ток
                     }
             groups.Add(normalGroup)
-        End If
+        Next
+        groups = groups.OrderByDescending(Function(g) g.TotalCurrent).ToList()
         Return groups
     End Function
+    Private Sub SaveToolStripButton_Click(sender As Object, e As EventArgs) Handles SaveToolStripButton.Click
+        Try
+            ' Вземаме пътя на текущо отворения DWG
+            Dim dwgPath As String = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument.Name
+            Dim dwgFolder As String = IO.Path.GetDirectoryName(dwgPath)
+            Dim dwgName As String = IO.Path.GetFileNameWithoutExtension(dwgPath)
+            ' Създаваме име на JSON файла
+            Dim savePath As String = IO.Path.Combine(dwgFolder, dwgName & "_Tokowi.json")
+            ' Сериализиране на ListTokow
+            Dim json As String = JsonConvert.SerializeObject(ListTokow, Formatting.Indented)
+            ' Записване във файл
+            IO.File.WriteAllText(savePath, json)
+            MessageBox.Show($"Файлът е записан успешно: {savePath}", "OK", MessageBoxButtons.OK, MessageBoxIcon.Information)
+        Catch ex As Exception
+            MessageBox.Show("Грешка при запис: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+        End Try
+    End Sub
+    Private Sub OpenToolStripButton_Click(sender As Object, e As EventArgs) Handles OpenToolStripButton.Click
+        Try
+            ' Вземаме пътя на текущо отворения DWG
+            Dim dwgPath As String = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument.Name
+            Dim dwgFolder As String = IO.Path.GetDirectoryName(dwgPath)
+            Dim dwgName As String = IO.Path.GetFileNameWithoutExtension(dwgPath)
+            ' Създаваме име на JSON файла
+            Dim openPath As String = IO.Path.Combine(dwgFolder, dwgName & "_Tokowi.json")
+            ' Проверка дали файлът съществува
+            If Not IO.File.Exists(openPath) Then
+                MessageBox.Show("Файлът не е намерен: " & openPath, "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                Return
+            End If
+            ' Четене и десериализиране
+            Dim json As String = IO.File.ReadAllText(openPath)
+            Dim loadedList As List(Of strTokow) = JsonConvert.DeserializeObject(Of List(Of strTokow))(json)
+            If loadedList IsNot Nothing Then
+                ' 🔹 Изтриваме текущото съдържание
+                ListTokow.Clear()
+                ' 🔹 Записваме съдържанието от файла
+                ListTokow.AddRange(loadedList)
+            Else
+                ListTokow = New List(Of strTokow)
+            End If
+            ' 👉 Възстановяване на ObjectId от Handle_Block
+            Dim doc = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument
+            Dim db = doc.Database
+            For Each t In ListTokow
+                For Each k In t.Konsumator
+                    If Not String.IsNullOrEmpty(k.Handle_Block) Then
+                        Try
+                            Dim h As New Handle(Convert.ToInt64(k.Handle_Block, 16))
+                            k.ID_Block = db.GetObjectId(False, h, 0)
+                        Catch
+                            k.ID_Block = ObjectId.Null ' блокът вече не съществува
+                        End Try
+                    End If
+                Next
+            Next
+            MessageBox.Show("Файлът е зареден успешно: " & openPath, "OK", MessageBoxButtons.OK, MessageBoxIcon.Information)
+            ' 👉 Ако имаш DataGridView или UI, можеш да го обновиш:
+            ' RefreshGrid()
+        Catch ex As Exception
+            MessageBox.Show("Грешка при четене на файла: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+        End Try
+        BuildTreeViewFromKonsumatori()
+    End Sub
+    Private Sub NewToolStripButton_Click(sender As Object, e As EventArgs) Handles NewToolStripButton.Click
+        Try
+            ' Потвърждение към потребителя (по желание)
+            If MessageBox.Show("Сигурни ли сте, че искате да създадете нов проект? Всички незапазени данни ще бъдат загубени.",
+                           "Ново", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) = DialogResult.No Then
+                Return
+            End If
+            ' 🔹 Изчистваме текущия ListTokow
+            ListTokow.Clear()
+            MessageBox.Show("Нов проект е готов. Всички стари данни са изчистени.", "New", MessageBoxButtons.OK, MessageBoxIcon.Information)
+        Catch ex As Exception
+            MessageBox.Show("Грешка при създаване на нов проект: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+        End Try
+        BuildTreeViewFromKonsumatori()
+    End Sub
 End Class

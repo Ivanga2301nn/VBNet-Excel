@@ -1084,7 +1084,7 @@ Public Class Form_Tablo_new
         Dim colTotal As New DataGridViewTextBoxColumn()
         colTotal.Name = "colTotal"
         colTotal.HeaderText = "ОБЩО"
-        colTotal.Width = 150
+        colTotal.Width = 130
         colTotal.DefaultCellStyle.Font = New Drawing.Font("Arial", 10, FontStyle.Bold)
         colTotal.DefaultCellStyle.BackColor = Color.FromArgb(230, 240, 255)
         colTotal.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter
@@ -1093,13 +1093,13 @@ Public Class Form_Tablo_new
         For Each row As String() In rowData
             Dim dgvRow As New DataGridViewRow()
             dgvRow.CreateCells(DataGridView1)
-            ' Колона 0: Параметър
+            'Колона 0: Параметър
             dgvRow.Cells(0).Value = row(0)
-            ' Колона 1: Мерна единица
+            'Колона 1: Мерна единица
             dgvRow.Cells(1).Value = row(1)
-            ' Определи типа на клетката
+            'Определи типа на клетката
             Dim cellType As String = row(2)
-            ' За колони 2+ (кръгове), създай подходящ тип клетка
+            'За колони 2+ (кръгове), създай подходящ тип клетка
             For colIndex As Integer = 2 To DataGridView1.Columns.Count - 1
                 Dim cell As DataGridViewCell = Nothing
                 Select Case cellType
@@ -1115,7 +1115,7 @@ Public Class Form_Tablo_new
                 End Select
                 dgvRow.Cells(colIndex) = cell
             Next
-            ' Оцветяване
+            'Оцветяване
             Select Case row(0).ToString()
                 Case "---------"
                     dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(220, 220, 220)
@@ -1123,25 +1123,25 @@ Public Class Form_Tablo_new
                     dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(180, 200, 255)
                     dgvRow.DefaultCellStyle.Font = New Drawing.Font("Arial", 10, FontStyle.Bold)
                 Case Else
-                    ' Тук можеш да сложиш форматиране по подразбиране, ако е необходимо
+                    'Тук можеш да сложиш форматиране по подразбиране, ако е необходимо
             End Select
             DataGridView1.Rows.Add(dgvRow)
         Next
         ' =====================================================
         ' 5. НАСТРОЙКИ
         ' =====================================================
-        DataGridView1.AllowUserToAddRows = False
-        DataGridView1.AllowUserToDeleteRows = False
-        DataGridView1.ReadOnly = False  ' Позволи редакция за ComboBox и CheckBox
-        DataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None
-        DataGridView1.ColumnHeadersDefaultCellStyle.Font = New Drawing.Font("Arial", 10, FontStyle.Bold)
-        DataGridView1.ColumnHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter
-        DataGridView1.ColumnHeadersHeight = 170
-        DataGridView1.RowTemplate.Height = 25
-        DataGridView1.BackgroundColor = Color.White
-        DataGridView1.GridColor = Color.Gray
-        DataGridView1.BorderStyle = BorderStyle.Fixed3D
-        DataGridView1.CellBorderStyle = DataGridViewCellBorderStyle.Single
+        DataGridView1.AllowUserToAddRows = False                                    ' Забранява на потребителя да добавя празен нов ред в края на таблицата
+        DataGridView1.AllowUserToDeleteRows = False                                 ' Забранява на потребителя да изтрива редове с натискане на Delete
+        DataGridView1.ReadOnly = False                                              ' Позволява редакция на клетките (важно за ComboBox и CheckBox)
+        DataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None    ' Изключва автоматичното оразмеряване (разчита на зададен Width)
+        DataGridView1.ColumnHeadersDefaultCellStyle.Font = New Drawing.Font("Arial", 10, FontStyle.Bold) ' Задава шрифт Bold за заглавния ред
+        DataGridView1.ColumnHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter ' Центрира текста в заглавията на колоните
+        DataGridView1.ColumnHeadersHeight = 25                                      ' Фиксира височината на заглавната лента на 170 пиксела
+        DataGridView1.RowTemplate.Height = 25                                       ' Задава стандартна височина на всеки нов ред с данни
+        DataGridView1.BackgroundColor = Color.White                                 ' Променя цвета на фона на самата контрола (зад редовете) на бял
+        DataGridView1.GridColor = Color.Gray                                        ' Задава сив цвят за линиите на мрежата между клетките
+        DataGridView1.BorderStyle = BorderStyle.Fixed3D                             ' Прави рамката на цялата таблица да изглежда обемна (3D)
+        DataGridView1.CellBorderStyle = DataGridViewCellBorderStyle.Single          ' Задава единична тънка линия за граница между отделните клетки
     End Sub
     ''' <summary>
     ''' Настройва DataGridViewComboBoxCell с подходящи елементи според подаден параметър.

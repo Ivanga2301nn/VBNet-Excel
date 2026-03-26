@@ -2142,10 +2142,86 @@ Public Class Form_Tablo_new
             ' ----------------------------------------------------
             CalculateCable(tokow)
         Next
-
-
-
-
+        ' ═══════════════════════════════════════════════════════════
+        ' 7) ДОБАВИ FEEDER ЗАПИС ЗА ОБЩОТО НА ВСЕКИ ЗАХРАНВАЩ КРЪГ
+        ' ═══════════════════════════════════════════════════════════
+        AddFeederRecords()
+    End Sub
+    ''' <summary>
+    ''' Добавя запис "ОБЩО" за всяко табло в ListTokow
+    ''' Извиква се в края на CalculateCircuitLoads()
+    ''' </summary>
+    Private Sub AddFeederRecords()
+        ' ─────────────────────────────────────────────────────────
+        ' 1. Намери всички уникални табла
+        ' ─────────────────────────────────────────────────────────
+        Dim allTablos As List(Of String) = ListTokow.Select(
+                                           Function(t) t.Tablo
+                                           ).Distinct().ToList()
+        ' ─────────────────────────────────────────────────────────
+        ' 2. За всяко табло → изчисли общото и добави запис
+        ' ─────────────────────────────────────────────────────────
+        For Each tabloName As String In allTablos
+            ' Вземи всички кръгове в това табло (без вече съществуващи "ОБЩО")
+            Dim panelCircuits As List(Of strTokow) = ListTokow.Where(
+                                Function(t) t.Tablo = tabloName AndAlso t.ТоковКръг <> "ОБЩО"
+                                ).ToList()
+            If panelCircuits.Count = 0 Then Continue For
+            ' ─────────────────────────────────────────────────────
+            ' 3. Изчисли общите стойности
+            ' ─────────────────────────────────────────────────────
+            Dim totalLamps As Integer = panelCircuits.Sum(Function(c) c.brLamp)
+            Dim totalContacts As Integer = panelCircuits.Sum(Function(c) c.brKontakt)
+            Dim totalPower As Double = panelCircuits.Sum(Function(c) c.Мощност)
+            ' ─────────────────────────────────────────────────────
+            ' 4. Изчисли тока (3-фазно или 1-фазно)
+            ' ─────────────────────────────────────────────────────
+            Dim hasThreePhase As Boolean = panelCircuits.Any(Function(c) c.Брой_Полюси = 3)
+            Dim totalCurrent As Double = 0
+            If hasThreePhase Then
+                totalCurrent = (totalPower * 1000) / (Math.Sqrt(3) * 400)
+            Else
+                totalCurrent = (totalPower * 1000) / 230
+            End If
+            ' ─────────────────────────────────────────────────────
+            ' 5. Определи най-честия брой полюси
+            ' ─────────────────────────────────────────────────────
+            Dim mostCommonPoles As Integer = panelCircuits.GroupBy(Function(c) c.Брой_Полюси) _
+                                                          .OrderByDescending(Function(g) g.Count()) _
+                                                          .FirstOrDefault()?.Key
+            ' ─────────────────────────────────────────────────────
+            ' 6. Определи фазата
+            ' ─────────────────────────────────────────────────────
+            Dim totalPhase As String = If(hasThreePhase, "L1,L2,L3", "L")
+            ' ─────────────────────────────────────────────────────
+            ' 7. Създай записа "ОБЩО"
+            ' ─────────────────────────────────────────────────────
+            Dim totalTokow As New strTokow With {
+                              .Device = "Табло",
+                              .Tablo = tabloName,
+                              .ТоковКръг = "ОБЩО",
+                              .Брой_Полюси = mostCommonPoles,
+                              .Мощност = totalPower,
+                              .Ток = totalCurrent,
+                              .Фаза = totalPhase,
+                              .brLamp = totalLamps,
+                              .brKontakt = totalContacts,
+                              .Табло_Родител = ""
+            }
+            ' ─────────────────────────────────────────────────────
+            ' 8. Премахни стар "ОБЩО" запис ако има (за всеки случай)
+            ' ─────────────────────────────────────────────────────
+            Dim existingTotal As strTokow = ListTokow.FirstOrDefault(
+                                Function(t) t.Tablo = tabloName AndAlso t.ТоковКръг = "ОБЩО"
+                                )
+            If existingTotal IsNot Nothing Then
+                ListTokow.Remove(existingTotal)
+            End If
+            ' ─────────────────────────────────────────────────────
+            ' 9. Добави новия запис
+            ' ─────────────────────────────────────────────────────
+            ListTokow.Add(totalTokow)
+        Next
     End Sub
     ''' <summary>
     ''' Връща информация за начин на монтаж на база подадена стойност (символ или текст).
@@ -2441,38 +2517,6 @@ Public Class Form_Tablo_new
                     UpdateCircuitColumn(circuit, colIndex)
                 End If
             Next
-            '' 3. ОБЩО (последна колона)
-            'Dim totalLamps As Integer = panelCircuits.Sum(Function(c) c.brLamp)
-            'Dim totalContacts As Integer = panelCircuits.Sum(Function(c) c.brKontakt)
-            'Dim totalPower As Double = panelCircuits.Sum(Function(c) c.Мощност)
-
-            'Dim hasThreePhase As Boolean = panelCircuits.Any(Function(c) c.Брой_Полюси = 3)
-            'Dim totalCurrent As Double = If(hasThreePhase,
-            '                            (totalPower * 1000) / (Math.Sqrt(3) * 400),
-            '                            (totalPower * 1000) / 230)
-
-            'Dim mostCommonPoles As String = panelCircuits.GroupBy(Function(c) c.Брой_Полюси) _
-            '                                 .OrderByDescending(Function(g) g.Count()) _
-            '                                 .FirstOrDefault()?.Key
-            'If mostCommonPoles Is Nothing Then mostCommonPoles = "1p"
-
-            'Dim totalPhase As String = If(hasThreePhase, "3P", "1P")
-            'Dim totalColIndex As Integer = DataGridView1.Columns.Count - 1
-            'Select Case paramName
-            '    Case "Брой лампи"
-            '        row.Cells(totalColIndex).Value = panelCircuits.Sum(Function(c) c.brLamp)
-            '    Case "Брой контакти"
-            '        row.Cells(totalColIndex).Value = panelCircuits.Sum(Function(c) c.brKontakt)
-            '    Case "Инст. мощност"
-            '        row.Cells(totalColIndex).Value = panelCircuits.Sum(Function(c) c.Мощност).ToString("0.00")
-            '    Case "Изчислен ток"
-            '        If hasThreePhase Then
-            '            totalCurrent = (totalPower * 1000) / (Math.Sqrt(3) * 400)
-            '        Else
-            '            totalCurrent = (totalPower * 1000) / 230
-            '        End If
-            '        row.Cells(totalColIndex).Value = totalCurrent.ToString("0.00")
-            'End Select
         Next
     End Sub
     ''' <summary>

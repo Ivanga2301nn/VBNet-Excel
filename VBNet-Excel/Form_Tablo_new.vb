@@ -15,6 +15,7 @@ Imports Autodesk.AutoCAD.PlottingServices
 Imports Autodesk.AutoCAD.Runtime
 Imports AXDBLib
 Imports Newtonsoft.Json
+Imports Org.BouncyCastle.Asn1.Cmp
 Imports Org.BouncyCastle.Math.EC.ECCurve
 Imports VBNet_Excel.Form_Tablo_new
 
@@ -628,6 +629,7 @@ Public Class Form_Tablo_new
         Public Tablo As String                      ' Табло към което принадлежи кръгът
         Public ТоковКръг As String                  ' Име или номер на токовия кръг
         Public Брой_Полюси As Integer               ' Брой на фазите на токовия кръг
+        Public Табло_Родител As String              ' Името на таблото което захранва таблото в което е монтиран токовия кръг"
         ' ============================================================
         ' БРОЯЧИ
         ' ============================================================
@@ -911,8 +913,7 @@ Public Class Form_Tablo_new
                     ' ----------------------------------------------------
                     ' CalcPower() изчислява реалната мощност на консуматора
                     ' според текста на мощността и дължината (ако има)
-                    Kons.doubМОЩНОСТ =
-                    CalcPower(Kons.strМОЩНОСТ, Kons.Dylvina_Led)
+                    Kons.doubМОЩНОСТ = CalcPower(Kons.strМОЩНОСТ, Kons.Dylvina_Led)
                     ' ----------------------------------------------------
                     ' 8) Допълнителна обработка според типа на блока
                     ' ----------------------------------------------------
@@ -2141,6 +2142,10 @@ Public Class Form_Tablo_new
             ' ----------------------------------------------------
             CalculateCable(tokow)
         Next
+
+
+
+
     End Sub
     ''' <summary>
     ''' Връща информация за начин на монтаж на база подадена стойност (символ или текст).
@@ -2436,38 +2441,38 @@ Public Class Form_Tablo_new
                     UpdateCircuitColumn(circuit, colIndex)
                 End If
             Next
-            ' 3. ОБЩО (последна колона)
-            Dim totalLamps As Integer = panelCircuits.Sum(Function(c) c.brLamp)
-            Dim totalContacts As Integer = panelCircuits.Sum(Function(c) c.brKontakt)
-            Dim totalPower As Double = panelCircuits.Sum(Function(c) c.Мощност)
+            '' 3. ОБЩО (последна колона)
+            'Dim totalLamps As Integer = panelCircuits.Sum(Function(c) c.brLamp)
+            'Dim totalContacts As Integer = panelCircuits.Sum(Function(c) c.brKontakt)
+            'Dim totalPower As Double = panelCircuits.Sum(Function(c) c.Мощност)
 
-            Dim hasThreePhase As Boolean = panelCircuits.Any(Function(c) c.Брой_Полюси = 3)
-            Dim totalCurrent As Double = If(hasThreePhase,
-                                        (totalPower * 1000) / (Math.Sqrt(3) * 400),
-                                        (totalPower * 1000) / 230)
+            'Dim hasThreePhase As Boolean = panelCircuits.Any(Function(c) c.Брой_Полюси = 3)
+            'Dim totalCurrent As Double = If(hasThreePhase,
+            '                            (totalPower * 1000) / (Math.Sqrt(3) * 400),
+            '                            (totalPower * 1000) / 230)
 
-            Dim mostCommonPoles As String = panelCircuits.GroupBy(Function(c) c.Брой_Полюси) _
-                                             .OrderByDescending(Function(g) g.Count()) _
-                                             .FirstOrDefault()?.Key
-            If mostCommonPoles Is Nothing Then mostCommonPoles = "1p"
+            'Dim mostCommonPoles As String = panelCircuits.GroupBy(Function(c) c.Брой_Полюси) _
+            '                                 .OrderByDescending(Function(g) g.Count()) _
+            '                                 .FirstOrDefault()?.Key
+            'If mostCommonPoles Is Nothing Then mostCommonPoles = "1p"
 
-            Dim totalPhase As String = If(hasThreePhase, "3P", "1P")
-            Dim totalColIndex As Integer = DataGridView1.Columns.Count - 1
-            Select Case paramName
-                Case "Брой лампи"
-                    row.Cells(totalColIndex).Value = panelCircuits.Sum(Function(c) c.brLamp)
-                Case "Брой контакти"
-                    row.Cells(totalColIndex).Value = panelCircuits.Sum(Function(c) c.brKontakt)
-                Case "Инст. мощност"
-                    row.Cells(totalColIndex).Value = panelCircuits.Sum(Function(c) c.Мощност).ToString("0.00")
-                Case "Изчислен ток"
-                    If hasThreePhase Then
-                        totalCurrent = (totalPower * 1000) / (Math.Sqrt(3) * 400)
-                    Else
-                        totalCurrent = (totalPower * 1000) / 230
-                    End If
-                    row.Cells(totalColIndex).Value = totalCurrent.ToString("0.00")
-            End Select
+            'Dim totalPhase As String = If(hasThreePhase, "3P", "1P")
+            'Dim totalColIndex As Integer = DataGridView1.Columns.Count - 1
+            'Select Case paramName
+            '    Case "Брой лампи"
+            '        row.Cells(totalColIndex).Value = panelCircuits.Sum(Function(c) c.brLamp)
+            '    Case "Брой контакти"
+            '        row.Cells(totalColIndex).Value = panelCircuits.Sum(Function(c) c.brKontakt)
+            '    Case "Инст. мощност"
+            '        row.Cells(totalColIndex).Value = panelCircuits.Sum(Function(c) c.Мощност).ToString("0.00")
+            '    Case "Изчислен ток"
+            '        If hasThreePhase Then
+            '            totalCurrent = (totalPower * 1000) / (Math.Sqrt(3) * 400)
+            '        Else
+            '            totalCurrent = (totalPower * 1000) / 230
+            '        End If
+            '        row.Cells(totalColIndex).Value = totalCurrent.ToString("0.00")
+            'End Select
         Next
     End Sub
     ''' <summary>
@@ -2549,31 +2554,6 @@ Public Class Form_Tablo_new
             End Select
         Next
     End Sub
-    'Private Sub InitCableCombo(cell As DataGridViewCell, poles As String)
-    '    Dim comboCell = TryCast(cell, DataGridViewComboBoxCell)
-    '    If comboCell IsNot Nothing Then
-    '        comboCell.Items.Clear()
-    '        ' 1. Основно определяне на жилата
-    '        Dim basePrefix As String = "3"
-    '        If poles.Contains("3") Then basePrefix = "5"
-    '        ' 2. Пълним комбото
-    '        For Each sSize In Kable_Size_L
-    '            Dim currentPrefix As String = basePrefix
-    '            ' Логика за 4-жилен кабел: ако е трифазен и сечението е >= 25
-    '            If basePrefix = "5" Then
-    '                ' Конвертираме "1,5" -> 1.5 за проверка
-    '                Dim numericSize As Double = 0
-    '                Double.TryParse(sSize.Replace(",", "."), numericSize)
-    '                If numericSize >= 35 Then
-    '                    currentPrefix = "4"
-    '                End If
-    '            End If
-    '            ' Резултат: "3х1,5" или "5х16", или "4х25"
-    '            comboCell.Items.Add(currentPrefix & ZnakX & sSize)
-    '        Next
-
-    '    End If
-    'End Sub
     ''' <summary>
     ''' Добавя колони за токовите кръгове на избраното табло
     ''' </summary>
@@ -2768,13 +2748,14 @@ Public Class Form_Tablo_new
     ''' добавя вътре в съответния Case.
     ''' </summary>
     Private Sub DataGridView1_CellValueChanged(sender As Object, e As DataGridViewCellEventArgs) Handles DataGridView1.CellValueChanged
+        'If Not DataGridView1.IsCurrentCellInEditMode Then Exit Sub
         ' ------------------------------------------------------------
         ' 1) Проверка дали индексите на реда и колоната са валидни.
         '    При някои операции (например сортиране или инициализация)
         '    DataGridView може да подаде -1 като индекс.
         ' ------------------------------------------------------------
         'If updateInProgress Then Return ' Защита от рекурсия при програма промяна на клетки
-
+        'Debug.WriteLine("Промяна в клетка: " & e.RowIndex & ", " & e.ColumnIndex & " в " & DateTime.Now.ToString("HH:mm:ss.fff"))
         If e.RowIndex < 0 OrElse e.ColumnIndex < 0 Then Return
         ' ------------------------------------------------------------
         ' 2) Вземане на текущия ред и колона от DataGridView
@@ -2797,9 +2778,8 @@ Public Class Form_Tablo_new
         ' ------------------------------------------------------------
         ' 5) Избор на действие според типа параметър
         ' ------------------------------------------------------------
-
         Dim tokow As strTokow = FindTokowByColumn(e)
-
+        If tokow Is Nothing Then Return
         Select Case paramName
             Case "Тип на апарата"
                 Dim filteredBreakers = Breakers.Where(Function(b) b.Series = selectedValue).ToList()
@@ -2813,23 +2793,71 @@ Public Class Form_Tablo_new
                                     .Distinct() _
                                     .ToList()
                 UpdateComboRow("Крива", valuesCurve, e.ColumnIndex)
-
                 Dim valuesTripUnit = filteredBreakers _
                     .Select(Function(b) b.TripUnit) _
                     .Distinct() _
                     .ToList()
                 UpdateComboRow("Защитен блок", valuesTripUnit, e.ColumnIndex)
 
+
             Case "Постави ДТЗ (RCD)"
                 ' ✅ Първо обнови tokow от клетката!
                 tokow.ДТЗ_RCD = CBool(DataGridView1.Rows(e.RowIndex).Cells(e.ColumnIndex).Value)
                 HandleRCDCheckboxChange(tokow)
             Case "Номинален ток"
-            ' Тук може да се обработва промяна на номиналния ток
-            ' на защитния апарат (например 10A, 16A, 20A...)
+                ' Тук може да се обработва промяна на номиналния ток
+                ' на защитния апарат (например 10A, 16A, 20A...)
+                ' 1. Първо излизаме, ако няма стойност
+                If selectedValue Is Nothing Then Exit Sub
+                ' 2. Вече сме сигурни, че имаме нещо, и правим сравнението
+                If Val(selectedValue) >= Val(tokow.Breaker_Номинален_Ток) Then
+                    ' Всичко е точно, обновяваме стойността
+                    tokow.Breaker_Номинален_Ток = selectedValue
+                Else
+                    ' Тук се намесваме с малко "приятелски" съвет
+                    Dim message As String = "Сигурен ли си в това, което правиш? " & vbCrLf &
+                           "Избраният ток е по-малък от текущия." & vbCrLf &
+                           "Честно казано, правиш простотия!" & vbCrLf &
+                           "Искаш ли наистина да продължиш към Тъмната страна?"
+                    Dim result As DialogResult = MessageBox.Show(message, "Внимание: Инженерна мисъл в действие!",
+                                               MessageBoxButtons.YesNo, MessageBoxIcon.Warning)
+                    If result = DialogResult.Yes Then
+                        ' Потребителят е инат, записваме го
+                        tokow.Breaker_Номинален_Ток = selectedValue
+                    Else
+                        ' Спасихме положението!
+                        MessageBox.Show("Мъдро решение! Спести си един ремонт.", "Браво!", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                    End If
+                End If
+                CalculateCable(tokow,
+                               Type:=tokow.Кабел_Тип,
+                               layMethod:=If(tokow.Кабел_Полагане = "Във въздух", 0, 1),
+                               mountMethod:=GetMountMethodInfo(tokow.Кабел_Монтаж),
+                               Broj_Cable:=tokow.Кабел_Брой_Група,
+                               matType:=GetCableTypeResult(tokow.Кабел_Тип)
+                               )
+
+            Case "Съседни кабели (група):"
+                tokow.Кабел_Брой_Група = selectedValue
+                CalculateCable(tokow,
+                               Type:=tokow.Кабел_Тип,
+                               layMethod:=If(tokow.Кабел_Полагане = "Във въздух", 0, 1),
+                               mountMethod:=GetMountMethodInfo(tokow.Кабел_Монтаж),
+                               Broj_Cable:=tokow.Кабел_Брой_Група,
+                               matType:=GetCableTypeResult(tokow.Кабел_Тип)
+                               )
+            Case "Консуматор"
+                tokow.Консуматор = selectedValue
+            Case "предназначение"
+                tokow.предназначение = selectedValue
+            Case "Управление"
+                tokow.Управление = selectedValue
+            Case "Крива"
+                tokow.Breaker_Крива = selectedValue
             Case "Защитен блок"
-            ' Обработка на параметър свързан със защитен модул
-            ' или допълнителна защита
+                ' Обработка на параметър свързан със защитен модул
+                ' или допълнителна защита
+                tokow.Breaker_Защитен_блок = selectedValue
             Case "Шина"
                 ' Шина е Boolean → True = на отделна шина, False = основна шина
                 tokow.Шина = CBool(selectedValue)
@@ -2844,10 +2872,15 @@ Public Class Form_Tablo_new
             Case "Начин на полагане"
                 ' Правим прост списък само с двете опции
                 Dim valuesLaying As New List(Of String) From {"Във въздух", "В земя"}
+                If tokow.Кабел_Тип = "Al/R" Then
+                    tokow.Кабел_Полагане = "Във въздух"
+                    selectedValue = "Във въздух"
+                End If
                 CalculateCable(tokow,
                                Type:=tokow.Кабел_Тип,
                                layMethod:=If(selectedValue = "Във въздух", 0, 1),
                                mountMethod:=GetMountMethodInfo(tokow.Кабел_Монтаж),
+                               Broj_Cable:=tokow.Кабел_Брой_Група,
                                matType:=GetCableTypeResult(tokow.Кабел_Тип)
                                )
                 ' Подаваме го към твоята процедура
@@ -2855,16 +2888,32 @@ Public Class Form_Tablo_new
             Case "Тип"
                 ' Взимаме само уникалните имена на кабели от главния списък
                 Dim uniqueCableTypes As List(Of String) = Catalog_Cables _
-                    .Select(Function(c) c.CableType) _
-                    .Distinct() _
-                    .ToList()
-                ' Проверка дали стойността съществува в списъка
-                CalculateCable(tokow,
-                               Type:=selectedValue,
-                               layMethod:=If(tokow.Кабел_Полагане = "Във въздух", 0, 1),
-                               mountMethod:=GetMountMethodInfo(tokow.Кабел_Монтаж),
-                               matType:=GetCableTypeResult(selectedValue)
-                               )
+                                        .Select(Function(c) c.CableType) _
+                                        .Distinct() _
+                                        .ToList()
+                If selectedValue = "Al/R" Then
+                    tokow.Кабел_Полагане = "Във въздух"
+                    CalculateCable(tokow,
+                                   Type:=selectedValue,
+                                   layMethod:=If(tokow.Кабел_Полагане = "Във въздух", 0, 1),
+                                   mountMethod:=GetMountMethodInfo(tokow.Кабел_Монтаж),
+                                   Broj_Cable:=tokow.Кабел_Брой_Група,
+                                   matType:=GetCableTypeResult(selectedValue)
+                                   )
+                    UpdateComboRow("Тип", uniqueCableTypes, e.ColumnIndex)
+                    ' Правим прост списък само с двете опции
+                    Dim valuesLaying As New List(Of String) From {"Във въздух", "В земя"}
+                    UpdateComboRow("Начин на полагане", valuesLaying, e.ColumnIndex)
+                Else
+                    ' Проверка дали стойността съществува в списъка
+                    CalculateCable(tokow,
+                                   Type:=selectedValue,
+                                   layMethod:=If(tokow.Кабел_Полагане = "Във въздух", 0, 1),
+                                   mountMethod:=GetMountMethodInfo(tokow.Кабел_Монтаж),
+                                   Broj_Cable:=tokow.Кабел_Брой_Група,
+                                   matType:=GetCableTypeResult(selectedValue)
+                                   )
+                End If
                 ' Подаваме списъка към твоята процедура
                 UpdateComboRow("Тип", uniqueCableTypes, e.ColumnIndex)
             Case "ДТЗ Нула"
@@ -2875,7 +2924,6 @@ Public Class Form_Tablo_new
                 If validatedValue IsNot Nothing Then
                     tokow.RCD_Нула = validatedValue
                 End If
-
         End Select
         UpdateCircuitColumn(tokow, col.Index)
     End Sub
@@ -3040,7 +3088,7 @@ Public Class Form_Tablo_new
                     '    все още съществува в новия списък
                     ' ----------------------------------------------------
                     If comboCell.Value IsNot Nothing AndAlso
-                   Not values.Contains(comboCell.Value.ToString()) Then
+                                       Not values.Contains(comboCell.Value.ToString()) Then
                         ' Ако стойността вече не е валидна – изчистваме я
                         comboCell.Value = Nothing
                     End If
@@ -3679,15 +3727,12 @@ Public Class Form_Tablo_new
             phaseCurrents(minPhase) += group.TotalCurrent
         Next
 
-
         For Each group In balanceGroups
             ' За всеки ТК в групата → запиши фазата в ListTokow
             For Each circuit In group.Circuits
                 circuit.Фаза = group.AssignedPhase
             Next
         Next
-
-        FillDataGridViewForPanel()
     End Sub
     ''' <summary>
     ''' Създава групи от токови кръгове за целите на балансиране на фазите.
@@ -3863,6 +3908,7 @@ Public Class Form_Tablo_new
             MessageBox.Show("Грешка при четене на файла: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
         End Try
         BuildTreeViewFromKonsumatori()
+        SetupDataGridView()
     End Sub
     Private Sub NewToolStripButton_Click(sender As Object, e As EventArgs) Handles NewToolStripButton.Click
         Try
@@ -3878,5 +3924,166 @@ Public Class Form_Tablo_new
             MessageBox.Show("Грешка при създаване на нов проект: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
         End Try
         BuildTreeViewFromKonsumatori()
+        SetupDataGridView()
+    End Sub
+    ''' <summary>
+    ''' Копира стойността на избрана клетка от DataGridView в Clipboard (буфера).
+    ''' </summary>
+    ''' <param name="sender">Източник на събитието (бутон или shortcut).</param>
+    ''' <param name="e">Аргументи на събитието.</param>
+    ''' <remarks>
+    ''' Процедурата реализира базова функционалност за копиране (Copy):
+    '''
+    ''' Логика на работа:
+    ''' 1. Проверява дали има избрани клетки в DataGridView
+    ''' 2. Взема първата избрана клетка
+    ''' 3. Проверява дали стойността ѝ не е Nothing
+    ''' 4. Преобразува стойността в текст (ToString)
+    ''' 5. Записва текста в системния Clipboard
+    '''
+    ''' Поведение:
+    ''' - Копира се само първата избрана клетка (дори да са избрани повече)
+    ''' - Ако клетката е празна → не се прави нищо
+    '''
+    ''' Ограничения:
+    ''' - Не поддържа копиране на множество клетки (табличен формат)
+    ''' - Не запазва структура (редове/колони), както в Excel
+    '''
+    ''' Възможни подобрения:
+    ''' - Поддръжка на multi-cell copy (TAB/NEWLINE формат)
+    ''' - Копиране на цели редове или колони
+    ''' - Проверка за тип на клетката (напр. ComboBox → SelectedValue/Text)
+    '''
+    ''' Забележка:
+    ''' - Clipboard работи със стрингове, затова всички стойности се конвертират чрез ToString()
+    ''' </remarks>
+    Private Sub CopyToolStripButton_Click(sender As Object, e As EventArgs) Handles CopyToolStripButton.Click
+        ' Проверка дали има избрани клетки
+        If DataGridView1.SelectedCells.Count > 0 Then
+            ' Взема първата избрана клетка
+            Dim cellValue As Object = DataGridView1.SelectedCells(0).Value
+            ' Проверка дали клетката съдържа стойност
+            If cellValue IsNot Nothing Then
+                ' Запис на стойността в Clipboard като текст
+                My.Computer.Clipboard.SetText(cellValue.ToString())
+            End If
+        End If
+    End Sub
+    ''' <summary>
+    ''' Поставя съдържание от Clipboard (буфера) в избраните клетки на DataGridView.
+    ''' </summary>
+    ''' <param name="sender">Източник на събитието (бутон или shortcut).</param>
+    ''' <param name="e">Аргументи на събитието.</param>
+    ''' <remarks>
+    ''' Процедурата реализира функционалност за поставяне (Paste), подобна на Excel:
+    '''
+    ''' Логика на работа:
+    ''' 1. Проверява дали Clipboard съдържа текст
+    ''' 2. Ако има текст:
+    '''    - извлича съдържанието
+    '''    - обхожда всички маркирани клетки в DataGridView
+    ''' 3. За всяка клетка:
+    '''    - проверява дали не е ReadOnly
+    '''    - опитва да зададе стойността
+    '''    - при грешка (несъвместим тип) прескача клетката
+    ''' 4. Обновява грида чрез Refresh()
+    '''
+    ''' Поведение:
+    ''' - Един и същ текст се поставя във всички избрани клетки
+    ''' - Ако клетката не позволява запис → пропуска се
+    ''' - Ако типът не съвпада (напр. текст в числова клетка) → грешката се игнорира
+    '''
+    ''' Ограничения:
+    ''' - Не поддържа multi-cell paste (таблични данни с редове/колони)
+    ''' - Не обработва специални формати (напр. табулации, нови редове)
+    '''
+    ''' Възможни подобрения:
+    ''' - Поддръжка на paste от Excel (разделяне по TAB и NewLine)
+    ''' - Проверка за тип на клетката (ComboBox, CheckBox и др.)
+    ''' - Валидация на входните данни преди запис
+    ''' - Частично обновяване вместо пълен Refresh()
+    '''
+    ''' Забележка:
+    ''' - My.Computer.Clipboard работи само в STA нишка (валидно за WinForms)
+    ''' </remarks>
+    Private Sub PasteToolStripButton_Click(sender As Object, e As EventArgs) Handles PasteToolStripButton.Click
+        ' Проверка дали Clipboard съдържа текст
+        If My.Computer.Clipboard.ContainsText() Then
+            ' Вземане на текста от буфера
+            Dim textToPaste As String = My.Computer.Clipboard.GetText()
+            ' Обхождане на всички избрани клетки
+            For Each cell As DataGridViewCell In DataGridView1.SelectedCells
+                ' Проверка дали клетката може да се редактира
+                If Not cell.ReadOnly Then
+                    Try
+                        ' Задаване на стойността
+                        cell.Value = textToPaste
+                    Catch ex As Exception
+                        ' При грешка (напр. невалиден тип) → пропуска клетката
+                        Continue For
+                    End Try
+                End If
+            Next
+            ' Обновяване на визуализацията
+            DataGridView1.Refresh()
+        Else
+            ' Съобщение при празен или невалиден Clipboard
+            MessageBox.Show("Буферът е празен или не съдържа текст!")
+        End If
+    End Sub
+    ''' <summary>
+    ''' Обработва натискане на клавиши в DataGridView за реализиране на бързи команди (shortcuts).
+    ''' </summary>
+    ''' <param name="sender">Източник на събитието (DataGridView).</param>
+    ''' <param name="e">Информация за натиснатия клавиш.</param>
+    ''' <remarks>
+    ''' Процедурата прихваща клавишни комбинации с Ctrl и изпълнява съответните действия:
+    '''
+    ''' Поддържани комбинации:
+    ''' - Ctrl + C → копиране (извиква CopyToolStripButton_Click)
+    ''' - Ctrl + V → поставяне (извиква PasteToolStripButton_Click)
+    '''
+    ''' Логика:
+    ''' 1. Проверява дали е натиснат Ctrl
+    ''' 2. Проверява кой точно клавиш е натиснат (C, V и т.н.)
+    ''' 3. Извиква съответната процедура
+    ''' 4. Задава e.Handled = True, за да предотврати стандартното поведение на DataGridView
+    '''
+    ''' Предимства:
+    ''' - Осигурява Excel-подобно поведение
+    ''' - Централизира управление на shortcut-и
+    '''
+    ''' Разширяемост:
+    ''' - Лесно могат да се добавят нови комбинации:
+    '''     Ctrl + X → изрязване
+    '''     Ctrl + A → селектиране на всичко
+    '''     Ctrl + D → дублиране на ред и др.
+    '''
+    ''' Забележки:
+    ''' - Ако не се зададе e.Handled = True, DataGridView може да изпълни и своето стандартно действие
+    ''' - Copy/Paste логиката трябва да бъде реализирана в съответните методи
+    ''' </remarks>
+    Private Sub DataGridView1_KeyDown(sender As Object, e As KeyEventArgs) Handles DataGridView1.KeyDown
+        ' Проверка дали е натиснат Ctrl
+        If e.Control Then
+            ' Проверка кой клавиш е натиснат
+            Select Case e.KeyCode
+            ' Ctrl + C → Копиране
+                Case Keys.C
+                    CopyToolStripButton_Click(sender, e)
+                    e.Handled = True   ' Спира стандартното поведение
+            ' Ctrl + V → Поставяне
+                Case Keys.V
+                    PasteToolStripButton_Click(sender, e)
+                    e.Handled = True   ' Спира стандартното поведение
+
+                    ' Пример за разширение:
+                    ' Ctrl + X → Изрязване
+                    'Case Keys.X
+                    '    CutToolStripButton_Click(sender, e)
+                    '    e.Handled = True
+
+            End Select
+        End If
     End Sub
 End Class

@@ -2451,7 +2451,7 @@ Public Class Form_ExcelUtilForm
         Dim Index As Integer = 6
         Dim Nomer As Integer = 1
         Dim Rang As String
-        ProgressBar_Extrat.Maximum = ProgressBar_Maximum
+        ProgressBar_Extrat.Maximum = 10 + wsKol_Smetka.Cells(wsKol_Smetka.Rows.Count, "B").End(Microsoft.Office.Interop.Excel.XlDirection.xlUp).Row
         Dim _RowHeight As Double = 15.75
         Dim Red_RowHeight As Double = 1
         _RowHeight = IIf(sender.name = "Button_Номерирай", 15.75, 15)

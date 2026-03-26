@@ -193,6 +193,7 @@ Public Class Form_Tablo_new
     Private Breakers_For_combo As List(Of String)
     Private TripUnit_For_combo As List(Of String)
     Private Curve_For_combo As List(Of String)
+    Private Disconnectors_For_combo As List(Of String)
 
     Dim Disconnectors As New List(Of DisconnectorInfo)
     ' ============================================================
@@ -834,6 +835,7 @@ Public Class Form_Tablo_new
         ' Ако не е избран нито един блок → прекратяваме процедурата
         If SelectedSet Is Nothing Then
             MsgBox("НЕ Е маркиран нито един блок.")
+            Me.Close()
             Exit Sub
         End If
         ' ObjectId на текущия блок
@@ -944,6 +946,7 @@ Public Class Form_Tablo_new
                 acTrans.Abort()
             End Try
         End Using
+
     End Sub
     ''' <summary>
     ''' Универсална функция за изчисляване на мощност.
@@ -1323,6 +1326,7 @@ Public Class Form_Tablo_new
                             New DisconnectorInfo With {.NominalCurrent = 2000, .Type = "IN", .Brand = "Acti9", .Poles = 4},
                             New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9", .Poles = 4}
         }
+        Disconnectors_For_combo = Disconnectors.Select(Function(b) b.Type).Distinct().ToList()
         ' --- 4. МЕДНИ ШИНИ ---
         Busbars_Cu = New List(Of BusbarInfo) From {
         New BusbarInfo With {.CurrentCapacity = 210, .Section = "15x3", .Material = "Cu"},
@@ -2143,7 +2147,7 @@ Public Class Form_Tablo_new
             CalculateCable(tokow)
         Next
         ' ═══════════════════════════════════════════════════════════
-        ' 7) ДОБАВИ FEEDER ЗАПИС ЗА ОБЩОТО НА ВСЕКИ ЗАХРАНВАЩ КРЪГ
+        ' 7) ДОБАВИ ЗАПИС ЗА ОБЩОТО НА ТАБЛОТО
         ' ═══════════════════════════════════════════════════════════
         AddFeederRecords()
     End Sub
@@ -2177,18 +2181,11 @@ Public Class Form_Tablo_new
             ' 4. Изчисли тока (3-фазно или 1-фазно)
             ' ─────────────────────────────────────────────────────
             Dim hasThreePhase As Boolean = panelCircuits.Any(Function(c) c.Брой_Полюси = 3)
-            Dim totalCurrent As Double = 0
-            If hasThreePhase Then
-                totalCurrent = (totalPower * 1000) / (Math.Sqrt(3) * 400)
-            Else
-                totalCurrent = (totalPower * 1000) / 230
-            End If
+            Dim totalCurrent As Double = calc_Inom(totalPower, hasThreePhase)
             ' ─────────────────────────────────────────────────────
             ' 5. Определи най-честия брой полюси
             ' ─────────────────────────────────────────────────────
-            Dim mostCommonPoles As Integer = panelCircuits.GroupBy(Function(c) c.Брой_Полюси) _
-                                                          .OrderByDescending(Function(g) g.Count()) _
-                                                          .FirstOrDefault()?.Key
+            Dim mostCommonPoles As Integer = If(panelCircuits.Any(Function(c) c.Брой_Полюси = 3), 3, 1)
             ' ─────────────────────────────────────────────────────
             ' 6. Определи фазата
             ' ─────────────────────────────────────────────────────
@@ -2208,12 +2205,21 @@ Public Class Form_Tablo_new
                               .brKontakt = totalContacts,
                               .Табло_Родител = ""
             }
+            ' ----------------------------------------------------
+            ' Избираме Прекъсвач според изчисления ток и брой полюси
+            ' ----------------------------------------------------
+            CalculateDisconnector(totalTokow)
+            ' ----------------------------------------------------
+            ' Избираме кабел според изчисления ток и брой полюси
+            ' ----------------------------------------------------
+            CalculateCable(totalTokow)
             ' ─────────────────────────────────────────────────────
             ' 8. Премахни стар "ОБЩО" запис ако има (за всеки случай)
             ' ─────────────────────────────────────────────────────
             Dim existingTotal As strTokow = ListTokow.FirstOrDefault(
-                                Function(t) t.Tablo = tabloName AndAlso t.ТоковКръг = "ОБЩО"
-                                )
+                                            Function(t) t.Tablo = tabloName AndAlso
+                                            t.ТоковКръг = "ОБЩО"
+                                            )
             If existingTotal IsNot Nothing Then
                 ListTokow.Remove(existingTotal)
             End If
@@ -2222,6 +2228,30 @@ Public Class Form_Tablo_new
             ' ─────────────────────────────────────────────────────
             ListTokow.Add(totalTokow)
         Next
+    End Sub
+    Private Sub CalculateDisconnector(tokow As strTokow)
+        ' Дефиниране на константи за диапазона (коефициенти)
+        Const MIN_FACTOR As Double = 1.15 ' Прекъсвачът трябва да е поне 15% над изчисления ток
+        Const MAX_FACTOR As Double = 1.25 ' Но не повече от 25% над него (примерно)
+        Dim minRange As Double = tokow.Ток * MIN_FACTOR
+        Dim maxRange As Double = tokow.Ток * MAX_FACTOR
+        ' 2. Търсим най-малкия прекъсвач, който е ПОНЕ 15% над изчисления ток
+        ' Забележка: махнах maxRange от филтъра, защото ако няма прекъсвач в 
+        ' диапазона 15-25%, по-добре е да вземем следващия по-голям, отколкото нищо.
+        Dim suitable = Disconnectors.Where(Function(d) d.Poles = tokow.Брой_Полюси AndAlso
+                                                   d.NominalCurrent >= minRange).
+                                                   OrderBy(Function(d) d.NominalCurrent).
+                                                   FirstOrDefault()
+        ' 3. Проверка на резултата
+        If Not String.IsNullOrEmpty(suitable.Type) Then
+            tokow.Breaker_Номинален_Ток = suitable.NominalCurrent
+            tokow.Breaker_Тип_Апарат = suitable.Type
+            tokow.Breaker_Крива = " "
+        Else
+            ' Ако не намерим нищо (напр. токът е твърде голям за наличните прекъсвачи)
+            ' Трябва да сигнализираш за грешка
+            MsgBox(String.Format("Грешка: Не е намерен прекъсвач за {0}А с {1} полюса.", tokow.Ток, tokow.Брой_Полюси))
+        End If
     End Sub
     ''' <summary>
     ''' Връща информация за начин на монтаж на база подадена стойност (символ или текст).
@@ -3357,6 +3387,7 @@ Public Class Form_Tablo_new
     ''' - Изчислението на requiredCurrent включва коефициент 1.2; това е запас за безопасност според стандарти.
     ''' </remarks>
     Private Sub SetRCD(tokow As strTokow)
+        If tokow.ТоковКръг = "ОБЩО" Then Return
         ' Определяне на броя полюси на RCD: 4p за трифазен, 2p за еднофазен
         Dim poles As String = If(tokow.Брой_Полюси = 3, "4p", "2p")
         ' Минимален номинален ток: 1.2 * ток на кръга, но не по-малко от 20 A

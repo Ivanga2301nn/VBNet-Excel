@@ -152,6 +152,7 @@ Public Class Form_Tablo_new
         ' - шина
 #End Region
         SetupDataGridView()
+        SetupDataGridView_Total()
     End Sub
 
     Dim PI As Double = 3.1415926535897931
@@ -194,7 +195,7 @@ Public Class Form_Tablo_new
     Private TripUnit_For_combo As List(Of String)
     Private Curve_For_combo As List(Of String)
     Private Disconnectors_For_combo As List(Of String)
-
+    Private Discon_Tok_For_combo As List(Of String)
     Dim Disconnectors As New List(Of DisconnectorInfo)
     ' ============================================================
     ' КАТАЛОЖНИ СТРУКТУРИ
@@ -1104,7 +1105,7 @@ Public Class Form_Tablo_new
             'Определи типа на клетката
             Dim cellType As String = row(2)
             'За колони 2+ (кръгове), създай подходящ тип клетка
-            For colIndex As Integer = 2 To DataGridView1.Columns.Count - 1
+            For colIndex As Integer = 2 To DataGridView1.Columns.Count - 2
                 Dim cell As DataGridViewCell = Nothing
                 Select Case cellType
                     Case "Combo"
@@ -1147,6 +1148,67 @@ Public Class Form_Tablo_new
         DataGridView1.BorderStyle = BorderStyle.Fixed3D                             ' Прави рамката на цялата таблица да изглежда обемна (3D)
         DataGridView1.CellBorderStyle = DataGridViewCellBorderStyle.Single          ' Задава единична тънка линия за граница между отделните клетки
     End Sub
+    Private Sub SetupDataGridView_Total()
+        Dim totalColIndex As Integer = DataGridView1.Columns("colTotal").Index
+        ' Цикъл през всички СЪЩЕСТВУВАЩИ редове в таблицата
+        For i As Integer = 0 To DataGridView1.Rows.Count - 1
+            Dim dgvRow As DataGridViewRow = DataGridView1.Rows(i)
+
+            ' Трябва да имаш механизъм, по който да вземеш съответните данни от rowData
+            ' приемаме, че rowData(i) съответства на DataGridView1.Rows(i)
+            Dim data As String() = rowData(i)
+
+
+            Dim cellType As String = data(2) ' Типът от твоя масив с данни
+            Dim specialCell As DataGridViewCell = Nothing
+
+            ' 1. Създаваме новата клетка според типа
+            Select Case cellType
+                Case "Combo"
+                    ' 1. Създаваме клетката
+                    Dim comboCell As New DataGridViewComboBoxCell()
+                    ' 2. Логика според съдържанието на първата колона (data(0))
+                    Select Case data(0).ToString()
+                        Case "Управление"
+                            ' Изпълнява се само за "Управление"
+                            SetupComboBoxCell(comboCell, data(0))
+                        Case "Тип на апарата"
+                            ' Директно пълним от твоя списък/колекция
+                            comboCell.Items.Clear()
+                            comboCell.Items.AddRange(Disconnectors_For_combo.ToArray())
+                        Case "Номинален ток"
+                            comboCell.Items.Clear()
+                            comboCell.Items.AddRange(Discon_Tok_For_combo.ToArray())
+                        Case Else
+                            ' Опционално: какво да се случва, ако е Combo, 
+                            ' но не е нито едно от горните?
+                    End Select
+                    ' 3. Присвояваме готовата клетка на променливата specialCell
+                    specialCell = comboCell
+                Case "Check"
+                    specialCell = New DataGridViewCheckBoxCell()
+                    specialCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter
+                    ' Важно: Стойността трябва да е Boolean за CheckBoxCell
+                    specialCell.Value = False
+                Case Else
+                    specialCell = New DataGridViewTextBoxCell()
+                    specialCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter
+            End Select
+
+            ' 2. ЗАМЯНА НА СЪЩЕСТВУВАЩАТА КЛЕТКА
+            ' Това директно подменя клетката в конкретния ред и колона
+            dgvRow.Cells(totalColIndex) = specialCell
+
+            ' 3. Форматиране на реда (оцветяване)
+            Select Case dgvRow.Cells(0).Value?.ToString()
+                Case "---------"
+                    dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(220, 220, 220)
+                Case "Прекъсвач", "ДТЗ (RCD)", "Кабел"
+                    dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(180, 200, 255)
+                    dgvRow.DefaultCellStyle.Font = New Drawing.Font("Arial", 10, FontStyle.Bold)
+            End Select
+        Next
+    End Sub
     ''' <summary>
     ''' Настройва DataGridViewComboBoxCell с подходящи елементи според подаден параметър.
     ''' </summary>
@@ -1185,14 +1247,14 @@ Public Class Form_Tablo_new
                 comboCell.Items.AddRange("B", "C", "D")
             Case "Управление"
                 comboCell.Items.AddRange("Няма",
-                                     "Импулсно реле",
-                                     "Моторна защита",
-                                     "Контактор",
-                                     "Моторен механизъм",
-                                     "Честотен регулатор",
-                                     "Стълбищен автомат",
-                                     "Електромер",
-                                     "Фото реле")
+                                         "Импулсно реле",
+                                         "Моторна защита",
+                                         "Контактор",
+                                         "Моторен механизъм",
+                                         "Честотен регулатор",
+                                         "Стълбищен автомат",
+                                         "Електромер",
+                                         "Фото реле")
             Case "Тип"
                 ' Възможно зареждане на Kable_Type в бъдеще
         End Select
@@ -1327,6 +1389,12 @@ Public Class Form_Tablo_new
                             New DisconnectorInfo With {.NominalCurrent = 2500, .Type = "IN", .Brand = "Acti9", .Poles = 4}
         }
         Disconnectors_For_combo = Disconnectors.Select(Function(b) b.Type).Distinct().ToList()
+        Discon_Tok_For_combo = Disconnectors.
+                       Select(Function(d) d.NominalCurrent).
+                       Distinct().
+                       OrderBy(Function(n) n).
+                       Select(Function(n) n.ToString()).
+                       ToList()
         ' --- 4. МЕДНИ ШИНИ ---
         Busbars_Cu = New List(Of BusbarInfo) From {
         New BusbarInfo With {.CurrentCapacity = 210, .Section = "15x3", .Material = "Cu"},
@@ -1867,8 +1935,8 @@ Public Class Form_Tablo_new
                     .DefaultPoles = 1,
                     .DefaultCable = "3" & ZnakX & "1,5",
                     .DefaultBreaker = "10",
-                    .DefaultPrednaz = "Общо",
                     .DefaultBreakerType = "EZ9 MCB",
+                    .DefaultPrednaz = "Общо",
                     .DefaultPrednaz1 = "осветление",
                     .VisibilityRules = New List(Of VisRule)()
                 },
@@ -2539,15 +2607,21 @@ Public Class Form_Tablo_new
                 paramName = "Кабел" Then
                 Continue For
             End If
-            ' Попълни клетките за всеки кръг
-            For i As Integer = 0 To panelCircuits.Count - 1
-                Dim circuit As strTokow = panelCircuits(i)
+            ' Вместо For i As Integer = 0 To panelCircuits.Count - 1
+            For Each circuit As strTokow In panelCircuits
+                ' Проверка за "ОБЩО", ако не е коментирана
+                'If circuit.TokoвКръг = "ОБЩО" Then Continue For
+
+                ' За индекса на колоната ще ти трябва брояч, ако държиш на него
+                Dim i As Integer = panelCircuits.IndexOf(circuit)
                 Dim colIndex As Integer = i + 2
-                If colIndex < DataGridView1.Columns.Count - 1 Then
+
+                If colIndex < DataGridView1.Columns.Count Then
                     UpdateCircuitColumn(circuit, colIndex)
                 End If
             Next
         Next
+
     End Sub
     ''' <summary>
     ''' Актуализира стойностите на конкретна колона в DataGridView за даден токов кръг.
@@ -2647,6 +2721,7 @@ Public Class Form_Tablo_new
         ' 2. Добави нови колони за всеки кръг
         For i As Integer = 0 To panelCircuits.Count - 1
             Dim circuit As strTokow = panelCircuits(i)
+            If circuit.ТоковКръг = "ОБЩО" Then Continue For
             Dim col As New DataGridViewTextBoxColumn()
             col.Name = $"colCircuit{i}"
             col.HeaderText = circuit.ТоковКръг
@@ -2854,6 +2929,7 @@ Public Class Form_Tablo_new
         ' ------------------------------------------------------------
         Dim tokow As strTokow = FindTokowByColumn(e)
         If tokow Is Nothing Then Return
+        If tokow.Device = "Табло" Then Return
         Select Case paramName
             Case "Тип на апарата"
                 Dim filteredBreakers = Breakers.Where(Function(b) b.Series = selectedValue).ToList()
@@ -2868,12 +2944,10 @@ Public Class Form_Tablo_new
                                     .ToList()
                 UpdateComboRow("Крива", valuesCurve, e.ColumnIndex)
                 Dim valuesTripUnit = filteredBreakers _
-                    .Select(Function(b) b.TripUnit) _
-                    .Distinct() _
-                    .ToList()
+                                    .Select(Function(b) b.TripUnit) _
+                                    .Distinct() _
+                                    .ToList()
                 UpdateComboRow("Защитен блок", valuesTripUnit, e.ColumnIndex)
-
-
             Case "Постави ДТЗ (RCD)"
                 ' ✅ Първо обнови tokow от клетката!
                 tokow.ДТЗ_RCD = CBool(DataGridView1.Rows(e.RowIndex).Cells(e.ColumnIndex).Value)
@@ -2910,7 +2984,6 @@ Public Class Form_Tablo_new
                                Broj_Cable:=tokow.Кабел_Брой_Група,
                                matType:=GetCableTypeResult(tokow.Кабел_Тип)
                                )
-
             Case "Съседни кабели (група):"
                 tokow.Кабел_Брой_Група = selectedValue
                 CalculateCable(tokow,
@@ -3397,23 +3470,22 @@ Public Class Form_Tablo_new
         If poles = "4p" Then needRCBO = False
         ' Филтриране на каталога за подходящи RCD
         Dim matchingRCDs = RCD_Catalog.Where(
-                                Function(r) r.NominalCurrent >= requiredCurrent AndAlso
-                                r.Poles = poles AndAlso
-                                r.Breaker = needRCBO
-                                ).ToList()
+                           Function(r) r.NominalCurrent >= requiredCurrent AndAlso
+                           r.Poles = poles AndAlso
+                           r.Breaker = needRCBO
+                           ).ToList()
         ' ----------------------------------------------------
         ' Ако не е намерена подходяща ДЗТ
         ' ----------------------------------------------------
         If matchingRCDs.Count = 0 Then
-
             Dim info As String = $"ВНИМАНИЕ: Не е намерена подходяща ДЗТ!{vbCrLf}{vbCrLf}" &
-                 $"Търсени параметри:{vbCrLf}" &
-                 $"- Мин. номинален ток: {requiredCurrent} A{vbCrLf}" &
-                 $"- Комбинирана (RCBO): {If(tokow.RCD_Автомат, "Да", "Не")}{vbCrLf}" &
-                 $"- Брой полюси: {poles}{vbCrLf}{vbCrLf}" &
-                 $"Местоположение:{vbCrLf}" &
-                 $"- Табло: {tokow.Tablo}{vbCrLf}" &
-                 $"- Токов кръг: {tokow.ТоковКръг}"
+                                 $"Търсени параметри:{vbCrLf}" &
+                                 $"- Мин. номинален ток: {requiredCurrent} A{vbCrLf}" &
+                                 $"- Комбинирана (RCBO): {If(tokow.RCD_Автомат, "Да", "Не")}{vbCrLf}" &
+                                 $"- Брой полюси: {poles}{vbCrLf}{vbCrLf}" &
+                                 $"Местоположение:{vbCrLf}" &
+                                 $"- Табло: {tokow.Tablo}{vbCrLf}" &
+                                 $"- Токов кръг: {tokow.ТоковКръг}"
             MsgBox(info, MsgBoxStyle.Exclamation, "Липсваща апаратура в каталога")
         Else
             ' Избира се първият подходящ RCD
@@ -3533,8 +3605,8 @@ Public Class Form_Tablo_new
         For Each panelGroup In panels
             ' Избор само на кръговете, които съдържат контакти
             Dim contactCircuits = panelGroup.Where(
-                                    Function(t) t.brKontakt > 0
-                                    ).ToList()
+                            Function(t) t.brKontakt > 0 AndAlso t.Device <> "Табло"
+                            ).ToList()
             ' Брой на контактните кръгове
             Dim n As Integer = contactCircuits.Count
             ' Ако няма такива кръгове – преминава към следващото табло
@@ -3764,14 +3836,11 @@ Public Class Form_Tablo_new
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question
             )
-
             If result = MsgBoxResult.No Then Return
         End If
-
         Dim busCircuits = panelCircuits.Where(
                                 Function(t) t.Шина = True
                                 ).ToList()
-
         Dim balanceGroups As List(Of BalanceGroup) = CreateBalanceGroups(panelCircuits)
         Dim phaseCurrents As New Dictionary(Of String, Double) From {
                 {"L1", 0},
@@ -3786,7 +3855,6 @@ Public Class Form_Tablo_new
             phaseCurrents("L2") += circuit.Ток
             phaseCurrents("L3") += circuit.Ток
         Next
-
         For Each group In balanceGroups
             ' 1. Намери фазата с най-малък текущ ток
             Dim minPhase As String = phaseCurrents.Keys.OrderByDescending(
@@ -3801,7 +3869,6 @@ Public Class Form_Tablo_new
             ' 4. Добави тока към съответната фаза
             phaseCurrents(minPhase) += group.TotalCurrent
         Next
-
         For Each group In balanceGroups
             ' За всеки ТК в групата → запиши фазата в ListTokow
             For Each circuit In group.Circuits

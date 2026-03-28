@@ -191,12 +191,14 @@ Public Class Form_Tablo_new
     Private Cable_AlR_2 As New Dictionary(Of Integer, String)
     Private Cable_AlR_4 As New Dictionary(Of Integer, String)
 
+    Private Disconnectors As New List(Of DisconnectorInfo)
+    Private Cable_For_combo As List(Of String)
     Private Breakers_For_combo As List(Of String)
     Private TripUnit_For_combo As List(Of String)
     Private Curve_For_combo As List(Of String)
     Private Disconnectors_For_combo As List(Of String)
     Private Discon_Tok_For_combo As List(Of String)
-    Dim Disconnectors As New List(Of DisconnectorInfo)
+
     ' ============================================================
     ' КАТАЛОЖНИ СТРУКТУРИ
     ' ============================================================
@@ -231,7 +233,7 @@ Public Class Form_Tablo_new
         New String() {"Начин на полагане", "--", "Combo"},
         New String() {"Паралелни кабели (фаза):", "бр.", "Text"},
         New String() {"Съседни кабели (група):", "бр.", "Text"},
-        New String() {"Тип", "---", "Combo"},
+        New String() {"Тип кабел", "---", "Combo"},
         New String() {"Сечение", "mm²", "Text"},
         New String() {"---------", "", "Text"},
         New String() {"Фаза", "", "Text"},
@@ -1179,6 +1181,7 @@ Public Class Form_Tablo_new
                         Case "Номинален ток"
                             comboCell.Items.Clear()
                             comboCell.Items.AddRange(Discon_Tok_For_combo.ToArray())
+
                         Case Else
                             ' Опционално: какво да се случва, ако е Combo, 
                             ' но не е нито едно от горните?
@@ -1255,7 +1258,8 @@ Public Class Form_Tablo_new
                                          "Стълбищен автомат",
                                          "Електромер",
                                          "Фото реле")
-            Case "Тип"
+            Case "Тип кабел"
+                comboCell.Items.AddRange(Cable_For_combo.ToArray())
                 ' Възможно зареждане на Kable_Type в бъдеще
         End Select
         ' ✅ Задаваме първия елемент като стойност, за да избегнем празна клетка
@@ -1593,7 +1597,7 @@ Public Class Form_Tablo_new
         Catalog_Cables.Add(New CableInfo With {.CableType = "Al/R", .Material = "Al", .PhaseSize = "95", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 258, .MaxCurrent_Ground = 0, .NeutralSize = "70"})
         Catalog_Cables.Add(New CableInfo With {.CableType = "Al/R", .Material = "Al", .PhaseSize = "150", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 344, .MaxCurrent_Ground = 0, .NeutralSize = "70"})
 
-
+        Cable_For_combo = Catalog_Cables.Select(Function(b) b.CableType).Distinct().ToList()
     End Sub
     ''' <summary>
     ''' Процедура за добавяне на всички прекъсвачи.
@@ -2609,19 +2613,14 @@ Public Class Form_Tablo_new
             End If
             ' Вместо For i As Integer = 0 To panelCircuits.Count - 1
             For Each circuit As strTokow In panelCircuits
-                ' Проверка за "ОБЩО", ако не е коментирана
-                'If circuit.TokoвКръг = "ОБЩО" Then Continue For
-
                 ' За индекса на колоната ще ти трябва брояч, ако държиш на него
                 Dim i As Integer = panelCircuits.IndexOf(circuit)
                 Dim colIndex As Integer = i + 2
-
                 If colIndex < DataGridView1.Columns.Count Then
                     UpdateCircuitColumn(circuit, colIndex)
                 End If
             Next
         Next
-
     End Sub
     ''' <summary>
     ''' Актуализира стойностите на конкретна колона в DataGridView за даден токов кръг.
@@ -2689,7 +2688,7 @@ Public Class Form_Tablo_new
                 Case "Начин на полагане" : row.Cells(colIndex).Value = circuit.Кабел_Полагане
                 Case "Паралелни кабели (фаза):" : row.Cells(colIndex).Value = circuit.Кабел_Брой_Фаза
                 Case "Съседни кабели (група):" : row.Cells(colIndex).Value = circuit.Кабел_Брой_Група
-                Case "Тип" : row.Cells(colIndex).Value = circuit.Кабел_Тип
+                Case "Тип кабел" : row.Cells(colIndex).Value = circuit.Кабел_Тип
                 Case "Сечение" : row.Cells(colIndex).Value = circuit.Кабел_Сечение
             ' --- ОПИСАНИЕ ---
                 Case "Фаза" : row.Cells(colIndex).Value = circuit.Фаза
@@ -3032,7 +3031,7 @@ Public Class Form_Tablo_new
                                )
                 ' Подаваме го към твоята процедура
                 UpdateComboRow("Начин на полагане", valuesLaying, e.ColumnIndex)
-            Case "Тип"
+            Case "Тип кабел"
                 ' Взимаме само уникалните имена на кабели от главния списък
                 Dim uniqueCableTypes As List(Of String) = Catalog_Cables _
                                         .Select(Function(c) c.CableType) _
@@ -3047,7 +3046,7 @@ Public Class Form_Tablo_new
                                    Broj_Cable:=tokow.Кабел_Брой_Група,
                                    matType:=GetCableTypeResult(selectedValue)
                                    )
-                    UpdateComboRow("Тип", uniqueCableTypes, e.ColumnIndex)
+                    UpdateComboRow("Тип кабел", uniqueCableTypes, e.ColumnIndex)
                     ' Правим прост списък само с двете опции
                     Dim valuesLaying As New List(Of String) From {"Във въздух", "В земя"}
                     UpdateComboRow("Начин на полагане", valuesLaying, e.ColumnIndex)
@@ -3062,7 +3061,7 @@ Public Class Form_Tablo_new
                                    )
                 End If
                 ' Подаваме списъка към твоята процедура
-                UpdateComboRow("Тип", uniqueCableTypes, e.ColumnIndex)
+                UpdateComboRow("Тип кабел", uniqueCableTypes, e.ColumnIndex)
             Case "ДТЗ Нула"
                 Dim inputValue As String = selectedValue?.ToString()
                 ' Извикай функцията за валидация

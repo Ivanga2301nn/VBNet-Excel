@@ -1617,7 +1617,7 @@ Public Class Form_Tablo_new
         ' MCB – EZ9
         ' ==========================
         Dim EZ9_Currents = {6, 10, 16, 20, 25, 32, 40, 50, 63}
-        Dim EZ9_Curves = {"B", "C", "D"}
+        Dim EZ9_Curves = {"C", "B", "D"}
         Dim EZ9_Poles = {1, 3}
         For Each Inom In EZ9_Currents
             For Each curve In EZ9_Curves
@@ -1640,7 +1640,7 @@ Public Class Form_Tablo_new
         ' ==========================
         ' iC60N предлага изключително малки токове за защита на контролни вериги
         Dim iC60_Currents = {2, 3, 4, 6, 10, 16, 20, 25, 32, 40, 50, 63}
-        Dim iC60_Curves = {"B", "C", "D"}
+        Dim iC60_Curves = {"C", "B", "D"}
         Dim iC60_Poles = {1, 3}
         For Each Inom In iC60_Currents
             For Each curve In iC60_Curves
@@ -2261,7 +2261,6 @@ Public Class Form_Tablo_new
             ' 4. Изчисли тока (3-фазно или 1-фазно)
             ' ─────────────────────────────────────────────────────
             Dim hasThreePhase As Boolean = panelCircuits.Any(Function(c) c.Брой_Полюси = 3)
-            Dim totalCurrent As Double = calc_Inom(totalPower, hasThreePhase)
             ' ─────────────────────────────────────────────────────
             ' 5. Определи най-честия брой полюси
             ' ─────────────────────────────────────────────────────
@@ -2279,12 +2278,27 @@ Public Class Form_Tablo_new
                               .ТоковКръг = "ОБЩО",
                               .Брой_Полюси = mostCommonPoles,
                               .Мощност = totalPower,
-                              .Ток = totalCurrent,
                               .Фаза = totalPhase,
                               .brLamp = totalLamps,
                               .brKontakt = totalContacts,
                               .Табло_Родител = ""
             }
+            ' ─────────────────────────────────────────────────────
+            ' 9. Добави новия запис
+            ' ─────────────────────────────────────────────────────
+            ListTokow.Add(totalTokow)
+            If hasThreePhase Then
+                BalancePhases(tabloName)
+                ' 1. Извличаме числовите стойности от стринговете
+                ' Разделяме по ">", вземаме втората част (индекс 1) и конвертираме към Double
+                Dim valL1 As Double = CDbl(totalTokow.RCD_Клас.Split(">"c)(1))
+                Dim valL2 As Double = CDbl(totalTokow.RCD_Ток.Split(">"c)(1))
+                Dim valL3 As Double = CDbl(totalTokow.RCD_Чувствителност.Split(">"c)(1))
+                ' 2. Намираме максималния ток
+                totalTokow.Ток = Math.Max(valL1, Math.Max(valL2, valL3))
+            Else
+                totalTokow.Ток = calc_Inom(totalTokow.Мощност, totalTokow.Брой_Полюси)
+            End If
             ' ----------------------------------------------------
             ' Избираме Прекъсвач според изчисления ток и брой полюси
             ' ----------------------------------------------------
@@ -2293,20 +2307,16 @@ Public Class Form_Tablo_new
             ' Избираме кабел според изчисления ток и брой полюси
             ' ----------------------------------------------------
             CalculateCable(totalTokow)
-            ' ─────────────────────────────────────────────────────
-            ' 8. Премахни стар "ОБЩО" запис ако има (за всеки случай)
-            ' ─────────────────────────────────────────────────────
-            Dim existingTotal As strTokow = ListTokow.FirstOrDefault(
-                                            Function(t) t.Tablo = tabloName AndAlso
-                                            t.ТоковКръг = "ОБЩО"
-                                            )
-            If existingTotal IsNot Nothing Then
-                ListTokow.Remove(existingTotal)
-            End If
-            ' ─────────────────────────────────────────────────────
-            ' 9. Добави новия запис
-            ' ─────────────────────────────────────────────────────
-            ListTokow.Add(totalTokow)
+            '' ─────────────────────────────────────────────────────
+            '' 8. Премахни стар "ОБЩО" запис ако има (за всеки случай)
+            '' ─────────────────────────────────────────────────────
+            'Dim existingTotal As strTokow = ListTokow.FirstOrDefault(
+            '                                Function(t) t.Tablo = tabloName AndAlso
+            '                                t.ТоковКръг = "ОБЩО"
+            '                                )
+            'If existingTotal IsNot Nothing Then
+            '    ListTokow.Remove(existingTotal)
+            'End If
         Next
     End Sub
     Private Sub CalculateDisconnector(tokow As strTokow)
@@ -3834,7 +3844,17 @@ Public Class Form_Tablo_new
         lastCircuit.RCD_Нула = originalNula
     End Sub
     Private Sub ToolStripButton_Балансирай_фазите_Click(sender As Object, e As EventArgs) Handles ToolStripButton_Балансирай_фазите.Click
-        BalancePhases()
+        ' =====================================================
+        ' 1. ВЗЕМИ ИЗБРАНОТО ТАБЛО
+        ' =====================================================
+        Dim selectedTablo As String = TreeView1.SelectedNode?.Text
+        ' Ако няма избран възел → прекратяване
+        If String.IsNullOrEmpty(selectedTablo) Then Return
+        ' Премахване на допълнителен текст (например "(...)" )
+        If selectedTablo.Contains("(") Then
+            selectedTablo = selectedTablo.Substring(0, selectedTablo.IndexOf("(")).Trim()
+        End If
+        BalancePhases(selectedTablo)
         FillDataGridViewForPanel()
     End Sub
     ''' <summary>
@@ -3873,17 +3893,7 @@ Public Class Form_Tablo_new
     ''' - По-сложен алгоритъм (например knapsack / heuristic)
     ''' - Визуализация на резултата (графика или таблица)
     ''' </remarks>
-    Private Sub BalancePhases()
-        ' =====================================================
-        ' 1. ВЗЕМИ ИЗБРАНОТО ТАБЛО
-        ' =====================================================
-        Dim selectedTablo As String = TreeView1.SelectedNode?.Text
-        ' Ако няма избран възел → прекратяване
-        If String.IsNullOrEmpty(selectedTablo) Then Return
-        ' Премахване на допълнителен текст (например "(...)" )
-        If selectedTablo.Contains("(") Then
-            selectedTablo = selectedTablo.Substring(0, selectedTablo.IndexOf("(")).Trim()
-        End If
+    Private Sub BalancePhases(selectedTablo As String)
         ' =====================================================
         ' 2. ВЗЕМИ КРЪГОВЕТЕ ОТ ТАБЛОТО
         ' =====================================================
@@ -3892,7 +3902,6 @@ Public Class Form_Tablo_new
                                                 selectedTablo AndAlso t.ТоковКръг <> "ОБЩО"
                                             End Function
                                             ).ToList()
-
         ' Ако няма кръгове → прекратяване
         If panelCircuits.Count = 0 Then Return
         ' =====================================================
@@ -4002,7 +4011,13 @@ Public Class Form_Tablo_new
         totalRow.RCD_Клас = "Фаза L1->" & phaseCurrents("L1").ToString("N2")
         totalRow.RCD_Ток = "Фаза L2->" & phaseCurrents("L2").ToString("N2")
         totalRow.RCD_Чувствителност = "Фаза L3->" & phaseCurrents("L3").ToString("N2")
-
+        ' 1. Извличаме числовите стойности от стринговете
+        ' Разделяме по ">", вземаме втората част (индекс 1) и конвертираме към Double
+        Dim valL1 As Double = CDbl(totalRow.RCD_Клас.Split(">"c)(1))
+        Dim valL2 As Double = CDbl(totalRow.RCD_Ток.Split(">"c)(1))
+        Dim valL3 As Double = CDbl(totalRow.RCD_Чувствителност.Split(">"c)(1))
+        ' 2. Намираме максималния ток
+        totalRow.Ток = Math.Max(valL1, Math.Max(valL2, valL3))
 
     End Sub
     ''' <summary>

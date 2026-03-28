@@ -212,7 +212,7 @@ Public Class Form_Tablo_new
         New String() {"Изчислен ток", "A", "Text"},
         New String() {"Тип на апарата", "", "Combo"},
         New String() {"Номинален ток", "A", "Combo"},
-        New String() {"Изкл. възможн.", "A", "Text"},
+        New String() {"Изкл. възможн.", "kA", "Text"},
         New String() {"Крива", "", "Combo"},
         New String() {"Защитен блок", "", "Combo"},
         New String() {"Брой полюси", "бр.", "Text"},
@@ -697,8 +697,8 @@ Public Class Form_Tablo_new
     ''' както и за по-сложни сценарии с селективност и късо съединение.
     ''' </summary>
     Public Class BreakerInfo
-        Public Brand As String              ' Производител на прекъсвача (например "Schneider").
-        Public Series As String             ' Серия или модел на прекъсвача (например "EZ9", "C120", "NSX", "MTZ").
+        Public Brand As String                      ' Производител на прекъсвача (например "Schneider").
+        Public Series As String                     ' Серия или модел на прекъсвача (например "EZ9", "C120", "NSX", "MTZ").
         ''' <summary>
         ''' Категория на прекъсвача:
         ''' - "MCB" – миниатюрен автоматичен прекъсвач
@@ -706,8 +706,8 @@ Public Class Form_Tablo_new
         ''' - "ACB" – въздушен прекъсвач
         ''' </summary>
         Public Category As String
-        Public NominalCurrent As Integer         ' Номинален ток на прекъсвача в ампери.
-        Public Poles As Integer ' Брой полюси (1P, 2P, 3P или 4P).
+        Public NominalCurrent As Integer            ' Номинален ток на прекъсвача в ампери.
+        Public Poles As Integer                     ' Брой полюси (1P, 2P, 3P или 4P).
         ''' <summary>
         ''' Работна прекъсвателна способност (Ics) в kA.
         ''' Това е стойността, до която прекъсвачът може да изключва многократно.
@@ -1115,11 +1115,10 @@ Public Class Form_Tablo_new
                         SetupComboBoxCell(cell, row(0))
                     Case "Check"
                         cell = New DataGridViewCheckBoxCell()
-                        cell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter
                     Case Else
                         cell = New DataGridViewTextBoxCell()
-                        cell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter
                 End Select
+                cell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter
                 dgvRow.Cells(colIndex) = cell
             Next
             'Оцветяване
@@ -2937,25 +2936,37 @@ Public Class Form_Tablo_new
         ' ------------------------------------------------------------
         Dim tokow As strTokow = FindTokowByColumn(e)
         If tokow Is Nothing Then Return
-        If tokow.Device = "Табло" Then Return
+        If selectedValue = "" Then Return
         Select Case paramName
             Case "Тип на апарата"
-                Dim filteredBreakers = Breakers.Where(Function(b) b.Series = selectedValue).ToList()
-                Dim valuesForCombo = filteredBreakers _
-                                    .Select(Function(b) b.NominalCurrent.ToString()) _
-                                    .Distinct() _
-                                    .ToList()
-                UpdateComboRow("Номинален ток", valuesForCombo, e.ColumnIndex)
-                Dim valuesCurve = filteredBreakers _
-                                    .Select(Function(b) b.Curve.ToString()) _
-                                    .Distinct() _
-                                    .ToList()
-                UpdateComboRow("Крива", valuesCurve, e.ColumnIndex)
-                Dim valuesTripUnit = filteredBreakers _
-                                    .Select(Function(b) b.TripUnit) _
-                                    .Distinct() _
-                                    .ToList()
-                UpdateComboRow("Защитен блок", valuesTripUnit, e.ColumnIndex)
+                tokow.Breaker_Тип_Апарат = selectedValue
+                If tokow.Device = "Табло" Then
+                    Dim filteredDisco = Disconnectors.Where(Function(b) b.Type = selectedValue).ToList()
+                    Dim valuesForCombo = filteredDisco _
+                                        .Select(Function(b) b.NominalCurrent.ToString()) _
+                                        .Distinct() _
+                                        .ToList()
+                    UpdateComboRow("Номинален ток", valuesForCombo, e.ColumnIndex)
+                    tokow.Device = "Табло"
+                Else
+                    Dim filteredBreakers = Breakers.Where(Function(b) b.Series = selectedValue).ToList()
+                    tokow.Breaker_Изкл_Възможност = filteredBreakers.First().Ics_kA & "kA"
+                    Dim valuesForCombo = filteredBreakers _
+                                        .Select(Function(b) b.NominalCurrent.ToString()) _
+                                        .Distinct() _
+                                        .ToList()
+                    UpdateComboRow("Номинален ток", valuesForCombo, e.ColumnIndex)
+                    Dim valuesCurve = filteredBreakers _
+                                        .Select(Function(b) b.Curve.ToString()) _
+                                        .Distinct() _
+                                        .ToList()
+                    UpdateComboRow("Крива", valuesCurve, e.ColumnIndex)
+                    Dim valuesTripUnit = filteredBreakers _
+                                        .Select(Function(b) b.TripUnit) _
+                                        .Distinct() _
+                                        .ToList()
+                    UpdateComboRow("Защитен блок", valuesTripUnit, e.ColumnIndex)
+                End If
             Case "Постави ДТЗ (RCD)"
                 ' ✅ Първо обнови tokow от клетката!
                 tokow.ДТЗ_RCD = CBool(DataGridView1.Rows(e.RowIndex).Cells(e.ColumnIndex).Value)
@@ -3412,15 +3423,16 @@ Public Class Form_Tablo_new
             Dim calc_N As String = ""
             ' Ако сечението е > 16mm², добавяме отделно нулево жило
             If Val(calc.Replace(",", ".")) > 16 Then
-                Poles = "4х"
+                Poles = " 4х"
                 Dim index = filteredCables.FindIndex(Function(c) c.PhaseSize = calc)
                 If index >= 0 Then
                     calc_N = filteredCables(index).NeutralSize
                 End If
             End If
             ' Сглобяване на крайния низ
-            Text = If(bestNum > 1, bestNum & "x", "")       ' Префикс за паралелни кабели
-            Text += Type                                    ' Тип кабел (СВТ, САВТ...)
+            Text = If(bestNum > 1, bestNum & "x", "")           ' Префикс за паралелни кабели
+            Text += Type                                        ' Тип кабел (СВТ, САВТ...)
+            Text += " "
             If Poles = "4х" AndAlso Not String.IsNullOrEmpty(calc_N) Then
                 Text += "3х" & calc & "+" & calc_N              ' С нулево жило
             Else
@@ -3826,63 +3838,172 @@ Public Class Form_Tablo_new
         FillDataGridViewForPanel()
     End Sub
     ''' <summary>
-    ''' Балансира фазите за 1-полюсни ТК без зададена фаза
-    ''' Работи само с избраното табло от TreeView
+    ''' Балансира еднофазните токови кръгове по фази (L1, L2, L3) в избрано табло.
     ''' </summary>
+    ''' <remarks>
+    ''' Процедурата разпределя товарите така, че да се постигне максимално равномерно
+    ''' натоварване на трите фази.
+    '''
+    ''' Основна логика:
+    ''' 1. Взема избраното табло от TreeView
+    ''' 2. Извлича всички токови кръгове от ListTokow за това табло
+    ''' 3. Проверява дали има трифазни консуматори
+    '''    - ако няма → пита потребителя дали да продължи
+    ''' 4. Създава групи за балансиране чрез CreateBalanceGroups()
+    ''' 5. Инициализира токовете по фази (L1, L2, L3)
+    ''' 6. Добавя трифазните товари към всички фази (равномерно)
+    ''' 7. Разпределя групите:
+    '''    - намира най-слабо натоварената фаза
+    '''    - присвоява групата към нея
+    '''    - добавя тока на групата към фазата
+    ''' 8. Записва резултата обратно в ListTokow
+    '''
+    ''' Важни особености:
+    ''' - Трифазните консуматори се добавят към всички фази
+    ''' - Групите (Bus, RCD, Normal) се разпределят като цяло (не се разделят)
+    ''' - Балансирането е greedy алгоритъм (локално оптимален избор)
+    '''
+    ''' Потенциални ограничения:
+    ''' - Не гарантира абсолютно оптимално решение (NP-труден проблем)
+    ''' - Редът на групите влияе на крайния резултат
+    ''' - При големи разлики в товарите може да има остатъчен дисбаланс
+    '''
+    ''' Възможни подобрения:
+    ''' - Сортиране на групите по ток (най-големите първо)
+    ''' - По-сложен алгоритъм (например knapsack / heuristic)
+    ''' - Визуализация на резултата (графика или таблица)
+    ''' </remarks>
     Private Sub BalancePhases()
+        ' =====================================================
+        ' 1. ВЗЕМИ ИЗБРАНОТО ТАБЛО
+        ' =====================================================
         Dim selectedTablo As String = TreeView1.SelectedNode?.Text
+        ' Ако няма избран възел → прекратяване
         If String.IsNullOrEmpty(selectedTablo) Then Return
-        If selectedTablo.Contains("(") Then selectedTablo = selectedTablo.Substring(0, selectedTablo.IndexOf("(")).Trim()
-        Dim panelCircuits = ListTokow.Where(Function(t) t.Tablo = selectedTablo).ToList()
+        ' Премахване на допълнителен текст (например "(...)" )
+        If selectedTablo.Contains("(") Then
+            selectedTablo = selectedTablo.Substring(0, selectedTablo.IndexOf("(")).Trim()
+        End If
+        ' =====================================================
+        ' 2. ВЗЕМИ КРЪГОВЕТЕ ОТ ТАБЛОТО
+        ' =====================================================
+        Dim panelCircuits = ListTokow.Where(Function(t)
+                                                Return t.Tablo =
+                                                selectedTablo AndAlso t.ТоковКръг <> "ОБЩО"
+                                            End Function
+                                            ).ToList()
+
+        ' Ако няма кръгове → прекратяване
         If panelCircuits.Count = 0 Then Return
-        Dim hasThreePhase As Boolean = panelCircuits.Any(Function(t) t.Брой_Полюси = 3 OrElse t.Фаза = "L1,L2,L3")
+        ' =====================================================
+        ' 3. ПРОВЕРКА ЗА ТРИФАЗНИ КОНСУМАТОРИ
+        ' =====================================================
+        Dim hasThreePhase As Boolean = panelCircuits.Any(
+                                    Function(t) t.Брой_Полюси = 3 OrElse t.Фаза = "L1,L2,L3"
+                                    )
+        ' Ако няма трифазни → пита потребителя дали да продължи
         If Not hasThreePhase Then
             Dim result As MsgBoxResult = MessageBox.Show(
-                "Няма трифазни консуматори в това табло." & vbCrLf & vbCrLf &
-                "Искате ли да балансирате таблото?",
-                "Балансиране на фазите",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Question
-            )
+                            "Няма трифазни консуматори в това табло." & vbCrLf & vbCrLf &
+                            "Искате ли да балансирате таблото?",
+                            "Балансиране на фазите",
+                            MessageBoxButtons.YesNo,
+                            MessageBoxIcon.Question
+                            )
             If result = MsgBoxResult.No Then Return
         End If
-        Dim busCircuits = panelCircuits.Where(
-                                Function(t) t.Шина = True
-                                ).ToList()
+        ' =====================================================
+        ' 4. ЗАПИС НА ОБЩИТЕ СТОЙНОСТИ В РЕД "ОБЩО"
+        ' =====================================================
+        ' Намираме обекта в списъка, който представлява сумарния ред за таблото
+        Dim totalRow = ListTokow.FirstOrDefault(Function(t)
+                                                    Return t.Tablo =
+                                                    selectedTablo AndAlso t.ТоковКръг = "ОБЩО"
+                                                End Function)
+
+
+        totalRow.Брой_Полюси = 3
+        totalRow.Фаза = "L1,L2,L3"
+        ' =====================================================
+        ' 4. СЪЗДАВАНЕ НА ГРУПИ ЗА БАЛАНСИРАНЕ
+        ' =====================================================
         Dim balanceGroups As List(Of BalanceGroup) = CreateBalanceGroups(panelCircuits)
+        ' =====================================================
+        ' 5. ИНИЦИАЛИЗАЦИЯ НА ФАЗИТЕ
+        ' =====================================================
         Dim phaseCurrents As New Dictionary(Of String, Double) From {
-                {"L1", 0},
-                {"L2", 0},
-                {"L3", 0}
+                    {"L1", 0},
+                    {"L2", 0},
+                    {"L3", 0}
         }
+        ' =====================================================
+        ' 6. ДОБАВЯНЕ НА ТРИФАЗНИ ТОВАРИ
+        ' =====================================================
         Dim threePhaseCircuits = panelCircuits.Where(
-                                    Function(t) t.Брой_Полюси = 3 OrElse t.Фаза = "L1,L2,L3"
-                                    ).ToList()
+                                Function(t) t.Брой_Полюси = 3 OrElse t.Фаза = "L1,L2,L3"
+                                ).ToList()
+        ' Всеки трифазен товар се добавя към всички фази
         For Each circuit In threePhaseCircuits
             phaseCurrents("L1") += circuit.Ток
             phaseCurrents("L2") += circuit.Ток
             phaseCurrents("L3") += circuit.Ток
         Next
+        ' =====================================================
+        ' 7. РАЗПРЕДЕЛЕНИЕ НА ГРУПИТЕ ПО ФАЗИ
+        ' =====================================================
         For Each group In balanceGroups
-            ' 1. Намери фазата с най-малък текущ ток
-            Dim minPhase As String = phaseCurrents.Keys.OrderByDescending(
-                                    Function(p) phaseCurrents(p)
-                                    ).Last()
-            ' 2. Задай фазата на групата
+            ' 7.1 Намиране на най-слабо натоварената фаза
+            Dim minPhase As String = phaseCurrents.Keys.
+                                     OrderBy(Function(p) phaseCurrents(p)).
+                                     First()
+            ' 7.2 Присвояване на фазата към групата
             group.AssignedPhase = minPhase
-            ' 3. Задай фазата на всички ТК в групата
+            ' 7.3 Задаване на фазата на всички кръгове в групата
             For Each circuit In group.Circuits
                 circuit.Фаза = group.AssignedPhase
             Next
-            ' 4. Добави тока към съответната фаза
+            ' 7.4 Добавяне на тока към фазата
             phaseCurrents(minPhase) += group.TotalCurrent
         Next
+        ' =====================================================
+        ' 8. ЗАПИС НА РЕЗУЛТАТА
+        ' =====================================================
+        ' (дублираща защита – гарантира, че всички стойности са обновени)
         For Each group In balanceGroups
-            ' За всеки ТК в групата → запиши фазата в ListTokow
             For Each circuit In group.Circuits
                 circuit.Фаза = group.AssignedPhase
             Next
         Next
+        ' =====================================================
+        ' НУЛИРАНЕ НА РЕЧНИКА ПРЕДИ СУМИРАНЕ
+        ' =====================================================
+        phaseCurrents("L1") = 0
+        phaseCurrents("L2") = 0
+        phaseCurrents("L3") = 0
+        ' =====================================================
+        ' СУМИРАНЕ НА ТОКОВЕТЕ ПО ФАЗИ
+        ' =====================================================
+        For Each circuit In panelCircuits
+            ' Проверяваме дали фазата е трифазна (L1,L2,L3) или има 3 полюса
+            If circuit.Брой_Полюси = 3 OrElse circuit.Фаза = "L1,L2,L3" Then
+                ' При трифазен консуматор, токът се добавя към всяка фаза
+                phaseCurrents("L1") += circuit.Ток
+                phaseCurrents("L2") += circuit.Ток
+                phaseCurrents("L3") += circuit.Ток
+            Else
+                ' При монофазен, добавяме само към съответната фаза (L1, L2 или L3)
+                Dim p As String = circuit.Фаза.Trim().ToUpper()
+                If phaseCurrents.ContainsKey(p) Then
+                    phaseCurrents(p) += circuit.Ток
+                End If
+            End If
+        Next
+        totalRow.RCD_Тип = "Ток фази"
+        totalRow.RCD_Клас = "Фаза L1->" & phaseCurrents("L1").ToString("N2")
+        totalRow.RCD_Ток = "Фаза L2->" & phaseCurrents("L2").ToString("N2")
+        totalRow.RCD_Чувствителност = "Фаза L3->" & phaseCurrents("L3").ToString("N2")
+
+
     End Sub
     ''' <summary>
     ''' Създава групи от токови кръгове за целите на балансиране на фазите.

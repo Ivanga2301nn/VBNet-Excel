@@ -1,6 +1,7 @@
 ﻿Imports System.Collections.Generic
 Imports System.Drawing
 Imports System.Drawing.Drawing2D
+Imports System.Linq
 Imports System.Security.Cryptography
 Imports System.Windows.Forms
 Imports System.Windows.Forms.VisualStyles.VisualStyleElement
@@ -15,10 +16,10 @@ Imports Autodesk.AutoCAD.PlottingServices
 Imports Autodesk.AutoCAD.Runtime
 Imports AXDBLib
 Imports Newtonsoft.Json
+Imports Newtonsoft.Json.Linq
 Imports Org.BouncyCastle.Asn1.Cmp
 Imports Org.BouncyCastle.Math.EC.ECCurve
 Imports VBNet_Excel.Form_Tablo_new
-Imports System.Linq
 
 
 ' ============================================================
@@ -2328,7 +2329,9 @@ Public Class Form_Tablo_new
                               .Фаза = totalPhase,
                               .brLamp = totalLamps,
                               .brKontakt = totalContacts,
-                              .Табло_Родител = ""
+                              .Табло_Родител = "",
+                              .Консуматор = "Ке=",
+                              .предназначение = "Рпр.=15кW"
             }
             ' ─────────────────────────────────────────────────────
             ' 9. Добави новия запис
@@ -3060,9 +3063,46 @@ Public Class Form_Tablo_new
                                matType:=GetCableTypeResult(tokow.Кабел_Тип)
                                )
             Case "Консуматор"
-                tokow.Консуматор = selectedValue
+                If tokow.Device <> "Табло" Then tokow.Консуматор = selectedValue
             Case "предназначение"
                 tokow.предназначение = selectedValue
+                If tokow.Device = "Табло" Then
+                    ' Търсим число само след "Рпр" или "Рпр."
+                    Dim pattern As String = "Рпр\.?\s*=\s*(\d+([.,]\d+)?)"
+                    Dim match = System.Text.RegularExpressions.Regex.Match(tokow.предназначение, pattern)
+                    Dim value As Double = -1 ' -1 = няма валидна стойност
+                    ' Ако regex намери число
+                    If match.Success Then
+                        Dim strValue As String = match.Groups(1).Value.Replace(",", ".")
+                        Double.TryParse(strValue, System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        value)
+                    End If
+                    ' Ако няма валидно число, проверяваме дали полето е просто число
+                    If value < 0 Then
+                        Dim onlyNumber As Double = 0
+                        If Double.TryParse(tokow.предназначение.Replace(",", "."),
+                           System.Globalization.NumberStyles.Any,
+                           System.Globalization.CultureInfo.InvariantCulture,
+                           onlyNumber) Then
+                            value = onlyNumber
+                        End If
+                    End If
+                    ' Ако има валидно число, записваме в предназначение във формат Рпр.=(число)кW
+                    If value > 0 Then
+                        tokow.предназначение = "Рпр.=" & value.ToString("0.##") & "кW"
+                    Else
+                        ' Ако няма валидно число, задаваме по подразбиране
+                        tokow.предназначение = "Рпр.=15кW"
+                        value = 15
+                    End If
+                    ' Проверка да не делим на 0
+                    If tokow.Мощност <> 0 Then
+                        tokow.Консуматор = "Ке=" & (value / tokow.Мощност).ToString("0.00")
+                    Else
+                        tokow.Консуматор = "Ке=0"
+                    End If
+                End If
             Case "Управление"
                 tokow.Управление = selectedValue
             Case "Крива"
@@ -4735,8 +4775,9 @@ Public Class Form_Tablo_new
                 ' Пишем текстовете и  нищо друго не правим
                 If circuit.ТоковКръг = "ОБЩО" Then Continue For
                 colIndex += 1
-            Next
 
+
+            Next
         Catch ex As Exception
             MsgBox("Възникна грешка: " & vbCrLf & ex.Message & vbCrLf & vbCrLf & ex.StackTrace, MsgBoxStyle.Critical)
         End Try
@@ -4768,19 +4809,19 @@ Public Class Form_Tablo_new
                              circuit As strTokow, X As Double)
         Dim Y_Base As Double = basePoint.Y
         Dim textLayer As String = "EL__DIM"
-        ' Токов кръг (ред 9)
+        ' Токов кръг (ред 1)
         cu.InsertText(circuit.ТоковКръг,
                   New Point3d(X + padingText, Y_Base + 9 * heightRow + heightRow / 2, 0),
                   textLayer, heightText, TextHorizontalMode.TextMid, TextVerticalMode.TextBase)
-        ' Брой лампи (ред 8)
+        ' Брой лампи (ред 2)
         cu.InsertText(IIf(circuit.brLamp = 0, "----", circuit.brLamp.ToString()),
                   New Point3d(X + padingText, Y_Base + 8 * heightRow + heightRow / 2, 0),
                   textLayer, heightText, TextHorizontalMode.TextMid, TextVerticalMode.TextBase)
-        ' Брой контакти (ред 7)
+        ' Брой контакти (ред 3)
         cu.InsertText(IIf(circuit.brKontakt = 0, "----", circuit.brKontakt.ToString()),
                   New Point3d(X + padingText, Y_Base + 7 * heightRow + heightRow / 2, 0),
                   textLayer, heightText, TextHorizontalMode.TextMid, TextVerticalMode.TextBase)
-        ' Мощност (ред 6)
+        ' Мощност (ред 4)
         cu.InsertText(circuit.Мощност.ToString("0.000"),
                   New Point3d(X + padingText, Y_Base + 6 * heightRow + heightRow / 2, 0),
                   textLayer, heightText, TextHorizontalMode.TextMid, TextVerticalMode.TextBase)
@@ -4788,19 +4829,19 @@ Public Class Form_Tablo_new
         cu.InsertText(circuit.Кабел_Тип,
                   New Point3d(X + padingText, Y_Base + 5 * heightRow + heightRow / 2, 0),
                   textLayer, heightText, TextHorizontalMode.TextMid, TextVerticalMode.TextBase)
-        ' Сечение кабел (ред 4)
+        ' Сечение кабел (ред 6)
         cu.InsertText(circuit.Кабел_Сечение,
                   New Point3d(X + padingText, Y_Base + 4 * heightRow + heightRow / 2, 0),
                   textLayer, heightText, TextHorizontalMode.TextMid, TextVerticalMode.TextBase)
-        ' Фаза (ред 3)
+        ' Фаза (ред 7)
         cu.InsertText(circuit.Фаза,
                   New Point3d(X + padingText, Y_Base + 3 * heightRow + heightRow / 2, 0),
                   textLayer, heightText, TextHorizontalMode.TextMid, TextVerticalMode.TextBase)
-        ' Консуматор (ред 2) - ляво подравнен
+        ' Консуматор (ред 8) - ляво подравнен
         cu.InsertText(circuit.Консуматор,
                   New Point3d(X - widthColom / 2 + padingText, Y_Base + 2 * heightRow + (heightRow - heightText) / 2, 0),
                   textLayer, 12, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
-        ' Предназначение (ред 1) - ляво подравнен
+        ' Предназначение (ред 9) - ляво подравнен
         cu.InsertText(circuit.предназначение,
                   New Point3d(X - widthColom / 2 + padingText, Y_Base + 1 * heightRow + (heightRow - heightText) / 2, 0),
                   textLayer, 12, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)

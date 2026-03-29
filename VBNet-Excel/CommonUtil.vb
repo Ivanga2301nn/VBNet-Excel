@@ -1528,6 +1528,8 @@ Public Class CommonUtil
                            verAligm As TextVerticalMode,        ' Вертикално подравняване
                            Optional LineColor As Integer = 256  ' Цвят на текста, опционален параметър, по подразбиране е 256 (ByLayer)
                            ) As ObjectId
+
+        If strText Is Nothing Then Return Nothing
         ' Взимане на активния документ и базата данни на чертежа
         Dim acDoc As Document = Application.DocumentManager.MdiActiveDocument
         Dim acCurDb As Database = acDoc.Database

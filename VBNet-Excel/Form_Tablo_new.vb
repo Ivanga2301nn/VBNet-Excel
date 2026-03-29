@@ -18,6 +18,8 @@ Imports Newtonsoft.Json
 Imports Org.BouncyCastle.Asn1.Cmp
 Imports Org.BouncyCastle.Math.EC.ECCurve
 Imports VBNet_Excel.Form_Tablo_new
+Imports System.Linq
+
 
 ' ============================================================
 ' 1. КОМАНДА ЗА СТАРТИРАНЕ (Трябва да е извън класа на формата)
@@ -187,6 +189,7 @@ Public Class Form_Tablo_new
         Dim Simbol As String
         Dim Text As String
     End Structure
+
     Dim LiMountMethod As New List(Of strMountMethod)
     Private Cable_AlR_2 As New Dictionary(Of Integer, String)
     Private Cable_AlR_4 As New Dictionary(Of Integer, String)
@@ -198,6 +201,50 @@ Public Class Form_Tablo_new
     Private Curve_For_combo As List(Of String)
     Private Disconnectors_For_combo As List(Of String)
     Private Discon_Tok_For_combo As List(Of String)
+
+    ' ===============================
+    ' Глобални променливи за таблата
+    ' ===============================
+    Public widthColom As Double = 120      ' Ширина на всяка колона в таблицата
+    Public heightRow As Double = 25        ' Височина на редовете
+    Public widthText As Double = 140       ' Ширина на колоната за текст (напр. "Токов кръг")
+    Public widthTextDim As Double = 40     ' Допълнителна ширина за текстова колона (напр. за единици)
+    Public lengthProw As Double = 90       ' Дължина на вертикалните линии между текст и блокове
+    Public lengthProwBlock As Double = 0   ' Дължина на линията под блока за прекъсвач (ще се изчислява по-късно)
+    Public padingText As Double = 3        ' Отстояние на текста от линиите
+    Public widthTablo As Double = 410      ' Ширина на цялото табло (за блокове и линии)
+    Public heightText As Double = 12       ' Височина на текста, използван в блоковете
+    Public Y_Шина As Double = 620          ' Вертикална позиция на шината (Y координата)
+
+    ''' <summary>
+    ''' Структура за дефиниция на линия за чертане
+    ''' </summary>
+    Private Structure LineDefinition
+        Public StartPoint As Point3d
+        Public EndPoint As Point3d
+        Public Layer As String
+        Public LineWeightValue As Integer ' ✅ Integer вместо Enum
+        Public LineType As String
+        Public ColorIndex As Integer
+
+        Public Sub New(startPoint As Point3d, endPoint As Point3d, layer As String,
+                   lineWeightValue As Integer,
+                   lineType As String, Optional colorIndex As Integer = -1)
+            Me.StartPoint = startPoint
+            Me.EndPoint = endPoint
+            Me.Layer = layer
+            Me.LineWeightValue = lineWeightValue
+            Me.LineType = lineType
+            Me.ColorIndex = colorIndex
+        End Sub
+    End Structure
+    ' ============================================================
+    ' НОВИ ПРОМЕНЛИВИ ЗА СЪСТОЯНИЕТО (State Variables)
+    ' ============================================================
+    Private twoBus As Boolean = False
+    Private Faza_Tablo As Boolean = False
+    Private brTokKrygoweNa6ina As Integer = 0
+    Private selectedTablo As String = "" ' За да е достъпно във всички процедури
 
     ' ============================================================
     ' КАТАЛОЖНИ СТРУКТУРИ
@@ -2307,16 +2354,6 @@ Public Class Form_Tablo_new
             ' Избираме кабел според изчисления ток и брой полюси
             ' ----------------------------------------------------
             CalculateCable(totalTokow)
-            '' ─────────────────────────────────────────────────────
-            '' 8. Премахни стар "ОБЩО" запис ако има (за всеки случай)
-            '' ─────────────────────────────────────────────────────
-            'Dim existingTotal As strTokow = ListTokow.FirstOrDefault(
-            '                                Function(t) t.Tablo = tabloName AndAlso
-            '                                t.ТоковКръг = "ОБЩО"
-            '                                )
-            'If existingTotal IsNot Nothing Then
-            '    ListTokow.Remove(existingTotal)
-            'End If
         Next
     End Sub
     Private Sub CalculateDisconnector(tokow As strTokow)
@@ -4358,5 +4395,424 @@ Public Class Form_Tablo_new
 
             End Select
         End If
+    End Sub
+    Private Sub ToolStripButton_Вмъни_Autocad_Click(sender As Object, e As EventArgs) Handles ToolStripButton_Вмъни_Autocad.Click
+        Try
+            ' =====================================================
+            ' 1. ВЗЕМИ ИЗБРАНОТО ТАБЛО ОТ TREEVIEW
+            ' =====================================================
+            Dim selectedTablo As String = TreeView1.SelectedNode?.Text
+            If String.IsNullOrEmpty(selectedTablo) Then
+                MsgBox("Моля, изберете табло от дървото!", MsgBoxStyle.Exclamation)
+                Exit Sub
+            End If
+            ' Премахване на допълнителен текст (например "(...)" )
+            If selectedTablo.Contains("(") Then
+                selectedTablo = selectedTablo.Substring(0, selectedTablo.IndexOf("(")).Trim()
+            End If
+            '' =====================================================
+            '' ФИЛТРИРАЙ КРЪГОВЕТЕ ЗА ТОВА ТАБЛО
+            '' =====================================================
+            Dim panelCircuits = ListTokow.Where(Function(t)
+                                                    Return t.Tablo = selectedTablo
+                                                End Function).ToList()
+            If panelCircuits.Count = 0 Then
+                MsgBox("Няма намерени кръгове за табло: " & selectedTablo, MsgBoxStyle.Exclamation)
+                Exit Sub
+            End If
+            ' ------------------------------------------------------------
+            ' Вземане на текущия AutoCAD документ, редактор и база
+            ' ------------------------------------------------------------
+            Dim acDoc As Document = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument
+            Dim edt As Editor = acDoc.Editor
+            Dim acCurDb As Database = acDoc.Database
+            ' =====================================================
+            ' ВЗЕМИ БАЗОВА ТОЧКА ОТ ПОТРЕБИТЕЛЯ
+            ' =====================================================
+            Dim ptBasePointRes As PromptPointResult
+            Dim pPtOpts As PromptPointOptions = New PromptPointOptions("")
+            pPtOpts.Message = vbLf & "Изберете долен ляв ъгъл на таблото: "
+            ptBasePointRes = acDoc.Editor.GetPoint(pPtOpts)
+            If ptBasePointRes.Status = PromptStatus.Cancel Then Exit Sub
+            Dim ptBasePoint As Point3d = ptBasePointRes.Value
+            Me.Visible = False
+            ' =====================================================
+            ' 6. СТАРТИРАЙ ЧЕРТАНЕТО В ТРАНЗАКЦИЯ
+            ' =====================================================
+            Using trans As Transaction = acCurDb.TransactionManager.StartTransaction()
+                Try
+                    ' =====================================================
+                    ' ПРЕДИЗЧИСЛЯВАНЕ НА ПАРАМЕТРИТЕ
+                    ' =====================================================
+                    ' Проверяваме дали има кръгове на отделна шина
+                    twoBus = panelCircuits.Any(Function(c) c.Шина)
+                    ' Тук ще извикваме процедурите за чертане една по една
+                    DrawPanelFrame(acDoc, acCurDb, ptBasePoint, panelCircuits)      ' Тук ще чертаем рамката на таблото
+                    DrawBusbars(acDoc, acCurDb, ptBasePoint, panelCircuits)         ' Тук ще чертаем шините
+                    DrawCircuits(acDoc, acCurDb, ptBasePoint, panelCircuits)        ' Тук ще чертаем всеки токов кръг (прекъсвачи, текстове, линии)
+                    DrawMainSwitch(acDoc, acCurDb, ptBasePoint, panelCircuits)
+                    DrawGrounding(acDoc, acCurDb, ptBasePoint, selectedTablo)
+                    DrawAnnotations(acDoc, acCurDb, ptBasePoint, selectedTablo, panelCircuits)
+
+                    MsgBox("Таблото [" & selectedTablo & "] е успешно генерирано!", MsgBoxStyle.Information)
+                Catch ex As Exception
+                    trans.Abort()
+                    MsgBox("Възникна грешка при чертане: " & vbCrLf & ex.Message & vbCrLf & vbCrLf & ex.StackTrace, MsgBoxStyle.Critical)
+                Finally
+                    trans.Commit()
+                End Try
+            End Using
+        Catch ex As Exception
+            MsgBox("Възникна грешка: " & vbCrLf & ex.Message & vbCrLf & vbCrLf & ex.StackTrace, MsgBoxStyle.Critical)
+        Finally
+            Me.Visible = True
+        End Try
+    End Sub
+    ' ============================================================
+    ' ПОМОЩЕН МЕТОД ЗА ДОБАВЯНЕ НА ЛИНИИ
+    ' ============================================================
+    Private Sub AddLine(lines As List(Of LineDefinition),
+                    startPoint As Point3d, endPoint As Point3d,
+                    Optional layer As String = "EL_ТАБЛА",
+                    Optional lineWeight As Autodesk.AutoCAD.DatabaseServices.LineWeight = Autodesk.AutoCAD.DatabaseServices.LineWeight.ByLayer,
+                    Optional lineType As String = "ByLayer",
+                    Optional colorIndex As Integer = -1)
+        lines.Add(New LineDefinition(startPoint, endPoint, layer, lineWeight, lineType, colorIndex))
+    End Sub
+    ''' <summary>
+    ''' Добавя линия към списък от линии, които ще бъдат изчертани по-късно.
+    ''' </summary>
+    ''' <param name="lines">Списъкът, в който се съхраняват линиите.</param>
+    ''' <param name="startPoint">Начална точка на линията.</param>
+    ''' <param name="endPoint">Крайна точка на линията.</param>
+    ''' <param name="layer">Слой на линията (по подразбиране "EL_ТАБЛА").</param>
+    ''' <param name="lineWeight">Дебелина на линията.</param>
+    ''' <param name="lineType">Тип линия (ByLayer, CENTER и др.).</param>
+    ''' <param name="colorIndex">Цвят (ако е -1 → използва се ByLayer).</param>
+    ''' <remarks>
+    ''' Помощна функция за централизирано създаване на LineDefinition обекти.
+    ''' Позволява лесно управление на параметрите на линиите преди реалното чертане.
+    ''' </remarks>
+    Private Sub DrawPanelFrame(acDoc As Document, acCurDb As Database, basePoint As Point3d, circuits As List(Of strTokow))
+        Try
+            ' =====================================================
+            ' 1️⃣ ИЗЧИСЛЯВАНЕ НА ОСНОВНИТЕ РАЗМЕРИ
+            ' =====================================================
+            Dim brColums As Integer = circuits.Count ' + 2
+            Dim tableWidth As Double = basePoint.X + widthText + widthTextDim + brColums * widthColom
+            Dim tableHeight As Double = 10 * heightRow
+            ' =====================================================
+            ' 2️⃣ СЪЗДАВАНЕ НА СПИСЪК С ЛИНИИТЕ
+            ' =====================================================
+            Dim lines As New List(Of LineDefinition)
+            ' --- Хоризонтални линии на таблицата ---
+            ' Долна линия (ред 0)
+            AddLine(lines, New Point3d(basePoint.X, basePoint.Y, 0),
+                       New Point3d(tableWidth, basePoint.Y, 0))
+            ' Хоризонтални линии за редове 3-10
+            For row As Integer = 3 To 10
+                AddLine(lines, New Point3d(basePoint.X, basePoint.Y + row * heightRow, 0),
+                           New Point3d(tableWidth, basePoint.Y + row * heightRow, 0))
+            Next
+            ' --- Вертикални линии на таблицата ---
+            ' Ляв край
+            AddLine(lines, New Point3d(basePoint.X, basePoint.Y, 0),
+                       New Point3d(basePoint.X, basePoint.Y + tableHeight, 0))
+            ' След "Токов кръг"
+            AddLine(lines, New Point3d(basePoint.X + widthText, basePoint.Y, 0),
+                       New Point3d(basePoint.X + widthText, basePoint.Y + tableHeight, 0))
+            ' След "№"
+            AddLine(lines, New Point3d(basePoint.X + widthText + widthTextDim, basePoint.Y, 0),
+                       New Point3d(basePoint.X + widthText + widthTextDim, basePoint.Y + tableHeight, 0))
+            ' Вертикални линии за всеки токов кръг
+            For col As Integer = 1 To brColums
+                Dim xLine As Double = basePoint.X + widthText + widthTextDim + col * widthColom
+                AddLine(lines, New Point3d(xLine, basePoint.Y, 0),
+                           New Point3d(xLine, basePoint.Y + tableHeight, 0))
+            Next
+            ' --- Рамка на блока с информация за шината ---
+            Dim blockStartY As Double = basePoint.Y + tableHeight + lengthProw
+            Dim blockEndY As Double = blockStartY + widthTablo
+            ' Лява страна (CENTER тип)
+            AddLine(lines, New Point3d(basePoint.X + widthText, blockStartY, 0),
+                       New Point3d(basePoint.X + widthText, blockEndY, 0),
+                       "EL_ТАБЛА", Autodesk.AutoCAD.DatabaseServices.LineWeight.ByLayer, "CENTER")
+            ' Долна страна
+            AddLine(lines, New Point3d(basePoint.X + widthText, blockStartY, 0),
+                       New Point3d(tableWidth, blockStartY, 0),
+                       "EL_ТАБЛА", Autodesk.AutoCAD.DatabaseServices.LineWeight.ByLayer, "CENTER")
+            ' Дясна страна
+            AddLine(lines, New Point3d(tableWidth, blockStartY, 0),
+                       New Point3d(tableWidth, blockEndY, 0),
+                       "EL_ТАБЛА", Autodesk.AutoCAD.DatabaseServices.LineWeight.ByLayer, "CENTER")
+            ' Горна страна
+            AddLine(lines, New Point3d(basePoint.X + widthText, blockEndY, 0),
+                       New Point3d(tableWidth, blockEndY, 0),
+                       "EL_ТАБЛА", Autodesk.AutoCAD.DatabaseServices.LineWeight.ByLayer, "CENTER")
+            ' --- Червен кръст за маркировка (Defpoints) ---
+            Dim crossCenterX As Double = basePoint.X + widthText + 18
+            Dim crossCenterY As Double = blockEndY - 18
+            ' Вертикална линия на кръста
+            AddLine(lines, New Point3d(crossCenterX, blockEndY, 0),
+                       New Point3d(crossCenterX, blockEndY - 36, 0),
+                       "Defpoints", Autodesk.AutoCAD.DatabaseServices.LineWeight.ByLayer, "ByLayer", 1)
+            ' Хоризонтална линия на кръста
+            AddLine(lines, New Point3d(basePoint.X + widthText, crossCenterY, 0),
+                       New Point3d(basePoint.X + widthText + 36, crossCenterY, 0),
+                       "Defpoints", Autodesk.AutoCAD.DatabaseServices.LineWeight.ByLayer, "ByLayer", 1)
+            ' =====================================================
+            ' 3️⃣ ЧЕРТАЕНЕ НА ВСИЧКИ ЛИНИИ ОТ СПИСЪКА
+            ' =====================================================
+            For Each line As LineDefinition In lines
+                If line.ColorIndex = -1 Then
+                    cu.DrowLine(line.StartPoint, line.EndPoint, line.Layer, line.LineWeightValue, line.LineType)
+                Else
+                    cu.DrowLine(line.StartPoint, line.EndPoint, line.Layer, line.LineWeightValue, line.LineType, line.ColorIndex)
+                End If
+            Next
+            ' =====================================================
+            ' 4️⃣ ТЕКСТОВЕ - ПЪРВА КОЛОНА (ЗАГЛАВКИ)
+            ' =====================================================
+            Dim textX As Double = basePoint.X + padingText
+            Dim textY As Double = basePoint.Y + (heightRow - heightText) / 2
+            cu.InsertText("Токов кръг", New Point3d(textX, textY + 9 * heightRow, 0),
+                      "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+            cu.InsertText("Брой лампи", New Point3d(textX, textY + 8 * heightRow, 0),
+                      "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+            cu.InsertText("Брой контакти", New Point3d(textX, textY + 7 * heightRow, 0),
+                      "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+            cu.InsertText("Инстал. мощност", New Point3d(textX, textY + 6 * heightRow, 0),
+                      "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+            cu.InsertText("Тип кабел", New Point3d(textX, textY + 5 * heightRow, 0),
+                      "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+            cu.InsertText("Сечение кабел", New Point3d(textX, textY + 4 * heightRow, 0),
+                      "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+            cu.InsertText("Фаза", New Point3d(textX, textY + 3 * heightRow, 0),
+                      "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+            cu.InsertText("Консуматор", New Point3d(textX, textY + 2 * heightRow, 0),
+                      "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+            ' =====================================================
+            ' 5️⃣ ТЕКСТОВЕ - ВТОРА КОЛОНА (МЕРНИ ЕДИНИЦИ)
+            ' =====================================================
+            textX = textX + widthText
+            cu.InsertText("№", New Point3d(textX, textY + 9 * heightRow, 0),
+                      "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+            cu.InsertText("бр.", New Point3d(textX, textY + 8 * heightRow, 0),
+                      "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+            cu.InsertText("бр.", New Point3d(textX, textY + 7 * heightRow, 0),
+                      "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+            cu.InsertText("kW", New Point3d(textX, textY + 6 * heightRow, 0),
+                      "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+            cu.InsertText("---", New Point3d(textX, textY + 5 * heightRow, 0),
+                      "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+            cu.InsertText("mm²", New Point3d(textX, textY + 4 * heightRow, 0),
+                      "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+            cu.InsertText("---", New Point3d(textX, textY + 3 * heightRow, 0),
+                      "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+            cu.InsertText("---", New Point3d(textX, textY + 2 * heightRow, 0),
+                      "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+        Catch ex As Exception
+            ' --------------------------------------------------------
+            ' Обработка на грешки
+            ' --------------------------------------------------------
+            MsgBox("Възникна грешка:  " &
+                   ex.Message &
+                   vbCrLf & vbCrLf &
+                   ex.StackTrace.ToString)
+        End Try
+    End Sub
+    Private Sub DrawBusbars(acDoc As Document, acCurDb As Database, basePoint As Point3d, circuits As List(Of strTokow))
+        Try
+            ' =====================================================
+            ' 1️⃣ ИЗЧИСЛЯВАНЕ НА ОСНОВНИТЕ РАЗМЕРИ
+            ' =====================================================
+            Dim brColums As Integer = circuits.Count - 1
+            Dim X_Start As Double = basePoint.X + widthText + widthTextDim
+            Dim X_End As Double = basePoint.X + widthText + widthTextDim + brColums * widthColom + widthColom / 2
+            Dim Y_Shina As Double = basePoint.Y + Y_Шина
+            ' Брой кръгове на отделна шина
+            brTokKrygoweNa6ina = circuits.Where(Function(c) c.Шина = True).Count()
+            ' Проверяваме дали има трифазни товари (за надписа на шината)
+            Dim Faza_Първа_шина = circuits.Any(Function(c) c.Фаза = "L1" Or c.Фаза = "L2" Or c.Фаза = "L3")
+            Dim circuitOBSTO = circuits.FirstOrDefault(Function(c) c.ТоковКръг = "ОБЩО")
+            Dim Faza_Втора_шина = circuitOBSTO.Фаза
+            ' =====================================================
+            ' 3️⃣ ТЕКСТ ЗА ФАЗИТЕ НА ШИНАТА
+            ' =====================================================
+            Dim phaseText As String = IIf(Faza_Първа_шина, "L1,L2,L3,N,PE", "L,N,PE")
+            ' =====================================================
+            ' 4️⃣ ЧЕРТАЕНЕ НА ШИНИТЕ
+            ' =====================================================
+            ' Първа шина (лява част)
+            Dim X_Split As Double = 0
+            Dim X_SecondStart As Double = 0
+            If Not twoBus Then
+                ' ----- ЕДНА ШИНА -----
+                ' Хоризонтална линия на шината
+                cu.DrowLine(New Point3d(X_Start, Y_Shina, 0),
+                        New Point3d(X_End, Y_Shina, 0),
+                        "EL_ТАБЛА", Autodesk.AutoCAD.DatabaseServices.LineWeight.LineWeight070, "ByLayer")
+
+                ' Надпис над шината
+                cu.InsertText(Faza_Втора_шина & ",N,PE",
+                          New Point3d(X_Start, Y_Shina + 2 * padingText, 0),
+                          "EL__DIM", heightText,
+                          TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+            Else
+                ' ----- ДВЕ ШИНИ -----
+                ' Първа шина (лява част)
+                X_Split = X_Start + brTokKrygoweNa6ina * widthColom - 30
+                cu.DrowLine(New Point3d(X_Start, Y_Shina, 0),
+                        New Point3d(X_Split, Y_Shina, 0),
+                        "EL_ТАБЛА", Autodesk.AutoCAD.DatabaseServices.LineWeight.LineWeight070, "ByLayer")
+                ' Втора шина (дясна част)
+                X_SecondStart = X_Start + brTokKrygoweNa6ina * widthColom + 30
+                Dim X_SecondEnd As Double = basePoint.X + widthText + widthTextDim + brColums * widthColom + widthColom / 2
+                cu.DrowLine(New Point3d(X_SecondStart, Y_Shina, 0),
+                        New Point3d(X_SecondEnd, Y_Shina, 0),
+                        "EL_ТАБЛА", Autodesk.AutoCAD.DatabaseServices.LineWeight.LineWeight070, "ByLayer")
+                ' Надпис над първата шина
+                cu.InsertText(phaseText,
+                          New Point3d(X_Start, Y_Shina + 2 * padingText, 0),
+                          "EL__DIM", heightText,
+                          TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+                ' Надпис над втората шина
+                cu.InsertText(Faza_Втора_шина & ",N,PE",
+                          New Point3d(X_SecondStart, Y_Shina + 2 * padingText, 0),
+                          "EL__DIM", heightText,
+                          TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+                ' Линия между двата разединителя (връзка между шините)
+                Dim X_6ina1 As Double = (X_SecondStart + X_End) / 2
+                Dim X_6ina2 As Double = (X_Start + X_Split) / 2
+                cu.DrowLine(New Point3d(X_6ina1, Y_Shina + 95, 0),
+                        New Point3d(X_6ina2, Y_Shina + 95, 0),
+                        "EL_ТАБЛА", Autodesk.AutoCAD.DatabaseServices.LineWeight.ByLayer, "ByLayer")
+            End If
+        Catch ex As Exception
+            ' --------------------------------------------------------
+            ' Обработка на грешки
+            ' --------------------------------------------------------
+            MsgBox("Възникна грешка:  " &
+                   ex.Message &
+                   vbCrLf & vbCrLf &
+                   ex.StackTrace.ToString)
+        End Try
+    End Sub
+    Private Sub DrawCircuits(acDoc As Document, acCurDb As Database, basePoint As Point3d, circuits As List(Of strTokow))
+        ' Тук ще чертаем всеки токов кръг (прекъсвачи, текстове, линии)
+        ' ============================================================
+        ' РЕЧНИК ЗА УПРАВЛЕНИЕ -> БЛОК
+        ' ============================================================
+        Dim ControlBlockMap As New Dictionary(Of String, String) From {
+            {"Импулсно реле", "s_tl"},
+            {"Контактор", "s_ct_cont_no"},
+            {"Моторна защита", "s_tesys_cont_no"},
+            {"Моторен механизъм", "s_ns100_motor_fixed"},
+            {"Честотен регулатор", "s_altivar"},
+            {"Стълбищен автомат", "s_min"},
+            {"Електромер", "s_Wh_meter"},
+            {"Фото реле", "s_switch_light_sens"}
+        }
+        Dim brColums As Integer = circuits.Count
+        Dim X_Start As Double = basePoint.X + widthText + widthTextDim
+        Dim Y_Shina As Double = basePoint.Y + Y_Шина
+        Try
+            ' =====================================================
+            ' 2️⃣ ЦИКЪЛ ЗА ВСЕКИ ТОКОВ КРЪГ
+            ' =====================================================
+            Dim colIndex As Integer = 0
+            For Each circuit As strTokow In circuits
+                ' Пропускаме специалните кръгове (Разединител)
+                If circuit.ТоковКръг = "Разединител" Then Continue For
+                ' =====================================================
+                ' 3️⃣ ИЗЧИСЛЯВАНЕ НА ПОЗИЦИЯТА ЗА ТОЗИ КРЪГ
+                ' =====================================================
+                Dim X As Double = X_Start + colIndex * widthColom + widthColom / 2
+                ' =====================================================
+                ' 4️⃣ ЧЕРТАЕНЕ НА ТЕКСТОВЕТЕ В ТАБЛИЦАТА
+                ' =====================================================
+                DrawCircuitTexts(acDoc, acCurDb, basePoint, circuit, X)
+                ' Пишем текстовете и  нищо друго не правим
+                If circuit.ТоковКръг = "ОБЩО" Then Continue For
+                colIndex += 1
+            Next
+
+        Catch ex As Exception
+            MsgBox("Възникна грешка: " & vbCrLf & ex.Message & vbCrLf & vbCrLf & ex.StackTrace, MsgBoxStyle.Critical)
+        End Try
+    End Sub
+    ''' <summary>
+    ''' Чертaе текстовата информация за един токов кръг в таблицата на таблото.
+    ''' </summary>
+    ''' <param name="acDoc">Текущият AutoCAD документ.</param>
+    ''' <param name="acCurDb">Текущата база данни.</param>
+    ''' <param name="basePoint">Начална точка на таблицата.</param>
+    ''' <param name="circuit">Обект с данни за токовия кръг.</param>
+    ''' <param name="X">X координата на колоната за съответния кръг.</param>
+    ''' <remarks>
+    ''' Процедурата позиционира и изчертава всички текстове за даден токов кръг
+    ''' в съответната колона на таблицата.
+    '''
+    ''' Особености:
+    ''' - Използва центрирано подравняване за числови и кратки стойности
+    ''' - Използва ляво подравняване за текстови описания
+    ''' - При нулеви стойности (лампи/контакти) показва "----"
+    ''' - Всички координати се изчисляват спрямо basePoint
+    '''
+    ''' Възможни подобрения:
+    ''' - Проверка за празни/null стойности (Nothing)
+    ''' - Форматиране на текста спрямо дължината (truncate/auto-scale)
+    ''' - Унифициране на височината на текста (в момента има 12 и heightText)
+    ''' </remarks>
+    Private Sub DrawCircuitTexts(acDoc As Document, acCurDb As Database, basePoint As Point3d,
+                             circuit As strTokow, X As Double)
+        Dim Y_Base As Double = basePoint.Y
+        Dim textLayer As String = "EL__DIM"
+        ' Токов кръг (ред 9)
+        cu.InsertText(circuit.ТоковКръг,
+                  New Point3d(X + padingText, Y_Base + 9 * heightRow + heightRow / 2, 0),
+                  textLayer, heightText, TextHorizontalMode.TextMid, TextVerticalMode.TextBase)
+        ' Брой лампи (ред 8)
+        cu.InsertText(IIf(circuit.brLamp = 0, "----", circuit.brLamp.ToString()),
+                  New Point3d(X + padingText, Y_Base + 8 * heightRow + heightRow / 2, 0),
+                  textLayer, heightText, TextHorizontalMode.TextMid, TextVerticalMode.TextBase)
+        ' Брой контакти (ред 7)
+        cu.InsertText(IIf(circuit.brKontakt = 0, "----", circuit.brKontakt.ToString()),
+                  New Point3d(X + padingText, Y_Base + 7 * heightRow + heightRow / 2, 0),
+                  textLayer, heightText, TextHorizontalMode.TextMid, TextVerticalMode.TextBase)
+        ' Мощност (ред 6)
+        cu.InsertText(circuit.Мощност.ToString("0.000"),
+                  New Point3d(X + padingText, Y_Base + 6 * heightRow + heightRow / 2, 0),
+                  textLayer, heightText, TextHorizontalMode.TextMid, TextVerticalMode.TextBase)
+        ' Тип кабел (ред 5)
+        cu.InsertText(circuit.Кабел_Тип,
+                  New Point3d(X + padingText, Y_Base + 5 * heightRow + heightRow / 2, 0),
+                  textLayer, heightText, TextHorizontalMode.TextMid, TextVerticalMode.TextBase)
+        ' Сечение кабел (ред 4)
+        cu.InsertText(circuit.Кабел_Сечение,
+                  New Point3d(X + padingText, Y_Base + 4 * heightRow + heightRow / 2, 0),
+                  textLayer, heightText, TextHorizontalMode.TextMid, TextVerticalMode.TextBase)
+        ' Фаза (ред 3)
+        cu.InsertText(circuit.Фаза,
+                  New Point3d(X + padingText, Y_Base + 3 * heightRow + heightRow / 2, 0),
+                  textLayer, heightText, TextHorizontalMode.TextMid, TextVerticalMode.TextBase)
+        ' Консуматор (ред 2) - ляво подравнен
+        cu.InsertText(circuit.Консуматор,
+                  New Point3d(X - widthColom / 2 + padingText, Y_Base + 2 * heightRow + (heightRow - heightText) / 2, 0),
+                  textLayer, 12, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+        ' Предназначение (ред 1) - ляво подравнен
+        cu.InsertText(circuit.предназначение,
+                  New Point3d(X - widthColom / 2 + padingText, Y_Base + 1 * heightRow + (heightRow - heightText) / 2, 0),
+                  textLayer, 12, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+    End Sub
+
+    Private Sub DrawMainSwitch(acDoc As Document, acCurDb As Database, basePoint As Point3d, circuits As List(Of strTokow))
+        ' Тук ще чертаем главния прекъсвач/разединител
+    End Sub
+    Private Sub DrawGrounding(acDoc As Document, acCurDb As Database, basePoint As Point3d, panelName As String)
+        ' Тук ще чертаем заземление (ако е Гл.Р.Т.)
+    End Sub
+    Private Sub DrawAnnotations(acDoc As Document, acCurDb As Database, basePoint As Point3d, panelName As String, circuits As List(Of strTokow))
+        ' Тук ще добавяме надписи, забележки, брой полюси
     End Sub
 End Class

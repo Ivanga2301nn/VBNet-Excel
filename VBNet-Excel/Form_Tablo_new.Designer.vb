@@ -43,7 +43,7 @@ Partial Class Form_Tablo_new
         Me.ToolStripSeparator3 = New System.Windows.Forms.ToolStripSeparator()
         Me.ToolStripButton_Поправи_ДЗТ = New System.Windows.Forms.ToolStripButton()
         Me.ToolStripSeparator1 = New System.Windows.Forms.ToolStripSeparator()
-        Me.ToolStripButton2 = New System.Windows.Forms.ToolStripButton()
+        Me.ToolStripButton_Вмъни_Autocad = New System.Windows.Forms.ToolStripButton()
         Me.TableLayoutPanel1 = New System.Windows.Forms.TableLayoutPanel()
         Me.GroupBox1 = New System.Windows.Forms.GroupBox()
         Me.TreeView1 = New System.Windows.Forms.TreeView()
@@ -76,7 +76,7 @@ Partial Class Form_Tablo_new
         '
         'ToolStrip1
         '
-        Me.ToolStrip1.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.NewToolStripButton, Me.OpenToolStripButton, Me.SaveToolStripButton, Me.PrintToolStripButton, Me.toolStripSeparator6, Me.CutToolStripButton, Me.CopyToolStripButton, Me.PasteToolStripButton, Me.toolStripSeparator7, Me.HelpToolStripButton, Me.ToolStripSeparator2, Me.ToolStripComboBox1, Me.ToolStripSeparator4, Me.ToolStripButton_Балансирай_фазите, Me.ToolStripSeparator3, Me.ToolStripButton_Поправи_ДЗТ, Me.ToolStripSeparator1, Me.ToolStripButton2})
+        Me.ToolStrip1.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.NewToolStripButton, Me.OpenToolStripButton, Me.SaveToolStripButton, Me.PrintToolStripButton, Me.toolStripSeparator6, Me.CutToolStripButton, Me.CopyToolStripButton, Me.PasteToolStripButton, Me.toolStripSeparator7, Me.HelpToolStripButton, Me.ToolStripSeparator2, Me.ToolStripComboBox1, Me.ToolStripSeparator4, Me.ToolStripButton_Балансирай_фазите, Me.ToolStripSeparator3, Me.ToolStripButton_Поправи_ДЗТ, Me.ToolStripSeparator1, Me.ToolStripButton_Вмъни_Autocad})
         Me.ToolStrip1.Location = New System.Drawing.Point(5, 5)
         Me.ToolStrip1.Name = "ToolStrip1"
         Me.ToolStrip1.Size = New System.Drawing.Size(1373, 25)
@@ -205,13 +205,13 @@ Partial Class Form_Tablo_new
         Me.ToolStripSeparator1.Name = "ToolStripSeparator1"
         Me.ToolStripSeparator1.Size = New System.Drawing.Size(6, 25)
         '
-        'ToolStripButton2
+        'ToolStripButton_Вмъни_Autocad
         '
-        Me.ToolStripButton2.Image = CType(resources.GetObject("ToolStripButton2.Image"), System.Drawing.Image)
-        Me.ToolStripButton2.ImageTransparentColor = System.Drawing.Color.Magenta
-        Me.ToolStripButton2.Name = "ToolStripButton2"
-        Me.ToolStripButton2.Size = New System.Drawing.Size(121, 22)
-        Me.ToolStripButton2.Text = "Вмъни в Autocad"
+        Me.ToolStripButton_Вмъни_Autocad.Image = CType(resources.GetObject("ToolStripButton_Вмъни_Autocad.Image"), System.Drawing.Image)
+        Me.ToolStripButton_Вмъни_Autocad.ImageTransparentColor = System.Drawing.Color.Magenta
+        Me.ToolStripButton_Вмъни_Autocad.Name = "ToolStripButton_Вмъни_Autocad"
+        Me.ToolStripButton_Вмъни_Autocad.Size = New System.Drawing.Size(121, 22)
+        Me.ToolStripButton_Вмъни_Autocad.Text = "Вмъни в Autocad"
         '
         'TableLayoutPanel1
         '
@@ -314,7 +314,7 @@ Partial Class Form_Tablo_new
     Friend WithEvents GroupBox2 As Windows.Forms.GroupBox
     Friend WithEvents DataGridView1 As Windows.Forms.DataGridView
     Friend WithEvents ToolStripSeparator1 As Windows.Forms.ToolStripSeparator
-    Friend WithEvents ToolStripButton2 As Windows.Forms.ToolStripButton
+    Friend WithEvents ToolStripButton_Вмъни_Autocad As Windows.Forms.ToolStripButton
     Friend WithEvents ToolStripSeparator2 As Windows.Forms.ToolStripSeparator
     Friend WithEvents ToolStripSeparator3 As Windows.Forms.ToolStripSeparator
     Friend WithEvents ToolStripComboBox1 As Windows.Forms.ToolStripComboBox

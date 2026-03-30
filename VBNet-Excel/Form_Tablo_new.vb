@@ -3,6 +3,7 @@ Imports System.Drawing
 Imports System.Drawing.Drawing2D
 Imports System.Linq
 Imports System.Security.Cryptography
+Imports System.Security.Cryptography.X509Certificates
 Imports System.Windows.Forms
 Imports System.Windows.Forms.VisualStyles.VisualStyleElement
 Imports Autodesk.AutoCAD.ApplicationServices
@@ -292,6 +293,57 @@ Public Class Form_Tablo_new
         New String() {"Шина", "---", "Check"},
         New String() {"Постави ДТЗ (RCD)", "---", "Check"}
     }
+
+    ' ============================================================
+    ' РЕЧНИК ЗА УПРАВЛЕНИЕ -> БЛОК
+    ' ============================================================
+    Dim ControlBlockMap As New Dictionary(Of String, String) From {
+            {"Импулсно реле", "s_tl"},
+            {"Контактор", "s_ct_cont_no"},
+            {"Моторна защита", "s_tesys_cont_no"},
+            {"Моторен механизъм", "s_ns100_motor_fixed"},
+            {"Честотен регулатор", "s_altivar"},
+            {"Стълбищен автомат", "s_min"},
+            {"Електромер", "s_Wh_meter"},
+            {"Фото реле", "s_switch_light_sens"}
+        }
+    ''' <summary>
+    ''' Конфигурация за управляващо устройство
+    ''' </summary>
+    Private Structure ControlDeviceConfig
+        Public Str_1 As String
+        Public Str_2 As String
+        Public Str_3 As String
+        Public Str_4 As String
+        Public Str_5 As String
+        Public ShortName As String
+        Public Sub New(str_1 As String, str_2 As String, str_3 As String,
+                   str_4 As String, str_5 As String, shortName As String)
+            Me.Str_1 = str_1
+            Me.Str_2 = str_2
+            Me.Str_3 = str_3
+            Me.Str_4 = str_4
+            Me.Str_5 = str_5
+            Me.ShortName = shortName
+        End Sub
+    End Structure
+    ' Клас за контактор от каталога
+    Public Class ContactorEntry
+        Public Property PartNumber As String        ' Уникален артикулен/каталожен номер (напр. "LC1D12M7")
+        Public Property FrameSize As String         ' Размер на рамката/серията (напр. "09", "12", "18")
+        Public Property RatedCurrent_AC1 As Double  ' Номинален ток за AC-1 [A] (активни товари)
+        Public Property RatedCurrent_AC3 As Double  ' Номинален ток за AC-3 [A] (двигатели - най-често използван)
+        Public Property RatedCurrent_AC4 As Double  ' Номинален ток за AC-4 [A] (тежки режими, реверс)
+        Public Property MaxPower_AC3_400V As Double ' Макс. мощност на двигател при 400V AC-3 [kW]
+        Public Property AvailableCoils As List(Of String) ' Списък с налични кодове за бобини (напр. {"24DC", "230AC"})
+        Public Property HasAuxContacts As Boolean ' Флаг дали поддържа допълнителни помощни контакти
+        Public Property MaxAuxContacts As Integer ' Макс. брой помощни контакти (вградени + добавяеми)
+        Public Property CompatibleRelay As String ' Артикулен номер на съвместимо термично реле
+        Public Property DeratingFactor As Dictionary(Of Double, Double) ' Речник за дерейтинг: Key=Температура [°C], Value=Коефициент [0.0-1.0]
+    End Class
+    ' Shared гарантира, че функцията се вика само веднъж при първото обръщение
+    Private Shared Catalog_Contactor As Dictionary(Of String, ContactorEntry)
+
     ''' <summary>
     ''' Структура: DisconnectorInfo
     ''' </summary>
@@ -1521,7 +1573,146 @@ Public Class Form_Tablo_new
         ' Return mountMethod.FirstOrDefault(Function(m) m.Simbol = simbol).Text
         ' 2. От Текст към Символ (ако ти трябва да разбереш кода при избран елемент в UI)
         ' Return mountMethod.FirstOrDefault(Function(m) m.Text = Text).Simbol
+        Catalog_Contactor = LoadContactorCatalog()
     End Sub
+    ' Пример за зареждане на каталога с реални данни от Schneider Electric TeSys D
+    Private Function LoadContactorCatalog() As Dictionary(Of String, ContactorEntry)
+        Dim catalog As New Dictionary(Of String, ContactorEntry)
+        ' LC1D09 - 9A AC-3
+        catalog.Add("LC1D09", New ContactorEntry With {
+        .PartNumber = "LC1D09",
+        .FrameSize = "09",
+        .RatedCurrent_AC1 = 25, ' AC-1: 25A при 440V [[30]]
+        .RatedCurrent_AC3 = 9,  ' AC-3: 9A при 440V [[30]]
+        .RatedCurrent_AC4 = 6,  ' AC-4: приблизително 2/3 от AC-3
+        .MaxPower_AC3_400V = 4.0, ' 4 kW при 400V AC-3 [[24]]
+        .AvailableCoils = New List(Of String) From {"24AC", "48AC", "110AC", "220AC", "230AC", "24DC", "48DC", "110DC", "220DC"},
+        .HasAuxContacts = True,
+        .MaxAuxContacts = 4, ' 1NO+1NC вградени + допълнителни блокове
+        .CompatibleRelay = "LRD08", ' LRD08 за 2.5-4A [[52]]
+        .DeratingFactor = New Dictionary(Of Double, Double) From {
+            {40, 1.0},
+            {50, 0.95},
+            {60, 0.9}
+        }
+    })
+
+        ' LC1D12 - 12A AC-3
+        catalog.Add("LC1D12", New ContactorEntry With {
+        .PartNumber = "LC1D12",
+        .FrameSize = "12",
+        .RatedCurrent_AC1 = 32, ' AC-1: 32A при 440V [[39]]
+        .RatedCurrent_AC3 = 12, ' AC-3: 12A при 440V [[25]]
+        .RatedCurrent_AC4 = 8,  ' AC-4: приблизително
+        .MaxPower_AC3_400V = 5.5, ' 5.5 kW при 400V AC-3 [[25]]
+        .AvailableCoils = New List(Of String) From {"24AC", "48AC", "110AC", "220AC", "230AC", "24DC", "48DC", "110DC", "220DC"},
+        .HasAuxContacts = True,
+        .MaxAuxContacts = 4, ' 1NO+1NC вградени + допълнителни
+        .CompatibleRelay = "LRD10", ' LRD10 за 4-6A [[52]]
+        .DeratingFactor = New Dictionary(Of Double, Double) From {
+            {40, 1.0},
+            {50, 0.95},
+            {60, 0.9}
+        }
+    })
+
+        ' LC1D18 - 18A AC-3
+        catalog.Add("LC1D18", New ContactorEntry With {
+        .PartNumber = "LC1D18",
+        .FrameSize = "18",
+        .RatedCurrent_AC1 = 40, ' AC-1: 40A при 440V
+        .RatedCurrent_AC3 = 18, ' AC-3: 18A при 440V [[43]]
+        .RatedCurrent_AC4 = 12, ' AC-4: приблизително
+        .MaxPower_AC3_400V = 7.5, ' 7.5 kW при 400V AC-3
+        .AvailableCoils = New List(Of String) From {"24AC", "110AC", "220AC", "230AC", "24DC", "110DC", "220DC"},
+        .HasAuxContacts = True,
+        .MaxAuxContacts = 4,
+        .CompatibleRelay = "LRD14", ' LRD14 за 7-10A [[52]]
+        .DeratingFactor = New Dictionary(Of Double, Double) From {
+            {40, 1.0},
+            {50, 0.95},
+            {60, 0.9}
+        }
+    })
+
+        ' LC1D25 - 25A AC-3
+        catalog.Add("LC1D25", New ContactorEntry With {
+        .PartNumber = "LC1D25",
+        .FrameSize = "25",
+        .RatedCurrent_AC1 = 40, ' AC-1: 40A при 440V [[24]]
+        .RatedCurrent_AC3 = 25, ' AC-3: 25A при 440V [[24]]
+        .RatedCurrent_AC4 = 16, ' AC-4: приблизително
+        .MaxPower_AC3_400V = 11.0, ' 11 kW при 400V AC-3 [[24]]
+        .AvailableCoils = New List(Of String) From {"24AC", "48AC", "110AC", "220AC", "230AC", "400AC", "24DC", "48DC", "110DC", "220DC"},
+        .HasAuxContacts = True,
+        .MaxAuxContacts = 6, ' 1NO+1NC вградени + повече допълнителни
+        .CompatibleRelay = "LRD16", ' LRD16 за 9-13A [[53]]
+        .DeratingFactor = New Dictionary(Of Double, Double) From {
+            {40, 1.0},
+            {50, 0.95},
+            {60, 0.9}
+        }
+    })
+
+        ' LC1D32 - 32A AC-3
+        catalog.Add("LC1D32", New ContactorEntry With {
+        .PartNumber = "LC1D32",
+        .FrameSize = "32",
+        .RatedCurrent_AC1 = 50, ' AC-1: 50A
+        .RatedCurrent_AC3 = 32, ' AC-3: 32A при 440V [[30]]
+        .RatedCurrent_AC4 = 20, ' AC-4: приблизително
+        .MaxPower_AC3_400V = 15.0, ' 15 kW при 400V AC-3
+        .AvailableCoils = New List(Of String) From {"24AC", "110AC", "220AC", "230AC", "24DC", "110DC", "220DC"},
+        .HasAuxContacts = True,
+        .MaxAuxContacts = 6,
+        .CompatibleRelay = "LRD22", ' LRD22 за 16-24A [[57]]
+        .DeratingFactor = New Dictionary(Of Double, Double) From {
+            {40, 1.0},
+            {50, 0.95},
+            {60, 0.9}
+        }
+    })
+
+        ' LC1D38 - 38A AC-3
+        catalog.Add("LC1D38", New ContactorEntry With {
+        .PartNumber = "LC1D38",
+        .FrameSize = "38",
+        .RatedCurrent_AC1 = 60, ' AC-1: 60A
+        .RatedCurrent_AC3 = 38, ' AC-3: 38A при 440V
+        .RatedCurrent_AC4 = 25, ' AC-4: приблизително
+        .MaxPower_AC3_400V = 18.5, ' 18.5 kW при 400V AC-3
+        .AvailableCoils = New List(Of String) From {"24AC", "110AC", "220AC", "230AC", "24DC", "110DC", "220DC"},
+        .HasAuxContacts = True,
+        .MaxAuxContacts = 6,
+        .CompatibleRelay = "LRD32", ' LRD32 за 23-32A [[53]]
+        .DeratingFactor = New Dictionary(Of Double, Double) From {
+            {40, 1.0},
+            {50, 0.95},
+            {60, 0.9}
+        }
+    })
+
+        ' LC1D50 - 50A AC-3
+        catalog.Add("LC1D50", New ContactorEntry With {
+        .PartNumber = "LC1D50",
+        .FrameSize = "50",
+        .RatedCurrent_AC1 = 80, ' AC-1: 80A
+        .RatedCurrent_AC3 = 50, ' AC-3: 50A при 440V [[47]]
+        .RatedCurrent_AC4 = 33, ' AC-4: приблизително
+        .MaxPower_AC3_400V = 22.0, ' 22 kW при 400V AC-3 [[47]]
+        .AvailableCoils = New List(Of String) From {"24AC", "110AC", "220AC", "230AC", "400AC", "24DC", "110DC", "220DC"},
+        .HasAuxContacts = True,
+        .MaxAuxContacts = 8,
+        .CompatibleRelay = "LRD35", ' LRD35 за 30-38A
+        .DeratingFactor = New Dictionary(Of Double, Double) From {
+            {40, 1.0},
+            {50, 0.95},
+            {60, 0.9}
+        }
+    })
+
+        Return catalog
+    End Function
     Private Sub FillCables()
         Catalog_Cables.Clear()
 
@@ -3246,7 +3437,9 @@ Public Class Form_Tablo_new
     ''' </summary>
     Private Sub HandleRCDCheckboxChange(tokow As strTokow)
         If tokow.Device = "Контакт" Then Return
+        tokow.RCD_Автомат = True
         If tokow.ДТЗ_RCD = True Then
+            tokow.RCD_Автомат = True
             ' ✅ СЛАГАМЕ ДТЗ
             SetRCD(tokow)           ' Избираме ДТЗ от каталога
             ClearBreaker(tokow)     ' Изчистваме MCB данните
@@ -3254,6 +3447,7 @@ Public Class Form_Tablo_new
             ' ✅ СЛАГАМЕ ПРЕКЪСВАЧ
             CalculateBreaker(tokow)    ' Избираме прекъсвач
             ClearRCD(tokow)         ' Изчистваме ДТЗ данните
+            tokow.RCD_Автомат = False
         End If
     End Sub
     ''' <summary>
@@ -4490,6 +4684,8 @@ Public Class Form_Tablo_new
                     DrawPanelFrame(acDoc, acCurDb, ptBasePoint, panelCircuits)      ' Тук ще чертаем рамката на таблото
                     DrawBusbars(acDoc, acCurDb, ptBasePoint, panelCircuits)         ' Тук ще чертаем шините
                     DrawCircuits(acDoc, acCurDb, ptBasePoint, panelCircuits)        ' Тук ще чертаем всеки токов кръг (прекъсвачи, текстове, линии)
+
+
                     DrawMainSwitch(acDoc, acCurDb, ptBasePoint, panelCircuits)
                     DrawGrounding(acDoc, acCurDb, ptBasePoint, selectedTablo)
                     DrawAnnotations(acDoc, acCurDb, ptBasePoint, selectedTablo, panelCircuits)
@@ -4740,19 +4936,6 @@ Public Class Form_Tablo_new
     End Sub
     Private Sub DrawCircuits(acDoc As Document, acCurDb As Database, basePoint As Point3d, circuits As List(Of strTokow))
         ' Тук ще чертаем всеки токов кръг (прекъсвачи, текстове, линии)
-        ' ============================================================
-        ' РЕЧНИК ЗА УПРАВЛЕНИЕ -> БЛОК
-        ' ============================================================
-        Dim ControlBlockMap As New Dictionary(Of String, String) From {
-            {"Импулсно реле", "s_tl"},
-            {"Контактор", "s_ct_cont_no"},
-            {"Моторна защита", "s_tesys_cont_no"},
-            {"Моторен механизъм", "s_ns100_motor_fixed"},
-            {"Честотен регулатор", "s_altivar"},
-            {"Стълбищен автомат", "s_min"},
-            {"Електромер", "s_Wh_meter"},
-            {"Фото реле", "s_switch_light_sens"}
-        }
         Dim brColums As Integer = circuits.Count
         Dim X_Start As Double = basePoint.X + widthText + widthTextDim
         Dim Y_Shina As Double = basePoint.Y + Y_Шина
@@ -4774,13 +4957,191 @@ Public Class Form_Tablo_new
                 DrawCircuitTexts(acDoc, acCurDb, basePoint, circuit, X)
                 ' Пишем текстовете и  нищо друго не правим
                 If circuit.ТоковКръг = "ОБЩО" Then Continue For
+                ' =====================================================
+                ' 5️⃣ ВМЪКВАНЕ НА БЛОК ЗА ПРЕКЪСВАЧ
+                ' =====================================================
+                DrawBreakerBlock(acDoc, acCurDb, basePoint, circuit, X, Y_Shina)
+                ' 7️⃣ ЧЕРТАЕ НА УПРАВЛЯВАЩО УСТРОЙСТВО
+                DrawControlDevice(acDoc, acCurDb, circuit, X, Y_Shina)
+
+
+
                 colIndex += 1
-
-
             Next
         Catch ex As Exception
             MsgBox("Възникна грешка: " & vbCrLf & ex.Message & vbCrLf & vbCrLf & ex.StackTrace, MsgBoxStyle.Critical)
         End Try
+    End Sub
+    ''' <summary>
+    ''' Чертае управляващо устройство под прекъсвача
+    ''' </summary>
+    ''' <param name="acDoc">AutoCAD документ</param>
+    ''' <param name="acCurDb">AutoCAD база данни</param>
+    ''' <param name="circuit">Токов кръг</param>
+    ''' <param name="X">X координата (център на колоната)</param>
+    ''' <param name="breakerY">Y позиция на прекъсвача</param>
+    Private Sub DrawControlDevice(acDoc As Document, acCurDb As Database,
+                                  circuit As strTokow, X As Double, breakerY As Double)
+        Try
+            ' =====================================================
+            ' 1️⃣ ПРОВЕРКА ДАЛИ ИМА УПРАВЛЕНИЕ
+            ' =====================================================
+            If String.IsNullOrEmpty(circuit.Управление) Then Return
+            If circuit.Управление = "Няма" Then Return
+            ' =====================================================
+            ' 2️⃣ НАМИРАНЕ НА БЛОКА ОТ РЕЧНИКА
+            ' =====================================================
+            If Not ControlBlockMap.ContainsKey(circuit.Управление) Then Return
+            Dim blockName As String = ControlBlockMap(circuit.Управление)
+            If String.IsNullOrEmpty(blockName) Then Return
+            ' =====================================================
+            ' 3️⃣ ИЗЧИСЛЯВАНЕ НА ПОЗИЦИЯТА (ВИНАГИ под прекъсвача)
+            ' =====================================================
+            Dim controlY As Double = breakerY - 135
+            Dim insertPoint As New Point3d(X, controlY, 0)
+            Dim blockScale As New Scale3d(5, 5, 5)
+            ' =====================================================
+            ' 4️⃣ ПОЛУЧАВАНЕ НА ПАРАМЕТРИТЕ ЗА ТОЗИ ТИП
+            ' =====================================================
+            Dim config As ControlDeviceConfig = GetControlDeviceConfig(circuit)
+            ' =====================================================
+            ' 5️⃣ ВМЪКВАНЕ НА БЛОКА
+            ' =====================================================
+            Dim blkRecId As ObjectId = cu.InsertBlock(blockName, insertPoint, "EL_ТАБЛА", blockScale)
+            ' =====================================================
+            ' 6️⃣ ПОПЪЛВАНЕ НА АТРИБУТИТЕ
+            ' =====================================================
+            If Not blkRecId.IsNull Then
+                Using trans As Transaction = acCurDb.TransactionManager.StartTransaction()
+                    Dim acBlkRef As BlockReference = DirectCast(trans.GetObject(blkRecId, OpenMode.ForWrite), BlockReference)
+                    For Each objID As ObjectId In acBlkRef.AttributeCollection
+                        Dim acAttRef As AttributeReference = DirectCast(trans.GetObject(objID, OpenMode.ForWrite), AttributeReference)
+                        Select Case acAttRef.Tag
+                            Case "1" : acAttRef.TextString = config.Str_1
+                            Case "2" : acAttRef.TextString = config.Str_2
+                            Case "3" : acAttRef.TextString = config.Str_3
+                            Case "4" : acAttRef.TextString = config.Str_4
+                            Case "5" : acAttRef.TextString = ""
+                            Case "SHORTNAME" : acAttRef.TextString = config.ShortName
+                            Case "REFNB" : acAttRef.TextString = circuit.Tablo
+                            Case "DESIGNATION" : acAttRef.TextString = ""
+                        End Select
+                    Next
+                    trans.Commit()
+                End Using
+            End If
+
+        Catch ex As Exception
+            MsgBox("Възникна грешка: " & vbCrLf & ex.Message & vbCrLf & vbCrLf & ex.StackTrace, MsgBoxStyle.Critical)
+        End Try
+    End Sub
+    ''' <summary>
+    ''' Връща конфигурацията за даден тип управление
+    ''' </summary>
+    Private Function GetControlDeviceConfig(circuit As strTokow) As ControlDeviceConfig
+        ' New(str_1 , str_2 , str_3 , str_4 , str_5 , shortName)
+        Select Case circuit.Управление
+            Case "Импулсно реле"
+                Return New ControlDeviceConfig("", "1p", If(circuit.Ток * 1.1 > 16, "32A", "16A"), "220VAC", "", "iTL")
+            Case "Контактор"
+                Return New ControlDeviceConfig(circuit.Брой_Полюси.ToString & "НО", "", If(circuit.Ток * 1.1 > 16, "25A", "16A"), "220VAC", "", "iCT")
+                'Case "Моторна защита"
+                '    Return New ControlDeviceConfig("3NO", "1NO+1NC", "9A", "230VAC", "LC1D")
+                'Case "Моторен механизъм"
+                '    Return New ControlDeviceConfig("", "", "", "", "NS100")
+                'Case "Честотен регулатор"
+                '    Return New ControlDeviceConfig("", "", "", "", "ATV")
+            Case "Стълбищен автомат"
+                Return New ControlDeviceConfig("", "", "0.5-20min",
+                                               If(circuit.Ток * 1.1 > 16, "---", "16A"),
+                                               "", "MINp")
+                'Case "Електромер"
+                '    Return New ControlDeviceConfig("", "", "", "", "kWh")
+            Case "Фото реле"
+                Return New ControlDeviceConfig("", "2-100 Lx",
+                                               If(circuit.Ток * 1.1 > 10, "---", "10A"),
+                                               "", "", "IC100")
+            Case Else
+                Return New ControlDeviceConfig("", "", "", "", "", "")
+        End Select
+    End Function
+    ''' <summary>
+    ''' Процедурата DrawBreakerBlock добавя визуално представяне (блок) на автоматичен прекъсвач или RCD в AutoCAD документ.
+    ''' Използва се в контекста на проектиране на електрически табла и схеми на токови кръгове.
+    ''' </summary>
+    ''' <param name="acDoc">Документът на AutoCAD, в който се добавя блокът.</param>
+    ''' <param name="acCurDb">Текущата база данни на AutoCAD, за извършване на транзакции и операции върху блокове.</param>
+    ''' <param name="basePoint">Базова точка (не се използва директно в тази процедура, но може да е за разширения).</param>
+    ''' <param name="circuit">Обект от тип strTokow, който съдържа данните за конкретния токов кръг, като тип апарат, RCD информация, брой полюси и др.</param>
+    ''' <param name="X">X координата за позициониране на блока.</param>
+    ''' <param name="Y_Shina">Y координата на шината, върху която се поставя блокът.</param>
+    Private Sub DrawBreakerBlock(acDoc As Document, acCurDb As Database, basePoint As Point3d,
+                                circuit As strTokow, X As Double, Y_Shina As Double)
+        ' Име на блока по подразбиране – стандартен прекъсвач C60
+        Dim blockName As String = "s_c60_circ_break"
+        ' Масштаб на блока – зададен като 5х5х5.
+        Dim blockScale As New Scale3d(5, 5, 5)
+        ' Начална позиция за поставяне на блока
+        Dim insertPoint As New Point3d(X, Y_Shina, 0)
+        ' Флаг, който указва дали блокът представлява RCD (за специално попълване на атрибути)
+        Dim rcd_Yes As Boolean = False
+        ' Ако има RCD_Нула и тя не е "N", местим блока надолу по Y с 117.5 единици
+        If Not String.IsNullOrEmpty(circuit.RCD_Нула) AndAlso
+        circuit.RCD_Нула.Trim().ToUpper() <> "N" Then
+            insertPoint = New Point3d(X, Y_Shina - 117.5, 0)
+        End If
+        ' Избор на блок според типа апарат
+        If Not String.IsNullOrEmpty(circuit.Breaker_Тип_Апарат) Then
+            Select Case circuit.Breaker_Тип_Апарат.ToUpper()
+                Case "GV2"
+                    blockName = "s_GV2" ' Блок за GV2 апарат
+                Case Else
+                    blockName = "s_c60_circ_break" ' По подразбиране C60
+            End Select
+        Else
+            ' Ако типът на апарата не е зададен, считаме, че е RCD
+            rcd_Yes = True
+            blockName = "s_dpnn_vigi_circ_break" ' Блок за RCD
+        End If
+        ' Вмъкване на блока в AutoCAD с помощта на функция InsertBlock
+        ' (предполага се, че cu е помощен модул/клас за CAD операции)
+        Dim blkRecId As ObjectId = cu.InsertBlock(blockName, insertPoint, "EL_ТАБЛА", blockScale)
+        ' Ако вмъкването е успешно (ObjectId не е Null)
+        If Not blkRecId.IsNull Then
+            ' Стартиране на транзакция за промяна на атрибутите на блока
+            Using trans As Transaction = acCurDb.TransactionManager.StartTransaction()
+                ' Получаваме референция към блока за писане
+                Dim acBlkRef As BlockReference = DirectCast(trans.GetObject(blkRecId, OpenMode.ForWrite), BlockReference)
+                ' Обхождане на всички атрибути на блока
+                For Each objID As ObjectId In acBlkRef.AttributeCollection
+                    Dim acAttRef As AttributeReference = DirectCast(trans.GetObject(objID, OpenMode.ForWrite), AttributeReference)
+                    ' Попълване на атрибутите в зависимост дали е RCD или обикновен прекъсвач
+                    If rcd_Yes Then
+                        ' Атрибути за RCD
+                        Select Case acAttRef.Tag
+                            Case "SHORTNAME" : acAttRef.TextString = circuit.RCD_Тип
+                            Case "1" : acAttRef.TextString = circuit.RCD_Клас
+                            Case "2" : acAttRef.TextString = circuit.Брой_Полюси & "p"
+                            Case "3" : acAttRef.TextString = "C"
+                            Case "4" : acAttRef.TextString = circuit.RCD_Ток & "A"
+                            Case "5" : acAttRef.TextString = circuit.RCD_Чувствителност & "mA"
+                            Case "REFNB" : acAttRef.TextString = circuit.Tablo
+                        End Select
+                    Else
+                        ' Атрибути за прекъсвач
+                        Select Case acAttRef.Tag
+                            Case "SHORTNAME" : acAttRef.TextString = circuit.Breaker_Тип_Апарат
+                            Case "2" : acAttRef.TextString = circuit.Breaker_Крива
+                            Case "3" : acAttRef.TextString = circuit.Брой_Полюси & "p"
+                            Case "4" : acAttRef.TextString = circuit.Breaker_Номинален_Ток & "A"
+                            Case "REFNB" : acAttRef.TextString = circuit.Tablo
+                        End Select
+                    End If
+                Next
+                ' Потвърждаваме промяната на атрибутите
+                trans.Commit()
+            End Using
+        End If
     End Sub
     ''' <summary>
     ''' Чертaе текстовата информация за един токов кръг в таблицата на таблото.
@@ -4846,7 +5207,6 @@ Public Class Form_Tablo_new
                   New Point3d(X - widthColom / 2 + padingText, Y_Base + 1 * heightRow + (heightRow - heightText) / 2, 0),
                   textLayer, 12, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
     End Sub
-
     Private Sub DrawMainSwitch(acDoc As Document, acCurDb As Database, basePoint As Point3d, circuits As List(Of strTokow))
         ' Тук ще чертаем главния прекъсвач/разединител
     End Sub

@@ -6,6 +6,7 @@ Imports System.Security.Cryptography
 Imports System.Security.Cryptography.X509Certificates
 Imports System.Windows.Forms
 Imports System.Windows.Forms.VisualStyles.VisualStyleElement
+Imports Autodesk.AutoCAD
 Imports Autodesk.AutoCAD.ApplicationServices
 Imports Autodesk.AutoCAD.DatabaseServices
 Imports Autodesk.AutoCAD.DatabaseServices.Filters
@@ -16,6 +17,7 @@ Imports Autodesk.AutoCAD.Internal.DatabaseServices
 Imports Autodesk.AutoCAD.PlottingServices
 Imports Autodesk.AutoCAD.Runtime
 Imports AXDBLib
+Imports iTextSharp.text.pdf
 Imports Newtonsoft.Json
 Imports Newtonsoft.Json.Linq
 Imports Org.BouncyCastle.Asn1.Cmp
@@ -1356,14 +1358,15 @@ Public Class Form_Tablo_new
                 comboCell.Items.AddRange("B", "C", "D")
             Case "Управление"
                 comboCell.Items.AddRange("Няма",
+                                         "Фото реле",
+                                         "Стълбищен автомат",
                                          "Импулсно реле",
-                                         "Моторна защита",
                                          "Контактор",
+                                         "Моторна защита",
                                          "Моторен механизъм",
                                          "Честотен регулатор",
-                                         "Стълбищен автомат",
-                                         "Електромер",
-                                         "Фото реле")
+                                         "Електромер"
+)
             Case "Тип кабел"
                 comboCell.Items.AddRange(Cable_For_combo.ToArray())
                 ' Възможно зареждане на Kable_Type в бъдеще
@@ -4688,7 +4691,7 @@ Public Class Form_Tablo_new
 
                     DrawMainSwitch(acDoc, acCurDb, ptBasePoint, panelCircuits)
                     DrawGrounding(acDoc, acCurDb, ptBasePoint, selectedTablo)
-                    DrawAnnotations(acDoc, acCurDb, ptBasePoint, selectedTablo, panelCircuits)
+                    DrawAnnotations(ptBasePoint, panelCircuits)
 
                     MsgBox("Таблото [" & selectedTablo & "] е успешно генерирано!", MsgBoxStyle.Information)
                 Catch ex As Exception
@@ -4790,8 +4793,8 @@ Public Class Form_Tablo_new
             Dim crossCenterY As Double = blockEndY - 18
             ' Вертикална линия на кръста
             AddLine(lines, New Point3d(crossCenterX, blockEndY, 0),
-                       New Point3d(crossCenterX, blockEndY - 36, 0),
-                       "Defpoints", Autodesk.AutoCAD.DatabaseServices.LineWeight.ByLayer, "ByLayer", 1)
+                           New Point3d(crossCenterX, blockEndY - 36, 0),
+                           "Defpoints", Autodesk.AutoCAD.DatabaseServices.LineWeight.ByLayer, "ByLayer", 1)
             ' Хоризонтална линия на кръста
             AddLine(lines, New Point3d(basePoint.X + widthText, crossCenterY, 0),
                        New Point3d(basePoint.X + widthText + 36, crossCenterY, 0),
@@ -4964,13 +4967,40 @@ Public Class Form_Tablo_new
                 ' 7️⃣ ЧЕРТАЕ НА УПРАВЛЯВАЩО УСТРОЙСТВО
                 DrawControlDevice(acDoc, acCurDb, circuit, X, Y_Shina)
 
-
+                DrawCircuitLines(X, circuit, basePoint.Y, basePoint)
 
                 colIndex += 1
             Next
         Catch ex As Exception
             MsgBox("Възникна грешка: " & vbCrLf & ex.Message & vbCrLf & vbCrLf & ex.StackTrace, MsgBoxStyle.Critical)
         End Try
+    End Sub
+    ' Знаем X координатата
+    ' Крайната точка Y винаги е 0 (таблицата)
+    ' Началната точка Y зависи от това дали има управление
+    Public Sub DrawCircuitLines(X As Double, circuit As strTokow, breakerY As Double, basePoint As Point3d)
+        ' 1. Определяме началната Y точка според типа на веригата
+        Dim startY As Double
+        Dim endY As Double
+        If circuit.Управление = "Няма" Or
+            String.IsNullOrEmpty(circuit.Управление) Then
+            ' Ако няма управление
+            startY = breakerY - 235
+            endY = basePoint.Y
+        Else
+            ' Ако има управление
+            startY = breakerY - 235 - 135
+            endY = basePoint.Y
+        End If
+        ' 2. Начална точка (край на прекъсвача)
+        Dim startPt As New Point3d(X, startY, 0)
+        ' 3. Крайна точка (начало на таблицата)
+        Dim endPt As New Point3d(X + 10, endY, 0)
+        ' 4. Чертаем линията
+        cu.DrowLine(startPt, endPt,
+                    "EL_ТАБЛА",
+                    Autodesk.AutoCAD.DatabaseServices.LineWeight.ByLayer,
+                    "ByLayer")
     End Sub
     ''' <summary>
     ''' Чертае управляващо устройство под прекъсвача
@@ -5030,7 +5060,6 @@ Public Class Form_Tablo_new
                     trans.Commit()
                 End Using
             End If
-
         Catch ex As Exception
             MsgBox("Възникна грешка: " & vbCrLf & ex.Message & vbCrLf & vbCrLf & ex.StackTrace, MsgBoxStyle.Critical)
         End Try
@@ -5213,7 +5242,44 @@ Public Class Form_Tablo_new
     Private Sub DrawGrounding(acDoc As Document, acCurDb As Database, basePoint As Point3d, panelName As String)
         ' Тук ще чертаем заземление (ако е Гл.Р.Т.)
     End Sub
-    Private Sub DrawAnnotations(acDoc As Document, acCurDb As Database, basePoint As Point3d, panelName As String, circuits As List(Of strTokow))
-        ' Тук ще добавяме надписи, забележки, брой полюси
+    Private Sub DrawAnnotations(basePoint As Point3d, circuits As List(Of strTokow))
+        Dim Zabelevka As String = "1. Таблото да се изпълни в съответствие с изискванията на БДС EN 61439-1."
+        Zabelevka += vbCrLf & "2. Aпаратурата и тоководящите части да бъдат монтирани зад защитни капаци. "
+        Zabelevka += vbCrLf & "3. Достъпа до палците и ръкохватките на комутационните апарати се осигурява посредством отвори в защитните капаци."
+        Zabelevka += vbCrLf & "4. Апаратурата е избрана по каталога на SCHNEIDER ELECTRIC."
+        Zabelevka += vbCrLf & "5. Изборът на автоматичните прекъсвачи е съобразен с токовете на к.с., спазени са изискванията за селективност."
+        Zabelevka += vbCrLf & "6. При замяна типа на апаратурата да се преизчисли схемата."
+        Zabelevka += vbCrLf & "7. При замяна номиналният ток на апаратурата да се преизчисли сечението на кабелите."
+
+        cu.InsertMText("ЗАБЕЛЕЖКИ:",
+                                 New Point3d(basePoint.X,
+                                             basePoint.Y - 20, 0),
+                                 "EL__DIM", 10)
+        cu.InsertMText(Zabelevka,
+                                 New Point3d(basePoint.X + 30,
+                                             basePoint.Y - 20 - heightRow, 0),
+                                 "EL__DIM", 10)
+        Dim pol As Integer = 0
+
+        For Each circuit As strTokow In circuits
+            pol += circuit.Брой_Полюси
+            Select Case circuit.Управление
+                Case "Няма", "", "Електромер",
+                     "Честотен регулатор",
+                     "Моторен механизъм"
+                    ' Не добавяме полюси за вериги без управление
+                Case "Стълбищен автомат", "Импулсно реле"
+                    pol += 1
+                Case "Фото реле"
+                    pol += 3
+                Case "Контактор", "Моторна защита"
+                    pol += circuit.Брой_Полюси
+            End Select
+        Next
+
+        cu.InsertMText("Полюси -> " & pol.ToString(0),
+         New Point3d(basePoint.X + 160,
+                     basePoint.Y + 900, 0),
+         "Defpoints", 20, 1)
     End Sub
 End Class

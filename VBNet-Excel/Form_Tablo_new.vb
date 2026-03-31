@@ -4691,7 +4691,7 @@ Public Class Form_Tablo_new
 
                     DrawMainSwitch(acDoc, acCurDb, ptBasePoint, panelCircuits)
                     DrawGrounding(acDoc, acCurDb, ptBasePoint, selectedTablo)
-                    DrawAnnotations(ptBasePoint, panelCircuits)
+                    DrawAnnotations(ptBasePoint, panelCircuits)                     ' Процедурата създава текстови анотации
 
                     MsgBox("Таблото [" & selectedTablo & "] е успешно генерирано!", MsgBoxStyle.Information)
                 Catch ex As Exception
@@ -4860,6 +4860,23 @@ Public Class Form_Tablo_new
                    ex.StackTrace.ToString)
         End Try
     End Sub
+    ''' <summary>
+    ''' Процедурата DrawBusbars отговаря за изчертаването на шините (busbars)
+    ''' в електрическо табло в AutoCAD.
+    ''' 
+    ''' В зависимост от конфигурацията (една или две шини), процедурата:
+    ''' - изчислява геометрията (позиции и дължини)
+    ''' - определя фазите
+    ''' - изчертава линии за шините
+    ''' - добавя текстови надписи за фазите
+    ''' - при две шини – визуализира връзката между тях
+    ''' 
+    ''' Използва данни от списък с токови кръгове (strTokow).
+    ''' </summary>
+    ''' <param name="acDoc">AutoCAD документ (не се използва директно, но е част от контекста).</param>
+    ''' <param name="acCurDb">AutoCAD база данни (не се използва директно тук).</param>
+    ''' <param name="basePoint">Базова точка за позициониране на всички елементи.</param>
+    ''' <param name="circuits">Списък от токови кръгове, използван за изчисления и логика.</param>
     Private Sub DrawBusbars(acDoc As Document, acCurDb As Database, basePoint As Point3d, circuits As List(Of strTokow))
         Try
             ' =====================================================
@@ -4869,9 +4886,8 @@ Public Class Form_Tablo_new
             Dim X_Start As Double = basePoint.X + widthText + widthTextDim
             Dim X_End As Double = basePoint.X + widthText + widthTextDim + brColums * widthColom + widthColom / 2
             Dim Y_Shina As Double = basePoint.Y + Y_Шина
-            ' Брой кръгове на отделна шина
+            ' Брой токови кръгове, които принадлежат към първата шина.
             brTokKrygoweNa6ina = circuits.Where(Function(c) c.Шина = True).Count()
-            ' Проверяваме дали има трифазни товари (за надписа на шината)
             Dim Faza_Първа_шина = circuits.Any(Function(c) c.Фаза = "L1" Or c.Фаза = "L2" Or c.Фаза = "L3")
             Dim circuitOBSTO = circuits.FirstOrDefault(Function(c) c.ТоковКръг = "ОБЩО")
             Dim Faza_Втора_шина = circuitOBSTO.Фаза
@@ -4882,45 +4898,44 @@ Public Class Form_Tablo_new
             ' =====================================================
             ' 4️⃣ ЧЕРТАЕНЕ НА ШИНИТЕ
             ' =====================================================
-            ' Първа шина (лява част)
             Dim X_Split As Double = 0
             Dim X_SecondStart As Double = 0
             If Not twoBus Then
                 ' ----- ЕДНА ШИНА -----
-                ' Хоризонтална линия на шината
                 cu.DrowLine(New Point3d(X_Start, Y_Shina, 0),
                         New Point3d(X_End, Y_Shina, 0),
                         "EL_ТАБЛА", Autodesk.AutoCAD.DatabaseServices.LineWeight.LineWeight070, "ByLayer")
-
-                ' Надпис над шината
                 cu.InsertText(Faza_Втора_шина & ",N,PE",
                           New Point3d(X_Start, Y_Shina + 2 * padingText, 0),
                           "EL__DIM", heightText,
                           TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
             Else
                 ' ----- ДВЕ ШИНИ -----
-                ' Първа шина (лява част)
                 X_Split = X_Start + brTokKrygoweNa6ina * widthColom - 30
+                ' Чертае първата (лява) шина.
                 cu.DrowLine(New Point3d(X_Start, Y_Shina, 0),
                         New Point3d(X_Split, Y_Shina, 0),
                         "EL_ТАБЛА", Autodesk.AutoCAD.DatabaseServices.LineWeight.LineWeight070, "ByLayer")
-                ' Втора шина (дясна част)
+                ' Начална позиция на втората (дясна) шина.
                 X_SecondStart = X_Start + brTokKrygoweNa6ina * widthColom + 30
+                ' Край на втората шина (същият като X_End).
                 Dim X_SecondEnd As Double = basePoint.X + widthText + widthTextDim + brColums * widthColom + widthColom / 2
+                ' Чертае втората шина.
                 cu.DrowLine(New Point3d(X_SecondStart, Y_Shina, 0),
                         New Point3d(X_SecondEnd, Y_Shina, 0),
                         "EL_ТАБЛА", Autodesk.AutoCAD.DatabaseServices.LineWeight.LineWeight070, "ByLayer")
-                ' Надпис над първата шина
+                ' Надпис за първата шина (зависи от наличието на трифазни товари).
                 cu.InsertText(phaseText,
                           New Point3d(X_Start, Y_Shina + 2 * padingText, 0),
                           "EL__DIM", heightText,
                           TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
-                ' Надпис над втората шина
+                ' Надпис за втората шина (взет от "ОБЩО").
                 cu.InsertText(Faza_Втора_шина & ",N,PE",
                           New Point3d(X_SecondStart, Y_Shina + 2 * padingText, 0),
                           "EL__DIM", heightText,
                           TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
-                ' Линия между двата разединителя (връзка между шините)
+                ' Чертае връзка между двете шини (между разединители).
+                ' Позиционирана е над основните шини (+95 по Y).
                 Dim X_6ina1 As Double = (X_SecondStart + X_End) / 2
                 Dim X_6ina2 As Double = (X_Start + X_Split) / 2
                 cu.DrowLine(New Point3d(X_6ina1, Y_Shina + 95, 0),
@@ -4928,13 +4943,13 @@ Public Class Form_Tablo_new
                         "EL_ТАБЛА", Autodesk.AutoCAD.DatabaseServices.LineWeight.ByLayer, "ByLayer")
             End If
         Catch ex As Exception
-            ' --------------------------------------------------------
-            ' Обработка на грешки
-            ' --------------------------------------------------------
+            ' Показва съобщение при възникване на грешка,
+            ' включително текста на грешката и stack trace.
+            ' Полезно при дебъг, но не е подходящо за production среда.
             MsgBox("Възникна грешка:  " &
-                   ex.Message &
-                   vbCrLf & vbCrLf &
-                   ex.StackTrace.ToString)
+               ex.Message &
+               vbCrLf & vbCrLf &
+               ex.StackTrace.ToString)
         End Try
     End Sub
     Private Sub DrawCircuits(acDoc As Document, acCurDb As Database, basePoint As Point3d, circuits As List(Of strTokow))
@@ -4956,6 +4971,7 @@ Public Class Form_Tablo_new
                 Dim X As Double = X_Start + colIndex * widthColom + widthColom / 2
                 ' =====================================================
                 ' 4️⃣ ЧЕРТАЕНЕ НА ТЕКСТОВЕТЕ В ТАБЛИЦАТА
+                ' Чертaе текстовата информация за един токов кръг в таблицата на таблото
                 ' =====================================================
                 DrawCircuitTexts(acDoc, acCurDb, basePoint, circuit, X)
                 ' Пишем текстовете и  нищо друго не правим
@@ -5242,32 +5258,46 @@ Public Class Form_Tablo_new
     Private Sub DrawGrounding(acDoc As Document, acCurDb As Database, basePoint As Point3d, panelName As String)
         ' Тук ще чертаем заземление (ако е Гл.Р.Т.)
     End Sub
+    ''' <summary>
+    ''' Процедурата DrawAnnotations създава текстови анотации (бележки) в AutoCAD чертеж,
+    ''' свързани с електрическо табло, както и изчислява и визуализира общия брой полюси
+    ''' на всички токови кръгове.
+    ''' 
+    ''' Използва се в контекста на автоматизирано чертане на табла, където освен графиката
+    ''' е необходимо да се добавят и нормативни указания и обобщена информация.
+    ''' </summary>
+    ''' <param name="basePoint">
+    ''' Базова точка за позициониране на текстовете. Всички анотации се разполагат
+    ''' относително спрямо тази точка.
+    ''' </param>
+    ''' <param name="circuits">
+    ''' Списък от токови кръгове (strTokow), използван за изчисляване на общия брой полюси.
+    ''' </param>
     Private Sub DrawAnnotations(basePoint As Point3d, circuits As List(Of strTokow))
         Dim Zabelevka As String = "1. Таблото да се изпълни в съответствие с изискванията на БДС EN 61439-1."
+        ' Добавяне на нови редове с допълнителни изисквания към таблото
         Zabelevka += vbCrLf & "2. Aпаратурата и тоководящите части да бъдат монтирани зад защитни капаци. "
         Zabelevka += vbCrLf & "3. Достъпа до палците и ръкохватките на комутационните апарати се осигурява посредством отвори в защитните капаци."
         Zabelevka += vbCrLf & "4. Апаратурата е избрана по каталога на SCHNEIDER ELECTRIC."
         Zabelevka += vbCrLf & "5. Изборът на автоматичните прекъсвачи е съобразен с токовете на к.с., спазени са изискванията за селективност."
         Zabelevka += vbCrLf & "6. При замяна типа на апаратурата да се преизчисли схемата."
         Zabelevka += vbCrLf & "7. При замяна номиналният ток на апаратурата да се преизчисли сечението на кабелите."
-
         cu.InsertMText("ЗАБЕЛЕЖКИ:",
-                                 New Point3d(basePoint.X,
-                                             basePoint.Y - 20, 0),
-                                 "EL__DIM", 10)
+                       New Point3d(basePoint.X,
+                                   basePoint.Y - 20, 0),
+                       "EL__DIM", 10)
         cu.InsertMText(Zabelevka,
-                                 New Point3d(basePoint.X + 30,
-                                             basePoint.Y - 20 - heightRow, 0),
-                                 "EL__DIM", 10)
+                       New Point3d(basePoint.X + 30,
+                                   basePoint.Y - 20 - heightRow, 0),
+                       "EL__DIM", 10)
         Dim pol As Integer = 0
-
         For Each circuit As strTokow In circuits
             pol += circuit.Брой_Полюси
             Select Case circuit.Управление
                 Case "Няма", "", "Електромер",
-                     "Честотен регулатор",
-                     "Моторен механизъм"
-                    ' Не добавяме полюси за вериги без управление
+                 "Честотен регулатор",
+                 "Моторен механизъм"
+                    ' При тези типове управление не се добавят допълнителни полюси.
                 Case "Стълбищен автомат", "Импулсно реле"
                     pol += 1
                 Case "Фото реле"
@@ -5275,11 +5305,16 @@ Public Class Form_Tablo_new
                 Case "Контактор", "Моторна защита"
                     pol += circuit.Брой_Полюси
             End Select
+            Select Case circuit.RCD_Полюси
+                Case "2p"
+                    pol += 2
+                Case "4p"
+                    pol += 4
+            End Select
         Next
-
         cu.InsertMText("Полюси -> " & pol.ToString(0),
-         New Point3d(basePoint.X + 160,
-                     basePoint.Y + 900, 0),
-         "Defpoints", 20, 1)
+                       New Point3d(basePoint.X + 160,
+                                   basePoint.Y + 900, 0),
+                       "Defpoints", 20, 1)
     End Sub
 End Class

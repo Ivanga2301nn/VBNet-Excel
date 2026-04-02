@@ -32,10 +32,7 @@ Public Class PIC
         Dim edt As Editor = acDoc.Editor
         Dim acCurDb As Database = acDoc.Database
         Dim SelectedSet = cu.GetObjects("INSERT", "Изберете блок")
-        If SelectedSet Is Nothing Then
-            MsgBox("НЕ Е маркиран нито един блок.")
-            Exit Sub
-        End If
+        If SelectedSet Is Nothing Then Exit Sub
         Dim arrBlock(250) As strDat4ik
         Dim blkRecId As ObjectId = ObjectId.Null
         Dim pKeyOpts As PromptKeywordOptions = New PromptKeywordOptions("")
@@ -130,10 +127,7 @@ Public Class PIC
             Try
                 Using acTrans As Transaction = acCurDb.TransactionManager.StartTransaction()
                     Dim SelectedSet = cu.GetObjects("INSERT", "Изберете блок за номериране:")
-                    If SelectedSet Is Nothing Then
-                        MsgBox("НЕ Е маркиран нито един блок.")
-                        Exit Sub
-                    End If
+                    If SelectedSet Is Nothing Then Exit Sub
                     Dim index As Integer = 0
                     For Each sObj As SelectedObject In SelectedSet
                         blkRecId = sObj.ObjectId
@@ -180,10 +174,7 @@ Public Class PIC
             Try
                 Using acTrans As Transaction = acCurDb.TransactionManager.StartTransaction()
                     Dim SelectedSet = cu.GetObjects("INSERT", "Изберете блок за номериране:")
-                    If SelectedSet Is Nothing Then
-                        MsgBox("НЕ Е маркиран нито един блок.")
-                        Exit Sub
-                    End If
+                    If SelectedSet Is Nothing Then Exit Sub
                     Dim index As Integer = 0
                     For Each sObj As SelectedObject In SelectedSet
                         blkRecId = sObj.ObjectId
@@ -217,16 +208,9 @@ Public Class PIC
         Dim edt As Editor = acDoc.Editor
         Dim acCurDb As Database = acDoc.Database
         Dim arrBlock(250) As strDat4ik
-        Dim SelectedSet = cu.GetObjects("INSERT", "Изберете паралелен сигнализатор за номериране:")
+        Dim SelectedSet = cu.GetObjects("INSERT", "Изберете паралелен сигнализатор за номериране:", False)
         Dim blkRecId As ObjectId = ObjectId.Null
-        If SelectedSet Is Nothing Then
-            MsgBox("НЕ Е маркиран нито един блок.")
-            Exit Sub
-        End If
-        If SelectedSet.Count > 1 Then
-            MsgBox("Марлирани много блокове.")
-            Exit Sub
-        End If
+        If SelectedSet Is Nothing Then Exit Sub
         Using acTrans As Transaction = acCurDb.TransactionManager.StartTransaction()
             Try
                 Dim index As Integer = 0
@@ -236,10 +220,7 @@ Public Class PIC
                 index += 1
                 Do
                     SelectedSet = cu.GetObjects("INSERT", "Изберете блок за сигнализиране:")
-                    If SelectedSet Is Nothing Then
-                        MsgBox("НЕ Е маркиран нито един блок.")
-                        Exit Do
-                    End If
+                    If SelectedSet Is Nothing Then Exit Do
                     For Each sObj As SelectedObject In SelectedSet
                         blkRecId = sObj.ObjectId
                         Dim acBlkRef As BlockReference = DirectCast(acTrans.GetObject(blkRecId, OpenMode.ForRead), BlockReference)
@@ -321,10 +302,7 @@ Public Class PIC
             Try
                 Using acTrans As Transaction = acCurDb.TransactionManager.StartTransaction()
                     Dim SelectedSet = cu.GetObjects("INSERT", "Изберете блок за номериране:")
-                    If SelectedSet Is Nothing Then
-                        MsgBox("НЕ Е маркиран нито един блок.")
-                        Exit Sub
-                    End If
+                    If SelectedSet Is Nothing Then Exit Sub
                     Dim index As Integer = 0
                     For Each sObj As SelectedObject In SelectedSet
                         blkRecId = sObj.ObjectId

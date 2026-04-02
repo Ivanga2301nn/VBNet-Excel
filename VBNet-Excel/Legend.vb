@@ -61,12 +61,7 @@ Public Class Legend
         ' Получаване на базата данни на текущия документ
         Dim acCurDb As Database = acDoc.Database
         ' Проверка дали няма маркирани кабели (обекти от тип LINE)
-        If ss_Kabeli Is Nothing Then
-            ' Показване на съобщение за грешка ако няма маркирани линии
-            MsgBox("НЕ Е маркиран нито едина линия.")
-            ' Прекратяване изпълнението на текущата процедура
-            Exit Sub
-        End If
+        If ss_Kabeli Is Nothing Then Exit Sub
         ' Деклариране на двумерен масив Kabel за съхранение на до 50 кабела и информация за тях
         Dim Kabel(50, 1) As String
         Dim arrBlock(600) As strLine
@@ -161,10 +156,7 @@ Public Class Legend
         Dim arrBlock(500) As strTablo
         Dim PI As Double = 3.1415926535897931
         ' Проверка дали са избрани блокове
-        If SelectedSet Is Nothing Then
-            MsgBox("НЕ Е маркиран нито един блок.")
-            Exit Sub
-        End If
+        If SelectedSet Is Nothing Then Exit Sub
         ' Променливи за идентификатор на блок и индекс за масива
         Dim blkRecId As ObjectId = ObjectId.Null
         Dim index As Integer = 0
@@ -491,10 +483,7 @@ Public Class Legend
         Dim acCurDb As Database = acDoc.Database
         Dim SelectedSet = cu.GetObjects("INSERT", "Изберете блок")
 
-        If SelectedSet Is Nothing Then
-            MsgBox("НЕ Е маркиран нито един блок.")
-            Exit Sub
-        End If
+        If SelectedSet Is Nothing Then Exit Sub
         Dim Брой_Апарати As Integer = 6
         ' Създаваме опции за въвеждане на броя колони
         Dim pDouOpts As PromptDoubleOptions = New PromptDoubleOptions("")

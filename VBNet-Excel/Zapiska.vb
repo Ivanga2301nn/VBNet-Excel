@@ -228,14 +228,8 @@ Public Class Zapiska
 
         Dim ss_Kabeli = cu.GetObjects("LINE", "Изберете КАБЕЛИТЕ в чертеж за външно захранване на сградата:")
         Dim ss_Tabla = cu.GetObjects("INSERT", "Изберете БЛОКОВЕТЕ в чертеж за външно захранване на сградата:")
-        If ss_Tabla Is Nothing Then
-            MsgBox("НЕ Е маркиран нито един блок.")
-            Exit Sub
-        End If
-        If ss_Kabeli Is Nothing Then
-            MsgBox("НЕ Е маркиран нито едина линия.")
-            Exit Sub
-        End If
+        If ss_Tabla Is Nothing Then Exit Sub
+        If ss_Kabeli Is Nothing Then Exit Sub
 
         Dim Kabel(50, 2) As String
         Kabel = cu.GET_LINE_TYPE_KABEL(Kabel, ss_Kabeli, vbFalse)
@@ -644,10 +638,8 @@ Public Class Zapiska
 
         Dim Слабо_Име As String = "Сл.табло"
         Dim Слабо_Блок = cu.GetObjects("INSERT", "Изберете блок който съдържа името на слабтоковото табло ", False)
-        If Слабо_Блок Is Nothing Then
-            MsgBox("НЕ Е маркиран нито един блок съдържащ името на слабтоковото табло.")
-            Exit Sub
-        End If
+        If Слабо_Блок Is Nothing Then Exit Sub
+
         Dim text As String = ""
         Try
             FormatParagraph(wordDoc, "СЛАБОТОКОВИ ИНСТАЛЦИИ", wordApp)
@@ -706,7 +698,6 @@ Public Class Zapiska
         Dim Мълния = cu.GetObjects("INSERT", "Изберете блок който съдържа нълниеприемника на обекта ", False)
         Dim text As String = ""
         If Мълния Is Nothing Then
-            MsgBox("НЕ Е маркиран нито един блок за мълниезащита.")
             FormatParagraph(wordDoc, "МЪЛНИЕЗАЩИТНА ИНСТАЛЦИЯ", wordApp)
             text = "Съгласно изискванията на Наредба № 4 от 22 декември 2010 г. за мълниезащита на сгради, външни съоръжения и открити пространства (Обн. ДВ, бр. 6 от 18 януари 2011 г.), обектът е класифициран в III категория на мълниезащита."
             text += " В съответствие с тази категоризация, мерките за защита от мълнии трябва да отговарят на нормативните изисквания за обекти от този тип."
@@ -1163,10 +1154,7 @@ Public Class Zapiska
         FormatParagraph(wordDoc, "ПРИСЪЕДИНЯВАНЕ НА ОБЕКТА КЪМ ЕЛЕКТРОРАЗПРЕДЕЛИТЕЛНАТА МРЕЖА", wordApp)
         If Not dicObekt("SAP").Contains("##") Then
             Dim Stylb = cu.GetObjects("INSERT", "Изберете блок който съдържа текстовете за стълба", False)
-            If Stylb Is Nothing Then
-                MsgBox("НЕ Е маркиран нито един блок.")
-                Exit Sub
-            End If
+            If Stylb Is Nothing Then Exit Sub
             Dim rezult As String = ""
             Try
                 Dim blkRecId As ObjectId
@@ -2730,10 +2718,7 @@ SAP
     Sub get_Battery_Data(acCurDb As Database,
                          dicObekt As Dictionary(Of String, String))
         Dim ss_Tabla = cu.GetObjects("INSERT", "Изберете БЛОКОВЕТЕ в чертеж съдържащи БАТЕРИИТЕ:")
-        If ss_Tabla Is Nothing Then
-            MsgBox("НЕ Е маркиран нито един блок.")
-            Exit Sub
-        End If
+        If ss_Tabla Is Nothing Then Exit Sub
         Dim ss_GRT = cu.GetObjects("INSERT", "Изберете ТАБЛОТО в чертеж към който са свързани БАТЕРИИТЕ:", allowMultiple:=False)
         Dim СРТ_Помещение_BAT = cu.GetObjects_TEXT("Изберете текст съдържаш помещението в което се намират БАТЕРИТЕ")
         dicObekt.Add("СРТ_Помещение_BAT", СРТ_Помещение_BAT)
@@ -2831,10 +2816,7 @@ SAP
         End With
         FormatParagraph(wordDoc, "ВРЪЗКА СЪС СИСТЕМАТА НА ВЪЗЛОЖИТЕЛЯ:", wordApp, level:=2)
         Dim ss_Kabeli = cu.GetObjects("LINE", "Изберете КАБЕЛИТЕ в чертеж свързващи БАТЕРИИТЕ:")
-        If ss_Kabeli Is Nothing Then
-            MsgBox("НЕ Е маркиран нито едина линия.")
-            Exit Sub
-        End If
+        If ss_Kabeli Is Nothing Then Exit Sub
         Dim Kabel(50, 2) As String
         Kabel = cu.GET_LINE_TYPE_KABEL(Kabel, ss_Kabeli, vbFalse)
         Dim arrКабели As New List(Of srtCable)()
@@ -3265,9 +3247,7 @@ SAP
         AddParagraph(wordDoc, Text, False)
         Dim Панели As New List(Of strPanel)
         Dim Панел = cu.GetObjects("INSERT", "Изберете блок който e панел ", True)
-        If Панел Is Nothing Then
-            MsgBox("НЕ Е маркиран нито един блок който e панел.")
-        Else
+        If Панел IsNot Nothing Then
             Try
                 Using actrans As Transaction = acDoc.TransactionManager.StartTransaction()
                     ' Обхождаме всеки избран блок в колекцията
@@ -3668,10 +3648,7 @@ SAP
         dicObekt.Add("СРТ_Кота_PIC", СРТ_Кота_PIC)
         Dim blkRecId As ObjectId = ObjectId.Null
         Dim ss_Tabla = cu.GetObjects("INSERT", "Изберете БЛОКОВЕТЕ в чертеж съдържащи ДАТЧИЦИТЕ ОТ ПИЦ:")
-        If ss_Tabla Is Nothing Then
-            MsgBox("НЕ Е маркиран нито един блок.")
-            Exit Sub
-        End If
+        If ss_Tabla Is Nothing Then Exit Sub
         Using acTrans As Transaction = acCurDb.TransactionManager.StartTransaction()
             Try
                 For Each sObj As SelectedObject In ss_Tabla

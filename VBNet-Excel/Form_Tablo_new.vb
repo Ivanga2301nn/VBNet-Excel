@@ -71,6 +71,37 @@ Public Class Form_Tablo_new
         ' ListKonsumator
 #End Region
         GetKonsumatori()
+        If ListKonsumator.Count = 0 Then
+            Dim messages As String() = {
+                "Кафе-пауза? Списъкът е празен, няма нищо за вършене тук!",
+                "Изпратихме детективи, но не открихме нито един консуматор в чертежа...",
+                "Списъкът е толкова празен, колкото хладилник в понеделник сутрин.",
+                "Пълна тишина... Списъкът е самотен и празен. " & vbCrLf & "Начертай нещо, за да му вдъхнеш живот!",
+                "Гледах наляво, гледах надясно... консуматори няма. " & vbCrLf & "Отивам да почина, докато ги намериш!",
+                "Ракетата е готова, но няма пътници! " & vbCrLf & "Добави консуматори в списъка и ще излетим заедно.",
+                "Грешка в матрицата: Консуматорите се оказаха илюзия. " & vbCrLf & "Опитай пак, когато реалността се стабилизира!",
+                "Списъкът е по-празен от фитнес зала на 1-ви януари!",
+                "Нищо за правене... Да отидем за бира?",
+                "Консуматорите си взеха отпуск без да кажат.",
+                "404: Консуматори не са открити в тази вселена."
+            }
+            ' Генерираме произволен индекс, за да е изненада всеки път
+            Dim rnd As New Random()
+            Dim index As Integer = rnd.Next(0, messages.Length)
+            ' Показваме избраното съобщение
+            MessageBox.Show(messages(index) & vbCrLf & vbCrLf & "Ще затворя прозореца, за да не си пречим.",
+                    "Мисията невъзможна",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information)
+            Me.Close()
+            Return
+            ' Сбогом, форма!
+            ' Затваряне на формата
+            Me.Close()
+            ' Използваме Exit Sub (или Return), за да сме сигурни, че 
+            ' кодът след този блок няма да се изпълни
+            Exit Sub
+        End If
 #Region "Създаване на списък с токови кръгове"
         ' Групира всички консуматори по:
         ' - табло (ТАБЛО)
@@ -282,7 +313,7 @@ Public Class Form_Tablo_new
         New String() {"Кабел", "", "Text"},
         New String() {"Начин на монтаж", "--", "Combo"},
         New String() {"Начин на полагане", "--", "Combo"},
-        New String() {"Паралелни кабели (фаза):", "бр.", "Text"},
+        New String() {"Паралелни кабели (фаза): ", "бр.", "Text"},
         New String() {"Съседни кабели (група):", "бр.", "Text"},
         New String() {"Тип кабел", "---", "Combo"},
         New String() {"Сечение", "mm²", "Text"},
@@ -345,7 +376,6 @@ Public Class Form_Tablo_new
     End Class
     ' Shared гарантира, че функцията се вика само веднъж при първото обръщение
     Private Shared Catalog_Contactor As Dictionary(Of String, ContactorEntry)
-
     ''' <summary>
     ''' Структура: DisconnectorInfo
     ''' </summary>
@@ -939,7 +969,6 @@ Public Class Form_Tablo_new
         Dim SelectedSet = cu.GetObjects("INSERT", "Изберете блок")
         ' Ако не е избран нито един блок → прекратяваме процедурата
         If SelectedSet Is Nothing Then
-            MsgBox("НЕ Е маркиран нито един блок.")
             Me.Close()
             Exit Sub
         End If
@@ -964,8 +993,6 @@ Public Class Form_Tablo_new
                 For Each sObj As SelectedObject In SelectedSet
                     ' Вземаме ObjectId на блока
                     blkRecId = sObj.ObjectId
-                    ' Създаваме нов обект за консуматора
-                    Dim Kons As New strKonsumator
                     ' Отваряме блока за четене
                     Dim acBlkRef As BlockReference =
                     DirectCast(acTrans.GetObject(blkRecId, OpenMode.ForRead), BlockReference)
@@ -974,12 +1001,34 @@ Public Class Form_Tablo_new
                     ' Колекция с Dynamic Properties
                     Dim props As DynamicBlockReferencePropertyCollection =
                     acBlkRef.DynamicBlockReferencePropertyCollection
+                    Dim Visibility As String = ""
+                    Dim Dylvina_Led As Double = 0
+                    Dim nameBlock As String = (CType(acBlkRef.DynamicBlockTableRecord.GetObject(OpenMode.ForRead),
+                    BlockTableRecord)).Name
+                    For Each prop As DynamicBlockReferenceProperty In props
+                        ' Вземане на стойностите според името на свойството
+                        Select Case prop.PropertyName
+                            Case "Visibility", "Visibility1"
+                                Visibility = prop.Value
+                            Case "Дължина"  ' Дължина (използва се при LED линии)
+                                Dylvina_Led = prop.Value
+                        End Select
+                    Next
+                    Select Case Visibility
+                        Case "Само ключ", "текст",
+                             "Лампион - рошав", "Лампион", "Настолна лампа - рошава",
+                             "Настолна лампа", "Фотодатчик", "Датчик 360°", "Датчик насочен",
+                             "Драйвер", "ПВ", "Линии", "Само текст", "Табло_Ново"
+                            Continue For
+                    End Select
+                    ' Създаваме нов обект за консуматора
+                    Dim Kons As New strKonsumator
+                    Kons.Visibility = Visibility
+                    Kons.Dylvina_Led = Dylvina_Led
                     ' ----------------------------------------------------
                     ' Извличане на името на блока
                     ' ----------------------------------------------------
-                    Kons.Name =
-                    (CType(acBlkRef.DynamicBlockTableRecord.GetObject(OpenMode.ForRead),
-                    BlockTableRecord)).Name
+                    Kons.Name = nameBlock
                     ' Записване на ObjectId за runtime (само текущата сесия)
                     Kons.ID_Block = blkRecId
                     ' Записване на Handle за дългосрочно съхранение и JSON
@@ -1004,17 +1053,7 @@ Public Class Form_Tablo_new
                                 Kons.strМОЩНОСТ = acAttRef.TextString
                         End Select
                     Next
-                    ' ----------------------------------------------------
-                    ' 6) Четене на Dynamic Block Properties
-                    ' ----------------------------------------------------
-                    Dim Visibility As String = ""
-                    For Each prop As DynamicBlockReferenceProperty In props
-                        ' Visibility на блока
-                        If prop.PropertyName = "Visibility1" Then Kons.Visibility = prop.Value
-                        If prop.PropertyName = "Visibility" Then Kons.Visibility = prop.Value
-                        ' Дължина (използва се при LED линии)
-                        If prop.PropertyName = "Дължина" Then Kons.Dylvina_Led = prop.Value
-                    Next
+                    If Kons.strМОЩНОСТ Is Nothing Then Continue For
                     ' ----------------------------------------------------
                     ' 7) Изчисляване на мощността
                     ' ----------------------------------------------------
@@ -1051,7 +1090,6 @@ Public Class Form_Tablo_new
                 acTrans.Abort()
             End Try
         End Using
-
     End Sub
     ''' <summary>
     ''' Универсална функция за изчисляване на мощност.
@@ -2103,12 +2141,12 @@ Public Class Form_Tablo_new
                 End Select
         ' --- ВЕНТИЛАЦИИ / КЛИМАТИЦИ ---
             Case name.Contains("ВЕНТИЛАЦИИ"),
-         name.Contains("ВЕНТИЛАТОР"),
-         name.Contains("КЛИМАТИК"),
-         name.Contains("КОНВЕКТОР"),
-         name.Contains("ГОРЕЛКА"),
-         name.Contains("НАГРЕВАТЕЛ"),
-         name.Contains("ЕЛ. ЛИРА")
+                 name.Contains("ВЕНТИЛАТОР"),
+                 name.Contains("КЛИМАТИК"),
+                 name.Contains("КОНВЕКТОР"),
+                 name.Contains("ГОРЕЛКА"),
+                 name.Contains("НАГРЕВАТЕЛ"),
+                 name.Contains("ЕЛ. ЛИРА")
                 Select Case True
                     Case vis.Contains("ПРОЗОРЧЕН 3P"), vis.Contains("КАНАЛЕН 3P")
                         Kons.Phase = 3
@@ -2126,15 +2164,18 @@ Public Class Form_Tablo_new
         ' ============================================================
         ' 2. ВСИЧКИ ОСТАНАЛИ БЛОКОВЕ - ВИНАГИ 1 ФАЗА
         ' ============================================================
-            Case name.Contains("LED_DENIMA"), name.Contains("LED_LENTA"), name.Contains("LED_ULTRALUX"), name.Contains("LED_ЛУНА"),
-         name.Contains("АВАРИЯ"), name.Contains("БОЙЛЕРНО ТАБЛО"), name.Contains("ЛАМПИ_СПАЛНЯ"), name.Contains("ЛИНИЯ МХЛ"),
-         name.Contains("ЛУМИНЕСЦЕНТНА"), name.Contains("МЕТАЛХАЛОГЕННА"), name.Contains("ПЛАФОНИ"),
-         name.Contains("АПЛИК"), name.Contains("ПЕНДЕЛ"), name.Contains("ЛАМПИОН"),
-         name.Contains("НАСТОЛНА ЛАМПА"), name.Contains("ФАСАДНО"), name.Contains("БАНСКИ АПЛИК"), name.Contains("ДАТЧИК"),
-         name.Contains("ФОТОДАТЧИК"), name.Contains("ПОЛИЛЕЙ"), name.Contains("ПРОЖЕКТОР")
-
+            Case name.Contains("LED_DENIMA"), name.Contains("LED_LENTA"),
+                 name.Contains("LED_ULTRALUX"), name.Contains("LED_ЛУНА"),
+                 name.Contains("АВАРИЯ"), name.Contains("БОЙЛЕРНО ТАБЛО"),
+                 name.Contains("ЛАМПИ_СПАЛНЯ"), name.Contains("ЛИНИЯ МХЛ"),
+                 name.Contains("ЛУМИНЕСЦЕНТНА"), name.Contains("МЕТАЛХАЛОГЕННА"),
+                 name.Contains("ПЛАФОНИ"), name.Contains("АПЛИК"),
+                 name.Contains("ПЕНДЕЛ"), name.Contains("ЛАМПИОН"),
+                 name.Contains("НАСТОЛНА ЛАМПА"), name.Contains("ФАСАДНО"),
+                 name.Contains("БАНСКИ АПЛИК"), name.Contains("ДАТЧИК"),
+                 name.Contains("ФОТОДАТЧИК"), name.Contains("ПОЛИЛЕЙ"),
+                 name.Contains("ПРОЖЕКТОР")
                 Kons.Phase = 1  ' Всички тези са винаги 1 фаза
-
         End Select
     End Sub
     ''' <summary>
@@ -4983,35 +5024,31 @@ Public Class Form_Tablo_new
                 ' 7️⃣ ЧЕРТАЕ НА УПРАВЛЯВАЩО УСТРОЙСТВО
                 DrawControlDevice(acDoc, acCurDb, circuit, X, Y_Shina)
 
-                DrawCircuitLines(X, circuit, basePoint.Y, basePoint)
 
+
+
+                DrawCircuitLines(X, circuit, Y_Shina)
                 colIndex += 1
             Next
         Catch ex As Exception
             MsgBox("Възникна грешка: " & vbCrLf & ex.Message & vbCrLf & vbCrLf & ex.StackTrace, MsgBoxStyle.Critical)
         End Try
     End Sub
-    ' Знаем X координатата
-    ' Крайната точка Y винаги е 0 (таблицата)
-    ' Началната точка Y зависи от това дали има управление
-    Public Sub DrawCircuitLines(X As Double, circuit As strTokow, breakerY As Double, basePoint As Point3d)
-        ' 1. Определяме началната Y точка според типа на веригата
-        Dim startY As Double
-        Dim endY As Double
-        If circuit.Управление = "Няма" Or
-            String.IsNullOrEmpty(circuit.Управление) Then
+
+
+
+    Public Sub DrawCircuitLines(X As Double, circuit As strTokow, Y_Shina As Double)
+        Dim startY As Double = Y_Shina - 135
+        Dim endY As Double = Y_Shina - 370
+        If circuit.Управление <> "Няма" Or
+            Not String.IsNullOrEmpty(circuit.Управление) Then
             ' Ако няма управление
-            startY = breakerY - 235
-            endY = basePoint.Y
-        Else
-            ' Ако има управление
-            startY = breakerY - 235 - 135
-            endY = basePoint.Y
+            startY = endY - 95
         End If
         ' 2. Начална точка (край на прекъсвача)
         Dim startPt As New Point3d(X, startY, 0)
         ' 3. Крайна точка (начало на таблицата)
-        Dim endPt As New Point3d(X + 10, endY, 0)
+        Dim endPt As New Point3d(X, endY, 0)
         ' 4. Чертаем линията
         cu.DrowLine(startPt, endPt,
                     "EL_ТАБЛА",
@@ -5073,6 +5110,23 @@ Public Class Form_Tablo_new
                             Case "DESIGNATION" : acAttRef.TextString = ""
                         End Select
                     Next
+                    Dim kvadrat As Boolean = True
+                    If kvadrat Then
+                        Dim Y_kvadrat As Double = controlY - 195
+                        cu.InsertBlock("Ключ_квадрат",
+                                       New Point3d(X - 32, Y_kvadrat, 0),
+                                       "EL_ТАБЛА",
+                                       New Scale3d(1, 1, 1))
+                        cu.DrowLine(New Point3d(X - 32,
+                                                Y_kvadrat + 25,
+                                                0),
+                                    New Point3d(X - 32,
+                                                Y_kvadrat + 133,
+                                                0),
+                                    "EL_ТАБЛА",
+                                    Autodesk.AutoCAD.DatabaseServices.LineWeight.ByLayer,
+                                    "ByLayer")
+                    End If
                     trans.Commit()
                 End Using
             End If

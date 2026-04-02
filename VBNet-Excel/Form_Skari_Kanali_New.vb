@@ -50,7 +50,7 @@ Public Class Form_Skari_Kanali_New
     Private Sub Skari_Kanali_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         Line_Selected = cu.GetObjects("LINE", "Изберете линии за кабеланата скара/канал:")
         If Line_Selected Is Nothing Then
-            MsgBox("НЕ Е маркиранa линия в слой 'EL'.")
+            Me.Close()
             Exit Sub
         End If
         InitializeCatalog_Скари()

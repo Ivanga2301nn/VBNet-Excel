@@ -910,7 +910,6 @@ Public Class Form_ExcelUtilForm
         Dim SelectedSet = cu.GetObjects("INSERT", "Изберете блок")
         Dim arrBlock(500) As strKontakt
         If SelectedSet Is Nothing Then
-            MsgBox("НЕ Е маркиран нито един блок.")
             Me.Visible = vbTrue
             Exit Sub
         End If
@@ -2717,7 +2716,6 @@ Public Class Form_ExcelUtilForm
         Dim Качване(100) As strКачване
 
         If SelectedSet Is Nothing Then
-            MsgBox("НЕ Е маркиран нито един блок.")
             Me.Visible = vbTrue
             Exit Sub
         End If
@@ -3392,10 +3390,7 @@ Public Class Form_ExcelUtilForm
         Dim i, index As Integer
         Dim Инсталация As String = ""
         Me.Visible = vbTrue
-        If ss Is Nothing Then
-            MsgBox("НЕ Е маркиран линия в слой 'EL'.")
-            Exit Sub
-        End If
+        If ss Is Nothing Then Exit Sub
         Dim Kabel(1000, 2) As String
 
         Kabel = cu.GET_LINE_TYPE_KABEL(Kabel, ss, vbFalse)
@@ -5174,7 +5169,6 @@ Public Class Form_ExcelUtilForm
         Dim Качване(100) As strКачване
 
         If SelectedSet Is Nothing Then
-            MsgBox("НЕ Е маркиран нито един блок.")
             Me.Visible = vbTrue
             Exit Sub
         End If
@@ -5621,7 +5615,6 @@ Public Class Form_ExcelUtilForm
         Dim Качване(100) As strКачване
 
         If SelectedSet Is Nothing Then
-            MsgBox("НЕ Е маркиран нито един блок.")
             Me.Visible = vbTrue
             Exit Sub
         End If
@@ -5953,14 +5946,12 @@ Public Class Form_ExcelUtilForm
         Dim acCurDb As Database = acDoc.Database
         Dim SelectedSet = cu.GetObjects("INSERT", "Изберете блок")
         If SelectedSet Is Nothing Then
-            MsgBox("НЕ Е маркиран нито един блок.")
             Me.Visible = vbTrue
             Exit Sub
         End If
         ProgressBar_Extrat.Maximum = SelectedSet.Count + 1
         ProgressBar_Extrat.Value = ProgressBar_Extrat.Minimum
         If SelectedSet Is Nothing Then
-            MsgBox("НЕ Е маркиран нито един блок.")
             Me.Visible = vbTrue
             Exit Sub
         End If

@@ -143,10 +143,7 @@ Public Class Tablo
         Dim edt As Editor = acDoc.Editor
         Dim acCurDb As Database = acDoc.Database
         Dim SelectedSet = cu.GetObjects("INSERT", "Изберете блок")
-        If SelectedSet Is Nothing Then
-            MsgBox("НЕ Е маркиран нито един блок.")
-            Exit Sub
-        End If
+        If SelectedSet Is Nothing Then Exit Sub
         ' Запълва речниците и масивите с данни
         SetCatalog()
         Dim brTablo As Integer = 0
@@ -248,7 +245,6 @@ Public Class Tablo
                         ' Записваме резултата като текст с 2 десетични места
                         strМОЩНОСТ = doubМОЩНОСТ.ToString("0.##")
                     End If
-
                     Select Case Visibility
                         Case "Само ключ",
                              "Лампион - рошав", "Лампион", "Настолна лампа - рошава",
@@ -256,7 +252,6 @@ Public Class Tablo
                              "Драйвер", "ПВ", "Линии", "Само текст", "Табло_Ново"
                             Continue For
                     End Select
-
                     Dim brМОЩНОСТ, moМОЩНОСТ As String
                     Dim poz As Integer = Math.Max(InStr(strМОЩНОСТ, "х"), InStr(strМОЩНОСТ, "x"))
                     If poz > 0 Then
@@ -756,20 +751,12 @@ Public Class Tablo
         acCurDb = Application.DocumentManager.MdiActiveDocument.Database
         Dim acDoc As Document = Application.DocumentManager.MdiActiveDocument
         Dim SelBlock = cu.GetObjects("INSERT", "Изберете БЛОК")
-        Dim SelTablo = cu.GetObjects("INSERT", "Изберете ТАБЛО")
+        Dim SelTablo = cu.GetObjects("INSERT", "Изберете ТАБЛО", allowMultiple:=False)
 
         If SelBlock Is Nothing Then
             MsgBox("Въпрос с повишена трудност." + vbCrLf + "Аз какво да установявам???")
-            Exit Sub
         End If
-        If SelTablo Is Nothing Then
-            MsgBox("НЕ Е маркиран поне един блок за табло")
-            Exit Sub
-        End If
-        If SelTablo.Count > 1 Then
-            MsgBox("НЕ Е маркиран САМО един блок за табло")
-            Exit Sub
-        End If
+        If SelTablo Is Nothing Then Exit Sub
         Try
             Dim blkRecIdTablo As ObjectId = SelTablo(0).ObjectId
             Using acTrans As Transaction = acCurDb.TransactionManager.StartTransaction()

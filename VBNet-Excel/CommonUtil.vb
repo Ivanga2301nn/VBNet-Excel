@@ -6,9 +6,6 @@ Imports Autodesk.AutoCAD.Geometry
 Imports System.Text
 Imports System.Text.RegularExpressions
 Imports VBNet_Excel.Form_ExcelUtilForm
-Imports VBNet_Excel.Zapiska
-Imports System.Windows.Forms.VisualStyles.VisualStyleElement.TextBox
-Imports System.Security.Policy
 
 Public Class CommonUtil
     '
@@ -299,64 +296,159 @@ Public Class CommonUtil
 
         Return Delta_U / 1000
     End Function
-    ' Получава всички посочени обекти (напр. Линия, MText) и връща набор за избор
+    ''' <summary>
+    ''' Функцията GetObjects предоставя универсален механизъм за избор на обекти от AutoCAD чертеж,
+    ''' като използва филтър по тип обект и слой.
+    ''' 
+    ''' Позволява избор на един или множество обекти и връща SelectionSet с избраните елементи.
+    ''' Използва се като помощна функция за различни операции върху геометрия или текст в чертежа.
+    ''' </summary>
+    ''' <param name="objType">
+    ''' Тип на обектите за избор (DXF име).
+    ''' Примери:
+    ''' LINE       - линия
+    ''' INSERT     - блок
+    ''' MTEXT      - мулти-текст
+    ''' TEXT       - текст
+    ''' LWPOLYLINE - полилиния
+    ''' CIRCLE     - окръжност
+    ''' </param>
+    ''' <param name="mesage">
+    ''' Съобщение към потребителя, което се показва в командния ред при избор.
+    ''' </param>
+    ''' <param name="allowMultiple">
+    ''' Определя дали могат да се избират множество обекти:
+    ''' True  - позволен е избор на множество обекти
+    ''' False - позволен е само един обект
+    ''' </param>
+    ''' <param name="doc">
+    ''' AutoCAD документ. Ако не е подаден, се използва активният документ.
+    ''' </param>
+    ''' <returns>
+    ''' Връща SelectionSet с избраните обекти.
+    ''' Ако потребителят откаже (Esc), връща Nothing.
+    ''' </returns>
     Public Function GetObjects(objType As String,
-                               mesage As String,
-                               Optional allowMultiple As Boolean = True,
-                               Optional doc As Document = Nothing
-                               ) As SelectionSet
-
-        If doc Is Nothing Then
-            doc = Application.DocumentManager.MdiActiveDocument
-        End If
+                           mesage As String,
+                           Optional allowMultiple As Boolean = True,
+                           Optional doc As Document = Nothing
+                           ) As SelectionSet
+        ' Ако не е подаден документ, използваме текущия активен документ.
+        ' Това позволява функцията да се използва глобално без задължително подаване на doc.
+        If doc Is Nothing Then doc = Application.DocumentManager.MdiActiveDocument
+        ' Editor обект – използва се за взаимодействие с потребителя (избор на обекти).
         Dim edt As Editor = doc.Editor
+        ' Опции за избор – контролира поведението на селекцията.
         Dim prSelOpts As PromptSelectionOptions = New PromptSelectionOptions()
         ' objType       - Тип на обектите за избор:
         ' LINE          - Линия
         ' INSERT        - Блок
-        ' MTEXT         - МУЛТИ Tекст - за текст има друга функция
-        ' Dim СРТ_Кота = cu.GetObjects_TEXT("......" & СРТ_Име)
+        ' MTEXT         - МУЛТИ Tекст
         ' TEXT          - Tекст
         ' LWPOLYLINE    - Полилиния
         ' CIRCLE        - Окръжност
-
-        '
         ' allowMultiple - True  - Избира много обекти
         '               - False - Избира само един обект
-        '
-
-        ' страница описваща филтрирането
+        ' Документация:
+        ' Филтриране:
         ' http://docs.autodesk.com/ACD/2011/ENU/filesMDG/WS1a9193826455f5ff2566ffd511ff6f8c7ca-4067.htm
-        ' страница описваща как да прикачим приложението - като се завърши всичко ще потрябва
+        ' Зареждане на приложение:
         ' http://docs.autodesk.com/ACD/2011/ENU/filesMDG/WS73099cc142f48755-5c83e7b1120018de8c0-1c12.htm
 
+        ' Масив от TypedValue, използван за създаване на SelectionFilter.
+        ' Съдържа условия за филтриране на обектите.
         Dim tv As TypedValue() = New TypedValue(2) {}
-
+        ' Филтър по тип обект
         tv.SetValue(New TypedValue(CInt(DxfCode.Start), objType), 0)
-        tv.SetValue(New TypedValue(67, 0), 1)                               ' Изберете само от ModelSpace
-        tv.SetValue(New TypedValue(CInt(DxfCode.LayerName), "EL*"), 2)      ' Изберете Всички слоеве започващи с EL
-
+        ' Филтър за ModelSpace (67 = 0 означава ModelSpace, 1 = PaperSpace).
+        tv.SetValue(New TypedValue(67, 0), 1)
+        ' Филтър по слой – всички слоеве, започващи с "EL".
+        ' Използва wildcard "EL*".
+        tv.SetValue(New TypedValue(CInt(DxfCode.LayerName), "EL*"), 2)
+        ' Създаване на SelectionFilter на база зададените условия.
         Dim filter As SelectionFilter = New SelectionFilter(tv)
-
+        ' Настройка на опциите за избор.
+        ' MessageForAdding – съобщение към потребителя.
+        ' AllowDuplicates – дали могат да се избират дублиращи обекти.
         With prSelOpts
             .MessageForAdding = vbCrLf & mesage
             .AllowDuplicates = allowMultiple
         End With
-
+        ' Резултат от избора.
         Dim prs As PromptSelectionResult
+        ' Извикване на избор според allowMultiple.
+        ' Ако allowMultiple = False → разрешен е само един обект.
         If allowMultiple Then
             prs = edt.GetSelection(prSelOpts, filter)
         Else
             prSelOpts.SingleOnly = True
             prs = edt.GetSelection(prSelOpts, filter)
         End If
-        ' Важно: Проверка дали потребителят не е натиснал Esc
+        'Проверка на резултата от избора.
+        'Ако потребителят е избрал обекти → връща SelectionSet.
+        'Ако е натиснал Esc или няма избор → връща Nothing.
         If prs.Status = PromptStatus.OK Then
             Return prs.Value
         Else
+            ShowFunnyExitMsgBox(prs.Status, objType)
             Return Nothing
         End If
     End Function
+
+    Private Sub ShowFunnyExitMsgBox(status As Autodesk.AutoCAD.EditorInput.PromptStatus, objType As String)
+        Dim formName As String = "⚡ Електро Магьосник 3000 ⚡"
+        Dim joke As String = ""
+        Dim rnd As New Random()
+
+        ' Превеждаме техническите имена на човешки език за шегите
+        Dim friendlyName As String = objType
+        Select Case objType.ToUpper()
+            Case "INSERT" : friendlyName = "магически блокове"
+            Case "LINE" : friendlyName = "електрически линии"
+            Case "LWPOLYLINE" : friendlyName = "криви полилинии"
+            Case "TEXT", "MTEXT" : friendlyName = "умни надписи"
+            Case "CIRCLE" : friendlyName = "кръгли контакти"
+        End Select
+
+        If status = Autodesk.AutoCAD.EditorInput.PromptStatus.Cancel Then
+            ' Шеги при натискане на Esc
+            Dim escapeJokes As String() = {
+                "Клавишът Esc победи Магьосника. Операцията е прекратена на място.",
+                "Светкавичен отказ чрез Esc. Връщаме се към спокойствието на чертежа.",
+                "Потребителят натисна спирачката чрез Esc. Всички процеси спряха веднага.",
+                "Изход по спешност чрез Esc. Магьосникът прибира жезъла в куфара.",
+                "Операцията се изпари след натискане на Esc. Продължаваме на чисто.",
+                "Един Esc и командата отиде в историята. Връщаме се към главното меню.",
+                "Бърза евакуация чрез Esc. Операцията е отменена по желание на пилота.",
+                "Натиснат е клавишът за свобода (Esc). Процедурата е стопирана навреме."
+            }
+            joke = escapeJokes(rnd.Next(0, escapeJokes.Length))
+        Else
+            ' Шеги, когато няма намерени обекти от тип objType
+            Dim emptyJokes As String() = {
+                "Детективите претърсиха всичко, но не откриха нито един " & friendlyName & " в слоевете EL.",
+                "Пустиня... никакви " & friendlyName & " не виреят в този чертеж.",
+                "Матрицата се бъгна – тези " & friendlyName & " се оказаха само красива илюзия.",
+                "Търсих, рових... няма и следа от " & friendlyName & ". Сигурен ли си, че не са в друг слой?",
+                "Списъкът е по-празен от фитнес зала на първи януари! Нула " & friendlyName & " открити.",
+                "Микроскопът не засича " & friendlyName & " в слоевете EL. Провери пак чертежа.",
+                "Пълна тишина. Нито един " & friendlyName & " не се отзова на повикването.",
+                "Изпратихме разузнавачи, но те се върнаха без нито един " & friendlyName & " в актива си.",
+                "Търсенето приключи с резултат нула. Тези " & friendlyName & " са майстори на криеницата.",
+                "Слоевете EL са по-чисти от аптека. Липсват каквито и да е " & friendlyName & ".",
+                "Гледах наляво, гледах надясно... тези " & friendlyName & " явно са си взели почивен ден.",
+                "Няма напрежение тук. Нула " & friendlyName & " са открити в зададените координати.",
+                "Магьосникът размаха жезъла, но не успя да изкара нито един " & friendlyName & " от шапката."
+        }
+            joke = emptyJokes(rnd.Next(0, emptyJokes.Length))
+        End If
+        ' Показване на съобщението
+        MsgBox(joke & vbCrLf & vbCrLf & "Връщам те в базата.",
+           MsgBoxStyle.Information Or MsgBoxStyle.OkOnly,
+           formName)
+    End Sub
+
+
     ' Функцията GetObjects_TEXT приема входен низ като съобщение и връща нов низ,
     ' в който всички латински букви, които имат еквиваленти на кирилица, са заменени.
     Public Function GetObjects_TEXT(mesage As String,                       ' Текст който да се оправя

@@ -36,10 +36,7 @@ Public Class Form_KabelniKanali
     Dim Kabel(200) As strLine
     Private Sub Form_KabelniKanali_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         Line_Selected = cu.GetObjects("LINE", "Изберете линии за кабеланата скара/канал:")
-        If Line_Selected Is Nothing Then
-            MsgBox("НЕ Е маркиранa линия в слой 'EL'.")
-            Exit Sub
-        End If
+        If Line_Selected Is Nothing Then Exit Sub
 
         arrSkari(1, 0) = 50
         arrSkari(1, 1) = 35
@@ -578,10 +575,7 @@ Public Class Form_KabelniKanali
     Private Sub OpenToolStripButton_Click(sender As Object, e As EventArgs) Handles OpenToolStripButton.Click
         ReDim Kabel(200)
         Line_Selected = cu.GetObjects("LINE", "Изберете линии за кабеланата скара/канал:")
-        If Line_Selected Is Nothing Then
-            MsgBox("НЕ Е маркиранa линия в слой 'EL'.")
-            Exit Sub
-        End If
+        If Line_Selected Is Nothing Then Exit Sub
         Call Set_array_Kabel()
     End Sub
 End Class

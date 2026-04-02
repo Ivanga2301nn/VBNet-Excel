@@ -16,10 +16,7 @@ Public Class PV_Module
         Dim edt As Editor = acDoc.Editor
         Dim acCurDb As Database = acDoc.Database
         Dim SelectedSet = cu.GetObjects("INSERT", "Изберете блок")
-        If SelectedSet Is Nothing Then
-            MsgBox("НЕ Е маркиран нито един блок.")
-            Exit Sub
-        End If
+        If SelectedSet Is Nothing Then Exit Sub
         Dim blkRecId As ObjectId = ObjectId.Null
         Using acTrans As Transaction = acCurDb.TransactionManager.StartTransaction()
             Try
@@ -50,10 +47,7 @@ Public Class PV_Module
 
         Using acTrans As Transaction = acCurDb.TransactionManager.StartTransaction()
             Dim SelectedSet = cu.GetObjects("INSERT", "Изберете блок")
-            If SelectedSet Is Nothing Then
-                MsgBox("НЕ Е маркиран нито един блок.")
-                Exit Sub
-            End If
+            If SelectedSet Is Nothing Then MsgBox("НЕ Е маркиран нито един блок.")
             Try
                 For Each sObj As SelectedObject In SelectedSet
                     Dim blkRecId As ObjectId = sObj.ObjectId
@@ -79,10 +73,7 @@ Public Class PV_Module
         Dim edt As Editor = acDoc.Editor
         Dim acCurDb As Database = acDoc.Database
         Dim SelectedSet = cu.GetObjects("INSERT", "Изберете блок")
-        If SelectedSet Is Nothing Then
-            MsgBox("НЕ Е маркиран нито един блок.")
-            Exit Sub
-        End If
+        If SelectedSet Is Nothing Then Exit Sub
 
         Dim blkRecId As ObjectId = ObjectId.Null
         Dim ind As Integer = 0

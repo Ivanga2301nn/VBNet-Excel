@@ -447,8 +447,6 @@ Public Class CommonUtil
            MsgBoxStyle.Information Or MsgBoxStyle.OkOnly,
            formName)
     End Sub
-
-
     ' Функцията GetObjects_TEXT приема входен низ като съобщение и връща нов низ,
     ' в който всички латински букви, които имат еквиваленти на кирилица, са заменени.
     Public Function GetObjects_TEXT(mesage As String,                       ' Текст който да се оправя

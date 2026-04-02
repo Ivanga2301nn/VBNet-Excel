@@ -207,6 +207,7 @@ Public Class Form_Tablo_new
     Private Busbars_Cu As New List(Of BusbarInfo)
     Private Busbars_Al As New List(Of BusbarInfo)
     Private RCD_Catalog As New List(Of RCDInfo)
+    Private GV_Database As New List(Of GV_Entry)
 
     Private IcableDict As New Dictionary(Of String, Integer())
     Private Catalog_Cables As New List(Of CableInfo)
@@ -326,7 +327,22 @@ Public Class Form_Tablo_new
         New String() {"Шина", "---", "Check"},
         New String() {"Постави ДТЗ (RCD)", "---", "Check"}
     }
+    ' Клас за съхранение на техническите данни за моторана защита от каталога
+    Public Class GV_Entry
+        Public MinCurrent As Double  ' Долна граница на тока (A)
+        Public MaxCurrent As Double  ' Горна граница на тока (A)
+        Public Type As String        ' Модел (напр. GV2-ME)
+        Public MotorPower As String  ' Мощност на двигателя (Pдвиг)
+        Public SettingRange As String ' Диапазон на настройка (Наст)
 
+        Public Sub New(min As Double, max As Double, t As String, p As String, n As String)
+            Me.MinCurrent = min
+            Me.MaxCurrent = max
+            Me.Type = t
+            Me.MotorPower = p
+            Me.SettingRange = n
+        End Sub
+    End Class
     ' ============================================================
     ' РЕЧНИК ЗА УПРАВЛЕНИЕ -> БЛОК
     ' ============================================================
@@ -1615,6 +1631,28 @@ Public Class Form_Tablo_new
         ' 2. От Текст към Символ (ако ти трябва да разбереш кода при избран елемент в UI)
         ' Return mountMethod.FirstOrDefault(Function(m) m.Text = Text).Simbol
         Catalog_Contactor = LoadContactorCatalog()
+        ' Добавяне на записи за серия GV2-ME
+        GV_Database.Add(New GV_Entry(0.1, 0.16, "GV2-ME", "<0,06kW", "0.1-0.16A"))
+        GV_Database.Add(New GV_Entry(0.16, 0.25, "GV2-ME", "0,06kW", "0.16-0.25A"))
+        GV_Database.Add(New GV_Entry(0.25, 0.4, "GV2-ME", "0,09kW", "0.25-0.40A"))
+        GV_Database.Add(New GV_Entry(0.4, 0.63, "GV2-ME", "0,12kW", "0.4-0.63A"))
+        GV_Database.Add(New GV_Entry(0.63, 1.0, "GV2-ME", "0,25kW", "0.63-1.0A"))
+        GV_Database.Add(New GV_Entry(1.0, 1.6, "GV2-ME", "0,37kW", "1.0-1.6A"))
+        GV_Database.Add(New GV_Entry(1.6, 2.5, "GV2-ME", "0,75kW", "1.6-2.5A"))
+        GV_Database.Add(New GV_Entry(2.5, 4.0, "GV2-ME", "1,1kW", "2.5-4.0A"))
+        GV_Database.Add(New GV_Entry(4.0, 6.3, "GV2-ME", "2,2kW", "4.0-6.3A"))
+        GV_Database.Add(New GV_Entry(6.0, 10.0, "GV2-ME", "4,0kW", "6.0-10A"))
+        GV_Database.Add(New GV_Entry(9.0, 14.0, "GV2-ME", "5,5kW", "9.0-14A"))
+        GV_Database.Add(New GV_Entry(13.0, 18.0, "GV2-ME", "7,5kW", "13-18A"))
+        GV_Database.Add(New GV_Entry(17.0, 23.0, "GV2-ME", "9,0kW", "17-23A"))
+        ' Добавяне на записи за серия GV3-P
+        GV_Database.Add(New GV_Entry(17.0, 25.0, "GV3-P", "11,0kW", "17-25A"))
+        GV_Database.Add(New GV_Entry(23.0, 32.0, "GV3-P", "15,0kW", "23-32A"))
+        GV_Database.Add(New GV_Entry(30.0, 40.0, "GV3-P", "18,5kW", "30-40A"))
+        ' Добавяне на записи за серия GV4P
+        GV_Database.Add(New GV_Entry(20.0, 50.0, "GV4P", "11-22kW", "20-50A"))
+        GV_Database.Add(New GV_Entry(40.0, 80.0, "GV4P", "22-37kW", "40-80A"))
+        GV_Database.Add(New GV_Entry(65.0, 115.0, "GV4P", "37-55kW", "65-115A"))
     End Sub
     ' Пример за зареждане на каталога с реални данни от Schneider Electric TeSys D
     Private Function LoadContactorCatalog() As Dictionary(Of String, ContactorEntry)
@@ -5000,7 +5038,7 @@ Public Class Form_Tablo_new
         Dim Y_Shina As Double = basePoint.Y + Y_Шина
         Try
             ' =====================================================
-            ' 2️⃣ ЦИКЪЛ ЗА ВСЕКИ ТОКОВ КРЪГ
+            ' ЦИКЪЛ ЗА ВСЕКИ ТОКОВ КРЪГ
             ' =====================================================
             Dim colIndex As Integer = 0
             For Each circuit As strTokow In circuits
@@ -5034,22 +5072,83 @@ Public Class Form_Tablo_new
             MsgBox("Възникна грешка: " & vbCrLf & ex.Message & vbCrLf & vbCrLf & ex.StackTrace, MsgBoxStyle.Critical)
         End Try
     End Sub
-
-
+    ''' <summary>
+    ''' Функцията Calculate_GV2 избира подходящ моторен прекъсвач (тип GV2)
+    ''' на база вече изчислен ток.
+    ''' 
+    ''' Логиката включва:
+    ''' 1. Преобразуване на входния ток от текст към число
+    ''' 2. Търсене на съвпадение в база данни (GV_Database)
+    ''' 3. Връщане на конкретна информация според параметъра "Връща"
+    ''' 
+    ''' Функцията НЕ изчислява ток – очаква той да е подаден отвън.
+    ''' Това я прави по-гъвкава и независима от начина на изчисление.
+    ''' </summary>
+    ''' <param name="Ток">
+    ''' Ток като текст (например "10", "10.5", "10,5").
+    ''' Допуска се използване на запетая или точка като десетичен разделител.
+    ''' </param>
+    ''' <param name="Връща">
+    ''' Определя какъв резултат да бъде върнат:
+    ''' 1 → Тип на защитата (например GV2-ME)
+    ''' 2 → Мощност по каталог (при 400V)
+    ''' 3 → Диапазон на настройка
+    ''' </param>
+    ''' <returns>
+    ''' Връща String със съответния резултат или съобщение:
+    ''' - "N/A" при невалиден ток
+    ''' - "Out of range (...A)" ако няма подходящ апарат
+    ''' - "Грешен параметър" при невалиден вход за "Връща"
+    ''' </returns>
+    Private Function Calculate_GV2(Ток As String, Връща As Integer) As String
+        ' =====================================================
+        ' 1️ ПРЕОБРАЗУВАНЕ НА ВХОДНИЯ ТОК
+        ' =====================================================
+        ' Замяна на запетая с точка, за да се осигури коректно
+        ' преобразуване към числов тип.
+        Dim I_val As String = Ток.Replace(",", ".")
+        ' Преобразуване на текстовата стойност към Double.
+        ' Val извлича числото от началото на низа.
+        Dim I_double As Double = Val(I_val)
+        ' Проверка за невалиден или нулев ток.
+        If I_double <= 0 Then Return "N/A"
+        ' =====================================================
+        ' 2️ ТЪРСЕНЕ В БАЗАТА ДАННИ
+        ' =====================================================
+        ' Търсене на първия запис в GV_Database,
+        ' при който токът попада в диапазона:
+        ' MinCurrent ≤ I_double ≤ MaxCurrent
+        Dim match = GV_Database.FirstOrDefault(Function(x) I_double >= x.MinCurrent And I_double <= x.MaxCurrent)
+        ' Ако няма намерен подходящ апарат,
+        ' връщаме информация за тока.
+        If match Is Nothing Then Return "Out of range (" & I_double.ToString("F2") & "A)"
+        ' =====================================================
+        ' 3️ ВРЪЩАНЕ НА РЕЗУЛТАТ
+        ' =====================================================
+        ' В зависимост от параметъра "Връща",
+        Select Case Връща
+            Case 1 : Return match.Type               ' Връща типа на апарата (например GV2-ME).
+            Case 2 : Return match.MotorPower         ' Връща мощността по каталог (при 400V).
+            Case 3 : Return match.SettingRange       ' Връща диапазона на настройка на тока.
+            Case Else : Return "Грешен параметър"    ' Невалиден параметър "Връща".
+        End Select
+    End Function
 
     Public Sub DrawCircuitLines(X As Double, circuit As strTokow, Y_Shina As Double)
         Dim startY As Double = Y_Shina - 135
         Dim endY As Double = Y_Shina - 370
-        If circuit.Управление <> "Няма" Or
-            Not String.IsNullOrEmpty(circuit.Управление) Then
+        Select Case circuit.Управление
+            Case "Няма"
+        End Select
+
+        If circuit.Управление = "Няма" Or
+            circuit.Управление = Nothing Then
+        Else
             ' Ако няма управление
-            startY = endY - 95
+            startY = startY - 95
         End If
-        ' 2. Начална точка (край на прекъсвача)
         Dim startPt As New Point3d(X, startY, 0)
-        ' 3. Крайна точка (начало на таблицата)
         Dim endPt As New Point3d(X, endY, 0)
-        ' 4. Чертаем линията
         cu.DrowLine(startPt, endPt,
                     "EL_ТАБЛА",
                     Autodesk.AutoCAD.DatabaseServices.LineWeight.ByLayer,
@@ -5124,7 +5223,7 @@ Public Class Form_Tablo_new
                                                 Y_kvadrat + 133,
                                                 0),
                                     "EL_ТАБЛА",
-                                    Autodesk.AutoCAD.DatabaseServices.LineWeight.ByLayer,
+                                    DatabaseServices.LineWeight.ByLayer,
                                     "ByLayer")
                     End If
                     trans.Commit()
@@ -5182,8 +5281,8 @@ Public Class Form_Tablo_new
         Dim blockScale As New Scale3d(5, 5, 5)
         ' Начална позиция за поставяне на блока
         Dim insertPoint As New Point3d(X, Y_Shina, 0)
-        ' Флаг, който указва дали блокът представлява RCD (за специално попълване на атрибути)
-        Dim rcd_Yes As Boolean = False
+        ' Флаг, който указва какво представлява блокът - за специално попълване на атрибути
+        Dim rcd_Yes As String = ""
         ' Ако има RCD_Нула и тя не е "N", местим блока надолу по Y с 117.5 единици
         If Not String.IsNullOrEmpty(circuit.RCD_Нула) AndAlso
         circuit.RCD_Нула.Trim().ToUpper() <> "N" Then
@@ -5191,15 +5290,17 @@ Public Class Form_Tablo_new
         End If
         ' Избор на блок според типа апарат
         If Not String.IsNullOrEmpty(circuit.Breaker_Тип_Апарат) Then
-            Select Case circuit.Breaker_Тип_Апарат.ToUpper()
-                Case "GV2"
+            Select Case circuit.Управление
+                Case "Моторна защита"
+                    rcd_Yes = "Моторна защита"
                     blockName = "s_GV2" ' Блок за GV2 апарат
                 Case Else
+                    rcd_Yes = "Прекъсвач"
                     blockName = "s_c60_circ_break" ' По подразбиране C60
             End Select
         Else
             ' Ако типът на апарата не е зададен, считаме, че е RCD
-            rcd_Yes = True
+            rcd_Yes = "RCD"
             blockName = "s_dpnn_vigi_circ_break" ' Блок за RCD
         End If
         ' Вмъкване на блока в AutoCAD с помощта на функция InsertBlock
@@ -5215,27 +5316,37 @@ Public Class Form_Tablo_new
                 For Each objID As ObjectId In acBlkRef.AttributeCollection
                     Dim acAttRef As AttributeReference = DirectCast(trans.GetObject(objID, OpenMode.ForWrite), AttributeReference)
                     ' Попълване на атрибутите в зависимост дали е RCD или обикновен прекъсвач
-                    If rcd_Yes Then
-                        ' Атрибути за RCD
-                        Select Case acAttRef.Tag
-                            Case "SHORTNAME" : acAttRef.TextString = circuit.RCD_Тип
-                            Case "1" : acAttRef.TextString = circuit.RCD_Клас
-                            Case "2" : acAttRef.TextString = circuit.Брой_Полюси & "p"
-                            Case "3" : acAttRef.TextString = "C"
-                            Case "4" : acAttRef.TextString = circuit.RCD_Ток & "A"
-                            Case "5" : acAttRef.TextString = circuit.RCD_Чувствителност & "mA"
-                            Case "REFNB" : acAttRef.TextString = circuit.Tablo
-                        End Select
-                    Else
-                        ' Атрибути за прекъсвач
-                        Select Case acAttRef.Tag
-                            Case "SHORTNAME" : acAttRef.TextString = circuit.Breaker_Тип_Апарат
-                            Case "2" : acAttRef.TextString = circuit.Breaker_Крива
-                            Case "3" : acAttRef.TextString = circuit.Брой_Полюси & "p"
-                            Case "4" : acAttRef.TextString = circuit.Breaker_Номинален_Ток & "A"
-                            Case "REFNB" : acAttRef.TextString = circuit.Tablo
-                        End Select
-                    End If
+                    If acAttRef.Tag = "DESIGNATION" Then acAttRef.TextString = ""
+                    If acAttRef.Tag = "REFNB" Then acAttRef.TextString = circuit.Tablo
+                    Select Case rcd_Yes
+                        Case "Моторна защита"
+                            Select Case acAttRef.Tag
+                                Case "1" : acAttRef.TextString = Calculate_GV2(circuit.Ток, 3)
+                                Case "2" : acAttRef.TextString = "3P"
+                                Case "3" : acAttRef.TextString = Calculate_GV2(circuit.Ток, 2)
+                                Case "4" : acAttRef.TextString = ""
+                                Case "5" : acAttRef.TextString = ""
+                                Case "SHORTNAME" : acAttRef.TextString = Calculate_GV2(circuit.Ток, 1)
+                            End Select
+                        Case "RCD"
+                            ' Атрибути за RCD
+                            Select Case acAttRef.Tag
+                                Case "SHORTNAME" : acAttRef.TextString = circuit.RCD_Тип
+                                Case "1" : acAttRef.TextString = circuit.RCD_Клас
+                                Case "2" : acAttRef.TextString = circuit.Брой_Полюси & "p"
+                                Case "3" : acAttRef.TextString = "C"
+                                Case "4" : acAttRef.TextString = circuit.RCD_Ток & "A"
+                                Case "5" : acAttRef.TextString = circuit.RCD_Чувствителност & "mA"
+                            End Select
+                        Case "Прекъсвач"
+                            ' Атрибути за прекъсвач
+                            Select Case acAttRef.Tag
+                                Case "SHORTNAME" : acAttRef.TextString = circuit.Breaker_Тип_Апарат
+                                Case "2" : acAttRef.TextString = circuit.Breaker_Крива
+                                Case "3" : acAttRef.TextString = circuit.Брой_Полюси & "p"
+                                Case "4" : acAttRef.TextString = circuit.Breaker_Номинален_Ток & "A"
+                            End Select
+                    End Select
                 Next
                 ' Потвърждаваме промяната на атрибутите
                 trans.Commit()
@@ -5310,7 +5421,59 @@ Public Class Form_Tablo_new
         ' Тук ще чертаем главния прекъсвач/разединител
     End Sub
     Private Sub DrawGrounding(acDoc As Document, acCurDb As Database, basePoint As Point3d, panelName As String)
-        ' Тук ще чертаем заземление (ако е Гл.Р.Т.)
+        '' Тук ще чертаем заземление (ако е Гл.Р.Т.)
+        'If panelName = "Гл.Р.Т." Or panelName = "ГлРТ" Then
+
+        '    cu.DrowLine(New Point3d(X, ptBasePoint.Y + Y_Шина, 0),
+        '            New Point3d(X - widthColom, ptBasePoint.Y + Y_Шина, 0),
+        '            "EL_ТАБЛА",
+        '            LineWeight.ByLayer,
+        '            "ByLayer")
+
+        '    cu.InsertText("R<30Ω",
+        '              New Point3d(X - widthColom, ptBasePoint.Y + Y_Шина + 2 * padingText, 0),
+        '              "EL__DIM",
+        '              heightText,
+        '              TextHorizontalMode.TextLeft,
+        '              TextVerticalMode.TextBase)
+
+        '    Dim blkRecId = cu.InsertBlock("Заземление",
+        '                   New Point3d(X - widthColom, ptBasePoint.Y + Y_Шина, 0),
+        '                   "EL_ТАБЛА",
+        '                   New Scale3d(0.21, 0.21, 0.21)
+        '                   )
+
+        '    Dim doc As Document = Application.DocumentManager.MdiActiveDocument
+        '    Using trans As Transaction = doc.TransactionManager.StartTransaction()
+        '        Dim acBlkTbl As BlockTable = trans.GetObject(acCurDb.BlockTableId, OpenMode.ForRead)
+        '        Dim acBlkRef As BlockReference =
+        '            DirectCast(trans.GetObject(blkRecId, OpenMode.ForWrite), BlockReference)
+
+        '        Dim props As DynamicBlockReferencePropertyCollection = acBlkRef.DynamicBlockReferencePropertyCollection
+
+        '        For Each prop As DynamicBlockReferenceProperty In props
+        '            'This Is where you change states based on input
+        '            If prop.PropertyName = "Visibility" Then prop.Value = "Заземител-БЕЗ контролна клема"
+        '            If prop.PropertyName = "Position1 X" Then prop.Value = -10.0
+        '            If prop.PropertyName = "Position1 Y" Then prop.Value = -80.0
+        '            If prop.PropertyName = "Angle1" Then prop.Value = 0.0
+        '        Next
+        '        Dim attCol As AttributeCollection = acBlkRef.AttributeCollection
+        '        For Each objID As ObjectId In attCol
+        '            Dim dbObj As DBObject = trans.GetObject(objID, OpenMode.ForWrite)
+        '            Dim acAttRef As AttributeReference = dbObj
+        '            If acAttRef.Tag = "ТАБЛО" Then acAttRef.TextString = "2к"
+        '        Next
+
+        '        trans.Commit()
+        '    End Using
+        '    cu.InsertText("PE",
+        '              New Point3d(X - widthColom + 3 * padingText, ptBasePoint.Y + Y_Шина - heightText - padingText, 0),
+        '              "EL__DIM",
+        '              heightText,
+        '              TextHorizontalMode.TextLeft,
+        '              TextVerticalMode.TextBase)
+        'End If
     End Sub
     ''' <summary>
     ''' Процедурата DrawAnnotations създава текстови анотации (бележки) в AutoCAD чертеж,

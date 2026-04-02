@@ -3243,6 +3243,7 @@ Public Class Tablo
                 Return GV_Pдвиг
             Case 3
                 Return GV_Наст
+            Case Else : Return "Грешен параметър"
         End Select
     End Function
     ''' <summary>

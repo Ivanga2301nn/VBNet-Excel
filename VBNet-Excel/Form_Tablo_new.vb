@@ -229,18 +229,38 @@ Public Class Form_Tablo_new
     Dim LiMountMethod As New List(Of strMountMethod)
     Private Cable_AlR_2 As New Dictionary(Of Integer, String)
     Private Cable_AlR_4 As New Dictionary(Of Integer, String)
-
+    ''' <summary>
+    ''' Съдържа всички разединители (обекти с параметри)
+    ''' Използва се като основна база данни
+    ''' </summary>
     Private Disconnectors As New List(Of DisconnectorInfo)
+    ''' <summary>
+    ''' Списък с кабели (за избор в ComboBox)
+    ''' </summary>
     Private Cable_For_combo As List(Of String)
+    ''' <summary>
+    ''' Списък с автоматични прекъсвачи
+    ''' </summary>
     Private Breakers_For_combo As List(Of String)
+    ''' <summary>
+    ''' Списък с токови защити (Trip Unit)
+    ''' </summary>
     Private TripUnit_For_combo As List(Of String)
+    ''' <summary>
+    ''' Списък с характеристики на прекъсвачи (B, C, D и др.)
+    ''' </summary>
     Private Curve_For_combo As List(Of String)
+    ''' <summary>
+    ''' Списък с типове разединители (за избор)
+    ''' </summary>
     Private Disconnectors_For_combo As List(Of String)
+    ''' <summary>
+    ''' Списък с токове на разединители (например 25A, 40A...)
+    ''' </summary>
     Private Discon_Tok_For_combo As List(Of String)
-
-    ' ===============================
-    ' Глобални променливи за таблата
-    ' ===============================
+    ''' <summary>
+    ''' Глобални променливи за таблата
+    ''' </summary>
     Public widthColom As Double = 120      ' Ширина на всяка колона в таблицата
     Public heightRow As Double = 25        ' Височина на редовете
     Public widthText As Double = 140       ' Ширина на колоната за текст (напр. "Токов кръг")
@@ -251,7 +271,6 @@ Public Class Form_Tablo_new
     Public widthTablo As Double = 410      ' Ширина на цялото табло (за блокове и линии)
     Public heightText As Double = 12       ' Височина на текста, използван в блоковете
     Public Y_Шина As Double = 620          ' Вертикална позиция на шината (Y координата)
-
     ''' <summary>
     ''' Структура за дефиниция на линия за чертане
     ''' </summary>
@@ -259,10 +278,9 @@ Public Class Form_Tablo_new
         Public StartPoint As Point3d
         Public EndPoint As Point3d
         Public Layer As String
-        Public LineWeightValue As Integer ' ✅ Integer вместо Enum
+        Public LineWeightValue As Integer
         Public LineType As String
         Public ColorIndex As Integer
-
         Public Sub New(startPoint As Point3d, endPoint As Point3d, layer As String,
                    lineWeightValue As Integer,
                    lineType As String, Optional colorIndex As Integer = -1)
@@ -1365,7 +1383,7 @@ Public Class Form_Tablo_new
             dgvRow.Cells(totalColIndex) = specialCell
 
             ' 3. Форматиране на реда (оцветяване)
-            Select Case dgvRow.Cells(0).Value?.ToString()
+            Select Case dgvRow.Cells(0).Value.ToString()
                 Case "---------"
                     dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(220, 220, 220)
                 Case "Прекъсвач", "ДТЗ (RCD)", "Кабел"
@@ -2512,6 +2530,7 @@ Public Class Form_Tablo_new
         ' 2) Обработка на всеки токов кръг
         ' ------------------------------------------------------------
         For Each tokow As strTokow In ListTokow
+            If tokow.Device = "Разединител" Then Continue For
             ' Нулиране на броячи и стойности преди ново изчисление
             tokow.brLamp = 0
             tokow.brKontakt = 0
@@ -2556,82 +2575,6 @@ Public Class Form_Tablo_new
     ''' Добавя запис "ОБЩО" за всяко табло в ListTokow
     ''' Извиква се в края на CalculateCircuitLoads()
     ''' </summary>
-    Private Sub AddFeederRecords()
-        ' ─────────────────────────────────────────────────────────
-        ' 1. Намери всички уникални табла
-        ' ─────────────────────────────────────────────────────────
-        Dim allTablos As List(Of String) = ListTokow.Select(
-                                           Function(t) t.Tablo
-                                           ).Distinct().ToList()
-        ' ─────────────────────────────────────────────────────────
-        ' 2. За всяко табло → изчисли общото и добави запис
-        ' ─────────────────────────────────────────────────────────
-        For Each tabloName As String In allTablos
-            ' Вземи всички кръгове в това табло (без вече съществуващи "ОБЩО")
-            Dim panelCircuits As List(Of strTokow) = ListTokow.Where(
-                                Function(t) t.Tablo = tabloName AndAlso t.ТоковКръг <> "ОБЩО"
-                                ).ToList()
-            If panelCircuits.Count = 0 Then Continue For
-            ' ─────────────────────────────────────────────────────
-            ' 3. Изчисли общите стойности
-            ' ─────────────────────────────────────────────────────
-            Dim totalLamps As Integer = panelCircuits.Sum(Function(c) c.brLamp)
-            Dim totalContacts As Integer = panelCircuits.Sum(Function(c) c.brKontakt)
-            Dim totalPower As Double = panelCircuits.Sum(Function(c) c.Мощност)
-            ' ─────────────────────────────────────────────────────
-            ' 4. Изчисли тока (3-фазно или 1-фазно)
-            ' ─────────────────────────────────────────────────────
-            Dim hasThreePhase As Boolean = panelCircuits.Any(Function(c) c.Брой_Полюси = 3)
-            ' ─────────────────────────────────────────────────────
-            ' 5. Определи най-честия брой полюси
-            ' ─────────────────────────────────────────────────────
-            Dim mostCommonPoles As Integer = If(panelCircuits.Any(Function(c) c.Брой_Полюси = 3), 3, 1)
-            ' ─────────────────────────────────────────────────────
-            ' 6. Определи фазата
-            ' ─────────────────────────────────────────────────────
-            Dim totalPhase As String = If(hasThreePhase, "L1,L2,L3", "L")
-            ' ─────────────────────────────────────────────────────
-            ' 7. Създай записа "ОБЩО"
-            ' ─────────────────────────────────────────────────────
-            Dim totalTokow As New strTokow With {
-                              .Device = "Табло",
-                              .Tablo = tabloName,
-                              .ТоковКръг = "ОБЩО",
-                              .Брой_Полюси = mostCommonPoles,
-                              .Мощност = totalPower,
-                              .Фаза = totalPhase,
-                              .brLamp = totalLamps,
-                              .brKontakt = totalContacts,
-                              .Табло_Родител = "",
-                              .Консуматор = "Ке=",
-                              .предназначение = "Рпр.=15кW"
-            }
-            ' ─────────────────────────────────────────────────────
-            ' 9. Добави новия запис
-            ' ─────────────────────────────────────────────────────
-            ListTokow.Add(totalTokow)
-            If hasThreePhase Then
-                BalancePhases(tabloName)
-                ' 1. Извличаме числовите стойности от стринговете
-                ' Разделяме по ">", вземаме втората част (индекс 1) и конвертираме към Double
-                Dim valL1 As Double = CDbl(totalTokow.RCD_Клас.Split(">"c)(1))
-                Dim valL2 As Double = CDbl(totalTokow.RCD_Ток.Split(">"c)(1))
-                Dim valL3 As Double = CDbl(totalTokow.RCD_Чувствителност.Split(">"c)(1))
-                ' 2. Намираме максималния ток
-                totalTokow.Ток = Math.Max(valL1, Math.Max(valL2, valL3))
-            Else
-                totalTokow.Ток = calc_Inom(totalTokow.Мощност, totalTokow.Брой_Полюси)
-            End If
-            ' ----------------------------------------------------
-            ' Избираме Прекъсвач според изчисления ток и брой полюси
-            ' ----------------------------------------------------
-            CalculateDisconnector(totalTokow)
-            ' ----------------------------------------------------
-            ' Избираме кабел според изчисления ток и брой полюси
-            ' ----------------------------------------------------
-            CalculateCable(totalTokow)
-        Next
-    End Sub
     Private Sub CalculateDisconnector(tokow As strTokow)
         ' Дефиниране на константи за диапазона (коефициенти)
         Const MIN_FACTOR As Double = 1.15 ' Прекъсвачът трябва да е поне 15% над изчисления ток
@@ -2916,6 +2859,9 @@ Public Class Form_Tablo_new
         ' Вземи името на избраното табло
         Dim selectedPanel As String = TreeView1.SelectedNode.Text
         ' Ако има "(", вземи само текста преди него
+        If selectedPanel.Contains("(") Then
+            selectedPanel = selectedPanel.Substring(0, selectedPanel.IndexOf("(")).Trim()
+        End If
         If selectedPanel.Contains("(") Then
             selectedPanel = selectedPanel.Substring(0, selectedPanel.IndexOf("(")).Trim()
         End If
@@ -3263,33 +3209,35 @@ Public Class Form_Tablo_new
         Select Case paramName
             Case "Тип на апарата"
                 tokow.Breaker_Тип_Апарат = selectedValue
-                If tokow.Device = "Табло" Then
-                    Dim filteredDisco = Disconnectors.Where(Function(b) b.Type = selectedValue).ToList()
-                    Dim valuesForCombo = filteredDisco _
-                                        .Select(Function(b) b.NominalCurrent.ToString()) _
-                                        .Distinct() _
-                                        .ToList()
-                    UpdateComboRow("Номинален ток", valuesForCombo, e.ColumnIndex)
-                    tokow.Device = "Табло"
-                Else
-                    Dim filteredBreakers = Breakers.Where(Function(b) b.Series = selectedValue).ToList()
-                    tokow.Breaker_Изкл_Възможност = filteredBreakers.First().Ics_kA & "kA"
-                    Dim valuesForCombo = filteredBreakers _
-                                        .Select(Function(b) b.NominalCurrent.ToString()) _
-                                        .Distinct() _
-                                        .ToList()
-                    UpdateComboRow("Номинален ток", valuesForCombo, e.ColumnIndex)
-                    Dim valuesCurve = filteredBreakers _
-                                        .Select(Function(b) b.Curve.ToString()) _
-                                        .Distinct() _
-                                        .ToList()
-                    UpdateComboRow("Крива", valuesCurve, e.ColumnIndex)
-                    Dim valuesTripUnit = filteredBreakers _
-                                        .Select(Function(b) b.TripUnit) _
-                                        .Distinct() _
-                                        .ToList()
-                    UpdateComboRow("Защитен блок", valuesTripUnit, e.ColumnIndex)
-                End If
+                Select Case tokow.Device
+                    Case "Разединител"
+                    Case "Табло"
+                        Dim filteredDisco = Disconnectors.Where(Function(b) b.Type = selectedValue).ToList()
+                        Dim valuesForCombo = filteredDisco _
+                                            .Select(Function(b) b.NominalCurrent.ToString()) _
+                                            .Distinct() _
+                                            .ToList()
+                        UpdateComboRow("Номинален ток", valuesForCombo, e.ColumnIndex)
+                        tokow.Device = "Табло"
+                    Case Else
+                        Dim filteredBreakers = Breakers.Where(Function(b) b.Series = selectedValue).ToList()
+                        tokow.Breaker_Изкл_Възможност = filteredBreakers.First().Ics_kA & "kA"
+                        Dim valuesForCombo = filteredBreakers _
+                                            .Select(Function(b) b.NominalCurrent.ToString()) _
+                                            .Distinct() _
+                                            .ToList()
+                        UpdateComboRow("Номинален ток", valuesForCombo, e.ColumnIndex)
+                        Dim valuesCurve = filteredBreakers _
+                                            .Select(Function(b) b.Curve.ToString()) _
+                                            .Distinct() _
+                                            .ToList()
+                        UpdateComboRow("Крива", valuesCurve, e.ColumnIndex)
+                        Dim valuesTripUnit = filteredBreakers _
+                                            .Select(Function(b) b.TripUnit) _
+                                            .Distinct() _
+                                            .ToList()
+                        UpdateComboRow("Защитен блок", valuesTripUnit, e.ColumnIndex)
+                End Select
             Case "Постави ДТЗ (RCD)"
                 ' ✅ Първо обнови tokow от клетката!
                 tokow.ДТЗ_RCD = CBool(DataGridView1.Rows(e.RowIndex).Cells(e.ColumnIndex).Value)
@@ -3651,6 +3599,7 @@ Public Class Form_Tablo_new
                                 Optional matType As Integer = 0,        ' 0=мед (Cu), 1=алуминий (Al)
                                 Optional RetType As Integer = 1         ' 0=само сечение, 1=пълно означение
                                 )
+        If tokow.Device = "Разединител" Then Exit Sub
         Dim Ibreaker As String = tokow.Breaker_Номинален_Ток
         Dim NumberPoles As String = tokow.Брой_Полюси
         ' ============================================================
@@ -5037,27 +4986,18 @@ Public Class Form_Tablo_new
         Dim X_Start As Double = basePoint.X + widthText + widthTextDim
         Dim Y_Shina As Double = basePoint.Y + Y_Шина
         Try
-            ' =====================================================
             ' ЦИКЪЛ ЗА ВСЕКИ ТОКОВ КРЪГ
-            ' =====================================================
             Dim colIndex As Integer = 0
             For Each circuit As strTokow In circuits
                 ' Пропускаме специалните кръгове (Разединител)
                 If circuit.ТоковКръг = "Разединител" Then Continue For
-                ' =====================================================
                 ' 3️⃣ ИЗЧИСЛЯВАНЕ НА ПОЗИЦИЯТА ЗА ТОЗИ КРЪГ
-                ' =====================================================
                 Dim X As Double = X_Start + colIndex * widthColom + widthColom / 2
-                ' =====================================================
-                ' 4️⃣ ЧЕРТАЕНЕ НА ТЕКСТОВЕТЕ В ТАБЛИЦАТА
                 ' Чертaе текстовата информация за един токов кръг в таблицата на таблото
-                ' =====================================================
                 DrawCircuitTexts(acDoc, acCurDb, basePoint, circuit, X)
                 ' Пишем текстовете и  нищо друго не правим
                 If circuit.ТоковКръг = "ОБЩО" Then Continue For
-                ' =====================================================
                 ' 5️⃣ ВМЪКВАНЕ НА БЛОК ЗА ПРЕКЪСВАЧ
-                ' =====================================================
                 DrawBreakerBlock(acDoc, acCurDb, basePoint, circuit, X, Y_Shina)
                 ' 7️⃣ ЧЕРТАЕ НА УПРАВЛЯВАЩО УСТРОЙСТВО
                 DrawControlDevice(acDoc, acCurDb, circuit, X, Y_Shina)
@@ -5133,26 +5073,41 @@ Public Class Form_Tablo_new
             Case Else : Return "Грешен параметър"    ' Невалиден параметър "Връща".
         End Select
     End Function
-
+    ''' <summary>
+    ''' Чертaе вертикална линия за токов кръг в таблото.
+    ''' Позицията на линията зависи от:
+    ''' - наличието на управление
+    ''' - типа на устройството (напр. "Контакт")
+    ''' </summary>
+    ''' <param name="X">Х координата на линията</param>
+    ''' <param name="circuit">Обект с данни за токовия кръг</param>
+    ''' <param name="Y_Shina">Y координата на шината (референтна точка)</param>
     Public Sub DrawCircuitLines(X As Double, circuit As strTokow, Y_Shina As Double)
+        ' 1️ ДЕФИНИРАНЕ НА НАЧАЛНИ КООРДИНАТИ
+        ' Начална позиция по Y (горна точка на линията)
         Dim startY As Double = Y_Shina - 135
+        ' Крайна позиция по Y (долна точка на линията)
         Dim endY As Double = Y_Shina - 370
-        Select Case circuit.Управление
-            Case "Няма"
-        End Select
-
-        If circuit.Управление = "Няма" Or
-            circuit.Управление = Nothing Then
-        Else
-            ' Ако няма управление
-            startY = startY - 95
-        End If
+        ' 2️ ПРОВЕРКА ЗА УПРАВЛЕНИЕ
+        ' Ако има управление (различно от Nothing, празно или "Няма"),
+        ' линията се измества надолу (правим място за управление)
+        If Not String.IsNullOrEmpty(circuit.Управление) AndAlso circuit.Управление <> "Няма" Then startY -= 95
+        ' 3️⃣ ПРОВЕРКА ЗА ТИП УСТРОЙСТВО
+        ' Ако устройството е "Контакт",
+        ' използваме фиксирана позиция (override на startY)
+        If circuit.Device = "Контакт" Then startY = Y_Shina - 253
+        ' 4️ СЪЗДАВАНЕ НА ТОЧКИ
+        ' Начална точка на линията
         Dim startPt As New Point3d(X, startY, 0)
+        ' Крайна точка на линията
         Dim endPt As New Point3d(X, endY, 0)
+        ' 5️ ЧЕРТАНЕ НА ЛИНИЯТА
+        ' Чертaе линията в слой "EL_ТАБЛА"
+        ' с настройки по слой (ByLayer)
         cu.DrowLine(startPt, endPt,
-                    "EL_ТАБЛА",
-                    Autodesk.AutoCAD.DatabaseServices.LineWeight.ByLayer,
-                    "ByLayer")
+                "EL_ТАБЛА",
+                DatabaseServices.LineWeight.ByLayer,
+                "ByLayer")
     End Sub
     ''' <summary>
     ''' Чертае управляващо устройство под прекъсвача
@@ -5166,32 +5121,32 @@ Public Class Form_Tablo_new
                                   circuit As strTokow, X As Double, breakerY As Double)
         Try
             ' =====================================================
-            ' 1️⃣ ПРОВЕРКА ДАЛИ ИМА УПРАВЛЕНИЕ
+            ' 1️ ПРОВЕРКА ДАЛИ ИМА УПРАВЛЕНИЕ
             ' =====================================================
             If String.IsNullOrEmpty(circuit.Управление) Then Return
             If circuit.Управление = "Няма" Then Return
             ' =====================================================
-            ' 2️⃣ НАМИРАНЕ НА БЛОКА ОТ РЕЧНИКА
+            ' 2️ НАМИРАНЕ НА БЛОКА ОТ РЕЧНИКА
             ' =====================================================
             If Not ControlBlockMap.ContainsKey(circuit.Управление) Then Return
             Dim blockName As String = ControlBlockMap(circuit.Управление)
             If String.IsNullOrEmpty(blockName) Then Return
             ' =====================================================
-            ' 3️⃣ ИЗЧИСЛЯВАНЕ НА ПОЗИЦИЯТА (ВИНАГИ под прекъсвача)
+            ' 3️ ИЗЧИСЛЯВАНЕ НА ПОЗИЦИЯТА (ВИНАГИ под прекъсвача)
             ' =====================================================
             Dim controlY As Double = breakerY - 135
             Dim insertPoint As New Point3d(X, controlY, 0)
             Dim blockScale As New Scale3d(5, 5, 5)
             ' =====================================================
-            ' 4️⃣ ПОЛУЧАВАНЕ НА ПАРАМЕТРИТЕ ЗА ТОЗИ ТИП
+            ' 4️ ПОЛУЧАВАНЕ НА ПАРАМЕТРИТЕ ЗА ТОЗИ ТИП
             ' =====================================================
             Dim config As ControlDeviceConfig = GetControlDeviceConfig(circuit)
             ' =====================================================
-            ' 5️⃣ ВМЪКВАНЕ НА БЛОКА
+            ' 5️ ВМЪКВАНЕ НА БЛОКА
             ' =====================================================
             Dim blkRecId As ObjectId = cu.InsertBlock(blockName, insertPoint, "EL_ТАБЛА", blockScale)
             ' =====================================================
-            ' 6️⃣ ПОПЪЛВАНЕ НА АТРИБУТИТЕ
+            ' 6️ ПОПЪЛВАНЕ НА АТРИБУТИТЕ
             ' =====================================================
             If Not blkRecId.IsNull Then
                 Using trans As Transaction = acCurDb.TransactionManager.StartTransaction()
@@ -5533,5 +5488,160 @@ Public Class Form_Tablo_new
                        New Point3d(basePoint.X + 160,
                                    basePoint.Y + 900, 0),
                        "Defpoints", 20, 1)
+    End Sub
+    Private Sub ToolStripButton_ШИНА_Click(sender As Object, e As EventArgs) Handles ToolStripButton_ШИНА.Click
+        ' 1. Вземи избраното табло
+        Dim selectedTablo As String = TreeView1.SelectedNode?.Text
+        If String.IsNullOrEmpty(selectedTablo) Then Return
+        If selectedTablo.Contains("(") Then
+            selectedTablo = selectedTablo.Substring(0, selectedTablo.IndexOf("(")).Trim()
+        End If
+        ' 2. Извикай процедурата за обновяване на разединителя
+        UpdateDisconnectorRecord(selectedTablo)
+        ' 3. Refresh на DataGridView
+        FillDataGridViewForPanel()
+    End Sub
+    Private Sub AddFeederRecords()
+        ' ─────────────────────────────────────────────────────────
+        ' 1. Намери всички уникални табла
+        ' ─────────────────────────────────────────────────────────
+        Dim allTablos As List(Of String) = ListTokow.Select(
+                                           Function(t) t.Tablo
+                                           ).Distinct().ToList()
+        ' ─────────────────────────────────────────────────────────
+        ' 2. За всяко табло → изчисли общото и добави запис
+        ' ─────────────────────────────────────────────────────────
+        For Each tabloName As String In allTablos
+            ' Вземи всички кръгове в това табло (без вече съществуващи "ОБЩО")
+            Dim panelCircuits As List(Of strTokow) = ListTokow.Where(
+                                Function(t) t.Tablo = tabloName AndAlso t.ТоковКръг <> "ОБЩО"
+                                ).ToList()
+            If panelCircuits.Count = 0 Then Continue For
+            ' ─────────────────────────────────────────────────────
+            ' 3. Изчисли общите стойности
+            ' ─────────────────────────────────────────────────────
+            Dim totalLamps As Integer = panelCircuits.Sum(Function(c) c.brLamp)
+            Dim totalContacts As Integer = panelCircuits.Sum(Function(c) c.brKontakt)
+            Dim totalPower As Double = panelCircuits.Sum(Function(c) c.Мощност)
+            ' ─────────────────────────────────────────────────────
+            ' 4. Изчисли тока (3-фазно или 1-фазно)
+            ' ─────────────────────────────────────────────────────
+            Dim hasThreePhase As Boolean = panelCircuits.Any(Function(c) c.Брой_Полюси = 3)
+            ' ─────────────────────────────────────────────────────
+            ' 5. Определи най-честия брой полюси
+            ' ─────────────────────────────────────────────────────
+            Dim mostCommonPoles As Integer = If(panelCircuits.Any(Function(c) c.Брой_Полюси = 3), 3, 1)
+            ' ─────────────────────────────────────────────────────
+            ' 6. Определи фазата
+            ' ─────────────────────────────────────────────────────
+            Dim totalPhase As String = If(hasThreePhase, "L1,L2,L3", "L")
+            ' ─────────────────────────────────────────────────────
+            ' 7. Създай записа "ОБЩО"
+            ' ─────────────────────────────────────────────────────
+            Dim totalTokow As New strTokow With {
+                              .Device = "Табло",
+                              .Tablo = tabloName,
+                              .ТоковКръг = "ОБЩО",
+                              .Брой_Полюси = mostCommonPoles,
+                              .Мощност = totalPower,
+                              .Фаза = totalPhase,
+                              .brLamp = totalLamps,
+                              .brKontakt = totalContacts,
+                              .Табло_Родител = "",
+                              .Консуматор = "Ке=",
+                              .предназначение = "Рпр.=15кW"
+            }
+            ' ─────────────────────────────────────────────────────
+            ' 9. Добави новия запис
+            ' ─────────────────────────────────────────────────────
+            ListTokow.Add(totalTokow)
+            If hasThreePhase Then
+                BalancePhases(tabloName)
+                ' 1. Извличаме числовите стойности от стринговете
+                ' Разделяме по ">", вземаме втората част (индекс 1) и конвертираме към Double
+                Dim valL1 As Double = CDbl(totalTokow.RCD_Клас.Split(">"c)(1))
+                Dim valL2 As Double = CDbl(totalTokow.RCD_Ток.Split(">"c)(1))
+                Dim valL3 As Double = CDbl(totalTokow.RCD_Чувствителност.Split(">"c)(1))
+                ' 2. Намираме максималния ток
+                totalTokow.Ток = Math.Max(valL1, Math.Max(valL2, valL3))
+            Else
+                totalTokow.Ток = calc_Inom(totalTokow.Мощност, totalTokow.Брой_Полюси)
+            End If
+            ' ----------------------------------------------------
+            ' Избираме Прекъсвач според изчисления ток и брой полюси
+            ' ----------------------------------------------------
+            CalculateDisconnector(totalTokow)
+            ' ----------------------------------------------------
+            ' Избираме кабел според изчисления ток и брой полюси
+            ' ----------------------------------------------------
+            CalculateCable(totalTokow)
+        Next
+    End Sub
+    ''' <summary>
+    ''' Обновява или създава запис "Разединител" за дадено табло
+    ''' Сумира само кръговете с Шина=True
+    ''' </summary>
+    ''' <param name="tabloName">Име на таблото</param>
+    Private Sub UpdateDisconnectorRecord(tabloName As String)
+        ' 1. Намери всички кръгове в таблото
+        Dim circuitsInTablo As List(Of strTokow) = ListTokow.Where(
+                               Function(t) t.Tablo = tabloName
+                               ).ToList()
+        If circuitsInTablo.Count = 0 Then Return
+        ' 2. Намери кръговете с Шина=True
+        Dim busCircuits As List(Of strTokow) = circuitsInTablo.Where(
+                           Function(t) t.Шина = True
+                           ).ToList()
+        ' 3. Ако НЯМА Шина=True → изтрий записа (ако съществува)
+        If busCircuits.Count = 0 Then
+            ListTokow.RemoveAll(Function(t) t.Tablo = tabloName AndAlso t.Device = "Разединител") : Return
+        End If
+        ' 4. Изчисли общите стойности за Шина=True кръговете
+        Dim totalPower As Double = busCircuits.Sum(Function(c) c.Мощност)
+        ' 5. Определи брой полюси (най-честият)
+        Dim mostCommonPoles As Integer = 1  ' По подразбиране
+        If busCircuits.Count > 0 Then
+            Dim polesGroup = busCircuits.GroupBy(Function(c) c.Брой_Полюси) _
+                                .OrderByDescending(Function(g) g.Count()) _
+                                .FirstOrDefault()
+            If polesGroup IsNot Nothing Then
+                mostCommonPoles = polesGroup.Key
+            End If
+        End If
+        ' 6. Определи фазата
+        Dim hasThreePhase As Boolean = busCircuits.Any(Function(c) c.Брой_Полюси = 3)
+        Dim totalPhase As String = If(hasThreePhase, "L1,L2,L3", "L1")
+        ' 7. Изчисли тока
+        Dim totalCurrent As Double = 0
+        If hasThreePhase Then
+            totalCurrent = (totalPower * 1000) / (Math.Sqrt(3) * 400)
+        Else
+            totalCurrent = (totalPower * 1000) / 230
+        End If
+        ' 6. Намери съществуващ или създай нов
+        Dim disconnector = ListTokow.FirstOrDefault(Function(t) t.Tablo = tabloName AndAlso t.Device = "Разединител")
+        If disconnector Is Nothing Then
+            disconnector = New strTokow With {
+                           .Device = "Разединител",
+                           .ТоковКръг = "Разединител",
+                           .Tablo = tabloName
+            }
+            ListTokow.Add(disconnector)
+        End If
+        ' 7. Обнови полетата (ВИНАГИ работи с disconnector)
+        With disconnector
+            .Брой_Полюси = mostCommonPoles
+            .Мощност = totalPower
+            .Ток = totalCurrent
+            .Фаза = totalPhase
+        End With
+        ' 8. Избери прекъсвач
+        CalculateDisconnector(disconnector)
+        With disconnector
+            .Консуматор = ""
+            .предназначение = ""
+            '            .Фаза = "::"'
+        End With
+
     End Sub
 End Class

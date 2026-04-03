@@ -49,6 +49,8 @@ Partial Class Form_Tablo_new
         Me.TreeView1 = New System.Windows.Forms.TreeView()
         Me.GroupBox2 = New System.Windows.Forms.GroupBox()
         Me.DataGridView1 = New System.Windows.Forms.DataGridView()
+        Me.ToolStripSeparator5 = New System.Windows.Forms.ToolStripSeparator()
+        Me.ToolStripButton_ШИНА = New System.Windows.Forms.ToolStripButton()
         Me.StatusStrip1.SuspendLayout()
         Me.ToolStrip1.SuspendLayout()
         Me.TableLayoutPanel1.SuspendLayout()
@@ -76,7 +78,7 @@ Partial Class Form_Tablo_new
         '
         'ToolStrip1
         '
-        Me.ToolStrip1.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.NewToolStripButton, Me.OpenToolStripButton, Me.SaveToolStripButton, Me.PrintToolStripButton, Me.toolStripSeparator6, Me.CutToolStripButton, Me.CopyToolStripButton, Me.PasteToolStripButton, Me.toolStripSeparator7, Me.HelpToolStripButton, Me.ToolStripSeparator2, Me.ToolStripComboBox1, Me.ToolStripSeparator4, Me.ToolStripButton_Балансирай_фазите, Me.ToolStripSeparator3, Me.ToolStripButton_Поправи_ДЗТ, Me.ToolStripSeparator1, Me.ToolStripButton_Вмъни_Autocad})
+        Me.ToolStrip1.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.NewToolStripButton, Me.OpenToolStripButton, Me.SaveToolStripButton, Me.PrintToolStripButton, Me.toolStripSeparator6, Me.CutToolStripButton, Me.CopyToolStripButton, Me.PasteToolStripButton, Me.toolStripSeparator7, Me.HelpToolStripButton, Me.ToolStripSeparator2, Me.ToolStripComboBox1, Me.ToolStripSeparator4, Me.ToolStripButton_Балансирай_фазите, Me.ToolStripSeparator3, Me.ToolStripButton_Поправи_ДЗТ, Me.ToolStripSeparator1, Me.ToolStripButton_Вмъни_Autocad, Me.ToolStripSeparator5, Me.ToolStripButton_ШИНА})
         Me.ToolStrip1.Location = New System.Drawing.Point(5, 5)
         Me.ToolStrip1.Name = "ToolStrip1"
         Me.ToolStrip1.Size = New System.Drawing.Size(1373, 25)
@@ -268,6 +270,19 @@ Partial Class Form_Tablo_new
         Me.DataGridView1.Size = New System.Drawing.Size(1131, 799)
         Me.DataGridView1.TabIndex = 0
         '
+        'ToolStripSeparator5
+        '
+        Me.ToolStripSeparator5.Name = "ToolStripSeparator5"
+        Me.ToolStripSeparator5.Size = New System.Drawing.Size(6, 25)
+        '
+        'ToolStripButton_ШИНА
+        '
+        Me.ToolStripButton_ШИНА.Image = Global.VBNet_Excel.My.Resources.Resources.ListFolderOpen_16x
+        Me.ToolStripButton_ШИНА.ImageTransparentColor = System.Drawing.Color.Magenta
+        Me.ToolStripButton_ШИНА.Name = "ToolStripButton_ШИНА"
+        Me.ToolStripButton_ШИНА.Size = New System.Drawing.Size(105, 22)
+        Me.ToolStripButton_ШИНА.Text = "Раздели шина"
+        '
         'Form_Tablo_new
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(9.0!, 20.0!)
@@ -320,4 +335,6 @@ Partial Class Form_Tablo_new
     Friend WithEvents ToolStripComboBox1 As Windows.Forms.ToolStripComboBox
     Friend WithEvents ToolStripSeparator4 As Windows.Forms.ToolStripSeparator
     Friend WithEvents ToolStripButton_Поправи_ДЗТ As Windows.Forms.ToolStripButton
+    Friend WithEvents ToolStripSeparator5 As Windows.Forms.ToolStripSeparator
+    Friend WithEvents ToolStripButton_ШИНА As Windows.Forms.ToolStripButton
 End Class

@@ -1381,10 +1381,12 @@ Public Class Legend
                 End Select
             Case "Вентилации"
                 Select Case Visibility
-                    Case "Вентилатор - кръг - баня",
-                         "Вентилатор - кръг",
-                         "Вентилатор - правоъг"
-                        strBlockText = "Вентилатор за баня с конрол на влажността"
+                    Case "Вентилатор - кръг - баня"
+                        strBlockText = "Вентилатор за баня с контрол на влажността"
+                    Case "Вентилатор - кръг"
+                        strBlockText = "Вентилатор за баня"
+                    Case "Вентилатор - правоъг"
+                        strBlockText = "Вентилатор"
                 End Select
             Case Else
                 strBlockText = "################################"

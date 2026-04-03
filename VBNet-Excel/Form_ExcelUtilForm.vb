@@ -2014,10 +2014,18 @@ Public Class Form_ExcelUtilForm
                 Case "Вентилации"
                     wsKontakti.Range("L" & i.ToString).Value = 3 * broj_elementi
                     Select Case wsKontakti.Cells(i, 4).Value
-                        Case "Вентилатор - кръг - баня", "Вентилатор - правоъг", "Вентилатор - кръг"
+                        Case "Вентилатор - кръг - баня"
+                            Text_Dostawka = "вентилатор за баня с контрол на влажността; " &
+                                            wsKontakti.Cells(i, 6).Value &
+                                            "W"
+                        Case "Вентилатор - правоъг"
+                            Text_Dostawka = "вентилатор; " &
+                                            wsKontakti.Cells(i, 6).Value &
+                                            "W"
+                        Case "Вентилатор - кръг"
                             Text_Dostawka = "вентилатор за баня; " &
-                                wsKontakti.Cells(i, 6).Value &
-                                "W"
+                                            wsKontakti.Cells(i, 6).Value &
+                                            "W"
                             wsKontakti.Range("L" & i.ToString).Value = 3 * broj_elementi
                         Case "Вентилатор - канален 1P", "Вентилатор - прозоречен 1P",
                              "Линии", "Конвектор - АСТ", "Kонвектор - касетъчен",

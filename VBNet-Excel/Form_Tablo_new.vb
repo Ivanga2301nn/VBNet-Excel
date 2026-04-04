@@ -296,6 +296,7 @@ Public Class Form_Tablo_new
     ' НОВИ ПРОМЕНЛИВИ ЗА СЪСТОЯНИЕТО (State Variables)
     ' ============================================================
     Private twoBus As Boolean = False
+    Private hasDisconnector As Boolean = False
     Private Faza_Tablo As Boolean = False
     Private brTokKrygoweNa6ina As Integer = 0
     Private selectedTablo As String = "" ' За да е достъпно във всички процедури
@@ -4704,18 +4705,15 @@ Public Class Form_Tablo_new
             Me.Visible = False
             ' Проверяваме дали има кръгове на отделна шина
             twoBus = panelCircuits.Any(Function(c) c.Шина)
-
-
+            hasDisconnector = panelCircuits.Any(Function(c) c.Device = "Разединител")
             If twoBus Then
                 ' Проверяваме дали НЯМА нито един елемент с Device = "Разединител"
-                Dim hasDisconnector As Boolean = panelCircuits.Any(Function(c) c.Device = "Разединител")
                 If Not hasDisconnector Then
                     ' Извеждаме съобщение и прекратяваме процедурата
                     MessageBox.Show("Две шини – добре. Разединител – няма. Софтуерът изпада в депресия!")
-                    Exit Sub
+                    Return
                 End If
             End If
-
             ' =====================================================
             ' 6. СТАРТИРАЙ ЧЕРТАНЕТО В ТРАНЗАКЦИЯ
             ' =====================================================
@@ -4746,6 +4744,7 @@ Public Class Form_Tablo_new
         Finally
             Me.Visible = True
         End Try
+        FillDataGridViewForPanel()
     End Sub
     ' ============================================================
     ' ПОМОЩЕН МЕТОД ЗА ДОБАВЯНЕ НА ЛИНИИ
@@ -4922,7 +4921,7 @@ Public Class Form_Tablo_new
             ' =====================================================
             ' 1️⃣ ИЗЧИСЛЯВАНЕ НА ОСНОВНИТЕ РАЗМЕРИ
             ' =====================================================
-            Dim brColums As Integer = circuits.Count - If(twoBus, 1, 0)
+            Dim brColums As Integer = circuits.Count
             Dim X_Start As Double = basePoint.X + widthText + widthTextDim
             Dim X_End As Double = basePoint.X + widthText + widthTextDim + brColums * widthColom + widthColom / 2
             Dim Y_Shina As Double = basePoint.Y + Y_Шина
@@ -4940,6 +4939,7 @@ Public Class Form_Tablo_new
             ' =====================================================
             Dim X_Split As Double = 0
             Dim X_SecondStart As Double = 0
+            Dim X_SecondEnd As Double = 0
             If Not twoBus Then
                 ' ----- ЕДНА ШИНА -----
                 cu.DrowLine(New Point3d(X_Start, Y_Shina, 0),
@@ -4959,7 +4959,7 @@ Public Class Form_Tablo_new
                 ' Начална позиция на втората (дясна) шина.
                 X_SecondStart = X_Start + brTokKrygoweNa6ina * widthColom + 30
                 ' Край на втората шина (същият като X_End).
-                Dim X_SecondEnd As Double = basePoint.X + widthText + widthTextDim + brColums * widthColom + widthColom / 2
+                X_SecondEnd = basePoint.X + widthText + widthTextDim + (brColums - 2) * widthColom + widthColom / 2
                 ' Чертае втората шина.
                 cu.DrowLine(New Point3d(X_SecondStart, Y_Shina, 0),
                         New Point3d(X_SecondEnd, Y_Shina, 0),
@@ -5508,7 +5508,7 @@ Public Class Form_Tablo_new
         If selectedTablo.Contains("(") Then
             selectedTablo = selectedTablo.Substring(0, selectedTablo.IndexOf("(")).Trim()
         End If
-        ' 2. Извикай процедурата за обновяване на разединителя
+        ' 2. Извикай процедурата за избор на разединител на шина
         UpdateDisconnectorRecord(selectedTablo)
         ' 3. Refresh на DataGridView
         FillDataGridViewForPanel()
@@ -5590,69 +5590,68 @@ Public Class Form_Tablo_new
         Next
     End Sub
     ''' <summary>
-    ''' Обновява или създава запис "Разединител" за дадено табло
-    ''' Сумира само кръговете с Шина=True
+    ''' Актуализира (или създава) запис за разединител в дадено табло.
+    ''' Логиката:
+    ''' 1. Взема всички токови кръгове за таблото
+    ''' 2. Премахва стария разединител (ако има)
+    ''' 3. Изчислява обща мощност и ток от шините
+    ''' 4. Създава нов разединител
+    ''' 5. Вмъква го след последната шина
     ''' </summary>
     ''' <param name="tabloName">Име на таблото</param>
     Private Sub UpdateDisconnectorRecord(tabloName As String)
-        ' 1. Намери всички кръгове в таблото
-        Dim circuitsInTablo As List(Of strTokow) = ListTokow.Where(
-                               Function(t) t.Tablo = tabloName
-                               ).ToList()
-        If circuitsInTablo.Count = 0 Then Return
-        ' 2. Намери кръговете с Шина=True
-        Dim busCircuits As List(Of strTokow) = circuitsInTablo.Where(
-                           Function(t) t.Шина = True
-                           ).ToList()
-        ' 3. Ако НЯМА Шина=True → изтрий записа (ако съществува)
-        If busCircuits.Count = 0 Then
-            ListTokow.RemoveAll(Function(t) t.Tablo = tabloName AndAlso t.Device = "Разединител") : Return
-        End If
-        ' 4. Изчисли общите стойности за Шина=True кръговете
+        ' 1️ ВЗЕМАМЕ ВСИЧКИ КРЪГОВЕ ОТ ТАБЛОТО
+        Dim circuitsInTablo As List(Of strTokow) =
+        ListTokow.Where(Function(t) t.Tablo = tabloName).ToList()
+        If circuitsInTablo.Count = 0 Then Exit Sub
+        ' 2️ ПРЕМАХВАМЕ СТАР РАЗЕДИНИТЕЛ (АКО ИМА)
+        ListTokow.RemoveAll(Function(t) t.Tablo = tabloName AndAlso t.Device = "Разединител")
+        ' 3️ ВЗЕМАМЕ САМО ШИНИТЕ
+        Dim busCircuits As List(Of strTokow) =
+        circuitsInTablo.Where(Function(t) t.Шина = True).ToList()
+        If busCircuits.Count = 0 Then Exit Sub
+        ' 4️ ИЗЧИСЛЕНИЯ
+        ' Обща мощност на всички кръгове към шината
         Dim totalPower As Double = busCircuits.Sum(Function(c) c.Мощност)
-        ' 5. Определи брой полюси (най-честият)
-        Dim mostCommonPoles As Integer = 1  ' По подразбиране
-        If busCircuits.Count > 0 Then
-            Dim polesGroup = busCircuits.GroupBy(Function(c) c.Брой_Полюси) _
-                                .OrderByDescending(Function(g) g.Count()) _
-                                .FirstOrDefault()
-            If polesGroup IsNot Nothing Then
-                mostCommonPoles = polesGroup.Key
-            End If
-        End If
-        ' 6. Определи фазата
-        Dim hasThreePhase As Boolean = busCircuits.Any(Function(c) c.Брой_Полюси = 3)
-        Dim totalPhase As String = If(hasThreePhase, "L1,L2,L3", "L1")
-        ' 7. Изчисли тока
-        Dim totalCurrent As Double = 0
+        ' Проверка дали има трифазни консуматори
+        Dim hasThreePhase As Boolean =
+            busCircuits.Any(Function(c) c.Брой_Полюси = 3)
+        ' Определяне на брой полюси и фази
+        Dim poles As Integer = If(hasThreePhase, 3, 1)
+        Dim phases As String = If(hasThreePhase, "L1,L2,L3", "L")
+        ' Изчисляване на общ ток
+        Dim totalCurrent As Double
         If hasThreePhase Then
             totalCurrent = (totalPower * 1000) / (Math.Sqrt(3) * 400)
         Else
             totalCurrent = (totalPower * 1000) / 230
         End If
-        ' 6. Намери съществуващ или създай нов
-        Dim disconnector = ListTokow.FirstOrDefault(Function(t) t.Tablo = tabloName AndAlso t.Device = "Разединител")
-        If disconnector Is Nothing Then
-            disconnector = New strTokow With {
-                           .Device = "Разединител",
-                           .ТоковКръг = "Разединител",
-                           .Tablo = tabloName
-            }
-            ListTokow.Add(disconnector)
-        End If
-        ' 7. Обнови полетата (ВИНАГИ работи с disconnector)
-        With disconnector
-            .Брой_Полюси = mostCommonPoles
-            .Мощност = totalPower
-            .Ток = totalCurrent
-            .Фаза = totalPhase
-        End With
-        ' 8. Избери прекъсвач
+        ' 5️ СЪЗДАВАНЕ НА НОВ РАЗЕДИНИТЕЛ
+        Dim disconnector As New strTokow With {
+                                .Device = "Разединител",
+                                .ТоковКръг = "Разединител",
+                                .Tablo = tabloName,
+                                .Брой_Полюси = poles,
+                                .Мощност = totalPower,
+                                .Ток = totalCurrent,
+                                .Фаза = phases,
+                                .Консуматор = "",
+                                .предназначение = ""
+        }
+        ' 6️ НАМИРАНЕ НА ПОЗИЦИЯ (СЛЕД ПОСЛЕДНАТА ШИНА)
+        Dim lastBusIndex As Integer = -1
+        For i As Integer = 0 To ListTokow.Count - 1
+            If ListTokow(i).Tablo = tabloName AndAlso ListTokow(i).Шина = True Then
+                lastBusIndex = i
+            End If
+        Next
+        ' 7️ ВМЪКВАНЕ В СПИСЪКА
+        ListTokow.Insert(lastBusIndex + 1, disconnector)
+        ' Определя конкретен тип разединител според тока
         CalculateDisconnector(disconnector)
-        With disconnector
-            .Консуматор = ""
-            .предназначение = ""
-            .Фаза = totalPhase
-        End With
     End Sub
 End Class
+'сега трявба да направим процедура за поставяне на линия над прекъсвачите в които са към ДЗТ
+'да поставим прекъсвача над тази шина
+'пова първо 
+'след това

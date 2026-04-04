@@ -3793,6 +3793,7 @@ Public Class Form_Tablo_new
     ''' </remarks>
     Private Sub SetRCD(tokow As strTokow)
         If tokow.ТоковКръг = "ОБЩО" Then Return
+        If tokow.ТоковКръг = "Разединител" Then Return
         ' Определяне на броя полюси на RCD: 4p за трифазен, 2p за еднофазен
         Dim poles As String = If(tokow.Брой_Полюси = 3, "4p", "2p")
         ' Минимален номинален ток: 1.2 * ток на кръга, но не по-малко от 20 A
@@ -4701,6 +4702,8 @@ Public Class Form_Tablo_new
             If ptBasePointRes.Status = PromptStatus.Cancel Then Exit Sub
             Dim ptBasePoint As Point3d = ptBasePointRes.Value
             Me.Visible = False
+            ' Проверяваме дали има кръгове на отделна шина
+            twoBus = panelCircuits.Any(Function(c) c.Шина)
             ' =====================================================
             ' 6. СТАРТИРАЙ ЧЕРТАНЕТО В ТРАНЗАКЦИЯ
             ' =====================================================
@@ -4709,8 +4712,7 @@ Public Class Form_Tablo_new
                     ' =====================================================
                     ' ПРЕДИЗЧИСЛЯВАНЕ НА ПАРАМЕТРИТЕ
                     ' =====================================================
-                    ' Проверяваме дали има кръгове на отделна шина
-                    twoBus = panelCircuits.Any(Function(c) c.Шина)
+
                     ' Тук ще извикваме процедурите за чертане една по една
                     DrawPanelFrame(acDoc, acCurDb, ptBasePoint, panelCircuits)      ' Тук ще чертаем рамката на таблото
                     DrawBusbars(acDoc, acCurDb, ptBasePoint, panelCircuits)         ' Тук ще чертаем шините
@@ -4721,7 +4723,6 @@ Public Class Form_Tablo_new
                     DrawGrounding(acDoc, acCurDb, ptBasePoint, selectedTablo)
                     DrawAnnotations(ptBasePoint, panelCircuits)                     ' Процедурата създава текстови анотации
 
-                    MsgBox("Таблото [" & selectedTablo & "] е успешно генерирано!", MsgBoxStyle.Information)
                 Catch ex As Exception
                     trans.Abort()
                     MsgBox("Възникна грешка при чертане: " & vbCrLf & ex.Message & vbCrLf & vbCrLf & ex.StackTrace, MsgBoxStyle.Critical)
@@ -4765,8 +4766,8 @@ Public Class Form_Tablo_new
             ' =====================================================
             ' 1️⃣ ИЗЧИСЛЯВАНЕ НА ОСНОВНИТЕ РАЗМЕРИ
             ' =====================================================
-            Dim brColums As Integer = circuits.Count ' + 2
-            Dim tableWidth As Double = basePoint.X + widthText + widthTextDim + brColums * widthColom
+            Dim brColums As Integer = circuits.Count ' - If(twoBus, 1, 0)
+            Dim tableWidth As Double = basePoint.X + widthText + widthTextDim + (brColums) * widthColom
             Dim tableHeight As Double = 10 * heightRow
             ' =====================================================
             ' 2️⃣ СЪЗДАВАНЕ НА СПИСЪК С ЛИНИИТЕ
@@ -4795,7 +4796,7 @@ Public Class Form_Tablo_new
             For col As Integer = 1 To brColums
                 Dim xLine As Double = basePoint.X + widthText + widthTextDim + col * widthColom
                 AddLine(lines, New Point3d(xLine, basePoint.Y, 0),
-                           New Point3d(xLine, basePoint.Y + tableHeight, 0))
+                               New Point3d(xLine, basePoint.Y + tableHeight, 0))
             Next
             ' --- Рамка на блока с информация за шината ---
             Dim blockStartY As Double = basePoint.Y + tableHeight + lengthProw
@@ -4882,7 +4883,7 @@ Public Class Form_Tablo_new
             ' --------------------------------------------------------
             ' Обработка на грешки
             ' --------------------------------------------------------
-            MsgBox("Възникна грешка:  " &
+            MsgBox("Възникна грешка: " &
                    ex.Message &
                    vbCrLf & vbCrLf &
                    ex.StackTrace.ToString)
@@ -4990,13 +4991,13 @@ Public Class Form_Tablo_new
             Dim colIndex As Integer = 0
             For Each circuit As strTokow In circuits
                 ' Пропускаме специалните кръгове (Разединител)
-                If circuit.ТоковКръг = "Разединител" Then Continue For
+                If circuit.Device = "Разединител" Then Continue For
                 ' 3️⃣ ИЗЧИСЛЯВАНЕ НА ПОЗИЦИЯТА ЗА ТОЗИ КРЪГ
                 Dim X As Double = X_Start + colIndex * widthColom + widthColom / 2
                 ' Чертaе текстовата информация за един токов кръг в таблицата на таблото
                 DrawCircuitTexts(acDoc, acCurDb, basePoint, circuit, X)
                 ' Пишем текстовете и  нищо друго не правим
-                If circuit.ТоковКръг = "ОБЩО" Then Continue For
+                If circuit.Device = "Табло" Then Continue For
                 ' 5️⃣ ВМЪКВАНЕ НА БЛОК ЗА ПРЕКЪСВАЧ
                 DrawBreakerBlock(acDoc, acCurDb, basePoint, circuit, X, Y_Shina)
                 ' 7️⃣ ЧЕРТАЕ НА УПРАВЛЯВАЩО УСТРОЙСТВО
@@ -5640,8 +5641,7 @@ Public Class Form_Tablo_new
         With disconnector
             .Консуматор = ""
             .предназначение = ""
-            '            .Фаза = "::"'
+            .Фаза = totalPhase
         End With
-
     End Sub
 End Class

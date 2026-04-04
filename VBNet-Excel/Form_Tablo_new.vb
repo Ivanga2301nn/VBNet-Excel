@@ -4704,6 +4704,18 @@ Public Class Form_Tablo_new
             Me.Visible = False
             ' Проверяваме дали има кръгове на отделна шина
             twoBus = panelCircuits.Any(Function(c) c.Шина)
+
+
+            If twoBus Then
+                ' Проверяваме дали НЯМА нито един елемент с Device = "Разединител"
+                Dim hasDisconnector As Boolean = panelCircuits.Any(Function(c) c.Device = "Разединител")
+                If Not hasDisconnector Then
+                    ' Извеждаме съобщение и прекратяваме процедурата
+                    MessageBox.Show("Две шини – добре. Разединител – няма. Софтуерът изпада в депресия!")
+                    Exit Sub
+                End If
+            End If
+
             ' =====================================================
             ' 6. СТАРТИРАЙ ЧЕРТАНЕТО В ТРАНЗАКЦИЯ
             ' =====================================================
@@ -4712,7 +4724,6 @@ Public Class Form_Tablo_new
                     ' =====================================================
                     ' ПРЕДИЗЧИСЛЯВАНЕ НА ПАРАМЕТРИТЕ
                     ' =====================================================
-
                     ' Тук ще извикваме процедурите за чертане една по една
                     DrawPanelFrame(acDoc, acCurDb, ptBasePoint, panelCircuits)      ' Тук ще чертаем рамката на таблото
                     DrawBusbars(acDoc, acCurDb, ptBasePoint, panelCircuits)         ' Тук ще чертаем шините
@@ -4766,7 +4777,7 @@ Public Class Form_Tablo_new
             ' =====================================================
             ' 1️⃣ ИЗЧИСЛЯВАНЕ НА ОСНОВНИТЕ РАЗМЕРИ
             ' =====================================================
-            Dim brColums As Integer = circuits.Count ' - If(twoBus, 1, 0)
+            Dim brColums As Integer = circuits.Count - If(twoBus, 1, 0)
             Dim tableWidth As Double = basePoint.X + widthText + widthTextDim + (brColums) * widthColom
             Dim tableHeight As Double = 10 * heightRow
             ' =====================================================
@@ -4911,7 +4922,7 @@ Public Class Form_Tablo_new
             ' =====================================================
             ' 1️⃣ ИЗЧИСЛЯВАНЕ НА ОСНОВНИТЕ РАЗМЕРИ
             ' =====================================================
-            Dim brColums As Integer = circuits.Count - 1
+            Dim brColums As Integer = circuits.Count - If(twoBus, 1, 0)
             Dim X_Start As Double = basePoint.X + widthText + widthTextDim
             Dim X_End As Double = basePoint.X + widthText + widthTextDim + brColums * widthColom + widthColom / 2
             Dim Y_Shina As Double = basePoint.Y + Y_Шина
@@ -4983,7 +4994,7 @@ Public Class Form_Tablo_new
     End Sub
     Private Sub DrawCircuits(acDoc As Document, acCurDb As Database, basePoint As Point3d, circuits As List(Of strTokow))
         ' Тук ще чертаем всеки токов кръг (прекъсвачи, текстове, линии)
-        Dim brColums As Integer = circuits.Count
+        Dim brColums As Integer = circuits.Count - If(twoBus, 1, 0)
         Dim X_Start As Double = basePoint.X + widthText + widthTextDim
         Dim Y_Shina As Double = basePoint.Y + Y_Шина
         Try

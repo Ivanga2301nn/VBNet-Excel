@@ -190,6 +190,7 @@ Public Class Form_Tablo_new
 #End Region
         SetupDataGridView()
         SetupDataGridView_Total()
+        calcBreaker = False
     End Sub
 
     Dim PI As Double = 3.1415926535897931
@@ -301,6 +302,8 @@ Public Class Form_Tablo_new
     Private brTokKrygoweNa6ina As Integer = 0
     Private selectedTablo As String = "" ' За да е достъпно във всички процедури
 
+    ' Флаг, указващ дали трябва да се извърши изчисление на прекъсвача.
+    Dim calcBreaker As Boolean = True
     ' ============================================================
     ' КАТАЛОЖНИ СТРУКТУРИ
     ' ============================================================
@@ -824,7 +827,7 @@ Public Class Form_Tablo_new
         ' ============================================================
         ' ЗАЩИТА (ПРЕКЪСВАЧ)
         ' ============================================================
-        Public Breaker_Тип_Апарат As String         ' Серия апарат (EZ9, C120, NSX, MTZ)
+        'Public Breaker_Тип_Апарат As String         ' Серия апарат (EZ9, C120, NSX, MTZ)
         Public Breaker_Крива As String              ' Характеристика (B, C, D)
         Public Breaker_Номинален_Ток As String      ' Номинален ток (пример: "16A")
         Public Breaker_Изкл_Възможност As String    ' Изключвателна способност ("6000A", "10000A")
@@ -857,6 +860,23 @@ Public Class Form_Tablo_new
         Public Konsumator As List(Of strKonsumator)
         ' Списък с всички реални консуматори,
         ' принадлежащи към този токов кръг.
+
+        Private _breakerTipAparat As String
+        Public Property Breaker_Тип_Апарат As String
+            Get
+                Return _breakerTipAparat
+            End Get
+            Set(value As String)
+                ' --- ТУК СЛАГАШ BREAKPOINT (F9) ---
+                ' Когато дебъгерът спре тук, стойността на 'value' е новото име на апарата,
+                ' а '_breakerTipAparat' е старата стойност преди промяната.
+                _breakerTipAparat = value
+                ' Опционално: Писане в Output прозореца за хронология
+                Console.WriteLine($"Апаратът е променен на: {value} от процедура: {New System.Diagnostics.StackTrace().GetFrame(1).GetMethod().Name}")
+                Debug.WriteLine($"Апаратът е променен на: {value} от процедура: {New System.Diagnostics.StackTrace().GetFrame(1).GetMethod().Name}")
+
+            End Set
+        End Property
     End Class
     ''' <summary>
     ''' КАТАЛОГ автоматичен прекъсвач – MCB, MCCB или ACB.
@@ -1325,66 +1345,79 @@ Public Class Form_Tablo_new
         DataGridView1.CellBorderStyle = DataGridViewCellBorderStyle.Single          ' Задава единична тънка линия за граница между отделните клетки
     End Sub
     Private Sub SetupDataGridView_Total()
-        Dim totalColIndex As Integer = DataGridView1.Columns("colTotal").Index
+        ' 1. Вземаме индексите и проверяваме дали колоните съществуват
+        Dim targetColumns As New List(Of Integer)
+        Dim colNames() As String = {"colTotal", "colDiscon"}
+        For Each colName In colNames
+            If DataGridView1.Columns.Contains(colName) Then
+                targetColumns.Add(DataGridView1.Columns(colName).Index)
+            End If
+        Next
         ' Цикъл през всички СЪЩЕСТВУВАЩИ редове в таблицата
         For i As Integer = 0 To DataGridView1.Rows.Count - 1
             Dim dgvRow As DataGridViewRow = DataGridView1.Rows(i)
+            ' Проверка за безопасност на данните
+            ' Защита: ако редовете в таблицата станат повече от данните в rowData, прескочи
+            If i >= rowData.Count Then Continue For
 
             ' Трябва да имаш механизъм, по който да вземеш съответните данни от rowData
             ' приемаме, че rowData(i) съответства на DataGridView1.Rows(i)
             Dim data As String() = rowData(i)
-
             Dim cellType As String = data(2) ' Типът от твоя масив с данни
-            Dim specialCell As DataGridViewCell = Nothing
-            ' 1. Създаваме новата клетка според типа
-            Select Case cellType
-                Case "Combo"
-                    ' 1. Създаваме клетката
-                    Dim comboCell As New DataGridViewComboBoxCell()
-                    ' 2. Логика според съдържанието на първата колона (data(0))
-                    Select Case data(0).ToString()
-                        Case "Управление"
-                            ' Изпълнява се само за "Управление"
-                            SetupComboBoxCell(comboCell, data(0))
-                        Case "Тип на апарата"
-                            ' Директно пълним от твоя списък/колекция
-                            comboCell.Items.Clear()
-                            comboCell.Items.AddRange(Disconnectors_For_combo.ToArray())
-                        Case "Номинален ток"
-                            comboCell.Items.Clear()
-                            comboCell.Items.AddRange(Discon_Tok_For_combo.ToArray())
-                        Case "Тип кабел"
-                            comboCell.Items.Clear()
-                            comboCell.Items.AddRange(Cable_For_combo.ToArray())
-                        Case "Начин на монтаж"
-                            comboCell.Items.Clear()
-                            comboCell.Items.AddRange(LiMountMethod.Select(Function(m) m.Text).ToArray())
-                        Case "Начин на полагане"
-                            Dim valuesLaying As New List(Of String) From {"Във въздух", "В земя"}
-                            comboCell.Items.Clear()
-                            comboCell.Items.AddRange(valuesLaying.ToArray())
-                        Case Else
-                            ' Опционално: какво да се случва, ако е Combo, 
-                            ' но не е нито едно от горните?
-                    End Select
-                    ' 3. Присвояваме готовата клетка на променливата specialCell
-                    specialCell = comboCell
-                Case "Check"
-                    specialCell = New DataGridViewCheckBoxCell()
-                    specialCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter
-                    ' Важно: Стойността трябва да е Boolean за CheckBoxCell
-                    specialCell.Value = False
-                Case Else
-                    specialCell = New DataGridViewTextBoxCell()
-                    specialCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter
-            End Select
-
-            ' 2. ЗАМЯНА НА СЪЩЕСТВУВАЩАТА КЛЕТКА
-            ' Това директно подменя клетката в конкретния ред и колона
-            dgvRow.Cells(totalColIndex) = specialCell
-
+            ' 3. Обхождаме целевите колони (colTotal и colDiscon)
+            For Each colIndex In targetColumns
+                Dim specialCell As DataGridViewCell = Nothing
+                ' 4. Създаване на клетка според типа
+                Select Case cellType
+                    Case "Combo"
+                        ' 1. Създаваме клетката
+                        Dim comboCell As New DataGridViewComboBoxCell()
+                        ' 2. Логика според съдържанието на първата колона (data(0))
+                        Select Case data(0).ToString()
+                            Case "Управление"
+                                ' Изпълнява се само за "Управление"
+                                SetupComboBoxCell(comboCell, data(0), True)
+                            Case "Тип на апарата"
+                                ' Директно пълним от твоя списък/колекция
+                                comboCell.Items.Clear()
+                                comboCell.Items.AddRange(Disconnectors_For_combo.ToArray())
+                            Case "Номинален ток"
+                                comboCell.Items.Clear()
+                                comboCell.Items.AddRange(Discon_Tok_For_combo.ToArray())
+                            Case "Тип кабел"
+                                comboCell.Items.Clear()
+                                comboCell.Items.AddRange(Cable_For_combo.ToArray())
+                            Case "Начин на монтаж"
+                                comboCell.Items.Clear()
+                                comboCell.Items.AddRange(LiMountMethod.Select(Function(m) m.Text).ToArray())
+                            Case "Начин на полагане"
+                                Dim valuesLaying As New List(Of String) From {"Във въздух", "В земя"}
+                                comboCell.Items.Clear()
+                                comboCell.Items.AddRange(valuesLaying.ToArray())
+                            Case Else
+                                ' Опционално: какво да се случва, ако е Combo, 
+                                ' но не е нито едно от горните?
+                        End Select
+                        ' 3. Присвояваме готовата клетка на променливата specialCell
+                        specialCell = comboCell
+                    Case "Check"
+                        specialCell = New DataGridViewCheckBoxCell()
+                        specialCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter
+                        ' Важно: Стойността трябва да е Boolean за CheckBoxCell
+                        specialCell.Value = False
+                    Case Else
+                        specialCell = New DataGridViewTextBoxCell()
+                        specialCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter
+                End Select
+                ' 2. ЗАМЯНА НА СЪЩЕСТВУВАЩАТА КЛЕТКА
+                ' Това директно подменя клетката в конкретния ред и колона
+                dgvRow.Cells(colIndex) = specialCell
+            Next
+            ' 4. Оцветяване и форматиране на целия ред
+            ' Безопасно вземане на стойността от първата клетка
+            Dim firstVal As String = If(dgvRow.Cells(0).Value IsNot Nothing, dgvRow.Cells(0).Value.ToString(), "")
             ' 3. Форматиране на реда (оцветяване)
-            Select Case dgvRow.Cells(0).Value.ToString()
+            Select Case firstVal
                 Case "---------"
                     dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(220, 220, 220)
                 Case "Прекъсвач", "ДТЗ (RCD)", "Кабел"
@@ -1416,7 +1449,10 @@ Public Class Form_Tablo_new
     ''' - Коментарът при "Тип" показва, че добавянето на Kable_Type не е реализирано, което може да доведе до липсващи данни.
     ''' - Не се проверява дали подаденият cell е наистина DataGridViewComboBoxCell извън CType кастинга.
     ''' </remarks>
-    Private Sub SetupComboBoxCell(cell As DataGridViewCell, parameter As String)
+    Private Sub SetupComboBoxCell(cell As DataGridViewCell,
+                                  parameter As String,
+                                  Optional Discon As Boolean = False
+                                  )
         ' Преобразуваме клетката към ComboBoxCell
         Dim comboCell As DataGridViewComboBoxCell = CType(cell, DataGridViewComboBoxCell)
         ' Изчистваме всички стари елементи, за да не се дублират
@@ -1424,22 +1460,38 @@ Public Class Form_Tablo_new
         ' Добавяме елементи според типа параметър
         Select Case parameter
             Case "Тип на апарата"
-                comboCell.Items.AddRange(Breakers_For_combo.ToArray())
+                If Discon Then
+                    comboCell.Items.AddRange(Disconnectors_For_combo.ToArray())
+                Else
+                    comboCell.Items.AddRange(Breakers_For_combo.ToArray())
+                End If
             Case "Номинален ток"
-                comboCell.Items.AddRange("6", "10", "16", "20", "25", "32", "40", "50", "63")
+                If Discon Then
+                    comboCell.Items.AddRange(Discon_Tok_For_combo.ToArray())
+                Else
+                    comboCell.Items.AddRange("6", "10", "16", "20", "25", "32", "40", "50", "63")
+                End If
             Case "Крива"
-                comboCell.Items.AddRange("B", "C", "D")
+                If Discon Then
+                    comboCell.Items.AddRange("-")
+                Else
+                    comboCell.Items.AddRange("C", "B", "D")
+                End If
             Case "Управление"
-                comboCell.Items.AddRange("Няма",
-                                         "Фото реле",
-                                         "Стълбищен автомат",
-                                         "Импулсно реле",
-                                         "Контактор",
-                                         "Моторна защита",
-                                         "Моторен механизъм",
-                                         "Честотен регулатор",
-                                         "Електромер"
-)
+                If Discon Then
+                    comboCell.Items.AddRange("Няма")
+                Else
+                    comboCell.Items.AddRange("Няма",
+                     "Фото реле",
+                     "Стълбищен автомат",
+                     "Импулсно реле",
+                     "Контактор",
+                     "Моторна защита",
+                     "Моторен механизъм",
+                     "Честотен регулатор",
+                     "Електромер"
+                     )
+                End If
             Case "Тип кабел"
                 comboCell.Items.AddRange(Cable_For_combo.ToArray())
                 ' Възможно зареждане на Kable_Type в бъдеще
@@ -1494,9 +1546,7 @@ Public Class Form_Tablo_new
         ' ------------------------------------------------------------
         e.Cancel = True
     End Sub
-    ' ============================================================
     ' ФУНКЦИЯ ЗА ЗАРЕЖДАНЕ НА КАТАЛОЗИТЕ
-    ' ============================================================
     Private Sub SetCatalog()
         ' Речник за всички кабели
         FillCables()
@@ -2522,6 +2572,14 @@ Public Class Form_Tablo_new
     ''' спрямо реално изчисленото натоварване на всеки токов кръг.
     ''' </summary>
     Private Sub CalculateCircuitLoads()
+        ' 0) Проверка дали може да се преизчислява прекъсвача
+        ' по принцип в тази процедура НЕ трбва да се влиза
+        ' след първоначалното изчислиение!!!
+        ' Ако се влезе тук след това се променят стойности зададени от потребителя.
+        ' След първоначалния избор може да се призичлява прекъсвач
+        ' само когато се избра ДЗТ и след това се премахва!!!
+        ' ------------------------------------------------------------
+        If Not calcBreaker Then Exit Sub
         ' ------------------------------------------------------------
         ' 1) Проверка дали конфигурацията е инициализирана.
         '    Изпълнява се само ако списъкът е празен или не е създаден.
@@ -2573,30 +2631,44 @@ Public Class Form_Tablo_new
         AddFeederRecords()
     End Sub
     ''' <summary>
-    ''' Добавя запис "ОБЩО" за всяко табло в ListTokow
-    ''' Извиква се в края на CalculateCircuitLoads()
+    ''' Избира подходящ разединител (прекъсвач) според тока на токовия кръг.
+    ''' Логиката:
+    ''' 1. Определя минимален и максимален диапазон (с коефициенти)
+    ''' 2. Търси най-малкия възможен апарат над минималния ток
+    ''' 3. Записва резултата в обекта tokow
     ''' </summary>
+    ''' <param name="tokow">Токов кръг</param>
     Private Sub CalculateDisconnector(tokow As strTokow)
-        ' Дефиниране на константи за диапазона (коефициенти)
-        Const MIN_FACTOR As Double = 1.15 ' Прекъсвачът трябва да е поне 15% над изчисления ток
-        Const MAX_FACTOR As Double = 1.25 ' Но не повече от 25% над него (примерно)
+        ' 1️ КОНСТАНТИ (КОЕФИЦИЕНТИ)
+        ' Прекъсвачът трябва да е поне 15% над изчисления ток
+        Const MIN_FACTOR As Double = 1.15
+        ' Максимален коефициент (в момента не се използва във филтъра)
+        Const MAX_FACTOR As Double = 1.25
+        ' 2️⃣ ИЗЧИСЛЯВАНЕ НА ДИАПАЗОН
+        ' Минимален допустим ток за избор
         Dim minRange As Double = tokow.Ток * MIN_FACTOR
+        ' Максимален допустим ток (само информативно)
         Dim maxRange As Double = tokow.Ток * MAX_FACTOR
-        ' 2. Търсим най-малкия прекъсвач, който е ПОНЕ 15% над изчисления ток
-        ' Забележка: махнах maxRange от филтъра, защото ако няма прекъсвач в 
-        ' диапазона 15-25%, по-добре е да вземем следващия по-голям, отколкото нищо.
+        ' ТЪРСЕНЕ НА ПОДХОДЯЩ АПАРАТ
+        ' Търсим:
+        ' - същия брой полюси
+        ' - номинален ток ≥ минималния диапазон
+        ' Взимаме най-малкия възможен (сортираме възходящо)
         Dim suitable = Disconnectors.Where(Function(d) d.Poles = tokow.Брой_Полюси AndAlso
                                                    d.NominalCurrent >= minRange).
                                                    OrderBy(Function(d) d.NominalCurrent).
                                                    FirstOrDefault()
-        ' 3. Проверка на резултата
+        ' 4️ ПРОВЕРКА И ЗАПИС
+        ' Проверка дали има намерен резултат (чрез свойството Type)
         If Not String.IsNullOrEmpty(suitable.Type) Then
+            ' Записваме избрания номинален ток
             tokow.Breaker_Номинален_Ток = suitable.NominalCurrent
+            ' Записваме типа на апарата
             tokow.Breaker_Тип_Апарат = suitable.Type
-            tokow.Breaker_Крива = " "
+            ' При разединител няма характеристика (крива)
+            tokow.Breaker_Крива = "-"
         Else
-            ' Ако не намерим нищо (напр. токът е твърде голям за наличните прекъсвачи)
-            ' Трябва да сигнализираш за грешка
+            ' Ако няма подходящ апарат → показваме съобщение за грешка
             MsgBox(String.Format("Грешка: Не е намерен прекъсвач за {0}А с {1} полюса.", tokow.Ток, tokow.Брой_Полюси))
         End If
     End Sub
@@ -2687,6 +2759,15 @@ Public Class Form_Tablo_new
     ''' изчисленото натоварване на токовия кръг.
     ''' </summary>
     Private Sub CalculateBreaker(tokow As strTokow)
+        ' 0) Проверка дали може да се преизчислява прекъсвача
+        ' по принцип в тази процедура НЕ трбва да се влиза
+        ' след първоначалното изчислиение!!!
+        ' Ако се влезе тук след това се променят стойности зададени от потребителя.
+        ' След първоначалния избор може да се призичлява прекъсвач
+        ' само когато се избра ДЗТ и след това се премахва!!!
+        ' ------------------------------------------------------------
+        If Not calcBreaker Then Exit Sub
+        ' ------------------------------------------------------------
         ' ------------------------------------------------------------
         ' Деклариране на променлива за намерения прекъсвач
         ' ------------------------------------------------------------
@@ -2696,6 +2777,7 @@ Public Class Form_Tablo_new
         ' Избор на серия прекъсвач според изчисления ток
         ' ------------------------------------------------------------
         Select Case tokow.Device
+            Case "Разединител"
             Case "Бойлер"
                 If tokow.Ток > 17 Then
                     breaker = SelectBreaker(tokow.Ток, tokow.Брой_Полюси, "C")
@@ -2863,9 +2945,6 @@ Public Class Form_Tablo_new
         If selectedPanel.Contains("(") Then
             selectedPanel = selectedPanel.Substring(0, selectedPanel.IndexOf("(")).Trim()
         End If
-        If selectedPanel.Contains("(") Then
-            selectedPanel = selectedPanel.Substring(0, selectedPanel.IndexOf("(")).Trim()
-        End If
         ' Филтрирай токовите кръгове за това табло
         ' ListTokow вече е сортиран, така че просто вземи кръговете за това табло
         Dim panelCircuits = ListTokow.Where(Function(t) t.Tablo.ToUpper() = selectedPanel.ToUpper()).ToList()
@@ -2987,8 +3066,8 @@ Public Class Form_Tablo_new
         Dim columnsToRemove As New List(Of String)
         For Each col As DataGridViewColumn In DataGridView1.Columns
             If col.Name <> "colParameter" AndAlso
-           col.Name <> "colUnit" AndAlso
-           col.Name <> "colTotal" Then
+               col.Name <> "colUnit" AndAlso
+               col.Name <> "colTotal" Then
                 columnsToRemove.Add(col.Name)
             End If
         Next
@@ -3000,7 +3079,7 @@ Public Class Form_Tablo_new
             Dim circuit As strTokow = panelCircuits(i)
             If circuit.ТоковКръг = "ОБЩО" Then Continue For
             Dim col As New DataGridViewTextBoxColumn()
-            col.Name = $"colCircuit{i}"
+            col.Name = If(circuit.ТоковКръг = "Разединител", "colDiscon", $"colCircuit{i}")
             col.HeaderText = circuit.ТоковКръг
             col.Width = 110
             col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter
@@ -3017,9 +3096,12 @@ Public Class Form_Tablo_new
             Dim cellType As String = rowData(rowIndex)(2)
             ' За всяка нова колона (от индекс 2 до colTotal-1)
             For colIndex As Integer = 2 To DataGridView1.Columns.Count - 2
+                'If circuit.ТоковКръг = "Разединител" Then Continue For
                 Dim colName As String = DataGridView1.Columns(colIndex).Name
                 ' Пропусни ако не е колона за кръг
-                If Not colName.StartsWith("colCircuit") Then Continue For
+                'If Not colName.StartsWith("colCircuit") Then
+                '    Continue For
+                'End If
                 ' Запази стойността от старата клетка (ако има)
                 Dim oldValue As Object = Nothing
                 If row.Cells(colIndex).Value IsNot Nothing Then
@@ -3212,6 +3294,12 @@ Public Class Form_Tablo_new
                 tokow.Breaker_Тип_Апарат = selectedValue
                 Select Case tokow.Device
                     Case "Разединител"
+                        Dim filteredDisco = Disconnectors.Where(Function(b) b.Type = selectedValue).ToList()
+                        Dim valuesForCombo = filteredDisco _
+                                            .Select(Function(b) b.NominalCurrent.ToString()) _
+                                            .Distinct() _
+                                            .ToList()
+                        UpdateComboRow("Номинален ток", valuesForCombo, e.ColumnIndex)
                     Case "Табло"
                         Dim filteredDisco = Disconnectors.Where(Function(b) b.Type = selectedValue).ToList()
                         Dim valuesForCombo = filteredDisco _
@@ -3219,9 +3307,10 @@ Public Class Form_Tablo_new
                                             .Distinct() _
                                             .ToList()
                         UpdateComboRow("Номинален ток", valuesForCombo, e.ColumnIndex)
-                        tokow.Device = "Табло"
+                        tokow.Device = tokow.Device '"Табло"
                     Case Else
                         Dim filteredBreakers = Breakers.Where(Function(b) b.Series = selectedValue).ToList()
+                        ' If filteredBreakers.Count = 0 Then Exit Select
                         tokow.Breaker_Изкл_Възможност = filteredBreakers.First().Ics_kA & "kA"
                         Dim valuesForCombo = filteredBreakers _
                                             .Select(Function(b) b.NominalCurrent.ToString()) _
@@ -3242,7 +3331,7 @@ Public Class Form_Tablo_new
             Case "Постави ДТЗ (RCD)"
                 ' ✅ Първо обнови tokow от клетката!
                 tokow.ДТЗ_RCD = CBool(DataGridView1.Rows(e.RowIndex).Cells(e.ColumnIndex).Value)
-                HandleRCDCheckboxChange(tokow)
+                'HandleRCDCheckboxChange(tokow)
             Case "Номинален ток"
                 ' Тук може да се обработва промяна на номиналния ток
                 ' на защитния апарат (например 10A, 16A, 20A...)
@@ -3468,18 +3557,28 @@ Public Class Form_Tablo_new
     ''' </summary>
     Private Sub HandleRCDCheckboxChange(tokow As strTokow)
         If tokow.Device = "Контакт" Then Return
+
         tokow.RCD_Автомат = True
         If tokow.ДТЗ_RCD = True Then
-            tokow.RCD_Автомат = True
             ' ✅ СЛАГАМЕ ДТЗ
-            SetRCD(tokow)           ' Избираме ДТЗ от каталога
-            ClearBreaker(tokow)     ' Изчистваме MCB данните
+            tokow.RCD_Автомат = True
+            SetRCD(tokow)               ' Избираме ДТЗ от каталога
+            ClearBreaker(tokow)         ' Изчистваме MCB данните
         Else
+            ' След първоначалния избор може да се призичлява прекъсвач
+            ' само когато се избра ДЗТ и след това се премахва!!!
+            ' ------------------------------------------------------------
+            calcBreaker = True
             ' ✅ СЛАГАМЕ ПРЕКЪСВАЧ
-            CalculateBreaker(tokow)    ' Избираме прекъсвач
-            ClearRCD(tokow)         ' Изчистваме ДТЗ данните
+            CalculateBreaker(tokow)     ' Избираме прекъсвач
+            ClearRCD(tokow)             ' Изчистваме ДТЗ данните
             tokow.RCD_Автомат = False
+            ' След първоначалния избор може да се призичлява прекъсвач
+            ' само когато се избра ДЗТ и след това се премахва!!!
+            ' ------------------------------------------------------------
+            calcBreaker = False
         End If
+
     End Sub
     ''' <summary>
     ''' Изчиства данните за прекъсвач (MCB)
@@ -5003,15 +5102,15 @@ Public Class Form_Tablo_new
             For Each circuit As strTokow In circuits
                 ' Пропускаме специалните кръгове (Разединител)
                 If circuit.Device = "Разединител" Then Continue For
-                ' 3️⃣ ИЗЧИСЛЯВАНЕ НА ПОЗИЦИЯТА ЗА ТОЗИ КРЪГ
+                ' 3️ ИЗЧИСЛЯВАНЕ НА ПОЗИЦИЯТА ЗА ТОЗИ КРЪГ
                 Dim X As Double = X_Start + colIndex * widthColom + widthColom / 2
                 ' Чертaе текстовата информация за един токов кръг в таблицата на таблото
                 DrawCircuitTexts(acDoc, acCurDb, basePoint, circuit, X)
                 ' Пишем текстовете и  нищо друго не правим
                 If circuit.Device = "Табло" Then Continue For
-                ' 5️⃣ ВМЪКВАНЕ НА БЛОК ЗА ПРЕКЪСВАЧ
+                ' 5️ ВМЪКВАНЕ НА БЛОК ЗА ПРЕКЪСВАЧ
                 DrawBreakerBlock(acDoc, acCurDb, basePoint, circuit, X, Y_Shina)
-                ' 7️⃣ ЧЕРТАЕ НА УПРАВЛЯВАЩО УСТРОЙСТВО
+                ' 7️ ЧЕРТАЕ НА УПРАВЛЯВАЩО УСТРОЙСТВО
                 DrawControlDevice(acDoc, acCurDb, circuit, X, Y_Shina)
 
 
@@ -5510,8 +5609,10 @@ Public Class Form_Tablo_new
         End If
         ' 2. Извикай процедурата за избор на разединител на шина
         UpdateDisconnectorRecord(selectedTablo)
+        SetupDataGridView_Total()
         ' 3. Refresh на DataGridView
         FillDataGridViewForPanel()
+
     End Sub
     Private Sub AddFeederRecords()
         ' ─────────────────────────────────────────────────────────
@@ -5635,8 +5736,8 @@ Public Class Form_Tablo_new
                                 .Мощност = totalPower,
                                 .Ток = totalCurrent,
                                 .Фаза = phases,
-                                .Консуматор = "",
-                                .предназначение = ""
+                                .Консуматор = "Разединител",
+                                .предназначение = "за I шина"
         }
         ' 6️ НАМИРАНЕ НА ПОЗИЦИЯ (СЛЕД ПОСЛЕДНАТА ШИНА)
         Dim lastBusIndex As Integer = -1
@@ -5649,7 +5750,10 @@ Public Class Form_Tablo_new
         ListTokow.Insert(lastBusIndex + 1, disconnector)
         ' Определя конкретен тип разединител според тока
         CalculateDisconnector(disconnector)
+
     End Sub
+
+
 End Class
 'сега трявба да направим процедура за поставяне на линия над прекъсвачите в които са към ДЗТ
 'да поставим прекъсвача над тази шина

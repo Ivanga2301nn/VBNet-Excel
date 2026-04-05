@@ -227,18 +227,14 @@ Public Class CommonUtil
             Сечение.Contains("FTP") OrElse
             Сечение.Contains("поц") OrElse
             Сечение.Contains("AlMgSi") OrElse
-            Сечение.Contains("ELEKTRO") Then Exit Function
-
-        If Val(Сечение) <> 0 Then Exit Function
-
+            Сечение.Contains("ELEKTRO") Then Return 0
+        If Val(Сечение) <> 0 Then Return 0
         If Мощност = 0 Then Мощност = 20
-
         Dim cosPhi As Double = 1
         Dim KPD As Double = 0
         Const U380 As Double = 0.38
         Const U220 As Double = 0.22
         Dim U As Double
-
         Dim Inom As Double = 0
         If Motor Then
             cosPhi = 0.83
@@ -250,14 +246,12 @@ Public Class CommonUtil
         ' Извлечете типа на кабела
         Dim startIndex As Integer = 0
         Dim endIndex As Integer = Сечение.IndexOf("x") - 1
-        If endIndex < startIndex Then Exit Function
+        If endIndex < startIndex Then Return 0
         Dim cableType As String = Сечение.Substring(startIndex, endIndex)
-
         ' Извлечете броя на жилата
         startIndex = endIndex
         endIndex = Сечение.IndexOf("x")
         Dim numberOfWires As String = Сечение.Substring(startIndex, 1)
-
         Select Case numberOfWires
             Case 0, 1
                 Дължина = 0
@@ -267,19 +261,15 @@ Public Class CommonUtil
             Case 3, 4, 5
                 U = U380
         End Select
-
         ' Извлечете сечението на кабела поц.AlMgSi 
         startIndex = Сечение.IndexOf("x") + 1
         Dim cableSection As String = Сечение.Substring(startIndex)
-
         ' Премахнете "mm²" от сечението на кабела
         If cableSection.EndsWith("mm²") Then
             cableSection = cableSection.Substring(0, cableSection.Length - 3)
         End If
-
         Dim R = GetR_Cable(Val(cableSection).ToString)
         Dim resistance As Double = 0
-
         If cableType.IndexOf("САВТ") > -1 Or
             cableType.IndexOf("Al/R") > -1 Then
             resistance = R.R_Al_20
@@ -288,12 +278,10 @@ Public Class CommonUtil
         End If
         reactance = reactance
         Dim Qreak = Мощност * Math.Sqrt(1 - cosPhi * cosPhi) / cosPhi
-
         Delta_U = (Дължина / 1000)
         Delta_U = Delta_U * (Мощност * resistance + Qreak * reactance)
         Delta_U = Delta_U / (U * U)
         Delta_U = Delta_U * 100
-
         Return Delta_U / 1000
     End Function
     ''' <summary>

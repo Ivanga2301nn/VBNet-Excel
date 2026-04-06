@@ -398,7 +398,9 @@ Public Class Form_Tablo_new
             Me.ShortName = shortName
         End Sub
     End Structure
-    ' Клас за контактор от каталога
+    ''' <summary>
+    ''' Клас за контактор от каталога
+    ''' </summary>
     Public Class ContactorEntry
         Public Property PartNumber As String        ' Уникален артикулен/каталожен номер (напр. "LC1D12M7")
         Public Property FrameSize As String         ' Размер на рамката/серията (напр. "09", "12", "18")
@@ -1307,7 +1309,7 @@ Public Class Form_Tablo_new
                 Select Case cellType
                     Case "Combo"
                         cell = New DataGridViewComboBoxCell()
-                        SetupComboBoxCell(cell, row(0))
+                        SetupComboBoxCell(cell, row(0), False)
                     Case "Check"
                         cell = New DataGridViewCheckBoxCell()
                     Case Else
@@ -1451,7 +1453,7 @@ Public Class Form_Tablo_new
     ''' </remarks>
     Private Sub SetupComboBoxCell(cell As DataGridViewCell,
                                   parameter As String,
-                                  Optional Discon As Boolean = False
+                                  Discon As Boolean
                                   )
         ' Преобразуваме клетката към ComboBoxCell
         Dim comboCell As DataGridViewComboBoxCell = CType(cell, DataGridViewComboBoxCell)
@@ -3098,10 +3100,6 @@ Public Class Form_Tablo_new
             For colIndex As Integer = 2 To DataGridView1.Columns.Count - 2
                 'If circuit.ТоковКръг = "Разединител" Then Continue For
                 Dim colName As String = DataGridView1.Columns(colIndex).Name
-                ' Пропусни ако не е колона за кръг
-                'If Not colName.StartsWith("colCircuit") Then
-                '    Continue For
-                'End If
                 ' Запази стойността от старата клетка (ако има)
                 Dim oldValue As Object = Nothing
                 If row.Cells(colIndex).Value IsNot Nothing Then
@@ -3112,7 +3110,10 @@ Public Class Form_Tablo_new
                 Select Case cellType
                     Case "Combo"
                         cell = New DataGridViewComboBoxCell()
-                        SetupComboBoxCell(cell, row.Cells(0).Value.ToString())
+                        SetupComboBoxCell(cell,
+                                          row.Cells(0).Value.ToString(),
+                                          If(colName = "colDiscon", True, False)
+                                          )
                     Case "Check"
                         cell = New DataGridViewCheckBoxCell()
                         cell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter
@@ -3331,7 +3332,7 @@ Public Class Form_Tablo_new
             Case "Постави ДТЗ (RCD)"
                 ' ✅ Първо обнови tokow от клетката!
                 tokow.ДТЗ_RCD = CBool(DataGridView1.Rows(e.RowIndex).Cells(e.ColumnIndex).Value)
-                'HandleRCDCheckboxChange(tokow)
+                HandleRCDCheckboxChange(tokow)
             Case "Номинален ток"
                 ' Тук може да се обработва промяна на номиналния ток
                 ' на защитния апарат (например 10A, 16A, 20A...)
@@ -3557,7 +3558,7 @@ Public Class Form_Tablo_new
     ''' </summary>
     Private Sub HandleRCDCheckboxChange(tokow As strTokow)
         If tokow.Device = "Контакт" Then Return
-
+        If tokow.Device = "Разединител" Then Return
         tokow.RCD_Автомат = True
         If tokow.ДТЗ_RCD = True Then
             ' ✅ СЛАГАМЕ ДТЗ
@@ -3578,7 +3579,6 @@ Public Class Form_Tablo_new
             ' ------------------------------------------------------------
             calcBreaker = False
         End If
-
     End Sub
     ''' <summary>
     ''' Изчиства данните за прекъсвач (MCB)
@@ -5612,7 +5612,6 @@ Public Class Form_Tablo_new
         SetupDataGridView_Total()
         ' 3. Refresh на DataGridView
         FillDataGridViewForPanel()
-
     End Sub
     Private Sub AddFeederRecords()
         ' ─────────────────────────────────────────────────────────
@@ -5752,8 +5751,6 @@ Public Class Form_Tablo_new
         CalculateDisconnector(disconnector)
 
     End Sub
-
-
 End Class
 'сега трявба да направим процедура за поставяне на линия над прекъсвачите в които са към ДЗТ
 'да поставим прекъсвача над тази шина

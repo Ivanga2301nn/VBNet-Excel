@@ -35,7 +35,6 @@ Public Module AcadCommands
         frm.ShowDialog()
     End Sub
 End Module
-
 Public Class Form_Tablo_new
     Private Sub Form_Tablo_new_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         Me.Height = 950
@@ -192,7 +191,6 @@ Public Class Form_Tablo_new
         SetupDataGridView_Total()
         calcBreaker = False
     End Sub
-
     Dim PI As Double = 3.1415926535897931
     Dim cu As CommonUtil = New CommonUtil()
     Private ListKonsumator As New List(Of strKonsumator)
@@ -829,7 +827,7 @@ Public Class Form_Tablo_new
         ' ============================================================
         ' ЗАЩИТА (ПРЕКЪСВАЧ)
         ' ============================================================
-        'Public Breaker_Тип_Апарат As String         ' Серия апарат (EZ9, C120, NSX, MTZ)
+        Public Breaker_Тип_Апарат As String         ' Серия апарат (EZ9, C120, NSX, MTZ)
         Public Breaker_Крива As String              ' Характеристика (B, C, D)
         Public Breaker_Номинален_Ток As String      ' Номинален ток (пример: "16A")
         Public Breaker_Изкл_Възможност As String    ' Изключвателна способност ("6000A", "10000A")
@@ -863,22 +861,6 @@ Public Class Form_Tablo_new
         ' Списък с всички реални консуматори,
         ' принадлежащи към този токов кръг.
 
-        Private _breakerTipAparat As String
-        Public Property Breaker_Тип_Апарат As String
-            Get
-                Return _breakerTipAparat
-            End Get
-            Set(value As String)
-                ' --- ТУК СЛАГАШ BREAKPOINT (F9) ---
-                ' Когато дебъгерът спре тук, стойността на 'value' е новото име на апарата,
-                ' а '_breakerTipAparat' е старата стойност преди промяната.
-                _breakerTipAparat = value
-                ' Опционално: Писане в Output прозореца за хронология
-                Console.WriteLine($"Апаратът е променен на: {value} от процедура: {New System.Diagnostics.StackTrace().GetFrame(1).GetMethod().Name}")
-                Debug.WriteLine($"Апаратът е променен на: {value} от процедура: {New System.Diagnostics.StackTrace().GetFrame(1).GetMethod().Name}")
-
-            End Set
-        End Property
     End Class
     ''' <summary>
     ''' КАТАЛОГ автоматичен прекъсвач – MCB, MCCB или ACB.
@@ -4822,9 +4804,10 @@ Public Class Form_Tablo_new
                     ' ПРЕДИЗЧИСЛЯВАНЕ НА ПАРАМЕТРИТЕ
                     ' =====================================================
                     ' Тук ще извикваме процедурите за чертане една по една
-                    DrawPanelFrame(acDoc, acCurDb, ptBasePoint, panelCircuits)      ' Тук ще чертаем рамката на таблото
-                    DrawBusbars(acDoc, acCurDb, ptBasePoint, panelCircuits)         ' Тук ще чертаем шините
-                    DrawCircuits(acDoc, acCurDb, ptBasePoint, panelCircuits)        ' Тук ще чертаем всеки токов кръг (прекъсвачи, текстове, линии)
+                    DrawPanelFrame(acDoc, acCurDb, ptBasePoint, panelCircuits, selectedTablo)   ' Тук ще чертаем рамката на таблото
+                    DrawBusbars(acDoc, acCurDb, ptBasePoint, panelCircuits)                     ' Тук ще чертаем шините
+                    DrawCircuits(acDoc, acCurDb, ptBasePoint, panelCircuits)                    ' Тук ще чертаем всеки токов кръг (прекъсвачи, текстове, линии)
+                    DrawRCDBusbar(acDoc, acCurDb, ptBasePoint, panelCircuits)                   ' Тук ще чертаем ДЗТ за токовите кръгове (прекъсвачи, текстове, линии)
 
 
                     DrawMainSwitch(acDoc, acCurDb, ptBasePoint, panelCircuits)
@@ -4845,9 +4828,130 @@ Public Class Form_Tablo_new
         End Try
         FillDataGridViewForPanel()
     End Sub
-    ' ============================================================
-    ' ПОМОЩЕН МЕТОД ЗА ДОБАВЯНЕ НА ЛИНИИ
-    ' ============================================================
+    Private Sub DrawRCDBusbar(acDoc As Document, acCurDb As Database,
+                              basePoint As Point3d,
+                              circuits As List(Of strTokow))
+        ' 1️ ИЗЧИСЛЯВАНЕ НА ОСНОВНИТЕ РАЗМЕРИ
+        Dim X_Start As Double = basePoint.X + widthText + widthTextDim
+        Dim Y_Shina As Double = basePoint.Y + Y_Шина
+        Dim Y_RCD As Double = Y_Shina - 118             ' Позиция на RCD разпределителната линия
+        ' 2️ ПРОМЕНЛИВИ ЗА ГРУПИРАНЕ
+        Dim rcdGroupStart As Integer = 0                ' Начална колона на текущата група
+        Dim previousRCD_Null As String = ""             ' RCD_Нула на предишния кръг
+        Dim inRCDGroup As Boolean = False               ' Дали сме в активна група
+        Dim colIndex As Integer = 0                     ' Текуща колона
+        Dim currentGroupCircuit As strTokow = Nothing   ' ← Запазва последния circuit в групата
+        Try
+            ' 3️ ЕДИН ЦИКЪЛ ПРЕЗ ВСИЧКИ КРЪГОВЕ
+            For Each circuit As strTokow In circuits
+                ' Пропускаме специалните кръгове
+                If circuit.ТоковКръг = "Разединител" OrElse circuit.ТоковКръг = "ОБЩО" Then
+                    Continue For
+                End If
+
+                colIndex += 1
+                ' Проверяваме дали в токовия кръг има ДЗТ
+                Dim hasRCD As Boolean = Not String.IsNullOrEmpty(circuit.RCD_Нула) AndAlso
+                                        circuit.RCD_Нула.Trim().ToUpper() <> "N"
+
+                If hasRCD Then
+                    If Not inRCDGroup Then
+                        ' Започваме нова група
+                        rcdGroupStart = colIndex
+                        previousRCD_Null = circuit.RCD_Нула.Trim().ToUpper()
+                        currentGroupCircuit = circuit  ' ← Запазваме първия circuit
+                        inRCDGroup = True
+                    ElseIf circuit.RCD_Нула.Trim().ToUpper() <> previousRCD_Null Then
+                        ' RCD_Нула е различно → затваряме предишната група
+                        DrawRCDGroupLine(acDoc, acCurDb, X_Start, Y_RCD, Y_Shina,
+                                 rcdGroupStart, colIndex - 1, currentGroupCircuit)  ' ← Предаваме последния
+                        ' Започваме нова група
+                        rcdGroupStart = colIndex
+                        previousRCD_Null = circuit.RCD_Нула.Trim().ToUpper()
+                        currentGroupCircuit = circuit  ' ← Запазваме новия circuit
+                    Else
+                        ' Същото RCD_Нула → продължаваме групата
+                        currentGroupCircuit = circuit  ' ← Обновяваме с текущия (последния)
+                    End If
+                Else
+                    ' Няма ДЗТ
+                    If inRCDGroup Then
+                        ' Затваряме текущата група
+                        DrawRCDGroupLine(acDoc, acCurDb, X_Start, Y_RCD, Y_Shina,
+                                 rcdGroupStart, colIndex - 1, currentGroupCircuit)  ' ← Предаваме последния
+                        inRCDGroup = False
+                        previousRCD_Null = ""
+                        currentGroupCircuit = Nothing
+                    End If
+                End If
+
+
+
+            Next
+
+
+
+
+
+        Catch ex As Exception
+            MsgBox("Възникна грешка: " & vbCrLf & ex.Message & vbCrLf & vbCrLf & ex.StackTrace, MsgBoxStyle.Critical)
+        End Try
+    End Sub
+    ''' <summary>
+    ''' Чертае една група от последователни RCD кръгове
+    ''' </summary>
+    Private Sub DrawRCDGroupLine(acDoc As Document, acCurDb As Database,
+                             X_Start As Double, Y_RCD As Double, Y_Shina As Double,
+                             groupStart As Integer, groupEnd As Integer,
+                             circuits As strTokow
+                             )
+        Try
+            ' 1️ ИЗЧИСЛЯВАНЕ НА X ПОЗИЦИИТЕ
+            Dim X_First As Double = X_Start + (groupStart - 1) * widthColom + widthColom / 4
+            Dim X_Last As Double = X_Start + (groupEnd) * widthColom - widthColom / 4
+            Dim X_Center As Double = (X_First + X_Last) / 2  ' Център на групата (за RCD блока)
+
+            ' 2️ ХОРИЗОНТАЛНА ЛИНИЯ (ШИНАТА)
+            cu.DrowLine(New Point3d(X_First, Y_RCD, 0),
+                    New Point3d(X_Last, Y_RCD, 0),
+                    "EL_ТАБЛА", Autodesk.AutoCAD.DatabaseServices.LineWeight.LineWeight070, "ByLayer")
+
+            ' =====================================================
+            ' 4️ ВМЪКВАНЕ НА RCD БЛОК В СРЕДАТА
+            ' =====================================================
+            Dim rcdBlockId As ObjectId = cu.InsertBlock("s_id_res_circ_break",
+                                                     New Point3d(X_Center, Y_Shina, 0),
+                                                     "EL_ТАБЛА",
+                                                     New Scale3d(5, 5, 5))
+
+            ' =====================================================
+            ' 5️⃣ ПОПЪЛВАНЕ НА АТРИБУТИТЕ НА RCD БЛОКА
+            ' =====================================================
+            If Not rcdBlockId.IsNull Then
+                Using trans As Transaction = acCurDb.TransactionManager.StartTransaction()
+                    Dim acBlkRef As BlockReference = DirectCast(trans.GetObject(rcdBlockId, OpenMode.ForWrite), BlockReference)
+                    For Each objID As ObjectId In acBlkRef.AttributeCollection
+                        Dim acAttRef As AttributeReference = DirectCast(trans.GetObject(objID, OpenMode.ForWrite), AttributeReference)
+
+                        Select Case acAttRef.Tag
+                            Case "1" : acAttRef.TextString = circuits.RCD_Клас
+                            Case "2" : acAttRef.TextString = circuits.RCD_Полюси
+                            Case "3" : acAttRef.TextString = circuits.RCD_Ток & "А"
+                            Case "4" : acAttRef.TextString = "Мигновена"
+                            Case "5" : acAttRef.TextString = circuits.RCD_Чувствителност & "mА"
+                            Case "SHORTNAME" : acAttRef.TextString = circuits.RCD_Тип
+                            Case "REFNB" : acAttRef.TextString = circuits.Tablo
+                            Case "DESIGNATION" : acAttRef.TextString = ""
+                        End Select
+                    Next
+                    trans.Commit()
+                End Using
+            End If
+
+        Catch ex As Exception
+            MsgBox("Възникна грешка: " & vbCrLf & ex.Message & vbCrLf & vbCrLf & ex.StackTrace, MsgBoxStyle.Critical)
+        End Try
+    End Sub
     Private Sub AddLine(lines As List(Of LineDefinition),
                     startPoint As Point3d, endPoint As Point3d,
                     Optional layer As String = "EL_ТАБЛА",
@@ -4870,16 +4974,17 @@ Public Class Form_Tablo_new
     ''' Помощна функция за централизирано създаване на LineDefinition обекти.
     ''' Позволява лесно управление на параметрите на линиите преди реалното чертане.
     ''' </remarks>
-    Private Sub DrawPanelFrame(acDoc As Document, acCurDb As Database, basePoint As Point3d, circuits As List(Of strTokow))
+    Private Sub DrawPanelFrame(acDoc As Document, acCurDb As Database, basePoint As Point3d,
+                               circuits As List(Of strTokow), selectedTablo As String)
         Try
             ' =====================================================
-            ' 1️⃣ ИЗЧИСЛЯВАНЕ НА ОСНОВНИТЕ РАЗМЕРИ
+            ' 1️ ИЗЧИСЛЯВАНЕ НА ОСНОВНИТЕ РАЗМЕРИ
             ' =====================================================
             Dim brColums As Integer = circuits.Count - If(twoBus, 1, 0)
             Dim tableWidth As Double = basePoint.X + widthText + widthTextDim + (brColums) * widthColom
             Dim tableHeight As Double = 10 * heightRow
             ' =====================================================
-            ' 2️⃣ СЪЗДАВАНЕ НА СПИСЪК С ЛИНИИТЕ
+            ' 2️ СЪЗДАВАНЕ НА СПИСЪК С ЛИНИИТЕ
             ' =====================================================
             Dim lines As New List(Of LineDefinition)
             ' --- Хоризонтални линии на таблицата ---
@@ -4938,7 +5043,7 @@ Public Class Form_Tablo_new
                        New Point3d(basePoint.X + widthText + 36, crossCenterY, 0),
                        "Defpoints", Autodesk.AutoCAD.DatabaseServices.LineWeight.ByLayer, "ByLayer", 1)
             ' =====================================================
-            ' 3️⃣ ЧЕРТАЕНЕ НА ВСИЧКИ ЛИНИИ ОТ СПИСЪКА
+            ' 3️ ЧЕРТАЕНЕ НА ВСИЧКИ ЛИНИИ ОТ СПИСЪКА
             ' =====================================================
             For Each line As LineDefinition In lines
                 If line.ColorIndex = -1 Then
@@ -4948,7 +5053,7 @@ Public Class Form_Tablo_new
                 End If
             Next
             ' =====================================================
-            ' 4️⃣ ТЕКСТОВЕ - ПЪРВА КОЛОНА (ЗАГЛАВКИ)
+            ' 4️ ТЕКСТОВЕ - ПЪРВА КОЛОНА (ЗАГЛАВКИ)
             ' =====================================================
             Dim textX As Double = basePoint.X + padingText
             Dim textY As Double = basePoint.Y + (heightRow - heightText) / 2
@@ -4969,7 +5074,7 @@ Public Class Form_Tablo_new
             cu.InsertText("Консуматор", New Point3d(textX, textY + 2 * heightRow, 0),
                       "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
             ' =====================================================
-            ' 5️⃣ ТЕКСТОВЕ - ВТОРА КОЛОНА (МЕРНИ ЕДИНИЦИ)
+            ' 5️ ТЕКСТОВЕ - ВТОРА КОЛОНА (МЕРНИ ЕДИНИЦИ)
             ' =====================================================
             textX = textX + widthText
             cu.InsertText("№", New Point3d(textX, textY + 9 * heightRow, 0),
@@ -4988,6 +5093,13 @@ Public Class Form_Tablo_new
                       "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
             cu.InsertText("---", New Point3d(textX, textY + 2 * heightRow, 0),
                       "EL__DIM", heightText, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+
+            Dim X = basePoint.X + widthText + widthTextDim
+            cu.InsertText(selectedTablo,
+                          New Point3d(X + (brColums - 1) * widthColom,
+                                      basePoint.Y + Y_Шина + 95,
+                                      0),
+                          "EL__DIM", heightText + 5, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
         Catch ex As Exception
             ' --------------------------------------------------------
             ' Обработка на грешки
@@ -5752,7 +5864,3 @@ Public Class Form_Tablo_new
 
     End Sub
 End Class
-'сега трявба да направим процедура за поставяне на линия над прекъсвачите в които са към ДЗТ
-'да поставим прекъсвача над тази шина
-'пова първо 
-'след това

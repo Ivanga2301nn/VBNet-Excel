@@ -4845,15 +4845,11 @@ Public Class Form_Tablo_new
             ' 3️ ЕДИН ЦИКЪЛ ПРЕЗ ВСИЧКИ КРЪГОВЕ
             For Each circuit As strTokow In circuits
                 ' Пропускаме специалните кръгове
-                If circuit.ТоковКръг = "Разединител" OrElse circuit.ТоковКръг = "ОБЩО" Then
-                    Continue For
-                End If
-
+                If circuit.ТоковКръг = "Разединител" OrElse circuit.ТоковКръг = "ОБЩО" Then Continue For
                 colIndex += 1
                 ' Проверяваме дали в токовия кръг има ДЗТ
                 Dim hasRCD As Boolean = Not String.IsNullOrEmpty(circuit.RCD_Нула) AndAlso
                                         circuit.RCD_Нула.Trim().ToUpper() <> "N"
-
                 If hasRCD Then
                     If Not inRCDGroup Then
                         ' Започваме нова група
@@ -4884,55 +4880,85 @@ Public Class Form_Tablo_new
                         currentGroupCircuit = Nothing
                     End If
                 End If
-
-
-
             Next
-
-
-
-
-
+            ' ЗАТВАРЯНЕ НА ПОСЛЕДНАТА ГРУПА (АКО ОСТАВА)
+            If inRCDGroup Then
+                DrawRCDGroupLine(acDoc, acCurDb,
+                                 X_Start, Y_RCD, Y_Shina,
+                                 rcdGroupStart, colIndex,
+                                 currentGroupCircuit)
+            End If
         Catch ex As Exception
             MsgBox("Възникна грешка: " & vbCrLf & ex.Message & vbCrLf & vbCrLf & ex.StackTrace, MsgBoxStyle.Critical)
         End Try
     End Sub
     ''' <summary>
-    ''' Чертае една група от последователни RCD кръгове
+    ''' Чертaе група с ДТЗ (RCD):
+    ''' - хоризонтална шина
+    ''' - блок на RCD в центъра
+    ''' - текст с фази над шината
+    ''' - попълва атрибутите на блока
     ''' </summary>
+    ''' <param name="acDoc">Текущ документ</param>
+    ''' <param name="acCurDb">Текуща база данни</param>
+    ''' <param name="X_Start">Начална X позиция</param>
+    ''' <param name="Y_RCD">Y позиция на шината (хоризонталната линия)</param>
+    ''' <param name="Y_Shina">Y позиция за поставяне на RCD блока</param>
+    ''' <param name="groupStart">Начална колона на групата</param>
+    ''' <param name="groupEnd">Крайна колона на групата</param>
+    ''' <param name="circuits">Данни за токовия кръг (RCD параметри)</param>
     Private Sub DrawRCDGroupLine(acDoc As Document, acCurDb As Database,
-                             X_Start As Double, Y_RCD As Double, Y_Shina As Double,
-                             groupStart As Integer, groupEnd As Integer,
-                             circuits As strTokow
-                             )
+                         X_Start As Double, Y_RCD As Double, Y_Shina As Double,
+                         groupStart As Integer, groupEnd As Integer,
+                         circuits As strTokow
+                         )
         Try
-            ' 1️ ИЗЧИСЛЯВАНЕ НА X ПОЗИЦИИТЕ
+            ' 1 ИЗЧИСЛЯВАНЕ НА X ПОЗИЦИИТЕ
+            ' Лява граница на групата
             Dim X_First As Double = X_Start + (groupStart - 1) * widthColom + widthColom / 4
+            ' Дясна граница на групата
             Dim X_Last As Double = X_Start + (groupEnd) * widthColom - widthColom / 4
-            Dim X_Center As Double = (X_First + X_Last) / 2  ' Център на групата (за RCD блока)
-
-            ' 2️ ХОРИЗОНТАЛНА ЛИНИЯ (ШИНАТА)
+            ' Център на групата (за позициониране на RCD блока)
+            Dim X_Center As Double = (X_First + X_Last) / 2
+            ' 2️ ЧЕРТАНЕ НА ХОРИЗОНТАЛНА ЛИНИЯ (ШИНА)
+            ' Чертaе шината между първата и последната позиция
             cu.DrowLine(New Point3d(X_First, Y_RCD, 0),
-                    New Point3d(X_Last, Y_RCD, 0),
-                    "EL_ТАБЛА", Autodesk.AutoCAD.DatabaseServices.LineWeight.LineWeight070, "ByLayer")
-
-            ' =====================================================
-            ' 4️ ВМЪКВАНЕ НА RCD БЛОК В СРЕДАТА
-            ' =====================================================
+                New Point3d(X_Last, Y_RCD, 0),
+                "EL_ТАБЛА",
+                Autodesk.AutoCAD.DatabaseServices.LineWeight.LineWeight070,
+                "ByLayer")
+            ' 3️ ВМЪКВАНЕ НА RCD БЛОК
+            ' Поставя блока в центъра на групата
             Dim rcdBlockId As ObjectId = cu.InsertBlock("s_id_res_circ_break",
-                                                     New Point3d(X_Center, Y_Shina, 0),
-                                                     "EL_ТАБЛА",
-                                                     New Scale3d(5, 5, 5))
-
-            ' =====================================================
-            ' 5️⃣ ПОПЪЛВАНЕ НА АТРИБУТИТЕ НА RCD БЛОКА
-            ' =====================================================
+                                                 New Point3d(X_Center, Y_Shina, 0),
+                                                 "EL_ТАБЛА",
+                                                 New Scale3d(5, 5, 5))
+            ' 4️⃣ ДОБАВЯНЕ НА ТЕКСТ НАД ШИНАТА
+            ' Y позиция на текста (малко над линията)
+            Dim textY As Double = Y_RCD + 15
+            ' Текст с фази + нула + защитен проводник
+            Dim phaseText As String = circuits.Фаза & "," & circuits.RCD_Нула & "," & "PE"
+            ' Вмъкване на текста
+            cu.InsertText(phaseText,
+                  New Point3d(X_First, textY, 0),
+                  "EL__DIM",
+                  10,
+                  TextHorizontalMode.TextLeft,
+                  TextVerticalMode.TextBase)
+            ' 5️ ПОПЪЛВАНЕ НА АТРИБУТИ НА БЛОКА
+            ' Проверка дали блокът е създаден успешно
             If Not rcdBlockId.IsNull Then
+                ' Стартираме транзакция за редакция
                 Using trans As Transaction = acCurDb.TransactionManager.StartTransaction()
-                    Dim acBlkRef As BlockReference = DirectCast(trans.GetObject(rcdBlockId, OpenMode.ForWrite), BlockReference)
+                    ' Вземаме референция към блока
+                    Dim acBlkRef As BlockReference =
+                                    DirectCast(trans.GetObject(rcdBlockId, OpenMode.ForWrite), BlockReference)
+                    ' Обхождаме всички атрибути на блока
                     For Each objID As ObjectId In acBlkRef.AttributeCollection
-                        Dim acAttRef As AttributeReference = DirectCast(trans.GetObject(objID, OpenMode.ForWrite), AttributeReference)
-
+                        ' Вземаме конкретен атрибут
+                        Dim acAttRef As AttributeReference =
+                                        DirectCast(trans.GetObject(objID, OpenMode.ForWrite), AttributeReference)
+                        ' Попълваме според TAG-а
                         Select Case acAttRef.Tag
                             Case "1" : acAttRef.TextString = circuits.RCD_Клас
                             Case "2" : acAttRef.TextString = circuits.RCD_Полюси
@@ -4944,12 +4970,16 @@ Public Class Form_Tablo_new
                             Case "DESIGNATION" : acAttRef.TextString = ""
                         End Select
                     Next
+                    ' Записваме промените
                     trans.Commit()
                 End Using
             End If
-
         Catch ex As Exception
-            MsgBox("Възникна грешка: " & vbCrLf & ex.Message & vbCrLf & vbCrLf & ex.StackTrace, MsgBoxStyle.Critical)
+            ' Обработка на грешка – показва съобщение с детайли
+            MsgBox("Възникна грешка: " & vbCrLf &
+               ex.Message & vbCrLf & vbCrLf &
+               ex.StackTrace,
+               MsgBoxStyle.Critical)
         End Try
     End Sub
     Private Sub AddLine(lines As List(Of LineDefinition),

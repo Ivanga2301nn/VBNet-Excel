@@ -4746,9 +4746,7 @@ Public Class Form_Tablo_new
     End Sub
     Private Sub ToolStripButton_Вмъни_Autocad_Click(sender As Object, e As EventArgs) Handles ToolStripButton_Вмъни_Autocad.Click
         Try
-            ' =====================================================
             ' 1. ВЗЕМИ ИЗБРАНОТО ТАБЛО ОТ TREEVIEW
-            ' =====================================================
             Dim selectedTablo As String = TreeView1.SelectedNode?.Text
             If String.IsNullOrEmpty(selectedTablo) Then
                 MsgBox("Моля, изберете табло от дървото!", MsgBoxStyle.Exclamation)
@@ -4758,9 +4756,7 @@ Public Class Form_Tablo_new
             If selectedTablo.Contains("(") Then
                 selectedTablo = selectedTablo.Substring(0, selectedTablo.IndexOf("(")).Trim()
             End If
-            '' =====================================================
             '' ФИЛТРИРАЙ КРЪГОВЕТЕ ЗА ТОВА ТАБЛО
-            '' =====================================================
             Dim panelCircuits = ListTokow.Where(Function(t)
                                                     Return t.Tablo = selectedTablo
                                                 End Function).ToList()
@@ -4768,15 +4764,11 @@ Public Class Form_Tablo_new
                 MsgBox("Няма намерени кръгове за табло: " & selectedTablo, MsgBoxStyle.Exclamation)
                 Exit Sub
             End If
-            ' ------------------------------------------------------------
             ' Вземане на текущия AutoCAD документ, редактор и база
-            ' ------------------------------------------------------------
             Dim acDoc As Document = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument
             Dim edt As Editor = acDoc.Editor
             Dim acCurDb As Database = acDoc.Database
-            ' =====================================================
             ' ВЗЕМИ БАЗОВА ТОЧКА ОТ ПОТРЕБИТЕЛЯ
-            ' =====================================================
             Dim ptBasePointRes As PromptPointResult
             Dim pPtOpts As PromptPointOptions = New PromptPointOptions("")
             pPtOpts.Message = vbLf & "Изберете долен ляв ъгъл на таблото: "
@@ -4795,14 +4787,10 @@ Public Class Form_Tablo_new
                     Return
                 End If
             End If
-            ' =====================================================
             ' 6. СТАРТИРАЙ ЧЕРТАНЕТО В ТРАНЗАКЦИЯ
-            ' =====================================================
             Using trans As Transaction = acCurDb.TransactionManager.StartTransaction()
                 Try
-                    ' =====================================================
                     ' ПРЕДИЗЧИСЛЯВАНЕ НА ПАРАМЕТРИТЕ
-                    ' =====================================================
                     ' Тук ще извикваме процедурите за чертане една по една
                     DrawPanelFrame(acDoc, acCurDb, ptBasePoint, panelCircuits, selectedTablo)   ' Тук ще чертаем рамката на таблото
                     DrawBusbars(acDoc, acCurDb, ptBasePoint, panelCircuits)                     ' Тук ще чертаем шините
@@ -5159,10 +5147,8 @@ Public Class Form_Tablo_new
     ''' <param name="circuits">Списък от токови кръгове, използван за изчисления и логика.</param>
     Private Sub DrawBusbars(acDoc As Document, acCurDb As Database, basePoint As Point3d, circuits As List(Of strTokow))
         Try
-            ' =====================================================
-            ' 1️⃣ ИЗЧИСЛЯВАНЕ НА ОСНОВНИТЕ РАЗМЕРИ
-            ' =====================================================
-            Dim brColums As Integer = circuits.Count
+            ' 1️ ИЗЧИСЛЯВАНЕ НА ОСНОВНИТЕ РАЗМЕРИ
+            Dim brColums As Integer = circuits.Count - 1
             Dim X_Start As Double = basePoint.X + widthText + widthTextDim
             Dim X_End As Double = basePoint.X + widthText + widthTextDim + brColums * widthColom + widthColom / 2
             Dim Y_Shina As Double = basePoint.Y + Y_Шина
@@ -5171,13 +5157,9 @@ Public Class Form_Tablo_new
             Dim Faza_Първа_шина = circuits.Any(Function(c) c.Фаза = "L1" Or c.Фаза = "L2" Or c.Фаза = "L3")
             Dim circuitOBSTO = circuits.FirstOrDefault(Function(c) c.ТоковКръг = "ОБЩО")
             Dim Faza_Втора_шина = circuitOBSTO.Фаза
-            ' =====================================================
-            ' 3️⃣ ТЕКСТ ЗА ФАЗИТЕ НА ШИНАТА
-            ' =====================================================
+            ' 3️ ТЕКСТ ЗА ФАЗИТЕ НА ШИНАТА
             Dim phaseText As String = IIf(Faza_Първа_шина, "L1,L2,L3,N,PE", "L,N,PE")
-            ' =====================================================
-            ' 4️⃣ ЧЕРТАЕНЕ НА ШИНИТЕ
-            ' =====================================================
+            ' 4️ ЧЕРТАЕНЕ НА ШИНИТЕ
             Dim X_Split As Double = 0
             Dim X_SecondStart As Double = 0
             Dim X_SecondEnd As Double = 0
@@ -5190,17 +5172,19 @@ Public Class Form_Tablo_new
                           New Point3d(X_Start, Y_Shina + 2 * padingText, 0),
                           "EL__DIM", heightText,
                           TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
+                X_SecondStart = X_Start
+                X_SecondEnd = X_End
             Else
                 ' ----- ДВЕ ШИНИ -----
-                X_Split = X_Start + brTokKrygoweNa6ina * widthColom - 30
+                X_Split = X_Start + brTokKrygoweNa6ina * widthColom - widthColom / 2
                 ' Чертае първата (лява) шина.
                 cu.DrowLine(New Point3d(X_Start, Y_Shina, 0),
                         New Point3d(X_Split, Y_Shina, 0),
                         "EL_ТАБЛА", Autodesk.AutoCAD.DatabaseServices.LineWeight.LineWeight070, "ByLayer")
                 ' Начална позиция на втората (дясна) шина.
-                X_SecondStart = X_Start + brTokKrygoweNa6ina * widthColom + 30
+                X_SecondStart = X_Start + brTokKrygoweNa6ina * widthColom + widthColom / 2
                 ' Край на втората шина (същият като X_End).
-                X_SecondEnd = basePoint.X + widthText + widthTextDim + (brColums - 2) * widthColom + widthColom / 2
+                X_SecondEnd = basePoint.X + widthText + widthTextDim + (brColums - 1) * widthColom + widthColom / 2
                 ' Чертае втората шина.
                 cu.DrowLine(New Point3d(X_SecondStart, Y_Shina, 0),
                         New Point3d(X_SecondEnd, Y_Shina, 0),
@@ -5222,6 +5206,95 @@ Public Class Form_Tablo_new
                 cu.DrowLine(New Point3d(X_6ina1, Y_Shina + 95, 0),
                         New Point3d(X_6ina2, Y_Shina + 95, 0),
                         "EL_ТАБЛА", Autodesk.AutoCAD.DatabaseServices.LineWeight.ByLayer, "ByLayer")
+                ' Вмъква разединител в средата на шината и попълва атрибутите
+                Dim circuit = circuits.FirstOrDefault(Function(c) c.Device = "Разединител")
+                If circuit Is Nothing Then Return
+
+                Dim X_disconn As Double = (X_Start + X_Split) / 2
+                Dim Y_disconn As Double = Y_Shina + 95
+                Dim blkRecId As ObjectId = cu.InsertBlock("s_i_ng_switch_disconn",
+                                               New Point3d(X_disconn, Y_disconn, 0),
+                                               "EL_ТАБЛА",
+                                               New Scale3d(5, 5, 5))
+                If Not blkRecId.IsNull Then
+                    Using trans As Transaction = acCurDb.TransactionManager.StartTransaction()
+                        Dim acBlkRef As BlockReference = DirectCast(trans.GetObject(blkRecId, OpenMode.ForWrite), BlockReference)
+                        For Each objID As ObjectId In acBlkRef.AttributeCollection
+                            Dim acAttRef As AttributeReference = DirectCast(trans.GetObject(objID, OpenMode.ForWrite), AttributeReference)
+                            Select Case acAttRef.Tag
+                                Case "1" : acAttRef.TextString = ""
+                                Case "2" : acAttRef.TextString = circuit.Брой_Полюси & "p"
+                                Case "3" : acAttRef.TextString = circuit.Breaker_Номинален_Ток & "A"
+                                Case "4" : acAttRef.TextString = ""
+                                Case "5" : acAttRef.TextString = ""
+                                Case "SHORTNAME" : acAttRef.TextString = circuit.Breaker_Тип_Апарат
+                                Case "REFNB" : acAttRef.TextString = circuit.Tablo
+                                Case "DESIGNATION" : acAttRef.TextString = ""
+                            End Select
+                        Next
+                        trans.Commit()
+                    End Using
+                End If
+            End If
+            Dim circuit_Общо = circuits.FirstOrDefault(Function(c) c.Device = "Табло")
+            Dim X_Общо As Double = (X_SecondStart + X_SecondEnd) / 2
+            Dim Y_Общо As Double = Y_Shina + 95
+            Dim blkRecId_Общо As ObjectId = cu.InsertBlock("s_i_ng_switch_disconn",
+                               New Point3d(X_Общо, Y_Общо, 0),
+                               "EL_ТАБЛА",
+                               New Scale3d(5, 5, 5))
+            If Not blkRecId_Общо.IsNull Then
+                Using trans As Transaction = acCurDb.TransactionManager.StartTransaction()
+                    Dim acBlkRef As BlockReference = DirectCast(trans.GetObject(blkRecId_Общо, OpenMode.ForWrite), BlockReference)
+                    For Each objID As ObjectId In acBlkRef.AttributeCollection
+                        Dim acAttRef As AttributeReference = DirectCast(trans.GetObject(objID, OpenMode.ForWrite), AttributeReference)
+                        Select Case acAttRef.Tag
+                            Case "1" : acAttRef.TextString = ""
+                            Case "2" : acAttRef.TextString = circuit_Общо.Брой_Полюси & "p"
+                            Case "3" : acAttRef.TextString = circuit_Общо.Breaker_Номинален_Ток & "A"
+                            Case "4" : acAttRef.TextString = ""
+                            Case "5" : acAttRef.TextString = ""
+                            Case "SHORTNAME" : acAttRef.TextString = circuit_Общо.Breaker_Тип_Апарат
+                            Case "REFNB" : acAttRef.TextString = circuit_Общо.Tablo
+                            Case "DESIGNATION" : acAttRef.TextString = ""
+                        End Select
+                    Next
+                    trans.Commit()
+                End Using
+                ' Чертае вертикална линия над прекъсвача.
+                cu.DrowLine(New Point3d(X_Общо, Y_Общо, 0),
+                        New Point3d(X_Общо, Y_Общо + 125, 0),
+                        "EL_ТАБЛА", Autodesk.AutoCAD.DatabaseServices.LineWeight.LineWeight070, "ByLayer")
+
+                Dim blkRecId_Текст As ObjectId = cu.InsertBlock("Кабел",
+                                   New Point3d(X_Общо, Y_Общо + 90, 0),
+                                   "EL__DIM",
+                                   New Scale3d(1, 1, 1))
+                Using trans As Transaction = acCurDb.TransactionManager.StartTransaction()
+                    Dim acBlkRef As BlockReference = DirectCast(trans.GetObject(blkRecId_Текст, OpenMode.ForWrite), BlockReference)
+                    For Each objID As ObjectId In acBlkRef.AttributeCollection
+                        Dim acAttRef As AttributeReference = DirectCast(trans.GetObject(objID, OpenMode.ForWrite), AttributeReference)
+                        Select Case acAttRef.Tag
+                            Case "NA4IN_0" : acAttRef.TextString = circuit_Общо.Кабел_Сечение
+                            Case "NA4IN_1" : acAttRef.TextString = "от табло " & circuit_Общо.Табло_Родител
+                            Case "NA4IN_2" : acAttRef.TextString = ""
+                            Case "NA4IN_3" : acAttRef.TextString = ""
+                            Case "NA4IN_4" : acAttRef.TextString = ""
+                            Case "NA4IN_5" : acAttRef.TextString = ""
+                            Case "NA4IN_6" : acAttRef.TextString = ""
+                            Case "NA4IN_7" : acAttRef.TextString = ""
+                            Case "NA4IN_8" : acAttRef.TextString = ""
+                            Case "NA4IN_9" : acAttRef.TextString = ""
+                            Case "NA4IN_10" : acAttRef.TextString = ""
+                        End Select
+                    Next
+                    Dim props As DynamicBlockReferencePropertyCollection = acBlkRef.DynamicBlockReferencePropertyCollection
+                    For Each prop As DynamicBlockReferenceProperty In props
+                        If prop.PropertyName = "Visibility" Then prop.Value = "Точка"
+                    Next
+                    trans.Commit()
+                End Using
+                cu.EditDynamicBlockReferenceKabel(blkRecId_Текст)
             End If
         Catch ex As Exception
             ' Показва съобщение при възникване на грешка,

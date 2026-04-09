@@ -299,6 +299,14 @@ Public Class Form_Tablo_new
     Private Faza_Tablo As Boolean = False
     Private brTokKrygoweNa6ina As Integer = 0
     Private selectedTablo As String = "" ' За да е достъпно във всички процедури
+    ' ─────────────────────────────────────────────────────────────
+    ' КОНСТАНТИ & ПРОМЕНЛИВИ ЗА ВИЗУАЛНА МАРКИРОВКА
+    ' ─────────────────────────────────────────────────────────────
+    Private Const ROOT_NODE_NAME As String = "__ROOT__"
+    Private Const ROOT_NODE_TEXT As String = "Електромерно табло"
+    Private highlightNode As TreeNode = Nothing
+    Private originalBackColor As Color = SystemColors.Window
+    Private originalForeColor As Color = SystemColors.WindowText
 
     ' Флаг, указващ дали трябва да се извърши изчисление на прекъсвача.
     Dim calcBreaker As Boolean = True
@@ -1201,32 +1209,128 @@ Public Class Form_Tablo_new
     ''' Групира консуматорите по табла и изгражда TreeView
     ''' Структура: Етаж → Табло
     ''' </summary>
+    ' ─────────────────────────────────────────────────────────────
+    ' СТЪПКА 1 (ОБНОВЕНА): Генериране с общ корен + подготовка D&D
+    ' ─────────────────────────────────────────────────────────────
     Private Sub BuildTreeViewFromKonsumatori()
-        ' 1. Изчисти старото дърво
         TreeView1.Nodes.Clear()
-        ' 2. Групирай консуматорите по ТАБЛО
+        ' 1. Създаваме коренния възел
+        Dim rootNode As New TreeNode(ROOT_NODE_TEXT)
+        rootNode.Name = ROOT_NODE_NAME
+        rootNode.ForeColor = Color.DarkBlue
+        rootNode.Tag = Nothing
+        TreeView1.Nodes.Add(rootNode)
+        ' 2. Групиране и филтриране
         Dim panels = ListKonsumator.GroupBy(Function(k) k.ТАБЛО).ToList()
-        ' 3. За всяко табло създай възел
-        For Each panelGroup In panels
-            Dim panelName As String = panelGroup.Key
-            ' Пропусни ако няма име на табло
-            If String.IsNullOrEmpty(panelName) Then
-                panelName = "Без табло"
-            End If
-            ' Брой кръгове в това табло (уникални ТоковКръг стойности)
+        Dim validPanels = panels.Where(Function(p) Not String.IsNullOrWhiteSpace(p.Key)).OrderBy(Function(p) p.Key.Trim()).ToList()
+        Dim emptyPanels = panels.Where(Function(p) String.IsNullOrWhiteSpace(p.Key)).ToList()
+        ' 3. Добавяне на валидните табла като ДИРЕКТНИ ДЕЦА на корена
+        For Each panelGroup In validPanels
+            Dim panelName As String = panelGroup.Key.Trim()
             Dim circuitCount As Integer = panelGroup.Select(Function(k) k.ТоковКръг).Distinct().Count()
-            ' Обща мощност (сума от всички консуматори)
             Dim totalPower As Double = panelGroup.Sum(Function(k) k.doubМОЩНОСТ)
-            ' Създай възел за таблото
-            Dim panelNode As New TreeNode()
-            panelNode.Text = GetPanelNodeText(panelName, circuitCount, totalPower)
-            panelNode.Tag = panelGroup.ToList()  ' Запази консуматорите за по-късно
-            ' Добави възела в TreeView
-            TreeView1.Nodes.Add(panelNode)
+            Dim panelNode As New TreeNode($"{GetPanelNodeText(panelName, circuitCount, totalPower)}")
+            panelNode.Name = panelName
+            panelNode.Tag = panelGroup.ToList()
+            rootNode.Nodes.Add(panelNode)
         Next
-        ' 4. Разгъни дървото
-        TreeView1.ExpandAll()
+        ' 4. Групиране на "Без табло" (също под корена)
+        If emptyPanels.Any() Then
+            Dim totalEmptyCircuits = emptyPanels.Sum(Function(p) p.Select(Function(k) k.ТоковКръг).Distinct().Count())
+            Dim totalEmptyPower = emptyPanels.Sum(Function(p) p.Sum(Function(k) k.doubМОЩНОСТ))
+            Dim emptyNode As New TreeNode($"Без име ({totalEmptyCircuits} кръга, {totalEmptyPower:F1} kW)")
+            emptyNode.Name = "__EMPTY__"
+            emptyNode.ForeColor = Color.OrangeRed
+            emptyNode.Tag = emptyPanels.SelectMany(Function(p) p).ToList()
+            rootNode.Nodes.Add(emptyNode)
+        End If
+        TreeView1.AllowDrop = True
+        rootNode.Expand()
     End Sub
+    ' ─────────────────────────────────────────────────────────────
+    ' СТЪПКА 2 & 3 (ОБНОВЕНИ): Drag & Drop с визуална маркировка
+    ' ─────────────────────────────────────────────────────────────
+    Private Sub TreeView1_ItemDrag(sender As Object, e As ItemDragEventArgs) Handles TreeView1.ItemDrag
+        Dim draggedNode As TreeNode = DirectCast(e.Item, TreeNode)
+        ' Забраняваме влачене на корена или системния "Без име"
+        If draggedNode.Name = ROOT_NODE_NAME OrElse draggedNode.Name = "__EMPTY__" Then Return
+        TreeView1.DoDragDrop(draggedNode, DragDropEffects.Move)
+    End Sub
+    Private Sub TreeView1_DragEnter(sender As Object, e As DragEventArgs) Handles TreeView1.DragEnter
+        e.Effect = DragDropEffects.None
+    End Sub
+    Private Sub TreeView1_DragOver(sender As Object, e As DragEventArgs) Handles TreeView1.DragOver
+        e.Effect = DragDropEffects.None
+        ResetNodeHighlight() ' Нулираме предишна маркировка
+        Dim draggedNode As TreeNode = TryCast(e.Data.GetData(GetType(TreeNode)), TreeNode)
+        If draggedNode Is Nothing Then Return
+        Dim targetPoint As Point = TreeView1.PointToClient(New Point(e.X, e.Y))
+        Dim targetNode As TreeNode = TreeView1.GetNodeAt(targetPoint)
+        If targetNode Is Nothing Then Return
+        ' Не позволяваме пускане върху "Без име"
+        If targetNode.Name = "__EMPTY__" Then Return
+        ' Самовръзка
+        If targetNode.Name = draggedNode.Name Then Return
+        ' Цикъл (да не влачим родител върху дете)
+        If IsAlreadyChildOf(targetNode, draggedNode) Then Return
+        ' ✅ Валидна цел → визуална маркировка + позволен ефект
+        MarkNodeHighlight(targetNode)
+        e.Effect = DragDropEffects.Move
+    End Sub
+    Private Sub TreeView1_DragLeave(sender As Object, e As EventArgs) Handles TreeView1.DragLeave
+        ResetNodeHighlight()
+    End Sub
+    Private Sub TreeView1_DragDrop(sender As Object, e As DragEventArgs) Handles TreeView1.DragDrop
+        ResetNodeHighlight() ' Премахваме маркировката веднага
+        Dim draggedNode As TreeNode = TryCast(e.Data.GetData(GetType(TreeNode)), TreeNode)
+        Dim targetPoint As Point = TreeView1.PointToClient(New Point(e.X, e.Y))
+        Dim targetNode As TreeNode = TreeView1.GetNodeAt(targetPoint)
+        If draggedNode Is Nothing OrElse targetNode Is Nothing Then Return
+        If targetNode.Name = "__EMPTY__" Then Return
+        If targetNode.Name = draggedNode.Name Then Return
+        If IsAlreadyChildOf(targetNode, draggedNode) Then Return
+        ' 1. Визуално преместване
+        draggedNode.Remove()
+        targetNode.Nodes.Add(draggedNode)
+        targetNode.Expand()
+        TreeView1.SelectedNode = draggedNode
+        ' 2. Обновяване на данните
+        Dim newParentName As String = If(targetNode.Name = ROOT_NODE_NAME, "Електромерно табло", targetNode.Name)
+        Dim updatedCount As Integer = 0
+        For Each item In ListTokow
+            If String.Equals(item.Tablo, draggedNode.Name, StringComparison.OrdinalIgnoreCase) Then
+                item.Табло_Родител = newParentName
+                updatedCount += 1
+            End If
+        Next
+    End Sub
+    ' ─────────────────────────────────────────────────────────────
+    ' ПОМОЩНИ МЕТОДИ
+    ' ─────────────────────────────────────────────────────────────
+    Private Sub MarkNodeHighlight(node As TreeNode)
+        If node Is highlightNode Then Return ' Вече е маркирано
+        highlightNode = node
+        originalBackColor = node.BackColor
+        originalForeColor = node.ForeColor
+        node.BackColor = Color.LightGreen
+        node.ForeColor = Color.DarkGreen
+        node.EnsureVisible()
+    End Sub
+    Private Sub ResetNodeHighlight()
+        If highlightNode IsNot Nothing Then
+            highlightNode.BackColor = originalBackColor
+            highlightNode.ForeColor = originalForeColor
+            highlightNode = Nothing
+        End If
+    End Sub
+    Private Function IsAlreadyChildOf(nodeA As TreeNode, nodeB As TreeNode) As Boolean
+        Dim current As TreeNode = nodeA.Parent
+        While current IsNot Nothing
+            If current.Name = nodeB.Name Then Return True
+            current = current.Parent
+        End While
+        Return False
+    End Function
     ''' <summary>
     ''' Форматира текста за възела на таблото
     ''' </summary>

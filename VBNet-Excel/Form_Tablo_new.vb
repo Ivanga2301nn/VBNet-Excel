@@ -1593,7 +1593,6 @@ Public Class Form_Tablo_new
             ' Проверка за безопасност на данните
             ' Защита: ако редовете в таблицата станат повече от данните в rowData, прескочи
             If i >= rowData.Count Then Continue For
-
             ' Трябва да имаш механизъм, по който да вземеш съответните данни от rowData
             ' приемаме, че rowData(i) съответства на DataGridView1.Rows(i)
             Dim data As String() = rowData(i)
@@ -3247,57 +3246,50 @@ Public Class Form_Tablo_new
     ''' - Полетата като ДТЗ_RCD и Шина са логически/флагови и служат за управление на допълнителни действия в интерфейса.
     ''' </remarks>
     Private Sub UpdateCircuitColumn(circuit As strTokow, colIndex As Integer)
-        ' ⬇️ ДОБАВИ ТАЗИ ЗАЩИТА ⬇️
-        If isUpdatingGrid Then Return
-        isUpdatingGrid = True
-        Try
-            ' Проверка дали обектът е инициализиран
-            If circuit Is Nothing Then Return
-            ' Обхождане на всички редове в DataGridView
-            For Each row As DataGridViewRow In DataGridView1.Rows
-                ' Името на параметъра се чете от първата клетка
-                Dim paramName As String = row.Cells(0).Value.ToString()
-                ' Присвояване на стойност от strTokow според името на параметъра
-                Select Case paramName
+        ' Проверка дали обектът е инициализиран
+        If circuit Is Nothing Then Return
+        ' Обхождане на всички редове в DataGridView
+        For Each row As DataGridViewRow In DataGridView1.Rows
+            ' Името на параметъра се чете от първата клетка
+            Dim paramName As String = row.Cells(0).Value.ToString()
+            ' Присвояване на стойност от strTokow според името на параметъра
+            Select Case paramName
             ' --- ПРЕКЪСВАЧ ---
-                    Case "Тип на апарата" : row.Cells(colIndex).Value = circuit.Breaker_Тип_Апарат
-                    Case "Номинален ток" : row.Cells(colIndex).Value = circuit.Breaker_Номинален_Ток
-                    Case "Изкл. възможн." : row.Cells(colIndex).Value = circuit.Breaker_Изкл_Възможност
-                    Case "Крива" : row.Cells(colIndex).Value = circuit.Breaker_Крива
-                    Case "Защитен блок" : row.Cells(colIndex).Value = circuit.Breaker_Защитен_блок
-                    Case "Брой полюси" : row.Cells(colIndex).Value = circuit.Брой_Полюси
+                Case "Тип на апарата" : row.Cells(colIndex).Value = circuit.Breaker_Тип_Апарат
+                Case "Номинален ток" : row.Cells(colIndex).Value = circuit.Breaker_Номинален_Ток
+                Case "Изкл. възможн." : row.Cells(colIndex).Value = circuit.Breaker_Изкл_Възможност
+                Case "Крива" : row.Cells(colIndex).Value = circuit.Breaker_Крива
+                Case "Защитен блок" : row.Cells(colIndex).Value = circuit.Breaker_Защитен_блок
+                Case "Брой полюси" : row.Cells(colIndex).Value = circuit.Брой_Полюси
             ' --- ДТЗ ---
-                    Case "ДТЗ Нула" : row.Cells(colIndex).Value = circuit.RCD_Нула
-                    Case "Вид на апарата" : row.Cells(colIndex).Value = circuit.RCD_Тип
-                    Case "Клас на апарата" : row.Cells(colIndex).Value = circuit.RCD_Клас
-                    Case "ДТЗ(RCD) Ном. ток" : row.Cells(colIndex).Value = circuit.RCD_Ток
-                    Case "Чувствителност" : row.Cells(colIndex).Value = circuit.RCD_Чувствителност
-                    Case "ДТЗ(RCD) полюси" : row.Cells(colIndex).Value = circuit.RCD_Полюси
+                Case "ДТЗ Нула" : row.Cells(colIndex).Value = circuit.RCD_Нула
+                Case "Вид на апарата" : row.Cells(colIndex).Value = circuit.RCD_Тип
+                Case "Клас на апарата" : row.Cells(colIndex).Value = circuit.RCD_Клас
+                Case "ДТЗ(RCD) Ном. ток" : row.Cells(colIndex).Value = circuit.RCD_Ток
+                Case "Чувствителност" : row.Cells(colIndex).Value = circuit.RCD_Чувствителност
+                Case "ДТЗ(RCD) полюси" : row.Cells(colIndex).Value = circuit.RCD_Полюси
             ' --- МОЩНОСТ ---
-                    Case "Брой лампи" : row.Cells(colIndex).Value = circuit.brLamp
-                    Case "Брой контакти" : row.Cells(colIndex).Value = circuit.brKontakt
-                    Case "Инст. мощност" : row.Cells(colIndex).Value = circuit.Мощност.ToString("N3")
-                    Case "Изчислен ток" : row.Cells(colIndex).Value = circuit.Ток.ToString("N2")
+                Case "Брой лампи" : row.Cells(colIndex).Value = circuit.brLamp
+                Case "Брой контакти" : row.Cells(colIndex).Value = circuit.brKontakt
+                Case "Инст. мощност" : row.Cells(colIndex).Value = circuit.Мощност.ToString("N3")
+                Case "Изчислен ток" : row.Cells(colIndex).Value = circuit.Ток.ToString("N2")
             ' --- КАБЕЛ ---
-                    Case "Начин на монтаж" : row.Cells(colIndex).Value = circuit.Кабел_Монтаж
-                    Case "Начин на полагане" : row.Cells(colIndex).Value = circuit.Кабел_Полагане
-                    Case "Паралелни кабели (фаза):" : row.Cells(colIndex).Value = circuit.Кабел_Брой_Фаза
-                    Case "Съседни кабели (група):" : row.Cells(colIndex).Value = circuit.Кабел_Брой_Група
-                    Case "Тип кабел" : row.Cells(colIndex).Value = circuit.Кабел_Тип
-                    Case "Сечение" : row.Cells(colIndex).Value = circuit.Кабел_Сечение
+                Case "Начин на монтаж" : row.Cells(colIndex).Value = circuit.Кабел_Монтаж
+                Case "Начин на полагане" : row.Cells(colIndex).Value = circuit.Кабел_Полагане
+                Case "Паралелни кабели (фаза):" : row.Cells(colIndex).Value = circuit.Кабел_Брой_Фаза
+                Case "Съседни кабели (група):" : row.Cells(colIndex).Value = circuit.Кабел_Брой_Група
+                Case "Тип кабел" : row.Cells(colIndex).Value = circuit.Кабел_Тип
+                Case "Сечение" : row.Cells(colIndex).Value = circuit.Кабел_Сечение
             ' --- ОПИСАНИЕ ---
-                    Case "Фаза" : row.Cells(colIndex).Value = circuit.Фаза
-                    Case "Консуматор" : row.Cells(colIndex).Value = circuit.Консуматор
-                    Case "предназначение" : row.Cells(colIndex).Value = circuit.предназначение
-                    Case "Управление" : row.Cells(colIndex).Value = circuit.Управление
+                Case "Фаза" : row.Cells(colIndex).Value = circuit.Фаза
+                Case "Консуматор" : row.Cells(colIndex).Value = circuit.Консуматор
+                Case "предназначение" : row.Cells(colIndex).Value = circuit.предназначение
+                Case "Управление" : row.Cells(colIndex).Value = circuit.Управление
             ' --- ФЛАГОВЕ ---
-                    Case "Шина" : row.Cells(colIndex).Value = circuit.Шина
-                    Case "Постави ДТЗ (RCD)" : row.Cells(colIndex).Value = circuit.ДТЗ_RCD
-                End Select
-            Next
-        Finally
-            isUpdatingGrid = False
-        End Try
+                Case "Шина" : row.Cells(colIndex).Value = circuit.Шина
+                Case "Постави ДТЗ (RCD)" : row.Cells(colIndex).Value = circuit.ДТЗ_RCD
+            End Select
+        Next
     End Sub
     ''' <summary>
     ''' Добавя колони за токовите кръгове на избраното табло
@@ -3510,20 +3502,10 @@ Public Class Form_Tablo_new
     ''' добавя вътре в съответния Case.
     ''' </summary>
     Private Sub DataGridView1_CellValueChanged(sender As Object, e As DataGridViewCellEventArgs) Handles DataGridView1.CellValueChanged
-        'If Not DataGridView1.IsCurrentCellInEditMode Then Exit Sub
-        ' ------------------------------------------------------------
-        ' 1) Проверка дали индексите на реда и колоната са валидни.
-        '    При някои операции (например сортиране или инициализация)
-        '    DataGridView може да подаде -1 като индекс.
-        ' ------------------------------------------------------------
-        If isUpdatingGrid Then Return ' Защита от рекурсия при програма промяна на клетки
-        'Debug.WriteLine("Промяна в клетка: " & e.RowIndex & ", " & e.ColumnIndex & " в " & DateTime.Now.ToString("HH:mm:ss.fff"))
         If e.RowIndex < 0 OrElse e.ColumnIndex < 0 Then Return
-        isUpdatingGrid = True
+        If isUpdatingGrid Then Return
         Try
-            ' ------------------------------------------------------------
-            ' 2) Вземане на текущия ред и колона от DataGridView
-            ' ------------------------------------------------------------
+            isUpdatingGrid = True
             Dim row As DataGridViewRow = DataGridView1.Rows(e.RowIndex)
             Dim col As DataGridViewColumn = DataGridView1.Columns(e.ColumnIndex)
             ' ------------------------------------------------------------
@@ -3539,213 +3521,213 @@ Public Class Form_Tablo_new
             ' 4) Новата стойност, въведена от потребителя в текущата клетка
             ' ------------------------------------------------------------
             Dim selectedValue As String = row.Cells(e.ColumnIndex).Value?.ToString()
-            ' ------------------------------------------------------------
-            ' 5) Избор на действие според типа параметър
-            ' ------------------------------------------------------------
-            Dim tokow As strTokow = FindTokowByColumn(e)
-            If tokow Is Nothing Then Return
-            If selectedValue = "" Then Return
-            Select Case paramName
-                Case "Тип на апарата"
-                    tokow.Breaker_Тип_Апарат = selectedValue
-                    Select Case tokow.Device
-                        Case "Разединител"
-                            Dim filteredDisco = Disconnectors.Where(Function(b) b.Type = selectedValue).ToList()
-                            Dim valuesForCombo = filteredDisco _
-                                                .Select(Function(b) b.NominalCurrent.ToString()) _
-                                                .Distinct() _
-                                                .ToList()
-                            UpdateComboRow("Номинален ток", valuesForCombo, e.ColumnIndex)
-                        Case "Табло"
-                            Dim filteredDisco = Disconnectors.Where(Function(b) b.Type = selectedValue).ToList()
-                            Dim valuesForCombo = filteredDisco _
-                                                .Select(Function(b) b.NominalCurrent.ToString()) _
-                                                .Distinct() _
-                                                .ToList()
-                            UpdateComboRow("Номинален ток", valuesForCombo, e.ColumnIndex)
-                            tokow.Device = tokow.Device '"Табло"
-                        Case Else
-                            Dim filteredBreakers = Breakers.Where(Function(b) b.Series = selectedValue).ToList()
-                            If filteredBreakers.Count = 0 Then Exit Select
-                            tokow.Breaker_Изкл_Възможност = filteredBreakers.First().Ics_kA & "kA"
-                            Dim valuesForCombo = filteredBreakers _
-                                                .Select(Function(b) b.NominalCurrent.ToString()) _
-                                                .Distinct() _
-                                                .ToList()
-                            UpdateComboRow("Номинален ток", valuesForCombo, e.ColumnIndex)
-                            Dim valuesCurve = filteredBreakers _
-                                                .Select(Function(b) b.Curve.ToString()) _
-                                                .Distinct() _
-                                                .ToList()
-                            UpdateComboRow("Крива", valuesCurve, e.ColumnIndex)
-                            Dim valuesTripUnit = filteredBreakers _
-                                                .Select(Function(b) b.TripUnit) _
-                                                .Distinct() _
-                                                .ToList()
-                            UpdateComboRow("Защитен блок", valuesTripUnit, e.ColumnIndex)
-                    End Select
-                Case "Постави ДТЗ (RCD)"
-                    ' ✅ Първо обнови tokow от клетката!
-                    tokow.ДТЗ_RCD = CBool(DataGridView1.Rows(e.RowIndex).Cells(e.ColumnIndex).Value)
-                    HandleRCDCheckboxChange(tokow)
-                Case "Номинален ток"
-                    ' Тук може да се обработва промяна на номиналния ток
-                    ' на защитния апарат (например 10A, 16A, 20A...)
-                    ' 1. Първо излизаме, ако няма стойност
-                    If selectedValue Is Nothing Then Exit Sub
-                    ' 2. Вече сме сигурни, че имаме нещо, и правим сравнението
-                    If Val(selectedValue) >= Val(tokow.Breaker_Номинален_Ток) Then
-                        ' Всичко е точно, обновяваме стойността
-                        tokow.Breaker_Номинален_Ток = selectedValue
-                    Else
-                        ' Тук се намесваме с малко "приятелски" съвет
-                        Dim message As String = "Сигурен ли си в това, което правиш? " & vbCrLf &
-                               "Избраният ток е по-малък от текущия." & vbCrLf &
-                               "Честно казано, правиш простотия!" & vbCrLf &
-                               "Искаш ли наистина да продължиш към Тъмната страна?"
-                        Dim result As DialogResult = MessageBox.Show(message, "Внимание: Инженерна мисъл в действие!",
-                                                   MessageBoxButtons.YesNo, MessageBoxIcon.Warning)
-                        If result = DialogResult.Yes Then
-                            ' Потребителят е инат, записваме го
+            ' Първо взимаш името
+            Dim currentCircuit As String = DataGridView1.Columns(e.ColumnIndex).HeaderText
+            ' После го предаваш
+            Dim tokow As strTokow = FindTokowByColumn(currentCircuit)
+            If tokow IsNot Nothing AndAlso Not String.IsNullOrEmpty(selectedValue) Then
+                Select Case paramName
+                    Case "Тип на апарата"
+                        tokow.Breaker_Тип_Апарат = selectedValue
+                        Select Case tokow.Device
+                            Case "Разединител"
+                                Dim filteredDisco = Disconnectors.Where(Function(b) b.Type = selectedValue).ToList()
+                                Dim valuesForCombo = filteredDisco _
+                                                    .Select(Function(b) b.NominalCurrent.ToString()) _
+                                                    .Distinct() _
+                                                    .ToList()
+                                UpdateComboRow("Номинален ток", valuesForCombo, e.ColumnIndex)
+                            Case "Табло"
+                                Dim filteredDisco = Disconnectors.Where(Function(b) b.Type = selectedValue).ToList()
+                                Dim valuesForCombo = filteredDisco _
+                                                    .Select(Function(b) b.NominalCurrent.ToString()) _
+                                                    .Distinct() _
+                                                    .ToList()
+                                UpdateComboRow("Номинален ток", valuesForCombo, e.ColumnIndex)
+                                tokow.Device = tokow.Device '"Табло"
+                            Case Else
+                                Dim filteredBreakers = Breakers.Where(Function(b) b.Series = selectedValue).ToList()
+                                If filteredBreakers.Count = 0 Then Exit Select
+                                tokow.Breaker_Изкл_Възможност = filteredBreakers.First().Ics_kA & "kA"
+                                Dim valuesForCombo = filteredBreakers _
+                                                    .Select(Function(b) b.NominalCurrent.ToString()) _
+                                                    .Distinct() _
+                                                    .ToList()
+                                UpdateComboRow("Номинален ток", valuesForCombo, e.ColumnIndex)
+                                Dim valuesCurve = filteredBreakers _
+                                                    .Select(Function(b) b.Curve.ToString()) _
+                                                    .Distinct() _
+                                                    .ToList()
+                                UpdateComboRow("Крива", valuesCurve, e.ColumnIndex)
+                                Dim valuesTripUnit = filteredBreakers _
+                                                    .Select(Function(b) b.TripUnit) _
+                                                    .Distinct() _
+                                                    .ToList()
+                                UpdateComboRow("Защитен блок", valuesTripUnit, e.ColumnIndex)
+                        End Select
+                    Case "Постави ДТЗ (RCD)"
+                        ' ✅ Първо обнови tokow от клетката!
+                        tokow.ДТЗ_RCD = CBool(DataGridView1.Rows(e.RowIndex).Cells(e.ColumnIndex).Value)
+                        HandleRCDCheckboxChange(tokow)
+                    Case "Номинален ток"
+                        ' Тук може да се обработва промяна на номиналния ток
+                        ' на защитния апарат (например 10A, 16A, 20A...)
+                        ' 1. Първо излизаме, ако няма стойност
+                        If selectedValue Is Nothing Then Exit Sub
+                        ' 2. Вече сме сигурни, че имаме нещо, и правим сравнението
+                        If Val(selectedValue) >= Val(tokow.Breaker_Номинален_Ток) Then
+                            ' Всичко е точно, обновяваме стойността
                             tokow.Breaker_Номинален_Ток = selectedValue
                         Else
-                            ' Спасихме положението!
-                            MessageBox.Show("Мъдро решение! Спести си един ремонт.", "Браво!", MessageBoxButtons.OK, MessageBoxIcon.Information)
-                        End If
-                    End If
-                    CalculateCable(tokow,
-                                   Type:=tokow.Кабел_Тип,
-                                   layMethod:=If(tokow.Кабел_Полагане = "Във въздух", 0, 1),
-                                   mountMethod:=GetMountMethodInfo(tokow.Кабел_Монтаж),
-                                   Broj_Cable:=tokow.Кабел_Брой_Група,
-                                   matType:=GetCableTypeResult(tokow.Кабел_Тип)
-                                   )
-                Case "Съседни кабели (група):"
-                    tokow.Кабел_Брой_Група = selectedValue
-                    CalculateCable(tokow,
-                                   Type:=tokow.Кабел_Тип,
-                                   layMethod:=If(tokow.Кабел_Полагане = "Във въздух", 0, 1),
-                                   mountMethod:=GetMountMethodInfo(tokow.Кабел_Монтаж),
-                                   Broj_Cable:=tokow.Кабел_Брой_Група,
-                                   matType:=GetCableTypeResult(tokow.Кабел_Тип)
-                                   )
-                Case "Консуматор"
-                    If tokow.Device <> "Табло" Then tokow.Консуматор = selectedValue
-                Case "предназначение"
-                    tokow.предназначение = selectedValue
-                    If tokow.Device = "Табло" Then
-                        ' Търсим число само след "Рпр" или "Рпр."
-                        Dim pattern As String = "Рпр\.?\s*=\s*(\d+([.,]\d+)?)"
-                        Dim match = System.Text.RegularExpressions.Regex.Match(tokow.предназначение, pattern)
-                        Dim value As Double = -1 ' -1 = няма валидна стойност
-                        ' Ако regex намери число
-                        If match.Success Then
-                            Dim strValue As String = match.Groups(1).Value.Replace(",", ".")
-                            Double.TryParse(strValue, System.Globalization.NumberStyles.Any,
-                            System.Globalization.CultureInfo.InvariantCulture,
-                            value)
-                        End If
-                        ' Ако няма валидно число, проверяваме дали полето е просто число
-                        If value < 0 Then
-                            Dim onlyNumber As Double = 0
-                            If Double.TryParse(tokow.предназначение.Replace(",", "."),
-                               System.Globalization.NumberStyles.Any,
-                               System.Globalization.CultureInfo.InvariantCulture,
-                               onlyNumber) Then
-                                value = onlyNumber
+                            ' Тук се намесваме с малко "приятелски" съвет
+                            Dim message As String = "Сигурен ли си в това, което правиш? " & vbCrLf &
+                                   "Избраният ток е по-малък от текущия." & vbCrLf &
+                                   "Честно казано, правиш простотия!" & vbCrLf &
+                                   "Искаш ли наистина да продължиш към Тъмната страна?"
+                            Dim result As DialogResult = MessageBox.Show(message, "Внимание: Инженерна мисъл в действие!",
+                                                       MessageBoxButtons.YesNo, MessageBoxIcon.Warning)
+                            If result = DialogResult.Yes Then
+                                ' Потребителят е инат, записваме го
+                                tokow.Breaker_Номинален_Ток = selectedValue
+                            Else
+                                ' Спасихме положението!
+                                MessageBox.Show("Мъдро решение! Спести си един ремонт.", "Браво!", MessageBoxButtons.OK, MessageBoxIcon.Information)
                             End If
                         End If
-                        ' Ако има валидно число, записваме в предназначение във формат Рпр.=(число)кW
-                        If value > 0 Then
-                            tokow.предназначение = "Рпр.=" & value.ToString("0.##") & "кW"
-                        Else
-                            ' Ако няма валидно число, задаваме по подразбиране
-                            tokow.предназначение = "Рпр.=15кW"
-                            value = 15
-                        End If
-                        ' Проверка да не делим на 0
-                        If tokow.Мощност <> 0 Then
-                            tokow.Консуматор = "Ке=" & (value / tokow.Мощност).ToString("0.00")
-                        Else
-                            tokow.Консуматор = "Ке=0"
-                        End If
-                    End If
-                Case "Управление"
-                    tokow.Управление = selectedValue
-                Case "Крива"
-                    tokow.Breaker_Крива = selectedValue
-                Case "Защитен блок"
-                    ' Обработка на параметър свързан със защитен модул
-                    ' или допълнителна защита
-                    tokow.Breaker_Защитен_блок = selectedValue
-                Case "Шина"
-                    ' Шина е Boolean → True = на отделна шина, False = основна шина
-                    tokow.Шина = CBool(selectedValue)
-                Case "ДТЗ (RCD)"
-                ' Управление на дефектнотокова защита (RCD) 
-                ' например включване/изключване на ДТЗ
-                Case "Начин на монтаж"
-                    ' Взимаме само текстовата част за комбобокса, 
-                    ' или подаваме целия списък, ако клетката е настроена за обекти
-                    Dim displayValues = LiMountMethod.Select(Function(m) m.Text).ToList()
-                    UpdateComboRow("Начин на монтаж", displayValues, e.ColumnIndex)
-                Case "Начин на полагане"
-                    ' Правим прост списък само с двете опции
-                    Dim valuesLaying As New List(Of String) From {"Във въздух", "В земя"}
-                    If tokow.Кабел_Тип = "Al/R" Then
-                        tokow.Кабел_Полагане = "Във въздух"
-                        selectedValue = "Във въздух"
-                    End If
-                    CalculateCable(tokow,
-                                   Type:=tokow.Кабел_Тип,
-                                   layMethod:=If(selectedValue = "Във въздух", 0, 1),
-                                   mountMethod:=GetMountMethodInfo(tokow.Кабел_Монтаж),
-                                   Broj_Cable:=tokow.Кабел_Брой_Група,
-                                   matType:=GetCableTypeResult(tokow.Кабел_Тип)
-                                   )
-                    ' Подаваме го към твоята процедура
-                    UpdateComboRow("Начин на полагане", valuesLaying, e.ColumnIndex)
-                Case "Тип кабел"
-                    ' Взимаме само уникалните имена на кабели от главния списък
-                    Dim uniqueCableTypes As List(Of String) = Catalog_Cables _
-                                            .Select(Function(c) c.CableType) _
-                                            .Distinct() _
-                                            .ToList()
-                    If selectedValue = "Al/R" Then
-                        tokow.Кабел_Полагане = "Във въздух"
                         CalculateCable(tokow,
-                                       Type:=selectedValue,
+                                       Type:=tokow.Кабел_Тип,
                                        layMethod:=If(tokow.Кабел_Полагане = "Във въздух", 0, 1),
                                        mountMethod:=GetMountMethodInfo(tokow.Кабел_Монтаж),
                                        Broj_Cable:=tokow.Кабел_Брой_Група,
-                                       matType:=GetCableTypeResult(selectedValue)
+                                       matType:=GetCableTypeResult(tokow.Кабел_Тип)
                                        )
-                        UpdateComboRow("Тип кабел", uniqueCableTypes, e.ColumnIndex)
+                    Case "Съседни кабели (група):"
+                        tokow.Кабел_Брой_Група = selectedValue
+                        CalculateCable(tokow,
+                                       Type:=tokow.Кабел_Тип,
+                                       layMethod:=If(tokow.Кабел_Полагане = "Във въздух", 0, 1),
+                                       mountMethod:=GetMountMethodInfo(tokow.Кабел_Монтаж),
+                                       Broj_Cable:=tokow.Кабел_Брой_Група,
+                                       matType:=GetCableTypeResult(tokow.Кабел_Тип)
+                                       )
+                    Case "Консуматор"
+                        If tokow.Device <> "Табло" Then tokow.Консуматор = selectedValue
+                    Case "предназначение"
+                        tokow.предназначение = selectedValue
+                        If tokow.Device = "Табло" Then
+                            ' Търсим число само след "Рпр" или "Рпр."
+                            Dim pattern As String = "Рпр\.?\s*=\s*(\d+([.,]\d+)?)"
+                            Dim match = System.Text.RegularExpressions.Regex.Match(tokow.предназначение, pattern)
+                            Dim value As Double = -1 ' -1 = няма валидна стойност
+                            ' Ако regex намери число
+                            If match.Success Then
+                                Dim strValue As String = match.Groups(1).Value.Replace(",", ".")
+                                Double.TryParse(strValue, System.Globalization.NumberStyles.Any,
+                                System.Globalization.CultureInfo.InvariantCulture,
+                                value)
+                            End If
+                            ' Ако няма валидно число, проверяваме дали полето е просто число
+                            If value < 0 Then
+                                Dim onlyNumber As Double = 0
+                                If Double.TryParse(tokow.предназначение.Replace(",", "."),
+                                   System.Globalization.NumberStyles.Any,
+                                   System.Globalization.CultureInfo.InvariantCulture,
+                                   onlyNumber) Then
+                                    value = onlyNumber
+                                End If
+                            End If
+                            ' Ако има валидно число, записваме в предназначение във формат Рпр.=(число)кW
+                            If value > 0 Then
+                                tokow.предназначение = "Рпр.=" & value.ToString("0.##") & "кW"
+                            Else
+                                ' Ако няма валидно число, задаваме по подразбиране
+                                tokow.предназначение = "Рпр.=15кW"
+                                value = 15
+                            End If
+                            ' Проверка да не делим на 0
+                            If tokow.Мощност <> 0 Then
+                                tokow.Консуматор = "Ке=" & (value / tokow.Мощност).ToString("0.00")
+                            Else
+                                tokow.Консуматор = "Ке=0"
+                            End If
+                        End If
+                    Case "Управление"
+                        tokow.Управление = selectedValue
+                    Case "Крива"
+                        tokow.Breaker_Крива = selectedValue
+                    Case "Защитен блок"
+                        ' Обработка на параметър свързан със защитен модул
+                        ' или допълнителна защита
+                        tokow.Breaker_Защитен_блок = selectedValue
+                    Case "Шина"
+                        ' Шина е Boolean → True = на отделна шина, False = основна шина
+                        tokow.Шина = CBool(selectedValue)
+                    Case "ДТЗ (RCD)"
+                            ' Управление на дефектнотокова защита (RCD) 
+                            ' например включване/изключване на ДТЗ
+                    Case "Начин на монтаж"
+                        ' Взимаме само текстовата част за комбобокса, 
+                        ' или подаваме целия списък, ако клетката е настроена за обекти
+                        Dim displayValues = LiMountMethod.Select(Function(m) m.Text).ToList()
+                        UpdateComboRow("Начин на монтаж", displayValues, e.ColumnIndex)
+                    Case "Начин на полагане"
                         ' Правим прост списък само с двете опции
                         Dim valuesLaying As New List(Of String) From {"Във въздух", "В земя"}
-                        UpdateComboRow("Начин на полагане", valuesLaying, e.ColumnIndex)
-                    Else
-                        ' Проверка дали стойността съществува в списъка
+                        If tokow.Кабел_Тип = "Al/R" Then
+                            tokow.Кабел_Полагане = "Във въздух"
+                            selectedValue = "Във въздух"
+                        End If
                         CalculateCable(tokow,
-                                       Type:=selectedValue,
-                                       layMethod:=If(tokow.Кабел_Полагане = "Във въздух", 0, 1),
+                                       Type:=tokow.Кабел_Тип,
+                                       layMethod:=If(selectedValue = "Във въздух", 0, 1),
                                        mountMethod:=GetMountMethodInfo(tokow.Кабел_Монтаж),
                                        Broj_Cable:=tokow.Кабел_Брой_Група,
-                                       matType:=GetCableTypeResult(selectedValue)
+                                       matType:=GetCableTypeResult(tokow.Кабел_Тип)
                                        )
-                    End If
-                    ' Подаваме списъка към твоята процедура
-                    UpdateComboRow("Тип кабел", uniqueCableTypes, e.ColumnIndex)
-                Case "ДТЗ Нула"
-                    Dim inputValue As String = selectedValue?.ToString()
-                    ' Извикай функцията за валидация
-                    Dim validatedValue As String = ValidateRCDNulla(inputValue)
-                    ' Ако е валидно → запиши, иначе → върни старата стойност
-                    If validatedValue IsNot Nothing Then
-                        tokow.RCD_Нула = validatedValue
-                    End If
-            End Select
-            UpdateCircuitColumn(tokow, col.Index)
+                        ' Подаваме го към твоята процедура
+                        UpdateComboRow("Начин на полагане", valuesLaying, e.ColumnIndex)
+                    Case "Тип кабел"
+                        ' Взимаме само уникалните имена на кабели от главния списък
+                        Dim uniqueCableTypes As List(Of String) = Catalog_Cables _
+                                                .Select(Function(c) c.CableType) _
+                                                .Distinct() _
+                                                .ToList()
+                        If selectedValue = "Al/R" Then
+                            tokow.Кабел_Полагане = "Във въздух"
+                            CalculateCable(tokow,
+                                           Type:=selectedValue,
+                                           layMethod:=If(tokow.Кабел_Полагане = "Във въздух", 0, 1),
+                                           mountMethod:=GetMountMethodInfo(tokow.Кабел_Монтаж),
+                                           Broj_Cable:=tokow.Кабел_Брой_Група,
+                                           matType:=GetCableTypeResult(selectedValue)
+                                           )
+                            UpdateComboRow("Тип кабел", uniqueCableTypes, e.ColumnIndex)
+                            ' Правим прост списък само с двете опции
+                            Dim valuesLaying As New List(Of String) From {"Във въздух", "В земя"}
+                            UpdateComboRow("Начин на полагане", valuesLaying, e.ColumnIndex)
+                        Else
+                            ' Проверка дали стойността съществува в списъка
+                            CalculateCable(tokow,
+                                           Type:=selectedValue,
+                                           layMethod:=If(tokow.Кабел_Полагане = "Във въздух", 0, 1),
+                                           mountMethod:=GetMountMethodInfo(tokow.Кабел_Монтаж),
+                                           Broj_Cable:=tokow.Кабел_Брой_Група,
+                                           matType:=GetCableTypeResult(selectedValue)
+                                           )
+                        End If
+                        ' Подаваме списъка към твоята процедура
+                        UpdateComboRow("Тип кабел", uniqueCableTypes, e.ColumnIndex)
+                    Case "ДТЗ Нула"
+                        Dim inputValue As String = selectedValue?.ToString()
+                        ' Извикай функцията за валидация
+                        Dim validatedValue As String = ValidateRCDNulla(inputValue)
+                        ' Ако е валидно → запиши, иначе → върни старата стойност
+                        If validatedValue IsNot Nothing Then
+                            tokow.RCD_Нула = validatedValue
+                        End If
+                End Select
+                UpdateCircuitColumn(tokow, col.Index)
+            End If
         Finally
             isUpdatingGrid = False
         End Try
@@ -4201,33 +4183,21 @@ Public Class Form_Tablo_new
     ''' 1. Избраното табло в TreeView1
     ''' 2. Заглавието на колоната в DataGridView (име на кръга)
     ''' </summary>
-    Private Function FindTokowByColumn(e As DataGridViewCellEventArgs) As strTokow
-        If isUpdatingGrid Then Return Nothing
-        isUpdatingGrid = True
-        Try
-            ' 1. Взимаме таблото от TreeView
-            Dim selectedTablo As String = TreeView1.SelectedNode?.Text
-            If String.IsNullOrEmpty(selectedTablo) Then
-                Return Nothing  ' Няма избрано табло
-            End If
-            ' 2. ИЗЧИСТВАНЕ НА ИМЕТО ОТ ДОПЪЛНИТЕЛЕН ТЕКСТ
-            ' Пример: "Табло 1 (3 кръга, 5.2kW)" → "Табло 1"
-            If selectedTablo.Contains("(") Then
-                selectedTablo = selectedTablo.Substring(0, selectedTablo.IndexOf("(")).Trim()
-            End If
-            ' 2. Взимаме името на кръга от заглавието на колоната
-            Dim circuitName As String = DataGridView1.Columns(e.ColumnIndex).HeaderText
-            If String.IsNullOrEmpty(circuitName) Then
-                Return Nothing  ' Няма име на кръг
-            End If
-            ' 3. Търсим в ListTokow по Табло + ТоковКръг
-            Dim tokow As strTokow = ListTokow.FirstOrDefault(
-                    Function(t) t.Tablo = selectedTablo AndAlso t.ТоковКръг = circuitName
-                )
-            Return tokow  ' Може да е Nothing ако не е намерен
-        Finally
-            isUpdatingGrid = False
-        End Try
+    Private Function FindTokowByColumn(circuitName As String) As strTokow
+        ' 1. Взимаме таблото от TreeView
+        Dim selectedTablo As String = TreeView1.SelectedNode?.Text
+        If String.IsNullOrEmpty(selectedTablo) Then Return Nothing  ' Няма избрано табло
+        ' 2. ИЗЧИСТВАНЕ НА ИМЕТО ОТ ДОПЪЛНИТЕЛЕН ТЕКСТ
+        ' Пример: "Табло 1 (3 кръга, 5.2kW)" → "Табло 1"
+        If selectedTablo.Contains("(") Then
+            selectedTablo = selectedTablo.Substring(0, selectedTablo.IndexOf("(")).Trim()
+        End If
+        If String.IsNullOrEmpty(circuitName) Then Return Nothing  ' Няма име на кръг
+        ' 3. Търсим в ListTokow по Табло + ТоковКръг
+        Dim tokow As strTokow = ListTokow.FirstOrDefault(
+                                Function(t) t.Tablo = selectedTablo AndAlso t.ТоковКръг = circuitName
+                                )
+        Return tokow  ' Може да е Nothing ако не е намерен
     End Function
     ''' <summary>
     ''' Събитие: DataGridView1_CurrentCellDirtyStateChanged
@@ -5026,7 +4996,7 @@ Public Class Form_Tablo_new
             End Select
         End If
     End Sub
-    Private Sub ToolStripButton_Вмъни_Autocad_Click(sender As Object, e As EventArgs) Handles ToolStripButton_Вмъни_Autocad.Click
+    Private Sub ToolStripButton_Вмъни_Autocad_Click(sender As Object, e As EventArgs) Handles ToolStripButton_Вмъкни_Autocad.Click
         Try
             ' 1. ВЗЕМИ ИЗБРАНОТО ТАБЛО ОТ TREEVIEW
             Dim selectedTablo As String = TreeView1.SelectedNode?.Text

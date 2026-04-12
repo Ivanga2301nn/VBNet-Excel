@@ -43,12 +43,10 @@ Partial Class Form_Tablo_new
         Me.ToolStripSeparator3 = New System.Windows.Forms.ToolStripSeparator()
         Me.ToolStripButton_Поправи_ДЗТ = New System.Windows.Forms.ToolStripButton()
         Me.ToolStripSeparator1 = New System.Windows.Forms.ToolStripSeparator()
-        Me.ToolStripButton_Вмъни_Autocad = New System.Windows.Forms.ToolStripButton()
+        Me.ToolStripButton_Вмъкни_Autocad = New System.Windows.Forms.ToolStripButton()
         Me.ToolStripSeparator5 = New System.Windows.Forms.ToolStripSeparator()
         Me.ToolStripButton_ШИНА = New System.Windows.Forms.ToolStripButton()
         Me.TableLayoutPanel1 = New System.Windows.Forms.TableLayoutPanel()
-        Me.GroupBox1 = New System.Windows.Forms.GroupBox()
-        Me.TreeView1 = New System.Windows.Forms.TreeView()
         Me.GroupBox2 = New System.Windows.Forms.GroupBox()
         Me.DataGridView1 = New System.Windows.Forms.DataGridView()
         Me.ToolStrip2 = New System.Windows.Forms.ToolStrip()
@@ -62,13 +60,15 @@ Partial Class Form_Tablo_new
         Me.PasteToolStripButton1 = New System.Windows.Forms.ToolStripButton()
         Me.toolStripSeparator8 = New System.Windows.Forms.ToolStripSeparator()
         Me.HelpToolStripButton1 = New System.Windows.Forms.ToolStripButton()
+        Me.GroupBox1 = New System.Windows.Forms.GroupBox()
+        Me.TreeView1 = New System.Windows.Forms.TreeView()
         Me.StatusStrip1.SuspendLayout()
         Me.ToolStrip1.SuspendLayout()
         Me.TableLayoutPanel1.SuspendLayout()
-        Me.GroupBox1.SuspendLayout()
         Me.GroupBox2.SuspendLayout()
         CType(Me.DataGridView1, System.ComponentModel.ISupportInitialize).BeginInit()
         Me.ToolStrip2.SuspendLayout()
+        Me.GroupBox1.SuspendLayout()
         Me.SuspendLayout()
         '
         'StatusStrip1
@@ -90,7 +90,7 @@ Partial Class Form_Tablo_new
         '
         'ToolStrip1
         '
-        Me.ToolStrip1.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.NewToolStripButton, Me.OpenToolStripButton, Me.SaveToolStripButton, Me.PrintToolStripButton, Me.toolStripSeparator6, Me.CutToolStripButton, Me.CopyToolStripButton, Me.PasteToolStripButton, Me.toolStripSeparator7, Me.HelpToolStripButton, Me.ToolStripSeparator2, Me.ToolStripComboBox1, Me.ToolStripSeparator4, Me.ToolStripButton_Балансирай_фазите, Me.ToolStripSeparator3, Me.ToolStripButton_Поправи_ДЗТ, Me.ToolStripSeparator1, Me.ToolStripButton_Вмъни_Autocad, Me.ToolStripSeparator5, Me.ToolStripButton_ШИНА})
+        Me.ToolStrip1.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.NewToolStripButton, Me.OpenToolStripButton, Me.SaveToolStripButton, Me.PrintToolStripButton, Me.toolStripSeparator6, Me.CutToolStripButton, Me.CopyToolStripButton, Me.PasteToolStripButton, Me.toolStripSeparator7, Me.HelpToolStripButton, Me.ToolStripSeparator2, Me.ToolStripComboBox1, Me.ToolStripSeparator4, Me.ToolStripButton_Балансирай_фазите, Me.ToolStripSeparator3, Me.ToolStripButton_Поправи_ДЗТ, Me.ToolStripSeparator1, Me.ToolStripButton_Вмъкни_Autocad, Me.ToolStripSeparator5, Me.ToolStripButton_ШИНА})
         Me.ToolStrip1.Location = New System.Drawing.Point(5, 5)
         Me.ToolStrip1.Name = "ToolStrip1"
         Me.ToolStrip1.Size = New System.Drawing.Size(1373, 25)
@@ -200,6 +200,8 @@ Partial Class Form_Tablo_new
         Me.ToolStripButton_Балансирай_фазите.Name = "ToolStripButton_Балансирай_фазите"
         Me.ToolStripButton_Балансирай_фазите.Size = New System.Drawing.Size(134, 22)
         Me.ToolStripButton_Балансирай_фазите.Text = "Балансирай фазите"
+        Me.ToolStripButton_Балансирай_фазите.ToolTipText = "Фазите са по-разбалансирани от бюджета ми след покупка на нови инструменти. Попра" &
+    "ви ги!"
         '
         'ToolStripSeparator3
         '
@@ -213,19 +215,22 @@ Partial Class Form_Tablo_new
         Me.ToolStripButton_Поправи_ДЗТ.Name = "ToolStripButton_Поправи_ДЗТ"
         Me.ToolStripButton_Поправи_ДЗТ.Size = New System.Drawing.Size(101, 22)
         Me.ToolStripButton_Поправи_ДЗТ.Text = "Поправи ДЗТ"
+        Me.ToolStripButton_Поправи_ДЗТ.ToolTipText = resources.GetString("ToolStripButton_Поправи_ДЗТ.ToolTipText")
         '
         'ToolStripSeparator1
         '
         Me.ToolStripSeparator1.Name = "ToolStripSeparator1"
         Me.ToolStripSeparator1.Size = New System.Drawing.Size(6, 25)
         '
-        'ToolStripButton_Вмъни_Autocad
+        'ToolStripButton_Вмъкни_Autocad
         '
-        Me.ToolStripButton_Вмъни_Autocad.Image = CType(resources.GetObject("ToolStripButton_Вмъни_Autocad.Image"), System.Drawing.Image)
-        Me.ToolStripButton_Вмъни_Autocad.ImageTransparentColor = System.Drawing.Color.Magenta
-        Me.ToolStripButton_Вмъни_Autocad.Name = "ToolStripButton_Вмъни_Autocad"
-        Me.ToolStripButton_Вмъни_Autocad.Size = New System.Drawing.Size(121, 22)
-        Me.ToolStripButton_Вмъни_Autocad.Text = "Вмъни в Autocad"
+        Me.ToolStripButton_Вмъкни_Autocad.Image = CType(resources.GetObject("ToolStripButton_Вмъкни_Autocad.Image"), System.Drawing.Image)
+        Me.ToolStripButton_Вмъкни_Autocad.ImageTransparentColor = System.Drawing.Color.Magenta
+        Me.ToolStripButton_Вмъкни_Autocad.Name = "ToolStripButton_Вмъкни_Autocad"
+        Me.ToolStripButton_Вмъкни_Autocad.Size = New System.Drawing.Size(129, 22)
+        Me.ToolStripButton_Вмъкни_Autocad.Text = "Генерирай чертеж"
+        Me.ToolStripButton_Вмъкни_Autocad.ToolTipText = "Последна спирка преди плотера!" & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10) & "Натисни тук, за да накараш AutoCAD да свърши малк" &
+    "о работа за промяна."
         '
         'ToolStripSeparator5
         '
@@ -239,6 +244,9 @@ Partial Class Form_Tablo_new
         Me.ToolStripButton_ШИНА.Name = "ToolStripButton_ШИНА"
         Me.ToolStripButton_ШИНА.Size = New System.Drawing.Size(105, 22)
         Me.ToolStripButton_ШИНА.Text = "Раздели шина"
+        Me.ToolStripButton_ШИНА.ToolTipText = "Секциониране: Защото една шина е просто твърде скучна за такъв сложен проект. Раз" &
+    "дели ги сега, преди AutoCAD да ги е слял завинаги в един вечен и неразделим блок" &
+    "!" & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10)
         '
         'TableLayoutPanel1
         '
@@ -256,26 +264,6 @@ Partial Class Form_Tablo_new
         Me.TableLayoutPanel1.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100.0!))
         Me.TableLayoutPanel1.Size = New System.Drawing.Size(1373, 830)
         Me.TableLayoutPanel1.TabIndex = 3
-        '
-        'GroupBox1
-        '
-        Me.GroupBox1.Controls.Add(Me.TreeView1)
-        Me.GroupBox1.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.GroupBox1.Font = New System.Drawing.Font("Microsoft Sans Serif", 12.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
-        Me.GroupBox1.Location = New System.Drawing.Point(3, 28)
-        Me.GroupBox1.Name = "GroupBox1"
-        Me.GroupBox1.Size = New System.Drawing.Size(280, 799)
-        Me.GroupBox1.TabIndex = 0
-        Me.GroupBox1.TabStop = False
-        Me.GroupBox1.Text = "Изберете табло"
-        '
-        'TreeView1
-        '
-        Me.TreeView1.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.TreeView1.Location = New System.Drawing.Point(3, 22)
-        Me.TreeView1.Name = "TreeView1"
-        Me.TreeView1.Size = New System.Drawing.Size(274, 774)
-        Me.TreeView1.TabIndex = 0
         '
         'GroupBox2
         '
@@ -390,6 +378,26 @@ Partial Class Form_Tablo_new
         Me.HelpToolStripButton1.Size = New System.Drawing.Size(23, 22)
         Me.HelpToolStripButton1.Text = "He&lp"
         '
+        'GroupBox1
+        '
+        Me.GroupBox1.Controls.Add(Me.TreeView1)
+        Me.GroupBox1.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.GroupBox1.Font = New System.Drawing.Font("Microsoft Sans Serif", 12.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
+        Me.GroupBox1.Location = New System.Drawing.Point(3, 28)
+        Me.GroupBox1.Name = "GroupBox1"
+        Me.GroupBox1.Size = New System.Drawing.Size(280, 799)
+        Me.GroupBox1.TabIndex = 0
+        Me.GroupBox1.TabStop = False
+        Me.GroupBox1.Text = "Изберете табло"
+        '
+        'TreeView1
+        '
+        Me.TreeView1.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.TreeView1.Location = New System.Drawing.Point(3, 22)
+        Me.TreeView1.Name = "TreeView1"
+        Me.TreeView1.Size = New System.Drawing.Size(274, 774)
+        Me.TreeView1.TabIndex = 0
+        '
         'Form_Tablo_new
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(9.0!, 20.0!)
@@ -410,11 +418,11 @@ Partial Class Form_Tablo_new
         Me.ToolStrip1.PerformLayout()
         Me.TableLayoutPanel1.ResumeLayout(False)
         Me.TableLayoutPanel1.PerformLayout()
-        Me.GroupBox1.ResumeLayout(False)
         Me.GroupBox2.ResumeLayout(False)
         CType(Me.DataGridView1, System.ComponentModel.ISupportInitialize).EndInit()
         Me.ToolStrip2.ResumeLayout(False)
         Me.ToolStrip2.PerformLayout()
+        Me.GroupBox1.ResumeLayout(False)
         Me.ResumeLayout(False)
         Me.PerformLayout()
 
@@ -439,7 +447,7 @@ Partial Class Form_Tablo_new
     Friend WithEvents GroupBox2 As Windows.Forms.GroupBox
     Friend WithEvents DataGridView1 As Windows.Forms.DataGridView
     Friend WithEvents ToolStripSeparator1 As Windows.Forms.ToolStripSeparator
-    Friend WithEvents ToolStripButton_Вмъни_Autocad As Windows.Forms.ToolStripButton
+    Friend WithEvents ToolStripButton_Вмъкни_Autocad As Windows.Forms.ToolStripButton
     Friend WithEvents ToolStripSeparator2 As Windows.Forms.ToolStripSeparator
     Friend WithEvents ToolStripSeparator3 As Windows.Forms.ToolStripSeparator
     Friend WithEvents ToolStripComboBox1 As Windows.Forms.ToolStripComboBox

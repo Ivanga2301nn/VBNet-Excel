@@ -171,7 +171,7 @@ Public Class Form_Tablo_new
         ' TreeView се използва за визуална навигация
         ' и бърз преглед на структурата на таблото.
 #End Region
-        InitializePanelParents("Електромерно табло")
+        InitializePanelParents(ROOT_NODE_TEXT)
         BuildTreeViewFromKonsumatori()
 #Region "Подготовка на DataGridView"
         ' Конфигурира таблицата за редактиране на параметрите
@@ -303,15 +303,15 @@ Public Class Form_Tablo_new
     ' ─────────────────────────────────────────────────────────────
     ' КОНСТАНТИ & ПРОМЕНЛИВИ ЗА ВИЗУАЛНА МАРКИРОВКА
     ' ─────────────────────────────────────────────────────────────
-    Private Const ROOT_NODE_NAME As String = "__ROOT__"
-    Private Const ROOT_NODE_TEXT As String = "Електромерно табло"
+    Private ROOT_NODE_NAME As String = "__ROOT__"
+    Private ROOT_NODE_TEXT As String = "Гл.Р.Т."
     Private highlightNode As TreeNode = Nothing
     Private originalBackColor As Color = SystemColors.Window
     Private originalForeColor As Color = SystemColors.WindowText
 
     ' Флаг, указващ дали трябва да се извърши изчисление на прекъсвача.
     Private calcBreaker As Boolean = True
-    Private isUpdatingGrid As Boolean = False
+    'Private isUpdatingGrid As Boolean = False
     ' ============================================================
     ' КАТАЛОЖНИ СТРУКТУРИ
     ' ============================================================
@@ -1229,7 +1229,7 @@ Public Class Form_Tablo_new
         rootNode.Name = ROOT_NODE_NAME
         rootNode.ForeColor = Color.DarkBlue
         ' 🆕 Попълни корена с актуални данни
-        Dim rootRecords = ListTokow.Where(Function(x) String.Equals(x.Tablo, "Електромерно табло", StringComparison.OrdinalIgnoreCase)).ToList()
+        Dim rootRecords = ListTokow.Where(Function(x) String.Equals(x.Tablo, ROOT_NODE_TEXT, StringComparison.OrdinalIgnoreCase)).ToList()
         Dim rootCircuitCount = rootRecords.Select(Function(r) r.ТоковКръг).Distinct().Count()
         Dim rootMaster = rootRecords.FirstOrDefault(Function(r) r.Device = "Табло")
         Dim rootPower As Double = If(rootMaster IsNot Nothing, rootMaster.Мощност, 0)
@@ -1240,7 +1240,7 @@ Public Class Form_Tablo_new
         Dim panels = ListTokow.GroupBy(Function(k) k.Tablo).ToList()
         ' 🆕 Изключи "Електромерно табло" и празните стойности от децата
         Dim validPanels = panels.Where(Function(p) Not String.IsNullOrWhiteSpace(p.Key) AndAlso
-                                   Not String.Equals(p.Key.Trim(), "Електромерно табло", StringComparison.OrdinalIgnoreCase)).
+                                   Not String.Equals(p.Key.Trim(), ROOT_NODE_TEXT, StringComparison.OrdinalIgnoreCase)).
                              OrderBy(Function(p) p.Key.Trim()).ToList()
         Dim emptyPanels = panels.Where(Function(p) String.IsNullOrWhiteSpace(p.Key)).ToList()
         ' 3. Добавяне на валидните табла като деца на корена
@@ -1325,7 +1325,7 @@ Public Class Form_Tablo_new
         If oldParentNode IsNot Nothing AndAlso oldParentNode.Name <> ROOT_NODE_NAME Then
             oldParentName = oldParentNode.Name
         End If
-        Dim newParentName As String = If(targetNode.Name = ROOT_NODE_NAME, "Електромерно табло", targetNode.Name)
+        Dim newParentName As String = If(targetNode.Name = ROOT_NODE_NAME, ROOT_NODE_TEXT, targetNode.Name)
         ' --- 3. ВИЗУАЛНО ПРЕМЕСТВАНЕ В ДЪРВОТО ---
         draggedNode.Remove()
         targetNode.Nodes.Add(draggedNode)
@@ -3207,7 +3207,7 @@ Public Class Form_Tablo_new
                 Dim i As Integer = panelCircuits.IndexOf(circuit)
                 Dim colIndex As Integer = i + 2
                 If colIndex < DataGridView1.Columns.Count Then
-                    UpdateCircuitColumn(circuit, colIndex)
+                    UpdateCircuitColumn(circuit, colIndex, "")
                 End If
             Next
         Next
@@ -3245,50 +3245,57 @@ Public Class Form_Tablo_new
     '''   те ще останат непроменени.
     ''' - Полетата като ДТЗ_RCD и Шина са логически/флагови и служат за управление на допълнителни действия в интерфейса.
     ''' </remarks>
-    Private Sub UpdateCircuitColumn(circuit As strTokow, colIndex As Integer)
-        ' Проверка дали обектът е инициализиран
+    Private Sub UpdateCircuitColumn(circuit As strTokow, colIndex As Integer, paramNameChe As String)
         If circuit Is Nothing Then Return
-        ' Обхождане на всички редове в DataGridView
         For Each row As DataGridViewRow In DataGridView1.Rows
-            ' Името на параметъра се чете от първата клетка
+            If row.Cells(0).Value Is Nothing Then Continue For
             Dim paramName As String = row.Cells(0).Value.ToString()
-            ' Присвояване на стойност от strTokow според името на параметъра
+            If paramName = paramNameChe Then Continue For
+            Dim newValue As Object = Nothing
             Select Case paramName
             ' --- ПРЕКЪСВАЧ ---
-                Case "Тип на апарата" : row.Cells(colIndex).Value = circuit.Breaker_Тип_Апарат
-                Case "Номинален ток" : row.Cells(colIndex).Value = circuit.Breaker_Номинален_Ток
-                Case "Изкл. възможн." : row.Cells(colIndex).Value = circuit.Breaker_Изкл_Възможност
-                Case "Крива" : row.Cells(colIndex).Value = circuit.Breaker_Крива
-                Case "Защитен блок" : row.Cells(colIndex).Value = circuit.Breaker_Защитен_блок
-                Case "Брой полюси" : row.Cells(colIndex).Value = circuit.Брой_Полюси
+                Case "Тип на апарата" : newValue = circuit.Breaker_Тип_Апарат
+                Case "Номинален ток" : newValue = circuit.Breaker_Номинален_Ток
+                Case "Изкл. възможн." : newValue = circuit.Breaker_Изкл_Възможност
+                Case "Крива" : newValue = circuit.Breaker_Крива
+                Case "Защитен блок" : newValue = circuit.Breaker_Защитен_блок
+                Case "Брой полюси" : newValue = circuit.Брой_Полюси
             ' --- ДТЗ ---
-                Case "ДТЗ Нула" : row.Cells(colIndex).Value = circuit.RCD_Нула
-                Case "Вид на апарата" : row.Cells(colIndex).Value = circuit.RCD_Тип
-                Case "Клас на апарата" : row.Cells(colIndex).Value = circuit.RCD_Клас
-                Case "ДТЗ(RCD) Ном. ток" : row.Cells(colIndex).Value = circuit.RCD_Ток
-                Case "Чувствителност" : row.Cells(colIndex).Value = circuit.RCD_Чувствителност
-                Case "ДТЗ(RCD) полюси" : row.Cells(colIndex).Value = circuit.RCD_Полюси
+                Case "ДТЗ Нула" : newValue = circuit.RCD_Нула
+                Case "Вид на апарата" : newValue = circuit.RCD_Тип
+                Case "Клас на апарата" : newValue = circuit.RCD_Клас
+                Case "ДТЗ(RCD) Ном. ток" : newValue = circuit.RCD_Ток
+                Case "Чувствителност" : newValue = circuit.RCD_Чувствителност
+                Case "ДТЗ(RCD) полюси" : newValue = circuit.RCD_Полюси
             ' --- МОЩНОСТ ---
-                Case "Брой лампи" : row.Cells(colIndex).Value = circuit.brLamp
-                Case "Брой контакти" : row.Cells(colIndex).Value = circuit.brKontakt
-                Case "Инст. мощност" : row.Cells(colIndex).Value = circuit.Мощност.ToString("N3")
-                Case "Изчислен ток" : row.Cells(colIndex).Value = circuit.Ток.ToString("N2")
+                Case "Брой лампи" : newValue = circuit.brLamp
+                Case "Брой контакти" : newValue = circuit.brKontakt
+                Case "Инст. мощност" : newValue = circuit.Мощност.ToString("N3")
+                Case "Изчислен ток" : newValue = circuit.Ток.ToString("N2")
             ' --- КАБЕЛ ---
-                Case "Начин на монтаж" : row.Cells(colIndex).Value = circuit.Кабел_Монтаж
-                Case "Начин на полагане" : row.Cells(colIndex).Value = circuit.Кабел_Полагане
-                Case "Паралелни кабели (фаза):" : row.Cells(colIndex).Value = circuit.Кабел_Брой_Фаза
-                Case "Съседни кабели (група):" : row.Cells(colIndex).Value = circuit.Кабел_Брой_Група
-                Case "Тип кабел" : row.Cells(colIndex).Value = circuit.Кабел_Тип
-                Case "Сечение" : row.Cells(colIndex).Value = circuit.Кабел_Сечение
+                Case "Начин на монтаж" : newValue = circuit.Кабел_Монтаж
+                Case "Начин на полагане" : newValue = circuit.Кабел_Полагане
+                Case "Паралелни кабели (фаза):" : newValue = circuit.Кабел_Брой_Фаза
+                Case "Съседни кабели (група):" : newValue = circuit.Кабел_Брой_Група
+                Case "Тип кабел" : newValue = circuit.Кабел_Тип
+                Case "Сечение" : newValue = circuit.Кабел_Сечение
             ' --- ОПИСАНИЕ ---
-                Case "Фаза" : row.Cells(colIndex).Value = circuit.Фаза
-                Case "Консуматор" : row.Cells(colIndex).Value = circuit.Консуматор
-                Case "предназначение" : row.Cells(colIndex).Value = circuit.предназначение
-                Case "Управление" : row.Cells(colIndex).Value = circuit.Управление
+                Case "Фаза" : newValue = circuit.Фаза
+                Case "Консуматор" : newValue = circuit.Консуматор
+                Case "предназначение" : newValue = circuit.предназначение
+                Case "Управление" : newValue = circuit.Управление
             ' --- ФЛАГОВЕ ---
-                Case "Шина" : row.Cells(colIndex).Value = circuit.Шина
-                Case "Постави ДТЗ (RCD)" : row.Cells(colIndex).Value = circuit.ДТЗ_RCD
+                Case "Шина" : newValue = circuit.Шина
+                Case "Постави ДТЗ (RCD)" : newValue = circuit.ДТЗ_RCD
             End Select
+            ' ✅ ЕДИНСТВЕНАТА ЗАПИСВАНЕ С ПРОВЕРКА ЗА РАЗЛИКА
+            If newValue IsNot Nothing Then
+                Dim currentVal As String = Convert.ToString(row.Cells(colIndex).Value)
+                Dim newVal As String = Convert.ToString(newValue)
+                If currentVal <> newVal Then
+                    row.Cells(colIndex).Value = newValue
+                End If
+            End If
         Next
     End Sub
     ''' <summary>
@@ -3503,9 +3510,9 @@ Public Class Form_Tablo_new
     ''' </summary>
     Private Sub DataGridView1_CellValueChanged(sender As Object, e As DataGridViewCellEventArgs) Handles DataGridView1.CellValueChanged
         If e.RowIndex < 0 OrElse e.ColumnIndex < 0 Then Return
-        If isUpdatingGrid Then Return
+        'If isUpdatingGrid Then Return
         Try
-            isUpdatingGrid = True
+            'isUpdatingGrid = True
             Dim row As DataGridViewRow = DataGridView1.Rows(e.RowIndex)
             Dim col As DataGridViewColumn = DataGridView1.Columns(e.ColumnIndex)
             ' ------------------------------------------------------------
@@ -3726,10 +3733,10 @@ Public Class Form_Tablo_new
                             tokow.RCD_Нула = validatedValue
                         End If
                 End Select
-                UpdateCircuitColumn(tokow, col.Index)
+                UpdateCircuitColumn(tokow, col.Index, paramName)
             End If
         Finally
-            isUpdatingGrid = False
+            'isUpdatingGrid = False
         End Try
     End Sub
     ''' <summary>

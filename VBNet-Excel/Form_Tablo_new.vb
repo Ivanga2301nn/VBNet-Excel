@@ -1233,15 +1233,15 @@ Public Class Form_Tablo_new
         Dim rootCircuitCount = rootRecords.Select(Function(r) r.ТоковКръг).Distinct().Count()
         Dim rootMaster = rootRecords.FirstOrDefault(Function(r) r.Device = "Табло")
         Dim rootPower As Double = If(rootMaster IsNot Nothing, rootMaster.Мощност, 0)
-        rootNode.Text = $"{ROOT_NODE_TEXT} ({rootCircuitCount} кръга, {rootPower:F1}kW)"
+        rootNode.Text = $"{ROOT_NODE_TEXT} ({rootPower:F1}kW)"
         rootNode.Tag = rootRecords
         TreeView1.Nodes.Add(rootNode)
         ' 2. Групиране и филтриране
         Dim panels = ListTokow.GroupBy(Function(k) k.Tablo).ToList()
-        ' 🆕 Изключи "Електромерно табло" и празните стойности от децата
+        ' Изключи "Електромерно табло" и празните стойности от децата
         Dim validPanels = panels.Where(Function(p) Not String.IsNullOrWhiteSpace(p.Key) AndAlso
                                    Not String.Equals(p.Key.Trim(), ROOT_NODE_TEXT, StringComparison.OrdinalIgnoreCase)).
-                             OrderBy(Function(p) p.Key.Trim()).ToList()
+                                   OrderBy(Function(p) p.Key.Trim()).ToList()
         Dim emptyPanels = panels.Where(Function(p) String.IsNullOrWhiteSpace(p.Key)).ToList()
         ' 3. Добавяне на валидните табла като деца на корена
         For Each panelGroup In validPanels
@@ -1251,13 +1251,11 @@ Public Class Form_Tablo_new
             ' Намираме записа с общата мощност (device="Табло")
             Dim tableDeviceRecord = panelGroup.FirstOrDefault(Function(k) String.Equals(k.Device, "Табло", StringComparison.OrdinalIgnoreCase))
             Dim totalPower As Double = 0
-            If tableDeviceRecord IsNot Nothing Then
-                totalPower = tableDeviceRecord.Мощност
-            End If
+            If tableDeviceRecord IsNot Nothing Then totalPower = tableDeviceRecord.Мощност
             ' Създаване на възела с форматирания текст
             Dim panelNode As New TreeNode(
-                                $"{panelName} ({circuitCount} {If(circuitCount = 1, "кръг", "кръга")}, {totalPower:F1}kW)"
-                                )
+                             $"{panelName} ({totalPower:F1}kW)"
+                             )
             panelNode.Name = panelName
             panelNode.Tag = panelGroup.ToList()
             rootNode.Nodes.Add(panelNode)
@@ -1266,8 +1264,7 @@ Public Class Form_Tablo_new
         If emptyPanels.Any() Then
             Dim totalEmptyCircuits = emptyPanels.Sum(Function(p) p.Select(Function(k) k.ТоковКръг).Distinct().Count())
             Dim totalEmptyPower = emptyPanels.Sum(Function(p) p.Sum(Function(k) k.Мощност))
-
-            Dim emptyNode As New TreeNode($"Без име ({totalEmptyCircuits} кръга, {totalEmptyPower:F1}kW)")
+            Dim emptyNode As New TreeNode($"Без име ({totalEmptyPower:F1}kW)")
             emptyNode.Name = "__EMPTY__"
             emptyNode.ForeColor = Color.OrangeRed
             emptyNode.Tag = emptyPanels.SelectMany(Function(p) p).ToList()
@@ -1276,90 +1273,197 @@ Public Class Form_Tablo_new
         TreeView1.AllowDrop = True
         rootNode.Expand()
     End Sub
-    ' ─────────────────────────────────────────────────────────────
-    ' СТЪПКА 2 & 3 (ОБНОВЕНИ): Drag & Drop с визуална маркировка
-    ' ─────────────────────────────────────────────────────────────
+    ''' <summary>
+    ''' Стартира операция по влачене (Drag) на възел от TreeView.
+    ''' Забранява влачене на кореновия възел и системния възел "__EMPTY__".
+    ''' При валиден възел започва Drag&Drop с ефект Move.
+    ''' </summary>
     Private Sub TreeView1_ItemDrag(sender As Object, e As ItemDragEventArgs) Handles TreeView1.ItemDrag
+        ' Взимаме влачения възел от събитието
         Dim draggedNode As TreeNode = DirectCast(e.Item, TreeNode)
-        ' Забраняваме влачене на корена или системния "Без име"
+        ' Забраняваме влачене на корена и специалния възел "Без име"
         If draggedNode.Name = ROOT_NODE_NAME OrElse draggedNode.Name = "__EMPTY__" Then Return
+        ' Стартираме Drag&Drop операция
         TreeView1.DoDragDrop(draggedNode, DragDropEffects.Move)
     End Sub
+    ''' <summary>
+    ''' Обработва влизане на влачен обект в TreeView.
+    ''' По подразбиране забранява всякакъв Drop, докато не се валидира в DragOver.
+    ''' </summary>
     Private Sub TreeView1_DragEnter(sender As Object, e As DragEventArgs) Handles TreeView1.DragEnter
+        ' По подразбиране не позволяваме пускане
         e.Effect = DragDropEffects.None
     End Sub
+    ''' <summary>
+    ''' Обработва движението на влачен възел върху TreeView.
+    ''' Проверява дали целевият възел е валиден и ако е:
+    ''' - маркира го визуално
+    ''' - разрешава операцията Move
+    ''' Забранява:
+    ''' - пускане върху "__EMPTY__"
+    ''' - пускане върху самия себе си
+    ''' - създаване на циклична йерархия
+    ''' </summary>
     Private Sub TreeView1_DragOver(sender As Object, e As DragEventArgs) Handles TreeView1.DragOver
+        ' По подразбиране забраняваме операцията
         e.Effect = DragDropEffects.None
-        ResetNodeHighlight() ' Нулираме предишна маркировка
+        ' Нулираме предишната визуална маркировка
+        ResetNodeHighlight()
+        ' Опитваме се да извлечем влачения възел
         Dim draggedNode As TreeNode = TryCast(e.Data.GetData(GetType(TreeNode)), TreeNode)
+        ' Ако няма валиден възел → прекратяваме
         If draggedNode Is Nothing Then Return
+        ' Преобразуваме координатите на мишката към TreeView
         Dim targetPoint As Point = TreeView1.PointToClient(New Point(e.X, e.Y))
+        ' Взимаме възела под курсора
         Dim targetNode As TreeNode = TreeView1.GetNodeAt(targetPoint)
+        ' Ако няма целеви възел → прекратяваме
         If targetNode Is Nothing Then Return
-        ' Не позволяваме пускане върху "Без име"
+        ' Забраняваме пускане върху "Без име"
         If targetNode.Name = "__EMPTY__" Then Return
-        ' Самовръзка
+        ' Забраняваме пускане върху самия себе си
         If targetNode.Name = draggedNode.Name Then Return
-        ' Цикъл (да не влачим родител върху дете)
+        ' Забраняваме създаване на цикъл (родител → дете)
         If IsAlreadyChildOf(targetNode, draggedNode) Then Return
-        ' ✅ Валидна цел → визуална маркировка + позволен ефект
+        ' Ако сме тук → целта е валидна
+        ' Маркираме визуално възела
         MarkNodeHighlight(targetNode)
+        ' Позволяваме преместване
         e.Effect = DragDropEffects.Move
     End Sub
+    ''' <summary>
+    ''' Обработва напускане на зоната на TreeView по време на Drag&Drop.
+    ''' Премахва визуалната маркировка от възлите.
+    ''' </summary>
     Private Sub TreeView1_DragLeave(sender As Object, e As EventArgs) Handles TreeView1.DragLeave
+        ' Премахваме всякаква визуална маркировка
         ResetNodeHighlight()
     End Sub
+    Private Sub TreeView1_NodeMouseClick(sender As Object, e As TreeNodeMouseClickEventArgs) Handles TreeView1.NodeMouseClick
+        ' 🖱️ ДЕСНИЯТ БУТОН (като на пиратска карта - X marks the spot!)
+        If e.Button = MouseButtons.Right AndAlso e.Node IsNot Nothing Then
+            Dim clickedNode As TreeNode = e.Node
+            ' Задължително избираме възела преди да покажем менюто
+            TreeView1.SelectedNode = clickedNode
+            ' ТУК показваш твоето Context Menu
+            Dim ctxMenu As New ContextMenuStrip()
+            ' Бутон за рефреш
+            Dim refreshItem As New ToolStripMenuItem("🔄 Обновяване на дървото", Nothing, AddressOf RefreshTree_Click)
+            ctxMenu.Items.Add(refreshItem)
+            refreshItem = New ToolStripMenuItem("Обновяване на дървото", Nothing, AddressOf RefreshTree_Click)
+            ctxMenu.Items.Add(refreshItem)
+            ' Закачаме менюто към TreeView1
+            TreeView1.ContextMenuStrip = ctxMenu
+        End If
+    End Sub
+    Private Sub RefreshTree_Click(sender As Object, e As EventArgs)
+        Cursor = Cursors.WaitCursor
+        Try
+            ' Преизграждаме дървото от актуалните данни
+            BuildTreeViewFromKonsumatori()
+            ' По желание: автоматично избираме и разгъваме корена
+            If TreeView1.Nodes.Count > 0 Then
+                TreeView1.SelectedNode = TreeView1.Nodes(0)
+                TreeView1.Nodes(0).Expand()
+            End If
+            Debug.WriteLine("✅ TreeView1 успешно обновено.")
+        Catch ex As Exception
+            MessageBox.Show("Грешка при обновяване: " & ex.Message, "⚠️ Грешка", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+        Finally
+            Cursor = Cursors.Default
+        End Try
+    End Sub
+    ''' <summary>
+    ''' Обработва пускането (Drop) на възел в TreeView.
+    ''' Изпълнява:
+    ''' - валидация на операцията
+    ''' - преместване на възела в дървото
+    ''' - актуализация на връзките в ListTokow
+    ''' - преизчисляване на засегнатите табла
+    ''' - обновяване на визуализацията
+    ''' </summary>
     Private Sub TreeView1_DragDrop(sender As Object, e As DragEventArgs) Handles TreeView1.DragDrop
+        ' Премахваме визуалната маркировка
         ResetNodeHighlight()
+        ' Взимаме влачения възел
         Dim draggedNode As TreeNode = TryCast(e.Data.GetData(GetType(TreeNode)), TreeNode)
+        ' Определяме позицията на мишката спрямо TreeView
         Dim targetPoint As Point = TreeView1.PointToClient(New Point(e.X, e.Y))
+        ' Взимаме целевия възел
         Dim targetNode As TreeNode = TreeView1.GetNodeAt(targetPoint)
-        ' --- 1. ВАЛИДАЦИИ ---
+        ' Проверки за валидност
         If draggedNode Is Nothing OrElse targetNode Is Nothing Then Return
         If targetNode.Name = "__EMPTY__" Then Return
         If targetNode.Name = draggedNode.Name Then Return
         If IsAlreadyChildOf(targetNode, draggedNode) Then Return
-        ' --- 2. ЗАПАЗВАНЕ НА СТАРИЯ РОДИТЕЛ (ПРЕДИ ДА РАЗМЪСТИМ ВЪЗЕЛА) ---
+        ' Определяме стария и новия родител
         Dim oldParentNode As TreeNode = draggedNode.Parent
-        Dim oldParentName As String = ""
-        If oldParentNode IsNot Nothing AndAlso oldParentNode.Name <> ROOT_NODE_NAME Then
-            oldParentName = oldParentNode.Name
-        End If
-        Dim newParentName As String = If(targetNode.Name = ROOT_NODE_NAME, ROOT_NODE_TEXT, targetNode.Name)
-        ' --- 3. ВИЗУАЛНО ПРЕМЕСТВАНЕ В ДЪРВОТО ---
+        Dim oldParentName As String = If(oldParentNode IsNot Nothing, oldParentNode.Name, "")
+        Dim newParentName As String = targetNode.Name
+        ' Ако няма стар родител или няма реална промяна → прекратяваме
+        If String.IsNullOrEmpty(oldParentName) OrElse oldParentName = newParentName Then Return
+        ' Преместване на възела в дървото
         draggedNode.Remove()
         targetNode.Nodes.Add(draggedNode)
         targetNode.Expand()
         TreeView1.SelectedNode = draggedNode
-        ' --- 4. ОБНОВЯВАНЕ НА ПОЛЕТО Табло_Родител В СПИСЪКА ---
+        ' Обновяване на полето Табло_Родител за съответните записи
         For Each item In ListTokow
             If String.Equals(item.Tablo, draggedNode.Name, StringComparison.OrdinalIgnoreCase) Then
                 item.Табло_Родител = newParentName
             End If
         Next
-        ' --- 5. ПРЕМАХВАНЕ НА СТАРИЯ ФИЙДЪР ("Дете") ---
-        If Not String.IsNullOrEmpty(oldParentName) AndAlso oldParentName <> newParentName Then
-            Dim oldFeeder = ListTokow.FirstOrDefault(Function(x) x.Tablo = oldParentName AndAlso
-                                                 x.Device = "Дете" AndAlso
-                                                 String.Equals(x.ТоковКръг, draggedNode.Name, StringComparison.OrdinalIgnoreCase))
-            If oldFeeder IsNot Nothing Then
-                ListTokow.Remove(oldFeeder)
-            End If
-        End If
-        ' --- 6. ДОБАВЯНЕ НА НОВИЯ ФИЙДЪР ---
+        ' Преобразуване на името на корена при нужда
+        If oldParentName = "__ROOT__" Then oldParentName = ROOT_NODE_TEXT
+        ' Търсене на стария "фийдър" запис
+        Dim oldFeeder = ListTokow.FirstOrDefault(
+                        Function(x)
+                            Return String.Equals(x.Tablo, oldParentName, StringComparison.OrdinalIgnoreCase) AndAlso
+                                   String.Equals(x.Device, "Дете", StringComparison.OrdinalIgnoreCase) AndAlso
+                                   String.Equals(x.ТоковКръг, draggedNode.Name, StringComparison.OrdinalIgnoreCase)
+                        End Function)
+        ' Ако съществува → премахваме го
+        If oldFeeder IsNot Nothing Then ListTokow.Remove(oldFeeder)
+        ' Добавяне на новия фийдър към новия родител
         PrepareSourcePanelData(draggedNode.Name, newParentName)
-        ' --- 7. ПРЕИЗЧИСЛЯВАНЕ НА ЗАСЕГНАТИТЕ ТАБЛА ---
-        ' А) Стар родител (ако е различен)
+        ' Преизчисляване на стария родител (ако е различен)
         If Not String.IsNullOrEmpty(oldParentName) AndAlso oldParentName <> newParentName Then
             BuildPanelSummaryRecord(oldParentName)
             RefreshNodeText(oldParentNode)
         End If
-        ' Б) Нов родител
+        ' Преизчисляване на новия родител
         BuildPanelSummaryRecord(newParentName)
         RefreshNodeText(targetNode)
-        ' В) Самото преместено табло (за всеки случай)
+        ' Преизчисляване на самото преместено табло
         BuildPanelSummaryRecord(draggedNode.Name)
         RefreshNodeText(draggedNode)
+        ' Обновяване на веригата към корена от стария родител
+        If oldParentNode IsNot Nothing Then UpdatePathToRoot(oldParentNode)
+        ' Обновяване на веригата към корена от новия родител
+        UpdatePathToRoot(targetNode)
+        ' Финално опресняване на данните и визуализацията
+        SortCircuits()
+        SetupDataGridView_Total()
+    End Sub
+    ''' <summary>
+    ''' Итеративно обновява данните и текста на възела и всички негови предци до корена.
+    ''' Не използва рекурсия → 0% риск от StackOverflow.
+    ''' </summary>
+    Private Sub UpdatePathToRoot(startNode As TreeNode)
+        Dim current As TreeNode = startNode
+        While current IsNot Nothing
+            Dim panelName As String = current.Name
+            ' Ако е корен, използваме ROOT_NODE_TEXT за търсене в ListTokow
+            Dim dataName As String = If(panelName = ROOT_NODE_NAME, ROOT_NODE_TEXT, panelName)
+            ' 1. Преизчисляваме агрегатите в ListTokow
+            BuildPanelSummaryRecord(dataName)
+            ' 2. Обновяваме визуалния текст в TreeView
+            RefreshNodeText(current)
+            ' Спираме, ако сме стигнали корена
+            If panelName = ROOT_NODE_NAME Then Exit While
+            ' Продължаваме нагоре по веригата
+            current = current.Parent
+        End While
     End Sub
     ''' <summary>
     ''' Обновява текста на конкретен възел според актуалните данни в ListTokow
@@ -1374,7 +1478,8 @@ Public Class Form_Tablo_new
         Dim masterRec = records.FirstOrDefault(Function(r) String.Equals(r.Device, "Табло", StringComparison.OrdinalIgnoreCase))
         Dim totalPower As Double = If(masterRec IsNot Nothing, masterRec.Мощност, 0)
         ' Прилагаме същия формат, който вече използваш
-        node.Text = $"{panelName} ({circuitCount} {If(circuitCount = 1, "кръг", "кръга")}, {totalPower:F1}kW)"
+        'node.Text = $"{panelName} ({circuitCount} {If(circuitCount = 1, "кръг", "кръга")}, {totalPower:F1}kW)"
+        node.Text = $"{panelName} ({totalPower:F1}kW)"
     End Sub
     ''' <summary>
     ''' Намира, валидира и копира в паметта записа на изходното табло.
@@ -1400,12 +1505,13 @@ Public Class Form_Tablo_new
         feederRecord.предназначение = sourceName
         ' 3. Добавяме в списъка
         ListTokow.Add(feederRecord)
-        ' ----------------------------------------------------
-        ' 🆕 НОВО: Оразмеряване на прекъсвач и кабел за новия ТК
-        ' ----------------------------------------------------
-        calcBreaker = True
-        CalculateBreaker(feederRecord)
-        calcBreaker = False
+        ' Оразмеряване на прекъсвач и кабел за новия ТК
+        Try
+            calcBreaker = True
+            CalculateBreaker(feederRecord)
+        Finally
+            calcBreaker = False ' Гарантираме нулиране дори при грешка
+        End Try
         CalculateCable(feederRecord)
         SortCircuits()
         SetupDataGridView_Total()
@@ -1434,22 +1540,17 @@ Public Class Form_Tablo_new
             If Not linkExists Then
                 Dim childMaster = ListTokow.FirstOrDefault(Function(x) x.Tablo = pName AndAlso x.Device = "Табло")
                 If childMaster IsNot Nothing Then
-                    ' Създаваме нов запис-връзка
-                    Dim feeder As New strTokow()
-                    ' Копираме агрегатните стойности от "ОБЩО" записа на детето
-                    feeder.Мощност = childMaster.Мощност
-                    feeder.Брой_Полюси = childMaster.Брой_Полюси
-                    feeder.Фаза = childMaster.Фаза
-                    feeder.Ток = childMaster.Ток
-                    feeder.Breaker_Номинален_Ток = childMaster.Breaker_Номинален_Ток
-                    feeder.Кабел_Сечение = childMaster.Кабел_Сечение
-                    feeder.Кабел_Тип = childMaster.Кабел_Тип
-                    ' Задаваме параметри на връзката
+                    ' ✅ Създаваме независимо копие чрез Clone()
+                    ' Това автоматично копира Мощност, Ток, Кабел, Полюси и т.н.
+                    Dim feeder As strTokow = childMaster.Clone()
+                    ' Променяме САМО полетата, които превръщат записа във връзка (фийдър)
                     feeder.Tablo = parentName
                     feeder.Device = "Дете"
                     feeder.ТоковКръг = pName
-                    feeder.Табло_Родител = "" ' Връзката няма родител, тя е част от таблото-родител
-                    BuildPanelSummaryRecord(linkExists)
+                    feeder.Табло_Родител = ""
+                    feeder.Консуматор = "Табло"
+                    feeder.предназначение = pName
+                    ' Добавяме новата връзка в общия списък
                     ListTokow.Add(feeder)
                 End If
             End If
@@ -1916,7 +2017,13 @@ Public Class Form_Tablo_new
                             New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "iID", .Breaker = False},
                             New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "iID", .Breaker = False},
                             New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 80, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "iID", .Breaker = False},
-                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 100, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "iID", .Breaker = False}
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 100, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "iID", .Breaker = False},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "Vigi iC60", .Breaker = True},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "Vigi iC60", .Breaker = True},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 63, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "Vigi iC60", .Breaker = True},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "Vigi iC60", .Breaker = True},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "Vigi iC60", .Breaker = True},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 63, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "Vigi iC60", .Breaker = True}
         }
         LiMountMethod = New List(Of strMountMethod) From {
             New strMountMethod With {.Simbol = "A1", .Text = "В изолация"},
@@ -2134,6 +2241,7 @@ Public Class Form_Tablo_new
 
         Catalog_Cables.Add(New CableInfo With {.CableType = "Al/R", .Material = "Al", .PhaseSize = "16", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 83, .MaxCurrent_Ground = 0, .NeutralSize = "16"})
         Catalog_Cables.Add(New CableInfo With {.CableType = "Al/R", .Material = "Al", .PhaseSize = "25", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 111, .MaxCurrent_Ground = 0, .NeutralSize = "25"})
+        Catalog_Cables.Add(New CableInfo With {.CableType = "Al/R", .Material = "Al", .PhaseSize = "35", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 138, .MaxCurrent_Ground = 0, .NeutralSize = "35"})
         Catalog_Cables.Add(New CableInfo With {.CableType = "Al/R", .Material = "Al", .PhaseSize = "35", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 138, .MaxCurrent_Ground = 0, .NeutralSize = "54"})
         Catalog_Cables.Add(New CableInfo With {.CableType = "Al/R", .Material = "Al", .PhaseSize = "50", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 164, .MaxCurrent_Ground = 0, .NeutralSize = "54"})
         Catalog_Cables.Add(New CableInfo With {.CableType = "Al/R", .Material = "Al", .PhaseSize = "70", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 213, .MaxCurrent_Ground = 0, .NeutralSize = "54"})
@@ -3532,6 +3640,7 @@ Public Class Form_Tablo_new
             Dim currentCircuit As String = DataGridView1.Columns(e.ColumnIndex).HeaderText
             ' После го предаваш
             Dim tokow As strTokow = FindTokowByColumn(currentCircuit)
+            Dim Update As Boolean = True
             If tokow IsNot Nothing AndAlso Not String.IsNullOrEmpty(selectedValue) Then
                 Select Case paramName
                     Case "Тип на апарата"
@@ -3621,7 +3730,9 @@ Public Class Form_Tablo_new
                         If tokow.Device <> "Табло" Then tokow.Консуматор = selectedValue
                     Case "предназначение"
                         tokow.предназначение = selectedValue
+                        Update = False
                         If tokow.Device = "Табло" Then
+                            Update = True
                             ' Търсим число само след "Рпр" или "Рпр."
                             Dim pattern As String = "Рпр\.?\s*=\s*(\d+([.,]\d+)?)"
                             Dim match = System.Text.RegularExpressions.Regex.Match(tokow.предназначение, pattern)
@@ -3728,12 +3839,14 @@ Public Class Form_Tablo_new
                         Dim inputValue As String = selectedValue?.ToString()
                         ' Извикай функцията за валидация
                         Dim validatedValue As String = ValidateRCDNulla(inputValue)
+                        Update = False
                         ' Ако е валидно → запиши, иначе → върни старата стойност
                         If validatedValue IsNot Nothing Then
+                            Update = True
                             tokow.RCD_Нула = validatedValue
                         End If
                 End Select
-                UpdateCircuitColumn(tokow, col.Index, paramName)
+                If Update Then UpdateCircuitColumn(tokow, col.Index, paramName)
             End If
         Finally
             'isUpdatingGrid = False
@@ -3949,18 +4062,15 @@ Public Class Form_Tablo_new
         If tokow.Device = "Разединител" Then Exit Sub
         Dim Ibreaker As String = tokow.Breaker_Номинален_Ток
         Dim NumberPoles As String = tokow.Брой_Полюси
-        ' ============================================================
         ' 1. МАТЕРИАЛ И ФИЛТРИРАНЕ НА КАТАЛОГА
-        ' ============================================================
         Dim material As String = If(matType = 1, "Al", "Cu")
         Dim filteredCables = Catalog_Cables.Where(
-                             Function(c) c.CableType = Type AndAlso c.Material = material
+                             Function(c) c.CableType = Type AndAlso
+                                         c.Material = material
                              ).OrderBy(
                              Function(c) CDbl(c.PhaseSize.Replace(",", "."))
                              ).ToList()
-        ' ============================================================
         ' 2. КОРЕКЦИОННИ КОЕФИЦИЕНТИ
-        ' ============================================================
         ' K1 - брой кабели на скара
         Dim K1_Table As New Dictionary(Of Integer, Double) From {
                                         {1, 1.0},   ' 1 кабел → 100%
@@ -3968,7 +4078,7 @@ Public Class Form_Tablo_new
                                         {3, 0.82},  ' 3 кабела → 82%
                                         {4, 0.77},  ' 4 кабела → 77%
                                         {5, 0.73},  ' 5 кабела → 73%
-                                        {6, 0.7}   ' 6 кабела → 70%
+                                        {6, 0.7}    ' 6 кабела → 70%
                                         }
         Dim K1 As Double = If(K1_Table.ContainsKey(Broj_Cable), K1_Table(Broj_Cable), 0.7)
         ' K2 - температура
@@ -3989,9 +4099,7 @@ Public Class Form_Tablo_new
                         {"F", 1.0}     ' Кабели в пакет
                         }
         Dim K3 As Double = If(MountCoefficients.ContainsKey(mountMethod), MountCoefficients(mountMethod), 1.0)
-        ' ============================================================
         ' 3. ИЗБОР НА СЕЧЕНИЕ
-        ' ============================================================
         Dim calc As String = "######"
         Dim Inom As Double = Val(Ibreaker)
         Dim Idop As Double = Inom / (K1 * K2 * K3)
@@ -4011,9 +4119,7 @@ Public Class Form_Tablo_new
                 Exit For                          ' Излизаме от цикъла
             End If
         Next
-        ' ============================================================
         ' 4. ИЗВЛИЧАНЕ НА ТОКОВЕ ЗА ГОЛЕМИ СЕЧЕНИЯ (за паралелни кабели)
-        ' ============================================================
         Dim bestSection As String = ""
         Dim bestNum As Integer = 0
         Dim bestNeutral As String = ""
@@ -4028,7 +4134,6 @@ Public Class Form_Tablo_new
             Dim Neutral_150 As String = ""
             Dim Neutral_185 As String = ""
             Dim Neutral_240 As String = ""
-            ' Търсим всяко сечение в filteredCables
             ' Търсим всяко сечение в filteredCables
             For Each cable As CableInfo In filteredCables
                 Select Case cable.PhaseSize
@@ -4069,9 +4174,7 @@ Public Class Form_Tablo_new
                 bestNeutral = bestMatch.Neutral
             End If
         End If
-        ' ============================================================
         ' 5. ФОРМАТИРАНЕ НА РЕЗУЛТАТА
-        ' ============================================================
         ' Ако RetType = 0, връщаме само сечението (напр. "2,5")
         Dim Text As String = ""
         If RetType = 0 Then
@@ -4147,7 +4250,7 @@ Public Class Form_Tablo_new
         Dim requiredCurrent As Double = If(tokow.Ток * 1.2 < 20, 20, tokow.Ток * 1.2)
         ' Проверка дали е необходим RCBO (RCD с прекъсвач)
         Dim needRCBO As Boolean = tokow.RCD_Автомат
-        If poles = "4p" Then needRCBO = False
+        'If poles = "4p" Then needRCBO = False
         ' Филтриране на каталога за подходящи RCD
         Dim matchingRCDs = RCD_Catalog.Where(
                            Function(r) r.NominalCurrent >= requiredCurrent AndAlso
@@ -6119,10 +6222,10 @@ Public Class Form_Tablo_new
     Private Sub BuildPanelSummaryRecord(tabloName As String)
         ' Взима всички кръгове за текущото табло без вече съществуващите "ОБЩО"
         Dim panelCircuits As List(Of strTokow) =
-        ListTokow.Where(Function(t)
-                            Return t.Tablo = tabloName AndAlso
+                            ListTokow.Where(Function(t)
+                                                Return t.Tablo = tabloName AndAlso
                                    t.ТоковКръг <> "ОБЩО"
-                        End Function).ToList()
+                                            End Function).ToList()
         ' Ако няма кръгове, прекратяваме обработката
         If panelCircuits.Count = 0 Then Exit Sub
         ' Обща мощност на таблото
@@ -6151,9 +6254,9 @@ Public Class Form_Tablo_new
         ' Ако не съществува, създаваме нов запис
         If totalTokow Is Nothing Then
             totalTokow = New strTokow With {
-            .Tablo = tabloName,
-            .ТоковКръг = "ОБЩО"
-        }
+                        .Tablo = tabloName,
+                        .ТоковКръг = "ОБЩО"
+            }
             ListTokow.Add(totalTokow)
         End If
         ' Попълване на обобщените данни
@@ -6167,8 +6270,13 @@ Public Class Form_Tablo_new
             .brLamp = totalLamps
             .brKontakt = totalContacts
             .Табло_Родител = ""
-            .Консуматор = "Ке="
-            .предназначение = "Рпр.=15кW"
+            If .Tablo = ROOT_NODE_TEXT Then
+                .Консуматор = "Ке="
+                .предназначение = "Рпр.=15кW"
+            Else
+                .Консуматор = ""
+                .предназначение = ""
+            End If
         End With
         ' Изчисляване на ток
         If hasThreePhase Then

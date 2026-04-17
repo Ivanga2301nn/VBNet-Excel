@@ -1273,6 +1273,28 @@ Public Class Form_Tablo_new
         TreeView1.AllowDrop = True
         rootNode.Expand()
     End Sub
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     ''' <summary>
     ''' Стартира операция по влачене (Drag) на възел от TreeView.
     ''' Забранява влачене на кореновия възел и системния възел "__EMPTY__".

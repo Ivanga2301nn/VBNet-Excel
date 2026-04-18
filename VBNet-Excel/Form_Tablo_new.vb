@@ -22,7 +22,6 @@ Imports Newtonsoft.Json
 Imports Newtonsoft.Json.Linq
 Imports Org.BouncyCastle.Asn1.Cmp
 Imports Org.BouncyCastle.Math.EC.ECCurve
-Imports VBNet_Excel.Form_Tablo_new
 
 
 ' ============================================================
@@ -36,6 +35,7 @@ Public Module AcadCommands
     End Sub
 End Module
 Public Class Form_Tablo_new
+
     Private Sub Form_Tablo_new_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         Me.Height = 950
         Me.Width = 1600
@@ -1273,27 +1273,6 @@ Public Class Form_Tablo_new
         TreeView1.AllowDrop = True
         rootNode.Expand()
     End Sub
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     ''' <summary>
     ''' Стартира операция по влачене (Drag) на възел от TreeView.
@@ -5176,15 +5155,15 @@ Public Class Form_Tablo_new
                 Try
                     ' ПРЕДИЗЧИСЛЯВАНЕ НА ПАРАМЕТРИТЕ
                     ' Тук ще извикваме процедурите за чертане една по една
-                    DrawPanelFrame(acDoc, acCurDb, ptBasePoint, panelCircuits, selectedTablo)   ' Тук ще чертаем рамката на таблото
-                    DrawBusbars(acDoc, acCurDb, ptBasePoint, panelCircuits)                     ' Тук ще чертаем шините
-                    DrawCircuits(acDoc, acCurDb, ptBasePoint, panelCircuits)                    ' Тук ще чертаем всеки токов кръг (прекъсвачи, текстове, линии)
-                    DrawRCDBusbar(acDoc, acCurDb, ptBasePoint, panelCircuits)                   ' Тук ще чертаем ДЗТ за токовите кръгове (прекъсвачи, текстове, линии)
+                    DrawPanelFrame(acDoc, acCurDb, ptBasePoint, panelCircuits, selectedTablo)   ' Тук чертаем рамката на таблото
+                    DrawBusbars(acDoc, acCurDb, ptBasePoint, panelCircuits)                     ' Тук чертаем шините
+                    DrawCircuits(acDoc, acCurDb, ptBasePoint, panelCircuits)                    ' Тук чертаем всеки токов кръг (прекъсвачи, текстове, линии)
+                    DrawRCDBusbar(acDoc, acCurDb, ptBasePoint, panelCircuits)                   ' Тук чертаем ДЗТ за токовите кръгове (прекъсвачи, текстове, линии)
 
 
                     DrawMainSwitch(acDoc, acCurDb, ptBasePoint, panelCircuits)
                     DrawGrounding(acDoc, acCurDb, ptBasePoint, selectedTablo)
-                    DrawAnnotations(ptBasePoint, panelCircuits)                     ' Процедурата създава текстови анотации
+                    DrawAnnotations(ptBasePoint, panelCircuits)                                 ' Процедурата създава текстови анотации
 
                 Catch ex As Exception
                     trans.Abort()
@@ -5198,6 +5177,7 @@ Public Class Form_Tablo_new
         Finally
             Me.Visible = True
         End Try
+
         FillDataGridViewForPanel()
     End Sub
     Private Sub DrawRCDBusbar(acDoc As Document, acCurDb As Database,
@@ -5363,18 +5343,18 @@ Public Class Form_Tablo_new
         lines.Add(New LineDefinition(startPoint, endPoint, layer, lineWeight, lineType, colorIndex))
     End Sub
     ''' <summary>
-    ''' Добавя линия към списък от линии, които ще бъдат изчертани по-късно.
+    ''' Изчертава рамката на електрическо табло в AutoCAD.
+    ''' Включва позициониране спрямо базова точка и използва данни от подадените токови кръгове.
     ''' </summary>
-    ''' <param name="lines">Списъкът, в който се съхраняват линиите.</param>
-    ''' <param name="startPoint">Начална точка на линията.</param>
-    ''' <param name="endPoint">Крайна точка на линията.</param>
-    ''' <param name="layer">Слой на линията (по подразбиране "EL_ТАБЛА").</param>
-    ''' <param name="lineWeight">Дебелина на линията.</param>
-    ''' <param name="lineType">Тип линия (ByLayer, CENTER и др.).</param>
-    ''' <param name="colorIndex">Цвят (ако е -1 → използва се ByLayer).</param>
+    ''' <param name="acDoc">Активният AutoCAD документ.</param>
+    ''' <param name="acCurDb">Текущата база данни на чертежа.</param>
+    ''' <param name="basePoint">Базова точка за позициониране на рамката.</param>
+    ''' <param name="circuits">Списък с токови кръгове, използван за определяне на размерите и съдържанието.</param>
+    ''' <param name="selectedTablo">Име на таблото, за което се чертае рамката.</param>
     ''' <remarks>
-    ''' Помощна функция за централизирано създаване на LineDefinition обекти.
-    ''' Позволява лесно управление на параметрите на линиите преди реалното чертане.
+    ''' Процедурата изгражда графичната рамка на таблото, като използва
+    ''' геометрични зависимости и данни от токовите кръгове.
+    ''' Използва помощни функции за чертане на линии и текст.
     ''' </remarks>
     Private Sub DrawPanelFrame(acDoc As Document, acCurDb As Database, basePoint As Point3d,
                                circuits As List(Of strTokow), selectedTablo As String)

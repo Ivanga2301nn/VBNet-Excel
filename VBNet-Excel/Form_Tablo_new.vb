@@ -23,7 +23,6 @@ Imports Newtonsoft.Json.Linq
 Imports Org.BouncyCastle.Asn1.Cmp
 Imports Org.BouncyCastle.Math.EC.ECCurve
 
-
 ' ============================================================
 ' 1. КОМАНДА ЗА СТАРТИРАНЕ (Трябва да е извън класа на формата)
 ' ============================================================
@@ -35,7 +34,6 @@ Public Module AcadCommands
     End Sub
 End Module
 Public Class Form_Tablo_new
-
     Private Sub Form_Tablo_new_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         Me.Height = 950
         Me.Width = 1600
@@ -46,10 +44,6 @@ Public Class Form_Tablo_new
         ' (TreeView и DataGridView).        '
         ' Стъпките се изпълняват в строго определен ред, защото
         ' всяка следваща процедура използва резултатите от предходната.
-        ' ------------------------------------------------------------
-        ' ------------------------------------------------------------
-        ' 1) Зареждане на каталозите
-        ' ------------------------------------------------------------
         ' Инициализира каталозите с електрическа апаратура:
         ' - прекъсвачи (BreakerInfo)
         ' - възможни серии и номинални токове
@@ -1273,11 +1267,10 @@ Public Class Form_Tablo_new
         TreeView1.AllowDrop = True
         rootNode.Expand()
     End Sub
-
     ''' <summary>
     ''' Стартира операция по влачене (Drag) на възел от TreeView.
     ''' Забранява влачене на кореновия възел и системния възел "__EMPTY__".
-    ''' При валиден възел започва Drag&Drop с ефект Move.
+    ''' При валиден възел започва Drag&amp;Drop с ефект Move.
     ''' </summary>
     Private Sub TreeView1_ItemDrag(sender As Object, e As ItemDragEventArgs) Handles TreeView1.ItemDrag
         ' Взимаме влачения възел от събитието
@@ -1333,7 +1326,7 @@ Public Class Form_Tablo_new
         e.Effect = DragDropEffects.Move
     End Sub
     ''' <summary>
-    ''' Обработва напускане на зоната на TreeView по време на Drag&Drop.
+    ''' Обработва напускане на зоната на TreeView по време на Drag&amp;Drop.
     ''' Премахва визуалната маркировка от възлите.
     ''' </summary>
     Private Sub TreeView1_DragLeave(sender As Object, e As EventArgs) Handles TreeView1.DragLeave
@@ -6364,6 +6357,5 @@ Public Class Form_Tablo_new
         ListTokow.Insert(lastBusIndex + 1, disconnector)
         ' Определя конкретен тип разединител според тока
         CalculateDisconnector(disconnector)
-
     End Sub
 End Class

@@ -1208,62 +1208,94 @@ Public Class Form_Tablo_new
         Return 0.0
     End Function
     ''' <summary>
-    ''' Изгражда TreeView структура на база списъка ListTokow (консуматори/токови кръгове).
+    ''' Изгражда TreeView структура на база списъка ListTokow.
     ''' Логиката:
-    ''' 1. Създава коренен възел
-    ''' 2. Групира елементите по табло
-    ''' 3. Добавя всяко табло като дете на корена
-    ''' 4. Добавя отделна група за елементи без табло
+    ''' - създава коренен възел
+    ''' - групира елементите по табло
+    ''' - добавя таблата като деца на корена
+    ''' - създава отделна група за записи без табло
     ''' </summary>
     Private Sub BuildTreeViewFromKonsumatori()
+        ' Изчиства всички възли от TreeView
         TreeView1.Nodes.Clear()
-        ' 1. Създаваме коренния възел
+        ' Създава коренен възел
         Dim rootNode As New TreeNode(ROOT_NODE_TEXT)
         rootNode.Name = ROOT_NODE_NAME
         rootNode.ForeColor = Color.DarkBlue
-        ' 🆕 Попълни корена с актуални данни
-        Dim rootRecords = ListTokow.Where(Function(x) String.Equals(x.Tablo, ROOT_NODE_TEXT, StringComparison.OrdinalIgnoreCase)).ToList()
+        ' Извлича всички записи, които принадлежат към корена
+        Dim rootRecords = ListTokow.Where(Function(x)
+                                              Return String.Equals(x.Tablo, ROOT_NODE_TEXT, StringComparison.OrdinalIgnoreCase)
+                                          End Function).ToList()
+        ' Брой уникални токови кръгове в корена
         Dim rootCircuitCount = rootRecords.Select(Function(r) r.ТоковКръг).Distinct().Count()
+        ' Търси записа за таблото (обобщен запис)
         Dim rootMaster = rootRecords.FirstOrDefault(Function(r) r.Device = "Табло")
+        ' Взима общата мощност (ако има такъв запис)
         Dim rootPower As Double = If(rootMaster IsNot Nothing, rootMaster.Мощност, 0)
+        ' Задава текст на корена с мощност
         rootNode.Text = $"{ROOT_NODE_TEXT} ({rootPower:F1}kW)"
+        ' Съхранява свързаните записи в Tag
         rootNode.Tag = rootRecords
+        ' Добавя корена в TreeView
         TreeView1.Nodes.Add(rootNode)
-        ' 2. Групиране и филтриране
+        ' Групира всички записи по табло
         Dim panels = ListTokow.GroupBy(Function(k) k.Tablo).ToList()
-        ' Изключи "Електромерно табло" и празните стойности от децата
-        Dim validPanels = panels.Where(Function(p) Not String.IsNullOrWhiteSpace(p.Key) AndAlso
-                                   Not String.Equals(p.Key.Trim(), ROOT_NODE_TEXT, StringComparison.OrdinalIgnoreCase)).
-                                   OrderBy(Function(p) p.Key.Trim()).ToList()
+        ' Филтрира валидните табла (без празни и без корена)
+        Dim validPanels = panels.Where(Function(p)
+                                           Return Not String.IsNullOrWhiteSpace(p.Key) AndAlso
+                                              Not String.Equals(p.Key.Trim(), ROOT_NODE_TEXT, StringComparison.OrdinalIgnoreCase)
+                                       End Function).
+                                       OrderBy(Function(p) p.Key.Trim()).ToList()
+        ' Групи без име (празно табло)
         Dim emptyPanels = panels.Where(Function(p) String.IsNullOrWhiteSpace(p.Key)).ToList()
-        ' 3. Добавяне на валидните табла като деца на корена
+        ' Добавя валидните табла като деца на корена
         For Each panelGroup In validPanels
             Dim panelName As String = panelGroup.Key.Trim()
-            ' Брой кръгове в това табло (уникални ТоковКръг стойности)
-            Dim circuitCount As Integer = panelGroup.Select(Function(k) k.ТоковКръг).Distinct().Count()
-            ' Намираме записа с общата мощност (device="Табло")
-            Dim tableDeviceRecord = panelGroup.FirstOrDefault(Function(k) String.Equals(k.Device, "Табло", StringComparison.OrdinalIgnoreCase))
+            ' Брой уникални токови кръгове в таблото
+            Dim circuitCount As Integer =
+            panelGroup.Select(Function(k) k.ТоковКръг).Distinct().Count()
+            ' Търси обобщения запис (Device = "Табло")
+            Dim tableDeviceRecord =
+            panelGroup.FirstOrDefault(Function(k)
+                                          Return String.Equals(k.Device, "Табло", StringComparison.OrdinalIgnoreCase)
+                                      End Function)
+            ' Взима общата мощност
             Dim totalPower As Double = 0
             If tableDeviceRecord IsNot Nothing Then totalPower = tableDeviceRecord.Мощност
-            ' Създаване на възела с форматирания текст
+            ' Създава възел за таблото
             Dim panelNode As New TreeNode(
-                             $"{panelName} ({totalPower:F1}kW)"
-                             )
+                                 $"{panelName} ({totalPower:F1}kW)"
+                                 )
             panelNode.Name = panelName
+            ' Запазва всички записи на таблото
             panelNode.Tag = panelGroup.ToList()
+            ' Добавя възела към корена
             rootNode.Nodes.Add(panelNode)
         Next
-        ' 4. Групиране на "Без табло" (ако има такива)
+        ' Добавя група "Без име", ако има такива записи
         If emptyPanels.Any() Then
-            Dim totalEmptyCircuits = emptyPanels.Sum(Function(p) p.Select(Function(k) k.ТоковКръг).Distinct().Count())
-            Dim totalEmptyPower = emptyPanels.Sum(Function(p) p.Sum(Function(k) k.Мощност))
+            ' Общ брой кръгове
+            Dim totalEmptyCircuits =
+            emptyPanels.Sum(Function(p)
+                                Return p.Select(Function(k) k.ТоковКръг).Distinct().Count()
+                            End Function)
+            ' Обща мощност
+            Dim totalEmptyPower =
+            emptyPanels.Sum(Function(p)
+                                Return p.Sum(Function(k) k.Мощност)
+                            End Function)
+            ' Създава възел "Без име"
             Dim emptyNode As New TreeNode($"Без име ({totalEmptyPower:F1}kW)")
             emptyNode.Name = "__EMPTY__"
             emptyNode.ForeColor = Color.OrangeRed
+            ' Обединява всички записи без табло
             emptyNode.Tag = emptyPanels.SelectMany(Function(p) p).ToList()
+            ' Добавя към корена
             rootNode.Nodes.Add(emptyNode)
         End If
+        ' Позволява Drag & Drop операции
         TreeView1.AllowDrop = True
+        ' Разгъва корена
         rootNode.Expand()
     End Sub
     ''' <summary>
@@ -1448,22 +1480,29 @@ Public Class Form_Tablo_new
         SetupDataGridView_Total()
     End Sub
     ''' <summary>
-    ''' Итеративно обновява данните и текста на възела и всички негови предци до корена.
-    ''' Не използва рекурсия → 0% риск от StackOverflow.
+    ''' Обновява всички табла по веригата от даден възел до корена.
+    ''' За всяко табло:
+    ''' - преизчислява агрегираните стойности
+    ''' - обновява визуалния текст в TreeView
     ''' </summary>
     Private Sub UpdatePathToRoot(startNode As TreeNode)
+        ' Започваме от подадения възел
         Dim current As TreeNode = startNode
+        ' Обхождаме нагоре по дървото до корена
         While current IsNot Nothing
+            ' Име на текущия възел в TreeView
             Dim panelName As String = current.Name
-            ' Ако е корен, използваме ROOT_NODE_TEXT за търсене в ListTokow
-            Dim dataName As String = If(panelName = ROOT_NODE_NAME, ROOT_NODE_TEXT, panelName)
-            ' 1. Преизчисляваме агрегатите в ListTokow
+            ' Нормализиране на името за работа с ListTokow
+            ' Ако е корен → използваме текстовото име
+            Dim dataName As String =
+            If(panelName = ROOT_NODE_NAME, ROOT_NODE_TEXT, panelName)
+            ' Преизчислява обобщените данни за текущото табло
             BuildPanelSummaryRecord(dataName)
-            ' 2. Обновяваме визуалния текст в TreeView
+            ' Обновява текста на възела в TreeView (мощност, брой кръгове и др.)
             RefreshNodeText(current)
-            ' Спираме, ако сме стигнали корена
+            ' Ако сме достигнали корена → прекратяваме
             If panelName = ROOT_NODE_NAME Then Exit While
-            ' Продължаваме нагоре по веригата
+            ' Преминаваме към родителския възел
             current = current.Parent
         End While
     End Sub
@@ -6223,11 +6262,10 @@ Public Class Form_Tablo_new
     ''' </summary>
     Private Sub BuildPanelSummaryRecord(tabloName As String)
         ' Взима всички кръгове за текущото табло без вече съществуващите "ОБЩО"
-        Dim panelCircuits As List(Of strTokow) =
-                            ListTokow.Where(Function(t)
-                                                Return t.Tablo = tabloName AndAlso
-                                                t.ТоковКръг <> "ОБЩО"
-                                            End Function).ToList()
+        Dim panelCircuits As List(Of strTokow) = ListTokow.Where(Function(t)
+                                                                     Return t.Tablo = tabloName AndAlso
+                                                                  t.ТоковКръг <> "ОБЩО"
+                                                                 End Function).ToList()
         ' Ако няма кръгове, прекратяваме обработката
         If panelCircuits.Count = 0 Then Exit Sub
         ' Обща мощност на таблото

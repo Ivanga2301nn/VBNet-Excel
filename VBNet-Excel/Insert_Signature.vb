@@ -245,7 +245,11 @@ Public Class Insert_Signature
             Dim dataRange As excel.Range = tblObekti.ListColumns("Обект").DataBodyRange
             ' --- Проверка за дубликат чрез Find
             Dim key As String = Data("ОБЕКТ").Trim()
-            Dim foundCell As excel.Range = dataRange.Find(What:=key, LookIn:=excel.XlFindLookIn.xlValues, LookAt:=excel.XlLookAt.xlWhole)
+            ' Деклариране на променлива foundCell, която ще съхрани намерената клетка (ако има такава)
+            Dim foundCell As excel.Range = dataRange.Find(What:=key,            ' Стойността (ключа), която търсим в диапазона
+                                           LookIn:=excel.XlFindLookIn.xlValues, ' Търсим в реалните стойности на клетките (а не във формулите)
+                                           LookAt:=excel.XlLookAt.xlWhole       ' Търсим пълно съвпадение на клетката (не само част от текста в нея)
+                                            )
             If foundCell IsNot Nothing Then
                 ' Обектът вече съществува
                 Dim result As MsgBoxResult = MsgBox("Обектът '" & key & "' вече съществува." & vbCrLf &

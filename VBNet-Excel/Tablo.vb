@@ -321,7 +321,7 @@ Public Class Tablo
                                 .RatedCurrent = "10"
                             Case "Линия МХЛ - 220V", "Полилей",
                                  "Авария_100", "LED_ULTRALUX", "LED_ULTRALUX_100",
-                                 "Прожектор", "LED_lenta",
+                                 "Прожектор", "LED_lenta", "LED_ULTRALUX_нов",
                                  "Металхаогенна лампа", "uli4no", "LED_DENIMA"
                                 .brLamp += 1
                                 .konsuator1 = "Общо"

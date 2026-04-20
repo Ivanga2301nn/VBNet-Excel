@@ -219,7 +219,6 @@ Public Class Form_Tablo_new
         Dim Simbol As String
         Dim Text As String
     End Structure
-
     Dim LiMountMethod As New List(Of strMountMethod)
     Private Cable_AlR_2 As New Dictionary(Of Integer, String)
     Private Cable_AlR_4 As New Dictionary(Of Integer, String)
@@ -302,7 +301,6 @@ Public Class Form_Tablo_new
     Private highlightNode As TreeNode = Nothing
     Private originalBackColor As Color = SystemColors.Window
     Private originalForeColor As Color = SystemColors.WindowText
-
     ' Флаг, указващ дали трябва да се извърши изчисление на прекъсвача.
     Private calcBreaker As Boolean = True
     'Private isUpdatingGrid As Boolean = False
@@ -806,19 +804,16 @@ Public Class Form_Tablo_new
         Public Device As String                     ' какъв тип консуматор е (осветление, контакти, технологично оборудване)
         Public Tablo As String                      ' Табло към което принадлежи кръгът
         Public ТоковКръг As String                  ' Име или номер на токовия кръг
-        Public Брой_Полюси As Integer               ' Брой на фазите на токовия кръг
         Public Табло_Родител As String              ' Името на таблото което захранва таблото в което е монтиран токовия кръг"
+        Public Мощност As Double                    ' Обща мощност на кръга (kW)
+        Public Ток As Double                        ' Изчислен ток (A)
         ' ============================================================
         ' БРОЯЧИ
         ' ============================================================
         Public brLamp As Integer                    ' Брой лампи в кръга
         Public brKontakt As Integer                 ' Брой контакти в кръга
-        ' ============================================================
-        ' МОЩНОСТ И ТОК
-        ' ============================================================
-        Public Мощност As Double                    ' Обща мощност на кръга (kW)
-        Public Ток As Double                        ' Изчислен ток (A)
         Public Фаза As String                       ' Фаза: "1P", "3P", "L1", "L2", "L3"
+        Public Брой_Полюси As Integer               ' Брой на фазите на токовия кръг
         ' ============================================================
         ' КАБЕЛ
         ' ============================================================
@@ -870,6 +865,10 @@ Public Class Form_Tablo_new
         Public Function Clone() As strTokow
             ' MemberwiseClone копира всички стойности (String, Integer, Boolean и др.)
             ' в нов обект от същия тип. За примитиви и String това е напълно безопасно.
+            If Me.Tablo = "__ROOT__" OrElse Me.ТоковКръг = "__ROOT__" Then
+                ' СЛОЖИ BREAKPOINT ТУК!
+                Debug.WriteLine("Клонира се обект, съдържащ __ROOT__")
+            End If
             Return DirectCast(Me.MemberwiseClone(), strTokow)
         End Function
     End Class
@@ -1333,112 +1332,129 @@ Public Class Form_Tablo_new
         ' Премахваме всякаква визуална маркировка
         ResetNodeHighlight()
     End Sub
+    ''' <summary>
+    ''' Събитие при кликване върху възел в TreeView. 
+    ''' Ако е десен бутон - маркираме възела и показваме контекстно меню.
+    ''' </summary>
     Private Sub TreeView1_NodeMouseClick(sender As Object, e As TreeNodeMouseClickEventArgs) Handles TreeView1.NodeMouseClick
-        ' 🖱️ ДЕСНИЯТ БУТОН (като на пиратска карта - X marks the spot!)
-        If e.Button = MouseButtons.Right AndAlso e.Node IsNot Nothing Then
-            Dim clickedNode As TreeNode = e.Node
-            ' Задължително избираме възела преди да покажем менюто
-            TreeView1.SelectedNode = clickedNode
-            ' ТУК показваш твоето Context Menu
+        ' Проверяваме дали е натиснат десният бутон
+        If e.Button = MouseButtons.Right Then
+            ' Важно: Маркираме възела, върху който сме кликнали (Visual feedback)
+            TreeView1.SelectedNode = e.Node
+
+            ' Създаваме контекстното меню "в движение"
+            ' (За по-големи проекти е по-добре да е предварително дефинирано в дизайнера)
             Dim ctxMenu As New ContextMenuStrip()
-            ' Бутон за рефреш
-            Dim refreshItem As New ToolStripMenuItem("🔄 Обновяване на дървото", Nothing, AddressOf RefreshTree_Click)
+
+            ' Създаваме елемента за обновяване
+            Dim refreshItem As New ToolStripMenuItem("🔄 Обновяване на списъка", Nothing, AddressOf RefreshTree_Click)
             ctxMenu.Items.Add(refreshItem)
-            refreshItem = New ToolStripMenuItem("Обновяване на дървото", Nothing, AddressOf RefreshTree_Click)
-            ctxMenu.Items.Add(refreshItem)
-            ' Закачаме менюто към TreeView1
-            TreeView1.ContextMenuStrip = ctxMenu
+
+            ' Показваме менюто точно на позицията на мишката
+            ctxMenu.Show(TreeView1, e.Location)
         End If
     End Sub
+
+    ''' <summary>
+    ''' Логика за преизграждане на дървото.
+    ''' </summary>
     Private Sub RefreshTree_Click(sender As Object, e As EventArgs)
+        ' Сменяме курсора на "изчакване", за да знае потребителят, че нещо се случва
         Cursor = Cursors.WaitCursor
+
+        ' Спираме прерисуването на контролата, за да няма трептене (flickering)
+        TreeView1.BeginUpdate()
+
         Try
-            ' Преизграждаме дървото от актуалните данни
+            ' 1. Изчистваме старите данни (ако BuildTreeView го изисква)
+            ' TreeView1.Nodes.Clear() 
+
+            ' 2. Извикваме твоята основна процедура за пълнене на данни
             BuildTreeViewFromKonsumatori()
-            ' По желание: автоматично избираме и разгъваме корена
+
+            ' 3. По желание: Разгъваме първия възел и го избираме
             If TreeView1.Nodes.Count > 0 Then
-                TreeView1.SelectedNode = TreeView1.Nodes(0)
                 TreeView1.Nodes(0).Expand()
+                TreeView1.SelectedNode = TreeView1.Nodes(0)
             End If
-            Debug.WriteLine("✅ TreeView1 успешно обновено.")
+
+            Debug.WriteLine("✅ Дървото е успешно обновено на " & DateTime.Now.ToString("HH:mm:ss"))
+
         Catch ex As Exception
-            MessageBox.Show("Грешка при обновяване: " & ex.Message, "⚠️ Грешка", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            ' Показваме съобщение при грешка (напр. проблем с базата данни)
+            MessageBox.Show("Грешка при обновяване на данните: " & vbCrLf & ex.Message,
+                        "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Error)
         Finally
+            ' ВИНАГИ пускаме прерисуването обратно и връщаме нормалния курсор
+            TreeView1.EndUpdate()
             Cursor = Cursors.Default
         End Try
     End Sub
-    ''' <summary>
-    ''' Обработва пускането (Drop) на възел в TreeView.
-    ''' Изпълнява:
-    ''' - валидация на операцията
-    ''' - преместване на възела в дървото
-    ''' - актуализация на връзките в ListTokow
-    ''' - преизчисляване на засегнатите табла
-    ''' - обновяване на визуализацията
-    ''' </summary>
     Private Sub TreeView1_DragDrop(sender As Object, e As DragEventArgs) Handles TreeView1.DragDrop
-        ' Премахваме визуалната маркировка
         ResetNodeHighlight()
-        ' Взимаме влачения възел
         Dim draggedNode As TreeNode = TryCast(e.Data.GetData(GetType(TreeNode)), TreeNode)
-        ' Определяме позицията на мишката спрямо TreeView
         Dim targetPoint As Point = TreeView1.PointToClient(New Point(e.X, e.Y))
-        ' Взимаме целевия възел
         Dim targetNode As TreeNode = TreeView1.GetNodeAt(targetPoint)
-        ' Проверки за валидност
+
         If draggedNode Is Nothing OrElse targetNode Is Nothing Then Return
-        If targetNode.Name = "__EMPTY__" Then Return
-        If targetNode.Name = draggedNode.Name Then Return
+        If targetNode.Name = "__EMPTY__" OrElse targetNode.Name = draggedNode.Name Then Return
         If IsAlreadyChildOf(targetNode, draggedNode) Then Return
-        ' Определяме стария и новия родител
-        Dim oldParentNode As TreeNode = draggedNode.Parent
-        Dim oldParentName As String = If(oldParentNode IsNot Nothing, oldParentNode.Name, "")
-        Dim newParentName As String = targetNode.Name
-        ' Ако няма стар родител или няма реална промяна → прекратяваме
+
+        ' Взимаме имената и ги нормализираме ВЕДНАГА
+        Dim rawOldParent As String = If(draggedNode.Parent IsNot Nothing, draggedNode.Parent.Name, "")
+        Dim rawNewParent As String = targetNode.Name
+
+        Dim oldParentName As String = If(rawOldParent = ROOT_NODE_NAME, ROOT_NODE_TEXT, rawOldParent)
+        Dim newParentName As String = If(rawNewParent = ROOT_NODE_NAME, ROOT_NODE_TEXT, rawNewParent)
+
         If String.IsNullOrEmpty(oldParentName) OrElse oldParentName = newParentName Then Return
-        ' Преместване на възела в дървото
+
+        ' --- ЛОГИКА ЗА ТРИЕНЕ НА СТАРИЯ "ФИЙДЪР" ---
+        ' Търсим записа "Дете", който свързва стария родител с преместваното табло
+        Dim oldFeeder = ListTokow.FirstOrDefault(
+                        Function(x)
+                            Return x.Device = "Дете" AndAlso
+                            x.ТоковКръг = draggedNode.Name AndAlso
+                            (x.Tablo = oldParentName Or x.Tablo = rawOldParent) ' Проверка и за двата варианта за сигурност
+                        End Function)
+
+        If oldFeeder IsNot Nothing Then
+            ListTokow.Remove(oldFeeder)
+        End If
+
+        ' --- ВИЗУАЛНО ПРЕМЕСТВАНЕ ---
+        Dim oldParentNode As TreeNode = draggedNode.Parent
         draggedNode.Remove()
         targetNode.Nodes.Add(draggedNode)
         targetNode.Expand()
         TreeView1.SelectedNode = draggedNode
-        ' Обновяване на полето Табло_Родител за съответните записи
-        For Each item In ListTokow
-            If String.Equals(item.Tablo, draggedNode.Name, StringComparison.OrdinalIgnoreCase) Then
-                item.Табло_Родител = newParentName
-            End If
-        Next
-        ' Преобразуване на името на корена при нужда
-        If oldParentName = "__ROOT__" Then oldParentName = ROOT_NODE_TEXT
-        ' Търсене на стария "фийдър" запис
-        Dim oldFeeder = ListTokow.FirstOrDefault(
-                        Function(x)
-                            Return String.Equals(x.Tablo, oldParentName, StringComparison.OrdinalIgnoreCase) AndAlso
-                                   String.Equals(x.Device, "Дете", StringComparison.OrdinalIgnoreCase) AndAlso
-                                   String.Equals(x.ТоковКръг, draggedNode.Name, StringComparison.OrdinalIgnoreCase)
-                        End Function)
-        ' Ако съществува → премахваме го
-        If oldFeeder IsNot Nothing Then ListTokow.Remove(oldFeeder)
-        ' Добавяне на новия фийдър към новия родител
+
+        ' --- ДОБАВЯНЕ НА НОВИЯ "ФИЙДЪР" ---
+        ' Това създава записа "Дете" в новия родител
         PrepareSourcePanelData(draggedNode.Name, newParentName)
-        ' Преизчисляване на стария родител (ако е различен)
-        If Not String.IsNullOrEmpty(oldParentName) AndAlso oldParentName <> newParentName Then
-            BuildPanelSummaryRecord(oldParentName)
-            RefreshNodeText(oldParentNode)
-        End If
-        ' Преизчисляване на новия родител
+
+        ' --- ПРЕИЗЧИСЛЯВАНЕ ---
+        ' 1. Старият родител (вече е по-лек)
+        BuildPanelSummaryRecord(oldParentName)
+        If oldParentNode IsNot Nothing Then RefreshNodeText(oldParentNode)
+
+        ' 2. Новият родител (вече е по-тежък)
         BuildPanelSummaryRecord(newParentName)
         RefreshNodeText(targetNode)
-        ' Преизчисляване на самото преместено табло
+
+        ' 3. Самото преместено табло (за всеки случай)
         BuildPanelSummaryRecord(draggedNode.Name)
         RefreshNodeText(draggedNode)
-        ' Обновяване на веригата към корена от стария родител
+
+        ' 4. Обновяваме пътя до корена за всички засегнати
         If oldParentNode IsNot Nothing Then UpdatePathToRoot(oldParentNode)
-        ' Обновяване на веригата към корена от новия родител
         UpdatePathToRoot(targetNode)
-        ' Финално опресняване на данните и визуализацията
+
         SortCircuits()
         SetupDataGridView_Total()
     End Sub
+
+
     ''' <summary>
     ''' Итеративно обновява данните и текста на възела и всички негови предци до корена.
     ''' Не използва рекурсия → 0% риск от StackOverflow.
@@ -5170,7 +5186,6 @@ Public Class Form_Tablo_new
         Finally
             Me.Visible = True
         End Try
-
         FillDataGridViewForPanel()
     End Sub
     Private Sub DrawRCDBusbar(acDoc As Document, acCurDb As Database,
@@ -6219,7 +6234,7 @@ Public Class Form_Tablo_new
         Dim panelCircuits As List(Of strTokow) =
                             ListTokow.Where(Function(t)
                                                 Return t.Tablo = tabloName AndAlso
-                                   t.ТоковКръг <> "ОБЩО"
+                                                t.ТоковКръг <> "ОБЩО"
                                             End Function).ToList()
         ' Ако няма кръгове, прекратяваме обработката
         If panelCircuits.Count = 0 Then Exit Sub

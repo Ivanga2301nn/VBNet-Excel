@@ -6231,33 +6231,27 @@ Public Class Form_Tablo_new
         ' Ако няма кръгове, прекратяваме обработката
         If panelCircuits.Count = 0 Then Exit Sub
         ' Обща мощност на таблото
-        Dim totalPower As Double =
-                          panelCircuits.Sum(Function(c) c.Мощност)
+        Dim totalPower As Double = panelCircuits.Sum(Function(c) c.Мощност)
         ' Общ брой осветителни тела
-        Dim totalLamps As Integer =
-                          panelCircuits.Sum(Function(c) c.brLamp)
+        Dim totalLamps As Integer = panelCircuits.Sum(Function(c) c.brLamp)
         ' Общ брой контакти
-        Dim totalContacts As Integer =
-                          panelCircuits.Sum(Function(c) c.brKontakt)
+        Dim totalContacts As Integer = panelCircuits.Sum(Function(c) c.brKontakt)
         ' Проверка дали има трифазни консуматори
-        Dim hasThreePhase As Boolean =
-                          panelCircuits.Any(Function(c) c.Брой_Полюси = 3)
+        Dim hasThreePhase As Boolean = panelCircuits.Any(Function(c) c.Брой_Полюси = 3)
         ' Определяне на брой полюси (3 ако има трифазни, иначе 1)
-        Dim mostCommonPoles As Integer =
-                          If(panelCircuits.Any(Function(c) c.Брой_Полюси = 3), 3, 1)
+        Dim mostCommonPoles As Integer = If(panelCircuits.Any(Function(c) c.Брой_Полюси = 3), 3, 1)
         ' Определяне на фазово обозначение
-        Dim totalPhase As String =
-                          If(hasThreePhase, "L1,L2,L3", "L")
+        Dim totalPhase As String = If(hasThreePhase, "L1,L2,L3", "L")
         ' Търсене на съществуващ запис "ОБЩО"
         Dim totalTokow = ListTokow.FirstOrDefault(Function(t)
                                                       Return t.Tablo = tabloName AndAlso
-                                                         t.ТоковКръг = "ОБЩО"
+                                                      t.ТоковКръг = "ОБЩО"
                                                   End Function)
         ' Ако не съществува, създаваме нов запис
         If totalTokow Is Nothing Then
             totalTokow = New strTokow With {
-                        .Tablo = tabloName,
-                        .ТоковКръг = "ОБЩО"
+                             .Tablo = tabloName,
+                             .ТоковКръг = "ОБЩО"
             }
             ListTokow.Add(totalTokow)
         End If
@@ -6285,19 +6279,14 @@ Public Class Form_Tablo_new
             ' Балансиране на фазите
             BalancePhases(tabloName)
             ' Извличане на стойности от текстови полета (формат "X>стойност")
-            Dim valL1 As Double =
-                         CDbl(totalTokow.RCD_Клас.Split(">"c)(1))
-            Dim valL2 As Double =
-                         CDbl(totalTokow.RCD_Ток.Split(">"c)(1))
-            Dim valL3 As Double =
-                         CDbl(totalTokow.RCD_Чувствителност.Split(">"c)(1))
+            Dim valL1 As Double = CDbl(totalTokow.RCD_Клас.Split(">"c)(1))
+            Dim valL2 As Double = CDbl(totalTokow.RCD_Ток.Split(">"c)(1))
+            Dim valL3 As Double = CDbl(totalTokow.RCD_Чувствителност.Split(">"c)(1))
             ' Изчисляване на максимален ток
-            totalTokow.Ток =
-                        Math.Max(valL1, Math.Max(valL2, valL3))
+            totalTokow.Ток = Math.Max(valL1, Math.Max(valL2, valL3))
         Else
             ' Изчисляване на еднофазен ток
-            totalTokow.Ток =
-                      calc_Inom(totalTokow.Мощност, totalTokow.Брой_Полюси)
+            totalTokow.Ток = calc_Inom(totalTokow.Мощност, totalTokow.Брой_Полюси)
         End If
         ' Избор на прекъсвач/разединител
         CalculateDisconnector(totalTokow)

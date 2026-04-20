@@ -1139,6 +1139,7 @@ Public Class Form_Tablo_new
                 acTrans.Abort()
             End Try
         End Using
+        ToolStripProgressBar1.Value = ToolStripProgressBar1.Minimum
     End Sub
     ''' <summary>
     ''' Универсална функция за изчисляване на мощност.
@@ -1251,25 +1252,48 @@ Public Class Form_Tablo_new
         ' Добавя валидните табла като деца на корена
         For Each panelGroup In validPanels
             Dim panelName As String = panelGroup.Key.Trim()
-            ' Брой уникални токови кръгове в таблото
-            Dim circuitCount As Integer =
-            panelGroup.Select(Function(k) k.ТоковКръг).Distinct().Count()
-            ' Търси обобщения запис (Device = "Табло")
-            Dim tableDeviceRecord =
-            panelGroup.FirstOrDefault(Function(k)
-                                          Return String.Equals(k.Device, "Табло", StringComparison.OrdinalIgnoreCase)
-                                      End Function)
-            ' Взима общата мощност
-            Dim totalPower As Double = 0
-            If tableDeviceRecord IsNot Nothing Then totalPower = tableDeviceRecord.Мощност
-            ' Създава възел за таблото
-            Dim panelNode As New TreeNode(
-                                 $"{panelName} ({totalPower:F1}kW)"
-                                 )
+
+            ' 1. Намираме главния запис за мощността на таблото
+            Dim tableDeviceRecord = panelGroup.FirstOrDefault(Function(k)
+                                                                  Return String.Equals(k.Device, "Табло", StringComparison.OrdinalIgnoreCase)
+                                                              End Function)
+            Dim totalPower As Double = If(tableDeviceRecord IsNot Nothing, tableDeviceRecord.Мощност, 0)
+
+            ' 2. Създаваме основния възел за ТАБЛОТО
+            Dim panelNode As New TreeNode($"{panelName} ({totalPower:F1} kW)")
             panelNode.Name = panelName
-            ' Запазва всички записи на таблото
             panelNode.Tag = panelGroup.ToList()
-            ' Добавя възела към корена
+
+            ' 3. ГРУПИРАМЕ данните за токовите кръгове
+            Dim circuits = panelGroup.Where(Function(k) Not String.Equals(k.Device, "Табло", StringComparison.OrdinalIgnoreCase)) _
+                             .GroupBy(Function(k) k.ТоковКръг)
+            ' 4. СЪЗДАВАМЕ ЕДИН ЕДИНСТВЕН ВЪЗЕЛ-КОНТЕЙНЕР С ОБЩА МОЩНОСТ
+            If circuits.Any() Then
+                ' Изчисляваме сумата от мощностите на всички записи, които не са "Табло"
+                Dim totalCircuitsPower As Double = panelGroup.Where(Function(k) Not String.Equals(k.Device, "Табло", StringComparison.OrdinalIgnoreCase)) _
+                                                     .Sum(Function(k) k.Мощност)
+
+                ' Създаваме заглавния възел с общата сума
+                Dim circuitsFolderNode As New TreeNode($"🔌 ТК ({totalCircuitsPower:F1} kW)")
+                circuitsFolderNode.ForeColor = Color.DarkBlue ' Тъмно син цвят за акцент
+                circuitsFolderNode.NodeFont = New Drawing.Font(TreeView1.Font, FontStyle.Bold) ' Удебелен шрифт
+
+                ' Добавяме всеки отделен кръг вътре в папката
+                For Each circuitGroup In circuits
+                    Dim circuitName As String = circuitGroup.Key
+                    Dim circuitPower As Double = circuitGroup.Sum(Function(k) k.Мощност)
+
+                    Dim circuitNode As New TreeNode($"{circuitName} ({circuitPower:F2} kW)")
+                    circuitNode.Tag = circuitGroup.ToList()
+
+                    circuitsFolderNode.Nodes.Add(circuitNode)
+                Next
+
+                ' Добавяме "папката" към възела на таблото
+                panelNode.Nodes.Add(circuitsFolderNode)
+            End If
+
+            ' Добавяме таблото към корена
             rootNode.Nodes.Add(panelNode)
         Next
         ' Добавя група "Без име", ако има такива записи
@@ -1373,20 +1397,16 @@ Public Class Form_Tablo_new
         If e.Button = MouseButtons.Right Then
             ' Важно: Маркираме възела, върху който сме кликнали (Visual feedback)
             TreeView1.SelectedNode = e.Node
-
             ' Създаваме контекстното меню "в движение"
             ' (За по-големи проекти е по-добре да е предварително дефинирано в дизайнера)
             Dim ctxMenu As New ContextMenuStrip()
-
             ' Създаваме елемента за обновяване
             Dim refreshItem As New ToolStripMenuItem("🔄 Обновяване на списъка", Nothing, AddressOf RefreshTree_Click)
             ctxMenu.Items.Add(refreshItem)
-
             ' Показваме менюто точно на позицията на мишката
             ctxMenu.Show(TreeView1, e.Location)
         End If
     End Sub
-
     ''' <summary>
     ''' Логика за преизграждане на дървото.
     ''' </summary>

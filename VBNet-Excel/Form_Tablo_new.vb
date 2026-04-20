@@ -1361,25 +1361,18 @@ Public Class Form_Tablo_new
     Private Sub RefreshTree_Click(sender As Object, e As EventArgs)
         ' Сменяме курсора на "изчакване", за да знае потребителят, че нещо се случва
         Cursor = Cursors.WaitCursor
-
         ' Спираме прерисуването на контролата, за да няма трептене (flickering)
         TreeView1.BeginUpdate()
-
         Try
             ' 1. Изчистваме старите данни (ако BuildTreeView го изисква)
-            ' TreeView1.Nodes.Clear() 
-
+            TreeView1.Nodes.Clear()
             ' 2. Извикваме твоята основна процедура за пълнене на данни
             BuildTreeViewFromKonsumatori()
-
             ' 3. По желание: Разгъваме първия възел и го избираме
             If TreeView1.Nodes.Count > 0 Then
                 TreeView1.Nodes(0).Expand()
                 TreeView1.SelectedNode = TreeView1.Nodes(0)
             End If
-
-            Debug.WriteLine("✅ Дървото е успешно обновено на " & DateTime.Now.ToString("HH:mm:ss"))
-
         Catch ex As Exception
             ' Показваме съобщение при грешка (напр. проблем с базата данни)
             MessageBox.Show("Грешка при обновяване на данните: " & vbCrLf & ex.Message,
@@ -1390,71 +1383,70 @@ Public Class Form_Tablo_new
             Cursor = Cursors.Default
         End Try
     End Sub
+    ''' <summary>
+    ''' Обработва операцията Drop в TreeView.
+    ''' Премества табло в нов родител, като:
+    ''' - валидира операцията
+    ''' - премахва стария "фийдър"
+    ''' - добавя нов "фийдър"
+    ''' - преизчислява засегнатите табла
+    ''' - обновява визуализацията
+    ''' </summary>
     Private Sub TreeView1_DragDrop(sender As Object, e As DragEventArgs) Handles TreeView1.DragDrop
+        ' Премахва визуалната маркировка от предишно Drag
         ResetNodeHighlight()
+        ' Взима влачения възел от Drag данните
         Dim draggedNode As TreeNode = TryCast(e.Data.GetData(GetType(TreeNode)), TreeNode)
+        ' Определя позицията на курсора спрямо TreeView
         Dim targetPoint As Point = TreeView1.PointToClient(New Point(e.X, e.Y))
+        ' Взима възела под курсора (целевия родител)
         Dim targetNode As TreeNode = TreeView1.GetNodeAt(targetPoint)
-
+        ' Валидации – прекратява при невалидни условия
         If draggedNode Is Nothing OrElse targetNode Is Nothing Then Return
         If targetNode.Name = "__EMPTY__" OrElse targetNode.Name = draggedNode.Name Then Return
         If IsAlreadyChildOf(targetNode, draggedNode) Then Return
-
-        ' Взимаме имената и ги нормализираме ВЕДНАГА
+        ' Взима имената на стария и новия родител
         Dim rawOldParent As String = If(draggedNode.Parent IsNot Nothing, draggedNode.Parent.Name, "")
         Dim rawNewParent As String = targetNode.Name
-
+        ' Нормализира имената (специално за корена)
         Dim oldParentName As String = If(rawOldParent = ROOT_NODE_NAME, ROOT_NODE_TEXT, rawOldParent)
         Dim newParentName As String = If(rawNewParent = ROOT_NODE_NAME, ROOT_NODE_TEXT, rawNewParent)
-
+        ' Ако няма реална промяна → прекратява
         If String.IsNullOrEmpty(oldParentName) OrElse oldParentName = newParentName Then Return
-
-        ' --- ЛОГИКА ЗА ТРИЕНЕ НА СТАРИЯ "ФИЙДЪР" ---
-        ' Търсим записа "Дете", който свързва стария родител с преместваното табло
+        ' Търси стария "фийдър" (връзката между стар родител и табло)
         Dim oldFeeder = ListTokow.FirstOrDefault(
-                        Function(x)
-                            Return x.Device = "Дете" AndAlso
-                            x.ТоковКръг = draggedNode.Name AndAlso
-                            (x.Tablo = oldParentName Or x.Tablo = rawOldParent) ' Проверка и за двата варианта за сигурност
-                        End Function)
-
-        If oldFeeder IsNot Nothing Then
-            ListTokow.Remove(oldFeeder)
-        End If
-
-        ' --- ВИЗУАЛНО ПРЕМЕСТВАНЕ ---
+                                Function(x)
+                                    Return x.Device = "Дете" AndAlso
+                                           x.ТоковКръг = draggedNode.Name AndAlso
+                                           (x.Tablo = oldParentName Or x.Tablo = rawOldParent)
+                                End Function)
+        ' Ако е намерен → премахва го
+        If oldFeeder IsNot Nothing Then ListTokow.Remove(oldFeeder)
+        ' Запазва референция към стария родител (за по-късно обновяване)
         Dim oldParentNode As TreeNode = draggedNode.Parent
+        ' Премества възела визуално в TreeView
         draggedNode.Remove()
         targetNode.Nodes.Add(draggedNode)
         targetNode.Expand()
         TreeView1.SelectedNode = draggedNode
-
-        ' --- ДОБАВЯНЕ НА НОВИЯ "ФИЙДЪР" ---
-        ' Това създава записа "Дете" в новия родител
+        ' Добавя нов "фийдър" към новия родител
         PrepareSourcePanelData(draggedNode.Name, newParentName)
-
-        ' --- ПРЕИЗЧИСЛЯВАНЕ ---
-        ' 1. Старият родител (вече е по-лек)
+        ' Преизчислява стария родител (намалява натоварването)
         BuildPanelSummaryRecord(oldParentName)
         If oldParentNode IsNot Nothing Then RefreshNodeText(oldParentNode)
-
-        ' 2. Новият родител (вече е по-тежък)
+        ' Преизчислява новия родител (увеличава натоварването)
         BuildPanelSummaryRecord(newParentName)
         RefreshNodeText(targetNode)
-
-        ' 3. Самото преместено табло (за всеки случай)
+        ' Преизчислява самото преместено табло
         BuildPanelSummaryRecord(draggedNode.Name)
         RefreshNodeText(draggedNode)
-
-        ' 4. Обновяваме пътя до корена за всички засегнати
+        ' Обновява всички родители нагоре по дървото
         If oldParentNode IsNot Nothing Then UpdatePathToRoot(oldParentNode)
         UpdatePathToRoot(targetNode)
-
+        ' Финално сортиране и обновяване на визуализацията
         SortCircuits()
         SetupDataGridView_Total()
     End Sub
-
-
     ''' <summary>
     ''' Итеративно обновява данните и текста на възела и всички негови предци до корена.
     ''' Не използва рекурсия → 0% риск от StackOverflow.

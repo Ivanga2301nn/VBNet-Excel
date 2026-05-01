@@ -1009,7 +1009,7 @@ Public Class Form_ExcelUtilForm
                                 If prop.PropertyName = "Дължина" Then strWis = prop.Value
                             Next
                             iVisib = Array.FindIndex(arrBlock, Function(f) f.blName = blName)
-                        Case "LED_ULTRALUX", "LED_ULTRALUX_100"
+                        Case "LED_ULTRALUX", "LED_ULTRALUX_100", "LED_ULTRALUX_нов"
                             For Each objID As ObjectId In attCol
                                 Dim dbObj As DBObject = acTrans.GetObject(objID, OpenMode.ForRead)
                                 Dim acAttRef As AttributeReference = dbObj
@@ -1020,7 +1020,6 @@ Public Class Form_ExcelUtilForm
                                 If prop.PropertyName = "Св_поток" Then strLED_Lamp_SW_Potok = prop.Value
                                 If prop.PropertyName = "Тип" Then strLED_Lamp_TIP = prop.Value
                                 If prop.PropertyName = "Distance1" Then strWis = prop.Value
-
                             Next
                             iVisib = Array.FindIndex(arrBlock, Function(f) f.blName = blName And
                                                                            f.blLamp_Power = strLamp_Power And
@@ -1131,7 +1130,7 @@ Public Class Form_ExcelUtilForm
                                 arrBlock(index).blLamp_Power = strWis
                             Case "LED_lenta"
                                 arrBlock(index).blLED_Lenta_Length = strWis
-                            Case "LED_ULTRALUX", "LED_ULTRALUX_100"
+                            Case "LED_ULTRALUX", "LED_ULTRALUX_100", "LED_ULTRALUX_нов"
                                 arrBlock(index).blLamp_Power = strLamp_Power
                                 arrBlock(index).blLED_Lamp_SW_Potok = strLED_Lamp_SW_Potok
                                 arrBlock(index).blLED_Lamp_Montav = strLED_Lamp_Montav
@@ -1175,7 +1174,7 @@ Public Class Form_ExcelUtilForm
                     ' #################################################################################################################################
                     Dim broj_elementi As Integer = iarrBlock.count
                     Select Case iarrBlock.blName
-                        Case "LED_lenta", "LED_ULTRALUX", "LED_ULTRALUX_100", "LED_луна",
+                        Case "LED_lenta", "LED_ULTRALUX", "LED_ULTRALUX_100", "LED_ULTRALUX_нов", "LED_луна",
                              "Линия МХЛ - 220V", "Плафони", "Прожектор"
                             wsLines.Cells(2, 12).Value = wsLines.Cells(2, 12).Value + iarrBlock.count
                         Case "Авария_100", "Авария"
@@ -1444,7 +1443,7 @@ Public Class Form_ExcelUtilForm
                     Text_Dostawka = Text_Dostawka + " цветна температура 3000К;"
                     Text_Dostawka = Text_Dostawka + "комплект с профили за монтаж"
                     wsKontakti.Range("L" & i.ToString).Value = 2 * broj_elementi
-                Case "LED_ULTRALUX", "LED_ULTRALUX_100"
+                Case "LED_ULTRALUX", "LED_ULTRALUX_100", "LED_ULTRALUX_нов"
                     wsKontakti.Range("L" & i.ToString).Value = 3 * broj_elementi
                     Text_Dostawka = "светодиодно, осветително тяло"
                     Select Case wsKontakti.Cells(i, 10).Value

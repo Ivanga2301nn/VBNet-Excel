@@ -664,7 +664,7 @@ Public Class Zapiska
         Dim Слабо_Кота = cu.GetObjects_TEXT("Изберете текст съдържаш котата на която се намира на табло " & Слабо_Име)
         text = "Връзката с доставчика услугите ще се осъществи на границата на имота."
         text += " На място указано от доставчика ще се монтира допълнително табло доставено от доставчика на услугите."
-        text += " От това табло ще се изтеглят по един брой кабели тип FTP 4х2х24AWG и RG 6/64 изтеглени в две тръби HDPE ф63mm."
+        text += " От това табло ще се изтеглят един брой кабел тип FTP 4х2х24AWG тръба HDPE ф63mm."
         text += " Трасето по което ще се положат тръбите е указано в графичната част."
         text += " При необходимост и по указания на доставчика на услугите кабелите могат да се подменят, като се използват положените тръби."
         text += " Не се допуска изтеглянето на силови и слаботокови кабели в една тръба."
@@ -3677,7 +3677,9 @@ SAP
     Sub Get_data_PIC(dicObekt As Dictionary(Of String, String),
                      acDoc As Document,
                      acCurDb As Database)
-        Dim Помещение_ИНВ As String = ""
+        Try
+
+            Dim Помещение_ИНВ As String = ""
         Do
             Помещение_ИНВ = cu.GetObjects_TEXT("Изберете текст съдържащ помещението, в което се МОНТИРАТ ИНВЕРТОРИТЕ")
             If Not Помещение_ИНВ.Contains("#####") Then
@@ -3706,61 +3708,65 @@ SAP
         Dim blkRecId As ObjectId = ObjectId.Null
         Dim ss_Tabla = cu.GetObjects("INSERT", "Изберете БЛОКОВЕТЕ в чертеж съдържащи ДАТЧИЦИТЕ ОТ ПИЦ:")
         If ss_Tabla Is Nothing Then Exit Sub
-        Using acTrans As Transaction = acCurDb.TransactionManager.StartTransaction()
-            Try
-                For Each sObj As SelectedObject In ss_Tabla
-                    blkRecId = sObj.ObjectId
-                    Dim acBlkRef As BlockReference = DirectCast(acTrans.GetObject(blkRecId, OpenMode.ForRead), BlockReference)
+            Using acTrans As Transaction = acCurDb.TransactionManager.StartTransaction()
+                Try
+                    For Each sObj As SelectedObject In ss_Tabla
+                        blkRecId = sObj.ObjectId
+                        Dim acBlkRef As BlockReference = DirectCast(acTrans.GetObject(blkRecId, OpenMode.ForRead), BlockReference)
 
-                    ' Проверка дали блокът е динамичен
-                    If Not acBlkRef.IsDynamicBlock Then Continue For
+                        ' Проверка дали блокът е динамичен
+                        If Not acBlkRef.IsDynamicBlock Then Continue For
 
-                    Dim attCol As AttributeCollection = acBlkRef.AttributeCollection
-                    Dim props As DynamicBlockReferencePropertyCollection = acBlkRef.DynamicBlockReferencePropertyCollection
-                    Dim picItem As New PIC()
+                        Dim attCol As AttributeCollection = acBlkRef.AttributeCollection
+                        Dim props As DynamicBlockReferencePropertyCollection = acBlkRef.DynamicBlockReferencePropertyCollection
+                        Dim picItem As New PIC()
 
-                    ' Извличане на свойството "Visibility" на динамичния блок
-                    For Each prop As DynamicBlockReferenceProperty In props
-                        If prop.PropertyName = "Visibility" Then picItem.Visibility = prop.Value
+                        ' Извличане на свойството "Visibility" на динамичния блок
+                        For Each prop As DynamicBlockReferenceProperty In props
+                            If prop.PropertyName = "Visibility" Then picItem.Visibility = prop.Value
+                        Next
+                        Dim blName As String = (CType(acBlkRef.DynamicBlockTableRecord.GetObject(OpenMode.ForRead), BlockTableRecord)).Name
+                        If blName <> "Табло_Ново" And
+                            blName <> "Датчик_ПАБ" Then Continue For
+
+                        Dim boVisibility As Boolean = False
+                        For i As Integer = 0 To picList.Count - 1
+                            If picList(i).Visibility = picItem.Visibility Then
+                                boVisibility = True
+                                Dim temp As PIC = picList(i) ' Копира елемента
+                                temp.CountS += 1             ' Променя стойността
+                                picList(i) = temp            ' Връща променения елемент обратно
+                                Exit For
+                            End If
+                        Next
+                        If boVisibility Then Continue For
+
+                        For Each objID As ObjectId In attCol
+                            Dim dbObj As DBObject = acTrans.GetObject(objID, OpenMode.ForRead)
+                            Dim acAttRef As AttributeReference = dbObj
+                            If acAttRef.Tag = "ТАБЛО" Then picItem.Tablo = acAttRef.TextString
+                            If acAttRef.Tag = "ZN" Then picItem.ZN = acAttRef.TextString
+                            If acAttRef.Tag = "NOM" Then picItem.NOM = acAttRef.TextString
+                            If acAttRef.Tag = "AD" Then picItem.AD = acAttRef.TextString
+                        Next
+                        picItem.CountS = 1
+                        ' Добавяне в списъка
+                        picList.Add(picItem)
+
                     Next
-                    Dim blName As String = (CType(acBlkRef.DynamicBlockTableRecord.GetObject(OpenMode.ForRead), BlockTableRecord)).Name
-                    If blName <> "Табло_Ново" And
-                        blName <> "Датчик_ПАБ" Then Continue For
+                    acTrans.Commit()
+                Catch ex As Exception
+                    MsgBox("Възникна грешка: " & ex.Message & vbCrLf & vbCrLf & ex.StackTrace.ToString)
+                    acTrans.Abort()
+                Finally
+                    If acTrans IsNot Nothing Then acTrans.Dispose()
+                End Try
 
-                    Dim boVisibility As Boolean = False
-                    For i As Integer = 0 To picList.Count - 1
-                        If picList(i).Visibility = picItem.Visibility Then
-                            boVisibility = True
-                            Dim temp As PIC = picList(i) ' Копира елемента
-                            temp.CountS += 1             ' Променя стойността
-                            picList(i) = temp            ' Връща променения елемент обратно
-                            Exit For
-                        End If
-                    Next
-                    If boVisibility Then Continue For
+            End Using
 
-                    For Each objID As ObjectId In attCol
-                        Dim dbObj As DBObject = acTrans.GetObject(objID, OpenMode.ForRead)
-                        Dim acAttRef As AttributeReference = dbObj
-                        If acAttRef.Tag = "ТАБЛО" Then picItem.Tablo = acAttRef.TextString
-                        If acAttRef.Tag = "ZN" Then picItem.ZN = acAttRef.TextString
-                        If acAttRef.Tag = "NOM" Then picItem.NOM = acAttRef.TextString
-                        If acAttRef.Tag = "AD" Then picItem.AD = acAttRef.TextString
-                    Next
-                    picItem.CountS = 1
-                    ' Добавяне в списъка
-                    picList.Add(picItem)
+        Catch ex As Exception
 
-                Next
-                acTrans.Commit()
-            Catch ex As Exception
-                MsgBox("Възникна грешка: " & ex.Message & vbCrLf & vbCrLf & ex.StackTrace.ToString)
-                acTrans.Abort()
-            Finally
-                If acTrans IsNot Nothing Then acTrans.Dispose()
-            End Try
-
-        End Using
+        End Try
     End Sub
     Sub Записка_ПИЦ(wordDoc As Word.Document,
                          acDoc As Document,

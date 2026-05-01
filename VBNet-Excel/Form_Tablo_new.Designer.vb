@@ -46,6 +46,7 @@ Partial Class Form_Tablo_new
         Me.ToolStripButton_Вмъкни_Autocad = New System.Windows.Forms.ToolStripButton()
         Me.ToolStripSeparator5 = New System.Windows.Forms.ToolStripSeparator()
         Me.ToolStripButton_ШИНА = New System.Windows.Forms.ToolStripButton()
+        Me.ToolStripComboBox_Дабавяне = New System.Windows.Forms.ToolStripComboBox()
         Me.TableLayoutPanel1 = New System.Windows.Forms.TableLayoutPanel()
         Me.GroupBox2 = New System.Windows.Forms.GroupBox()
         Me.DataGridView1 = New System.Windows.Forms.DataGridView()
@@ -90,7 +91,7 @@ Partial Class Form_Tablo_new
         '
         'ToolStrip1
         '
-        Me.ToolStrip1.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.NewToolStripButton, Me.OpenToolStripButton, Me.SaveToolStripButton, Me.PrintToolStripButton, Me.toolStripSeparator6, Me.CutToolStripButton, Me.CopyToolStripButton, Me.PasteToolStripButton, Me.toolStripSeparator7, Me.HelpToolStripButton, Me.ToolStripSeparator2, Me.ToolStripComboBox1, Me.ToolStripSeparator4, Me.ToolStripButton_Балансирай_фазите, Me.ToolStripSeparator3, Me.ToolStripButton_Поправи_ДЗТ, Me.ToolStripSeparator1, Me.ToolStripButton_Вмъкни_Autocad, Me.ToolStripSeparator5, Me.ToolStripButton_ШИНА})
+        Me.ToolStrip1.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.NewToolStripButton, Me.OpenToolStripButton, Me.SaveToolStripButton, Me.PrintToolStripButton, Me.toolStripSeparator6, Me.CutToolStripButton, Me.CopyToolStripButton, Me.PasteToolStripButton, Me.toolStripSeparator7, Me.HelpToolStripButton, Me.ToolStripSeparator2, Me.ToolStripComboBox1, Me.ToolStripSeparator4, Me.ToolStripButton_Балансирай_фазите, Me.ToolStripSeparator3, Me.ToolStripButton_Поправи_ДЗТ, Me.ToolStripSeparator1, Me.ToolStripButton_Вмъкни_Autocad, Me.ToolStripSeparator5, Me.ToolStripButton_ШИНА, Me.ToolStripComboBox_Дабавяне})
         Me.ToolStrip1.Location = New System.Drawing.Point(5, 5)
         Me.ToolStrip1.Name = "ToolStrip1"
         Me.ToolStrip1.Size = New System.Drawing.Size(1373, 25)
@@ -247,6 +248,13 @@ Partial Class Form_Tablo_new
         Me.ToolStripButton_ШИНА.ToolTipText = "Секциониране: Защото една шина е просто твърде скучна за такъв сложен проект. Раз" &
     "дели ги сега, преди AutoCAD да ги е слял завинаги в един вечен и неразделим блок" &
     "!" & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10)
+        '
+        'ToolStripComboBox_Дабавяне
+        '
+        Me.ToolStripComboBox_Дабавяне.Items.AddRange(New Object() {"Съществуващи", "Резерви"})
+        Me.ToolStripComboBox_Дабавяне.Name = "ToolStripComboBox_Дабавяне"
+        Me.ToolStripComboBox_Дабавяне.Size = New System.Drawing.Size(121, 25)
+        Me.ToolStripComboBox_Дабавяне.Text = "Добави"
         '
         'TableLayoutPanel1
         '
@@ -466,4 +474,5 @@ Partial Class Form_Tablo_new
     Friend WithEvents PasteToolStripButton1 As Windows.Forms.ToolStripButton
     Friend WithEvents toolStripSeparator8 As Windows.Forms.ToolStripSeparator
     Friend WithEvents HelpToolStripButton1 As Windows.Forms.ToolStripButton
+    Friend WithEvents ToolStripComboBox_Дабавяне As Windows.Forms.ToolStripComboBox
 End Class

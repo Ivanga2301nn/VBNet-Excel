@@ -908,9 +908,11 @@ Public Class Legend
                 strBlockText = "Светодиодно осветително тяло за евакуационно осветление, с вградени акумулаторни батерии, 4W"
             Case "LED_DENIMA"
                 strBlockText = "Светодиодно осветително тяло"
-            Case "LED_ULTRALUX", "LED_ULTRALUX_100"
+            Case "LED_ULTRALUX", "LED_ULTRALUX_100", "LED_ULTRALUX_нов"
                 strBlockText = "Светодиодно осветително тяло"
                 Select Case Visibility
+                    Case "Битов"
+                        strLED_Lamp_TIP = "IP-20"
                     Case "Кухня"
                         strBlockText = strBlockText + " - за вграждане в кухненска мебел"
                         Exit Select

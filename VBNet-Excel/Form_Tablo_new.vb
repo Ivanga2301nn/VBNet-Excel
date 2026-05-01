@@ -836,7 +836,7 @@ Public Class Form_Tablo_new
         ' ============================================================
         Public RCD_Бранд As String                  ' Производител на ДТЗ
         Public RCD_Клас As String                   ' Тип ДТЗ (AC, A, F)
-        Public RCD_Тип As String                    ' EZ RCCB, EZ RCBO, iID
+        Public RCD_Тип As String                    ' EZ9 RCCB, EZ9 RCBO, iID
         Public RCD_Чувствителност As String         ' Чувствителност ("30mA", "100mA", "300mA")
         Public RCD_Ток As String                    ' Номинален ток на ДТЗ ("25A", "40A", "63A")
         Public RCD_Полюси As String                 ' Полюси на ДТЗ ("2p", "4p")
@@ -2056,19 +2056,19 @@ Public Class Form_Tablo_new
     }
         ' --- 6. ДТЗ / RCD ---
         RCD_Catalog = New List(Of RCDInfo) From {
-                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCCB", .Breaker = False},
-                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "EZ RCCB", .Breaker = False},
-                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCCB", .Breaker = False},
-                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "EZ RCCB", .Breaker = False},
-                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 63, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCCB", .Breaker = False},
-                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 63, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "EZ RCCB", .Breaker = False},
-                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 6, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCBO", .Breaker = True},
-                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 10, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCBO", .Breaker = True},
-                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 16, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCBO", .Breaker = True},
-                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 20, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCBO", .Breaker = True},
-                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCBO", .Breaker = True},
-                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 32, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCBO", .Breaker = True},
-                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ RCBO", .Breaker = True},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ9 RCCB", .Breaker = False},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "EZ9 RCCB", .Breaker = False},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ9 RCCB", .Breaker = False},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "EZ9 RCCB", .Breaker = False},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 63, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ9 RCCB", .Breaker = False},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 63, .Type = "AC", .Poles = "4p", .Sensitivity = 30, .DeviceType = "EZ9 RCCB", .Breaker = False},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 6, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ9 RCBO", .Breaker = True},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 10, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ9 RCBO", .Breaker = True},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 16, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ9 RCBO", .Breaker = True},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 20, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ9 RCBO", .Breaker = True},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ9 RCBO", .Breaker = True},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 32, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ9 RCBO", .Breaker = True},
+                            New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "AC", .Poles = "2p", .Sensitivity = 30, .DeviceType = "EZ9 RCBO", .Breaker = True},
                             New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 25, .Type = "si", .Poles = "2p", .Sensitivity = 300, .DeviceType = "iID", .Breaker = False},
                             New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 40, .Type = "si", .Poles = "2p", .Sensitivity = 300, .DeviceType = "iID", .Breaker = False},
                             New RCDInfo With {.Brand = "Schneider", .NominalCurrent = 63, .Type = "si", .Poles = "2p", .Sensitivity = 300, .DeviceType = "iID", .Breaker = False},
@@ -4346,7 +4346,7 @@ Public Class Form_Tablo_new
             tokow.RCD_Полюси = selectedRCD.Poles
             tokow.RCD_Нула = "N"
             tokow.RCD_Автомат = selectedRCD.Breaker
-            If tokow.RCD_Тип = "EZ RCBO" Then ClearBreaker(tokow)
+            If tokow.RCD_Тип = "EZ9 RCBO" Then ClearBreaker(tokow)
         End If
     End Sub
     ''' <summary>
@@ -6412,4 +6412,75 @@ Public Class Form_Tablo_new
         ' Определя конкретен тип разединител според тока
         CalculateDisconnector(disconnector)
     End Sub
+
+    Private Sub ToolStripComboBox_Дабавяне_SelectedIndexChanged(sender As Object, e As EventArgs) Handles ToolStripComboBox_Дабавяне.SelectedIndexChanged
+        Dim selectedOption As String = ToolStripComboBox_Дабавяне.SelectedItem?.ToString()
+        If String.IsNullOrEmpty(selectedOption) Then Return
+
+        Dim deviceValue As String = ""
+        Dim tokovKragValue As String = ""
+
+        If selectedOption = "Съществуващи" Then
+            deviceValue = "Съществуващи"
+            tokovKragValue = "същ."
+        ElseIf selectedOption = "Резерви" Then
+            deviceValue = "Резерви"
+            tokovKragValue = "рез."
+        Else
+            ToolStripComboBox_Дабавяне.SelectedIndex = -1
+            ToolStripComboBox_Дабавяне.Text = "Добави"
+            Return
+        End If
+
+        Dim selectedTablo As String = TreeView1.SelectedNode?.Text
+        If String.IsNullOrEmpty(selectedTablo) Then
+            MessageBox.Show("Моля, изберете табло от дървовидната структура.", "Грешка", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            ToolStripComboBox_Дабавяне.SelectedIndex = -1
+            ToolStripComboBox_Дабавяне.Text = "Добави"
+            Return
+        End If
+
+        If selectedTablo.Contains("(") Then
+            selectedTablo = selectedTablo.Substring(0, selectedTablo.IndexOf("(")).Trim()
+        End If
+
+        '  Динамичен InputBox според избора
+        Dim promptMsg As String = $"Въведете бройка за: {selectedOption}"
+        Dim input As String = InputBox(promptMsg, "Добавяне на кръгове", "1")
+
+        ' Ако потребителят е натиснал Cancel или е оставил празно
+        If String.IsNullOrWhiteSpace(input) Then
+            ToolStripComboBox_Дабавяне.SelectedIndex = -1
+            ToolStripComboBox_Дабавяне.Text = "Добави"
+            Return
+        End If
+
+        Dim count As Integer
+        If Not Integer.TryParse(input, count) OrElse count < 1 Then
+            MessageBox.Show("Моля, въведете валиден брой (цяло число >= 1).", "Грешка", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            ToolStripComboBox_Дабавяне.SelectedIndex = -1
+            ToolStripComboBox_Дабавяне.Text = "Добави"
+            Return
+        End If
+
+        For i As Integer = 1 To count
+            Dim newCircuit As New strTokow With {
+            .Tablo = selectedTablo,
+            .ТоковКръг = tokovKragValue, ' & " " & i.ToString(),
+            .Мощност = 0,
+            .Ток = 0,
+            .Фаза = "",
+            .Брой_Полюси = "",
+            .Консуматор = "",
+            .предназначение = "",
+            .Device = deviceValue
+        }
+            ListTokow.Add(newCircuit)
+        Next
+
+        ' 🔄 Връщане в начално състояние
+        ToolStripComboBox_Дабавяне.SelectedIndex = -1
+        ToolStripComboBox_Дабавяне.Text = "Добави"
+    End Sub
+
 End Class

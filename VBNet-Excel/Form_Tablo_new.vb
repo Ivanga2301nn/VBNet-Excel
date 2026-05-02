@@ -3592,46 +3592,56 @@ Public Class Form_Tablo_new
         ' 1. ОПРЕДЕЛИ КАТЕГОРИЯТА (ПРИОРИТЕТ)
         ' ============================================================
         Select Case True
-    ' 1. СЪЩЕСТВУВАЩИ - най-отпред
+            ' 1. СЪЩЕСТВУВАЩИ
             Case name = "СЪЩ."
                 priority = "0"
                 numberPart = ExtractNumber(name)
                 letterPart = "СЪЩ"
-    ' 2. АВАРИЙНИ
+
+            ' 2. АВАРИЙНИ
             Case name.Contains("АВ")
                 priority = "1"
                 numberPart = ExtractNumber(name)
                 letterPart = "АВ"
-    ' 3. ДОПЪЛНИТЕЛНИ
+
+            ' 3. ДОПЪЛНИТЕЛНИ
             Case name.Contains("ДО")
                 priority = "2"
                 numberPart = ExtractNumber(name)
                 letterPart = "ДО"
-    ' 4. ЧИСТИ ЧИСЛА
+
+            ' 4. ЧИСТИ ЧИСЛА
             Case IsNumeric(name)
                 priority = "3"
                 numberPart = name
                 letterPart = ""
-    ' 5. ЧИСЛО + БУКВА
+
+            ' 5. ЧИСЛО + БУКВА (напр. 1а, 2б)
             Case HasNumberAndLetters(name) AndAlso Char.IsDigit(name(0))
                 priority = "4"
                 numberPart = ExtractNumber(name)
                 letterPart = ExtractLetters(name)
-    ' 6. РЕЗЕРВА - между нормалните и ОБЩО
-            Case name = "РЕЗ."
-                priority = "8"
-                numberPart = ExtractNumber(name)
-                letterPart = "РЕЗ"
-    ' 7. ВСИЧКО ЗАПОЧВАЩО С БУКВА (основни кръгове)
-            Case Not String.IsNullOrEmpty(name) AndAlso Char.IsLetter(name(0))
-                priority = "5"
-                numberPart = ExtractNumber(name)
-                letterPart = name
-    ' 8. ОБЩО - най-накрая
+
+            ' --- ТУК СА ВАЖНИТЕ ПРОМЕНИ ---
+
+            ' 6. ОБЩО (Провери го ПРЕДИ общия случай за букви)
             Case name = "ОБЩО"
                 priority = "9"
                 numberPart = ""
                 letterPart = "ZZZZZ"
+
+            ' 7. РЕЗЕРВА
+            Case name = "РЕЗ." OrElse name = "РЕЗ"
+                priority = "8"
+                numberPart = ""
+                letterPart = "РЕЗ"
+
+            ' 8. ВСИЧКО ЗАПОЧВАЩО С БУКВА (Основни кръгове като А1, Б1 и т.н.)
+            Case Not String.IsNullOrEmpty(name) AndAlso Char.IsLetter(name(0))
+                priority = "5"
+                numberPart = ExtractNumber(name)
+                letterPart = name
+
                 ' 9. ВСИЧКО ОСТАНАЛО
             Case Else
                 priority = "8"
@@ -5280,7 +5290,20 @@ Public Class Form_Tablo_new
                 End Try
             End Using
         Catch ex As Exception
-            MsgBox("Възникна грешка: " & vbCrLf & ex.Message & vbCrLf & vbCrLf & ex.StackTrace, MsgBoxStyle.Critical)
+            ' Извличане на информация за реда
+            Dim st As New StackTrace(ex, True)
+            Dim frame As StackFrame = st.GetFrame(0) ' Взема последния фрейм, където е гръмнало
+            Dim line As Integer = frame.GetFileLineNumber()
+            Dim fileName As String = frame.GetFileName()
+
+            Dim errorMsg As String = String.Format(
+                "Грешка: {0}" & vbCrLf &
+                "Файл: {1}" & vbCrLf &
+                "Ред: {2}" & vbCrLf & vbCrLf &
+                "StackTrace: {3}",
+                ex.Message, fileName, line, ex.StackTrace)
+
+            MsgBox(errorMsg, MsgBoxStyle.Critical)
         Finally
             Me.Visible = True
         End Try
@@ -6036,72 +6059,84 @@ Public Class Form_Tablo_new
         Dim rcd_Yes As String = ""
         ' Ако има RCD_Нула и тя не е "N", местим блока надолу по Y с 117.5 единици
         If Not String.IsNullOrEmpty(circuit.RCD_Нула) AndAlso
-        circuit.RCD_Нула.Trim().ToUpper() <> "N" Then
+                    circuit.RCD_Нула.Trim().ToUpper() <> "N" Then
             insertPoint = New Point3d(X, Y_Shina - 117.5, 0)
         End If
         ' Избор на блок според типа апарат
-        If Not String.IsNullOrEmpty(circuit.Breaker_Тип_Апарат) Then
-            Select Case circuit.Управление
-                Case "Моторна защита"
-                    rcd_Yes = "Моторна защита"
-                    blockName = "s_GV2" ' Блок за GV2 апарат
-                Case Else
-                    rcd_Yes = "Прекъсвач"
-                    blockName = "s_c60_circ_break" ' По подразбиране C60
-            End Select
-        Else
-            ' Ако типът на апарата не е зададен, считаме, че е RCD
-            rcd_Yes = "RCD"
-            blockName = "s_dpnn_vigi_circ_break" ' Блок за RCD
-        End If
+        ' 1. Първоначални настройки
+        rcd_Yes = "Прекъсвач"
+        blockName = "s_c60_circ_break"
+        ' 2. Логика за избор на тип апарат и блок
+        Select Case True
+    ' Първи приоритет: Резерви и Съществуващи
+            Case circuit.Device = "Резерва", circuit.Device = "Съществуващ"
+                rcd_Yes = "Прекъсвач"
+                blockName = "s_c60_circ_break"
+    ' Втори приоритет: Моторна защита
+            Case circuit.Управление = "Моторна защита"
+                rcd_Yes = "Моторна защита"
+                blockName = "s_GV2"
+    ' Трети приоритет: Проверка за RCD (ако има попълнен тип)
+            Case Not String.IsNullOrWhiteSpace(circuit.RCD_Тип)
+                rcd_Yes = "RCD"
+                blockName = "s_dpnn_vigi_circ_break"
+                ' Всичко останало (Default)
+            Case Else
+                rcd_Yes = "Прекъсвач"
+                blockName = "s_c60_circ_break"
+        End Select
         ' Вмъкване на блока в AutoCAD с помощта на функция InsertBlock
         ' (предполага се, че cu е помощен модул/клас за CAD операции)
         Dim blkRecId As ObjectId = cu.InsertBlock(blockName, insertPoint, "EL_ТАБЛА", blockScale)
         ' Ако вмъкването е успешно (ObjectId не е Null)
         If Not blkRecId.IsNull Then
             ' Стартиране на транзакция за промяна на атрибутите на блока
-            Using trans As Transaction = acCurDb.TransactionManager.StartTransaction()
-                ' Получаваме референция към блока за писане
-                Dim acBlkRef As BlockReference = DirectCast(trans.GetObject(blkRecId, OpenMode.ForWrite), BlockReference)
-                ' Обхождане на всички атрибути на блока
-                For Each objID As ObjectId In acBlkRef.AttributeCollection
-                    Dim acAttRef As AttributeReference = DirectCast(trans.GetObject(objID, OpenMode.ForWrite), AttributeReference)
-                    ' Попълване на атрибутите в зависимост дали е RCD или обикновен прекъсвач
-                    If acAttRef.Tag = "DESIGNATION" Then acAttRef.TextString = ""
-                    If acAttRef.Tag = "REFNB" Then acAttRef.TextString = circuit.Tablo
-                    Select Case rcd_Yes
-                        Case "Моторна защита"
-                            Select Case acAttRef.Tag
-                                Case "1" : acAttRef.TextString = Calculate_GV2(circuit.Ток, 3)
-                                Case "2" : acAttRef.TextString = "3P"
-                                Case "3" : acAttRef.TextString = Calculate_GV2(circuit.Ток, 2)
-                                Case "4" : acAttRef.TextString = ""
-                                Case "5" : acAttRef.TextString = ""
-                                Case "SHORTNAME" : acAttRef.TextString = Calculate_GV2(circuit.Ток, 1)
-                            End Select
-                        Case "RCD"
-                            ' Атрибути за RCD
-                            Select Case acAttRef.Tag
-                                Case "SHORTNAME" : acAttRef.TextString = circuit.RCD_Тип
-                                Case "1" : acAttRef.TextString = circuit.RCD_Клас
-                                Case "2" : acAttRef.TextString = circuit.Брой_Полюси & "p"
-                                Case "3" : acAttRef.TextString = "C"
-                                Case "4" : acAttRef.TextString = circuit.RCD_Ток & "A"
-                                Case "5" : acAttRef.TextString = circuit.RCD_Чувствителност & "mA"
-                            End Select
-                        Case "Прекъсвач"
-                            ' Атрибути за прекъсвач
-                            Select Case acAttRef.Tag
-                                Case "SHORTNAME" : acAttRef.TextString = circuit.Breaker_Тип_Апарат
-                                Case "2" : acAttRef.TextString = circuit.Breaker_Крива
-                                Case "3" : acAttRef.TextString = circuit.Брой_Полюси & "p"
-                                Case "4" : acAttRef.TextString = circuit.Breaker_Номинален_Ток & "A"
-                            End Select
-                    End Select
-                Next
-                ' Потвърждаваме промяната на атрибутите
-                trans.Commit()
-            End Using
+            Try
+                Using trans As Transaction = acCurDb.TransactionManager.StartTransaction()
+                    ' Получаваме референция към блока за писане
+                    Dim acBlkRef As BlockReference = DirectCast(trans.GetObject(blkRecId, OpenMode.ForWrite), BlockReference)
+                    ' Обхождане на всички атрибути на блока
+                    For Each objID As ObjectId In acBlkRef.AttributeCollection
+                        Dim acAttRef As AttributeReference = DirectCast(trans.GetObject(objID, OpenMode.ForWrite), AttributeReference)
+                        ' Попълване на атрибутите в зависимост дали е RCD или обикновен прекъсвач
+                        If acAttRef.Tag = "DESIGNATION" Then acAttRef.TextString = ""
+                        If acAttRef.Tag = "REFNB" Then acAttRef.TextString = circuit.Tablo
+                        Select Case rcd_Yes
+                            Case "Моторна защита"
+                                Select Case acAttRef.Tag
+                                    Case "1" : acAttRef.TextString = Calculate_GV2(circuit.Ток, 3)
+                                    Case "2" : acAttRef.TextString = "3P"
+                                    Case "3" : acAttRef.TextString = Calculate_GV2(circuit.Ток, 2)
+                                    Case "4" : acAttRef.TextString = ""
+                                    Case "5" : acAttRef.TextString = ""
+                                    Case "SHORTNAME" : acAttRef.TextString = Calculate_GV2(circuit.Ток, 1)
+                                End Select
+                            Case "RCD"
+                                ' Атрибути за RCD
+                                Select Case acAttRef.Tag
+                                    Case "SHORTNAME" : acAttRef.TextString = circuit.RCD_Тип
+                                    Case "1" : acAttRef.TextString = circuit.RCD_Клас
+                                    Case "2" : acAttRef.TextString = circuit.Брой_Полюси & "p"
+                                    Case "3" : acAttRef.TextString = "C"
+                                    Case "4" : acAttRef.TextString = circuit.RCD_Ток & "A"
+                                    Case "5" : acAttRef.TextString = circuit.RCD_Чувствителност & "mA"
+                                End Select
+                            Case "Прекъсвач"
+                                ' Атрибути за прекъсвач
+                                Select Case acAttRef.Tag
+                                    Case "SHORTNAME" : acAttRef.TextString = circuit.Breaker_Тип_Апарат
+                                    Case "2" : acAttRef.TextString = circuit.Breaker_Крива
+                                    Case "3" : acAttRef.TextString = circuit.Брой_Полюси & "p"
+                                    Case "4" : acAttRef.TextString = circuit.Breaker_Номинален_Ток & "A"
+                                End Select
+                        End Select
+                    Next
+                    ' Потвърждаваме промяната на атрибутите
+                    trans.Commit()
+                End Using
+            Catch ex As Exception
+
+            End Try
         End If
     End Sub
     ''' <summary>

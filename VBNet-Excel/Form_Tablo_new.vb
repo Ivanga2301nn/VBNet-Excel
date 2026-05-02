@@ -3597,51 +3597,41 @@ Public Class Form_Tablo_new
                 priority = "0"
                 numberPart = ExtractNumber(name)
                 letterPart = "СЪЩ"
-
             ' 2. АВАРИЙНИ
             Case name.Contains("АВ")
                 priority = "1"
                 numberPart = ExtractNumber(name)
                 letterPart = "АВ"
-
             ' 3. ДОПЪЛНИТЕЛНИ
             Case name.Contains("ДО")
                 priority = "2"
                 numberPart = ExtractNumber(name)
                 letterPart = "ДО"
-
             ' 4. ЧИСТИ ЧИСЛА
             Case IsNumeric(name)
                 priority = "3"
                 numberPart = name
                 letterPart = ""
-
             ' 5. ЧИСЛО + БУКВА (напр. 1а, 2б)
             Case HasNumberAndLetters(name) AndAlso Char.IsDigit(name(0))
                 priority = "4"
                 numberPart = ExtractNumber(name)
                 letterPart = ExtractLetters(name)
-
-            ' --- ТУК СА ВАЖНИТЕ ПРОМЕНИ ---
-
             ' 6. ОБЩО (Провери го ПРЕДИ общия случай за букви)
             Case name = "ОБЩО"
                 priority = "9"
                 numberPart = ""
                 letterPart = "ZZZZZ"
-
             ' 7. РЕЗЕРВА
-            Case name = "РЕЗ." OrElse name = "РЕЗ"
+            Case name = "РЕЗ."
                 priority = "8"
                 numberPart = ""
                 letterPart = "РЕЗ"
-
             ' 8. ВСИЧКО ЗАПОЧВАЩО С БУКВА (Основни кръгове като А1, Б1 и т.н.)
             Case Not String.IsNullOrEmpty(name) AndAlso Char.IsLetter(name(0))
                 priority = "5"
                 numberPart = ExtractNumber(name)
                 letterPart = name
-
                 ' 9. ВСИЧКО ОСТАНАЛО
             Case Else
                 priority = "8"

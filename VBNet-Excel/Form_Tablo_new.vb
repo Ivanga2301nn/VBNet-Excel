@@ -3569,6 +3569,16 @@ Public Class Form_Tablo_new
         Next
     End Sub
     ''' <summary>
+    ''' Сортира ListTokow по специалния приоритет
+    ''' </summary>
+    Private Sub SortCircuits()
+        ListTokow = ListTokow.OrderBy(
+            Function(t) t.Tablo
+        ).ThenBy(
+            Function(t) GetCircuitSortKey(t.ТоковКръг)
+        ).ToList()
+    End Sub
+    ''' <summary>
     ''' Връща ключ за сортиране на токов кръг със специален приоритет
     ''' Порядок: 1.ав. → 2.до. → 3.други букви → 4.числа → 5.само букви
     ''' </summary>
@@ -3582,36 +3592,47 @@ Public Class Form_Tablo_new
         ' 1. ОПРЕДЕЛИ КАТЕГОРИЯТА (ПРИОРИТЕТ)
         ' ============================================================
         Select Case True
-            Case name = "ОБЩО"
-                priority = "9"
-                numberPart = ""
-                letterPart = "ZZZZZ" ' За подсигуряване в рамките на приоритет 9
-            ' 1. Аварийни (АВ) - Най-отпред
+    ' 1. СЪЩЕСТВУВАЩИ - най-отпред
+            Case name = "СЪЩ."
+                priority = "0"
+                numberPart = ExtractNumber(name)
+                letterPart = "СЪЩ"
+    ' 2. АВАРИЙНИ
             Case name.Contains("АВ")
                 priority = "1"
                 numberPart = ExtractNumber(name)
                 letterPart = "АВ"
-            ' 2. Допълнителни (ДО)
+    ' 3. ДОПЪЛНИТЕЛНИ
             Case name.Contains("ДО")
                 priority = "2"
                 numberPart = ExtractNumber(name)
                 letterPart = "ДО"
-            ' 3. Чисти числа (1, 2, 10) - Трябва да са ПРЕД "Т-маг"
+    ' 4. ЧИСТИ ЧИСЛА
             Case IsNumeric(name)
                 priority = "3"
                 numberPart = name
                 letterPart = ""
-                ' 4. Число + Буква (1А, 2Б)
+    ' 5. ЧИСЛО + БУКВА
             Case HasNumberAndLetters(name) AndAlso Char.IsDigit(name(0))
                 priority = "4"
                 numberPart = ExtractNumber(name)
                 letterPart = ExtractLetters(name)
-            ' 5. Започва с БУКВА (Т-маг.3, ОС-1, ГР-1) - Отиват НАКРАЯ
+    ' 6. РЕЗЕРВА - между нормалните и ОБЩО
+            Case name = "РЕЗ."
+                priority = "8"
+                numberPart = ExtractNumber(name)
+                letterPart = "РЕЗ"
+    ' 7. ВСИЧКО ЗАПОЧВАЩО С БУКВА (основни кръгове)
             Case Not String.IsNullOrEmpty(name) AndAlso Char.IsLetter(name(0))
                 priority = "5"
                 numberPart = ExtractNumber(name)
-                letterPart = name ' Сортираме по цялото име (Т-маг.1, Т-маг.2...)
-                ' 6. Всичко останало
+                letterPart = name
+    ' 8. ОБЩО - най-накрая
+            Case name = "ОБЩО"
+                priority = "9"
+                numberPart = ""
+                letterPart = "ZZZZZ"
+                ' 9. ВСИЧКО ОСТАНАЛО
             Case Else
                 priority = "8"
                 numberPart = ""
@@ -3676,16 +3697,7 @@ Public Class Form_Tablo_new
         Next
         Return text.Length > 0
     End Function
-    ''' <summary>
-    ''' Сортира ListTokow по специалния приоритет
-    ''' </summary>
-    Private Sub SortCircuits()
-        ListTokow = ListTokow.OrderBy(
-            Function(t) t.Tablo
-        ).ThenBy(
-            Function(t) GetCircuitSortKey(t.ТоковКръг)
-        ).ToList()
-    End Sub
+
     ''' <summary>
     ''' Събитие, което се изпълнява при промяна на стойност в клетка на DataGridView1.
     '''
@@ -6518,7 +6530,7 @@ Public Class Form_Tablo_new
         For i As Integer = 1 To count
             Dim newCircuit As New strTokow With {
                         .Tablo = selectedTablo,
-                        .ТоковКръг = tokovKragValue & " " & i.ToString(),
+                        .ТоковКръг = tokovKragValue, ' & " " & i.ToString(),
                         .Мощност = 0,
                         .Ток = 0,
                         .Фаза = "---",
@@ -6533,8 +6545,7 @@ Public Class Form_Tablo_new
         ' Връщане на комбобокса в начално състояние
         ToolStripComboBox_Дабавяне.SelectedIndex = -1
         ToolStripComboBox_Дабавяне.Text = "Добави"
-        ' Обновяване на визуалните таблици
-        SetupDataGridView()
-        SetupDataGridView_Total()
+        SortCircuits()
+        FillDataGridViewForPanel()
     End Sub
 End Class

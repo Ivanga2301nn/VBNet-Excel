@@ -3702,6 +3702,9 @@ Public Class Form_Tablo_new
             ' После го предаваш
             Dim tokow As strTokow = FindTokowByColumn(currentCircuit)
             Dim Update As Boolean = True
+            If tokow.Device = "Разединител" OrElse
+               tokow.Device = "Съществуващ" OrElse
+               tokow.Device = "Резерва" Then Exit Sub
             If tokow IsNot Nothing AndAlso Not String.IsNullOrEmpty(selectedValue) Then
                 Select Case paramName
                     Case "Тип на апарата"
@@ -4120,7 +4123,9 @@ Public Class Form_Tablo_new
                                 Optional matType As Integer = 0,        ' 0=мед (Cu), 1=алуминий (Al)
                                 Optional RetType As Integer = 1         ' 0=само сечение, 1=пълно означение
                                 )
-        If tokow.Device = "Разединител" Then Exit Sub
+        If tokow.Device = "Разединител" OrElse
+           tokow.Device = "Съществуващ" OrElse
+           tokow.Device = "Резерва" Then Exit Sub
         Dim Ibreaker As String = tokow.Breaker_Номинален_Ток
         Dim NumberPoles As String = tokow.Брой_Полюси
         ' 1. МАТЕРИАЛ И ФИЛТРИРАНЕ НА КАТАЛОГА
@@ -6413,48 +6418,63 @@ Public Class Form_Tablo_new
         CalculateDisconnector(disconnector)
     End Sub
 
+    ''' <summary>
+    ''' Обработва избор от ToolStripComboBox за добавяне на нови "служебни" кръгове към избрано табло.
+    ''' Логиката:
+    ''' 1. Определя типа на добавянето (Съществуващи / Резерви)
+    ''' 2. Валидира избраното табло от TreeView
+    ''' 3. Извлича името на таблото (без допълнителен текст като kW)
+    ''' 4. Изисква брой записи от потребителя
+    ''' 5. Създава нови обекти strTokow и ги добавя в списъка
+    ''' 6. Обновява визуализацията (DataGridView)
+    ''' </summary>
     Private Sub ToolStripComboBox_Дабавяне_SelectedIndexChanged(sender As Object, e As EventArgs) Handles ToolStripComboBox_Дабавяне.SelectedIndexChanged
+        ' Взима избраната опция от комбобокса
         Dim selectedOption As String = ToolStripComboBox_Дабавяне.SelectedItem?.ToString()
+        ToolStripComboBox_Дабавяне.SelectedIndex = -1
+        ToolStripComboBox_Дабавяне.Text = "Добави"
+        ' Ако няма избор → изход
         If String.IsNullOrEmpty(selectedOption) Then Return
-
+        ' Дефиниране на стойности според избора
         Dim deviceValue As String = ""
         Dim tokovKragValue As String = ""
-
+        ' Съществуващи кръгове
         If selectedOption = "Съществуващи" Then
-            deviceValue = "Съществуващи"
+            deviceValue = "Съществуващ"
             tokovKragValue = "същ."
+            ' Резервни кръгове
         ElseIf selectedOption = "Резерви" Then
-            deviceValue = "Резерви"
+            deviceValue = "Резерва"
             tokovKragValue = "рез."
+            ' Невалиден избор → връщане в начално състояние
         Else
             ToolStripComboBox_Дабавяне.SelectedIndex = -1
             ToolStripComboBox_Дабавяне.Text = "Добави"
             Return
         End If
-
+        ' Взима текущо избраното табло от TreeView
         Dim selectedTablo As String = TreeView1.SelectedNode?.Text
+        ' Ако няма избрано табло → грешка и изход
         If String.IsNullOrEmpty(selectedTablo) Then
             MessageBox.Show("Моля, изберете табло от дървовидната структура.", "Грешка", MessageBoxButtons.OK, MessageBoxIcon.Error)
             ToolStripComboBox_Дабавяне.SelectedIndex = -1
             ToolStripComboBox_Дабавяне.Text = "Добави"
             Return
         End If
-
+        ' Премахва допълнителна информация (например "(12.5kW)")
         If selectedTablo.Contains("(") Then
             selectedTablo = selectedTablo.Substring(0, selectedTablo.IndexOf("(")).Trim()
         End If
-
-        '  Динамичен InputBox според избора
+        ' Въвеждане на брой нови записи
         Dim promptMsg As String = $"Въведете бройка за: {selectedOption}"
         Dim input As String = InputBox(promptMsg, "Добавяне на кръгове", "1")
-
-        ' Ако потребителят е натиснал Cancel или е оставил празно
+        ' Ако потребителят е отказал или е празно → изход
         If String.IsNullOrWhiteSpace(input) Then
             ToolStripComboBox_Дабавяне.SelectedIndex = -1
             ToolStripComboBox_Дабавяне.Text = "Добави"
             Return
         End If
-
+        ' Валидиране на числов вход
         Dim count As Integer
         If Not Integer.TryParse(input, count) OrElse count < 1 Then
             MessageBox.Show("Моля, въведете валиден брой (цяло число >= 1).", "Грешка", MessageBoxButtons.OK, MessageBoxIcon.Warning)
@@ -6462,25 +6482,30 @@ Public Class Form_Tablo_new
             ToolStripComboBox_Дабавяне.Text = "Добави"
             Return
         End If
-
+        ' Дефиниране на допълнителни свойства за новите обекти
+        Dim konsumentVal As String = If(selectedOption = "Съществуващи", "Съществуващ", "Резерв")
+        Dim prednaznachenieVal As String = If(selectedOption = "Съществуващи", "не се променя", "")
+        ' Създаване на нови записи
         For i As Integer = 1 To count
             Dim newCircuit As New strTokow With {
             .Tablo = selectedTablo,
-            .ТоковКръг = tokovKragValue, ' & " " & i.ToString(),
+            .ТоковКръг = tokovKragValue & " " & i.ToString(),
             .Мощност = 0,
             .Ток = 0,
-            .Фаза = "",
-            .Брой_Полюси = "",
-            .Консуматор = "",
-            .предназначение = "",
+            .Фаза = "L",
+            .Брой_Полюси = 0,
+            .Консуматор = konsumentVal,
+            .предназначение = prednaznachenieVal,
             .Device = deviceValue
         }
+            ' Добавяне към основния списък
             ListTokow.Add(newCircuit)
         Next
-
-        ' 🔄 Връщане в начално състояние
+        ' Връщане на комбобокса в начално състояние
         ToolStripComboBox_Дабавяне.SelectedIndex = -1
         ToolStripComboBox_Дабавяне.Text = "Добави"
+        ' Обновяване на визуалните таблици
+        SetupDataGridView()
+        SetupDataGridView_Total()
     End Sub
-
 End Class

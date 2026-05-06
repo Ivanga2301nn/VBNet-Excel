@@ -23,6 +23,7 @@ Imports Newtonsoft.Json.Linq
 Imports Org.BouncyCastle.Asn1.Cmp
 Imports Org.BouncyCastle.Math.EC.ECCurve
 Imports Button = System.Windows.Forms.Button
+Imports Font = System.Drawing.Font
 
 ' ============================================================
 ' 1. КОМАНДА ЗА СТАРТИРАНЕ (Трябва да е извън класа на формата)
@@ -1277,7 +1278,7 @@ Public Class Form_Tablo_new
                 ' Създаваме заглавния възел с общата сума
                 Dim circuitsFolderNode As New TreeNode($"🔌 ТК ({totalCircuitsPower:F1} kW)")
                 circuitsFolderNode.ForeColor = Color.DarkBlue ' Тъмно син цвят за акцент
-                circuitsFolderNode.NodeFont = New Drawing.Font(TreeView1.Font, FontStyle.Bold) ' Удебелен шрифт
+                circuitsFolderNode.NodeFont = New Font(TreeView1.Font, FontStyle.Bold) ' Удебелен шрифт
 
                 ' Добавяме всеки отделен кръг вътре в папката
                 For Each circuitGroup In circuits
@@ -1668,7 +1669,7 @@ Public Class Form_Tablo_new
         colParam.HeaderText = "Параметър"
         colParam.Width = 200
         colParam.Frozen = True
-        colParam.DefaultCellStyle.Font = New Drawing.Font("Arial", 10, FontStyle.Bold)
+        colParam.DefaultCellStyle.Font = New Font("Arial", 10, FontStyle.Bold)
         colParam.DefaultCellStyle.BackColor = Color.FromArgb(200, 220, 255)
         colParam.SortMode = DataGridViewColumnSortMode.NotSortable
         DataGridView1.Columns.Add(colParam)
@@ -1692,7 +1693,7 @@ Public Class Form_Tablo_new
         colTotal.Name = "colTotal"
         colTotal.HeaderText = "ОБЩО"
         colTotal.Width = 130
-        colTotal.DefaultCellStyle.Font = New Drawing.Font("Arial", 10, FontStyle.Bold)
+        colTotal.DefaultCellStyle.Font = New Font("Arial", 10, FontStyle.Bold)
         colTotal.DefaultCellStyle.BackColor = Color.FromArgb(230, 240, 255)
         colTotal.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter
         colTotal.SortMode = DataGridViewColumnSortMode.NotSortable
@@ -1732,7 +1733,7 @@ Public Class Form_Tablo_new
                     dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(220, 220, 220)
                 Case "Прекъсвач", "ДТЗ (RCD)", "Кабел"
                     dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(180, 200, 255)
-                    dgvRow.DefaultCellStyle.Font = New Drawing.Font("Arial", 10, FontStyle.Bold)
+                    dgvRow.DefaultCellStyle.Font = New Font("Arial", 10, FontStyle.Bold)
                 Case Else
                     ' стандартен стил
             End Select
@@ -1745,7 +1746,7 @@ Public Class Form_Tablo_new
         DataGridView1.AllowUserToDeleteRows = False                                 ' Забранява на потребителя да изтрива редове с натискане на Delete
         DataGridView1.ReadOnly = False                                              ' Позволява редакция на клетките (важно за ComboBox и CheckBox)
         DataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None    ' Изключва автоматичното оразмеряване (разчита на зададен Width)
-        DataGridView1.ColumnHeadersDefaultCellStyle.Font = New Drawing.Font("Arial", 10, FontStyle.Bold) ' Задава шрифт Bold за заглавния ред
+        DataGridView1.ColumnHeadersDefaultCellStyle.Font = New Font("Arial", 10, FontStyle.Bold) ' Задава шрифт Bold за заглавния ред
         DataGridView1.ColumnHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter ' Центрира текста в заглавията на колоните
         DataGridView1.ColumnHeadersHeight = 25                                      ' Фиксира височината на заглавната лента на 170 пиксела
         DataGridView1.RowTemplate.Height = 25                                       ' Задава стандартна височина на всеки нов ред с данни
@@ -1848,7 +1849,7 @@ Public Class Form_Tablo_new
                 Case "Прекъсвач", "ДТЗ (RCD)", "Кабел"
                     ' Акцентни редове за основни компоненти
                     dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(180, 200, 255)
-                    dgvRow.DefaultCellStyle.Font = New Drawing.Font("Arial", 10, FontStyle.Bold)
+                    dgvRow.DefaultCellStyle.Font = New Font("Arial", 10, FontStyle.Bold)
             End Select
         Next
     End Sub
@@ -6538,7 +6539,7 @@ Public Class Form_Tablo_new
     End Sub
 End Class
 
-#Region "Клас за Пакетно Добавяне"
+#Region "Клас за добавяне на резервни и съществуващи кръгове"
 Public Class Form_BatchAddCircuits
     Inherits Form
     ' Данни, подадени от основната форма
@@ -6547,8 +6548,8 @@ Public Class Form_BatchAddCircuits
     ' Контроли, до които ще имаме достъп по-късно
     Private numExist As NumericUpDown
     Private numReserve As NumericUpDown
-    Private btnOk As System.Windows.Forms.Button
-    Private btnCancel As System.Windows.Forms.Button
+    Private btnOk As Button
+    Private btnCancel As Button
     Private lblInfo As Label
     ''' <summary>
     ''' Инициализира формата, приема входните данни и извиква процедурите за изграждане.
@@ -6566,8 +6567,8 @@ Public Class Form_BatchAddCircuits
     ''' Задава базовите свойства на прозореца (размер, стил, позиция, цветове).
     ''' </summary>
     Private Sub ConfigureFormSettings()
-        Me.Text = "Добавяне на кръгове"
-        Me.Size = New Drawing.Size(400, 220)
+        Me.Text = "Добавяне на кръгове за Същеструващи/Резерви"
+        Me.Size = New Size(400, 220)
         Me.FormBorderStyle = FormBorderStyle.FixedDialog
         Me.StartPosition = FormStartPosition.CenterParent
         Me.BackColor = Color.White
@@ -6587,15 +6588,15 @@ Public Class Form_BatchAddCircuits
             .TextAlign = ContentAlignment.MiddleCenter,
             .BackColor = Color.FromArgb(0, 102, 204),
             .ForeColor = Color.White,
-            .Font = New Drawing.Font("Segoe UI", 10, FontStyle.Bold)
+            .Font = New Font("Segoe UI", 14, FontStyle.Bold)
         }
         Me.Controls.Add(lblInfo)
         ' --- GroupBox контейнер ---
         Dim grp As New GroupBox With {
-            .Text = " Количества за добавяне ",
-            .Location = New Drawing.Point(15, 50),
-            .Size = New Drawing.Size(355, 70),
-            .Font = New Drawing.Font("Segoe UI", 9, FontStyle.Bold)
+            .Text = " Брой кръгове за добавяне ",
+            .Location = New Point(15, 50),
+            .Size = New Size(355, 70),
+            .Font = New Font("Segoe UI", 12, FontStyle.Bold)
         }
         Me.Controls.Add(grp)
         ' --- TableLayoutPanel за подредба (Етикет - Поле - Етикет - Поле) ---
@@ -6605,9 +6606,9 @@ Public Class Form_BatchAddCircuits
             .RowCount = 1,
             .Padding = New Padding(5)
         }
-        tbl.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 35))
+        tbl.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 45))
         tbl.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 20))
-        tbl.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 35))
+        tbl.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 45))
         tbl.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 20))
         grp.Controls.Add(tbl)
         ' --- Лейбъл за Съществуващи ---
@@ -6616,7 +6617,7 @@ Public Class Form_BatchAddCircuits
                 .AutoSize = False,
                 .TextAlign = ContentAlignment.MiddleRight,
                 .Dock = DockStyle.Fill,
-                .Font = New Drawing.Font("Segoe UI", 9, FontStyle.Bold)
+                .Font = New Font("Segoe UI", 10, FontStyle.Bold)
         }
 
         ' --- Лейбъл за Резерви ---
@@ -6625,7 +6626,7 @@ Public Class Form_BatchAddCircuits
                 .AutoSize = False,
                 .TextAlign = ContentAlignment.MiddleRight,
                 .Dock = DockStyle.Fill,
-                .Font = New Drawing.Font("Segoe UI", 9, FontStyle.Bold)
+                .Font = New Font("Segoe UI", 10, FontStyle.Bold)
         }
         numExist = New NumericUpDown With {
                 .Minimum = 0,
@@ -6633,7 +6634,7 @@ Public Class Form_BatchAddCircuits
                 .Value = 1,
                 .Width = 60,
                 .TextAlign = HorizontalAlignment.Center,
-                .Font = New Drawing.Font("Segoe UI", 9, FontStyle.Bold)
+                .Font = New Font("Segoe UI", 10, FontStyle.Bold)
         }
         numReserve = New NumericUpDown With {
             .Minimum = 0,
@@ -6641,7 +6642,7 @@ Public Class Form_BatchAddCircuits
             .Value = 1,
             .Width = 60,
             .TextAlign = HorizontalAlignment.Center,
-            .Font = New Drawing.Font("Segoe UI", 9, FontStyle.Bold)
+            .Font = New Font("Segoe UI", 10, FontStyle.Bold)
         }
         tbl.Controls.Add(lblE, 0, 0)
         tbl.Controls.Add(numExist, 1, 0)
@@ -6650,8 +6651,8 @@ Public Class Form_BatchAddCircuits
         ' --- Панел за бутоните (долу вдясно) ---
         Dim pnlBtns As New FlowLayoutPanel With {
             .FlowDirection = System.Windows.Forms.FlowDirection.RightToLeft,
-            .Location = New Drawing.Point(15, 130),
-            .Size = New Drawing.Size(355, 45),
+            .Location = New Point(15, 130),
+            .Size = New Size(355, 45),
             .WrapContents = False,
             .Padding = New Padding(15, 5, 0, 0)
         }
@@ -6659,11 +6660,11 @@ Public Class Form_BatchAddCircuits
         ' --- Бутон ГЕНЕРИРАЙ ---
         btnOk = New Button With {
             .Text = "ГЕНЕРИРАЙ",
-            .Size = New Drawing.Size(95, 32),
+            .Size = New Size(95, 32),
             .BackColor = Color.FromArgb(0, 102, 204),
             .ForeColor = Color.White,
             .FlatStyle = FlatStyle.System,
-            .Font = New Drawing.Font("Segoe UI", 9, FontStyle.Bold),
+            .Font = New Font("Segoe UI", 10, FontStyle.Bold),
             .DialogResult = DialogResult.OK,
             .Margin = New Padding(0, 0, 10, 0)
         }
@@ -6672,11 +6673,11 @@ Public Class Form_BatchAddCircuits
         ' --- Бутон ОТКАЗ ---
         btnCancel = New Button With {
             .Text = "ОТКАЗ",
-            .Size = New Drawing.Size(95, 32),
+            .Size = New Size(95, 32),
             .BackColor = Color.FromArgb(240, 240, 240),
             .ForeColor = Color.FromArgb(60, 60, 60),
             .FlatStyle = FlatStyle.System,
-            .Font = New Drawing.Font("Segoe UI", 9, FontStyle.Regular),
+            .Font = New Font("Segoe UI", 10, FontStyle.Regular),
             .DialogResult = DialogResult.Cancel, .Margin = New Padding(0)
         }
         btnCancel.FlatAppearance.BorderSize = 0

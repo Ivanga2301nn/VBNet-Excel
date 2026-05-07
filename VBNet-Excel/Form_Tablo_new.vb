@@ -6274,7 +6274,6 @@ Public Class Form_Tablo_new
                 TextHorizontalMode.TextLeft,
                 TextVerticalMode.TextBase
                 )
-
         ' Вмъкване на блока "Заземление"
         Dim blkRecId =
         cu.InsertBlock(
@@ -6285,91 +6284,70 @@ Public Class Form_Tablo_new
             "EL_ТАБЛА",
             New Scale3d(0.21, 0.21, 0.21)
         )
-
         ' Взимаме активния документ
         Dim doc As Document =
         Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument
-
         Using trans As Transaction = doc.TransactionManager.StartTransaction()
-
             ' Взимаме BlockTable
             Dim acBlkTbl As BlockTable =
             trans.GetObject(acCurDb.BlockTableId, OpenMode.ForRead)
-
             ' Взимаме BlockReference на вмъкнатия блок
             Dim acBlkRef As BlockReference =
             DirectCast(
                 trans.GetObject(blkRecId, OpenMode.ForWrite),
                 BlockReference
             )
-
             ' Достъп до динамичните параметри на блока
             Dim props As DynamicBlockReferencePropertyCollection =
             acBlkRef.DynamicBlockReferencePropertyCollection
-
             ' Настройване на параметрите на динамичния блок
             For Each prop As DynamicBlockReferenceProperty In props
-
                 ' Настройка на Visibility State
                 If prop.PropertyName = "Visibility" Then
                     prop.Value = "Заземител-БЕЗ контролна клема"
                 End If
-
                 ' Настройка на X позиция
                 If prop.PropertyName = "Position1 X" Then
                     prop.Value = -10.0
                 End If
-
                 ' Настройка на Y позиция
                 If prop.PropertyName = "Position1 Y" Then
                     prop.Value = -80.0
                 End If
-
                 ' Настройка на ъгъл
                 If prop.PropertyName = "Angle1" Then
                     prop.Value = 0.0
                 End If
-
             Next
-
             ' Достъп до атрибутите на блока
             Dim attCol As AttributeCollection =
             acBlkRef.AttributeCollection
-
             ' Попълване на атрибути
             For Each objID As ObjectId In attCol
-
                 Dim dbObj As DBObject =
                 trans.GetObject(objID, OpenMode.ForWrite)
-
                 Dim acAttRef As AttributeReference = dbObj
-
                 ' Попълване на атрибут "ТАБЛО"
                 If acAttRef.Tag = "ТАБЛО" Then
                     acAttRef.TextString = "2к"
                 End If
-
             Next
-
             ' Запис на промените
             trans.Commit()
-
         End Using
-
         ' Добавяне на означение за защитен проводник
         cu.InsertText(
-        "PE",
-        New Point3d(
-            X - widthColom + 3 * padingText,
-            ptbasePoint.Y + Y_Шина - heightText - padingText,
-            0
-        ),
-        "EL__DIM",
-        heightText,
-        TextHorizontalMode.TextLeft,
-        TextVerticalMode.TextBase
-    )
-
+                "PE",
+                New Point3d(
+                    X - widthColom + 3 * padingText,
+                    ptbasePoint.Y + Y_Шина - heightText - padingText,
+                    0
+                ),
+                "EL__DIM",
+                heightText,
+                TextHorizontalMode.TextLeft,
+                TextVerticalMode.TextBase
+                )
     End Sub
     ''' <summary>
     ''' Процедурата DrawAnnotations създава текстови анотации (бележки) в AutoCAD чертеж,

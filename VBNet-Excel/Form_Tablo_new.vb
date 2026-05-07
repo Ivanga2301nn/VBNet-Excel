@@ -5270,10 +5270,11 @@ Public Class Form_Tablo_new
                     DrawRCDBusbar(acDoc, acCurDb, ptBasePoint, panelCircuits)                   ' Тук чертаем ДЗТ за токовите кръгове (прекъсвачи, текстове, линии)
 
 
-                    DrawMainSwitch(acDoc, acCurDb, ptBasePoint, panelCircuits)
-                    DrawGrounding(acDoc, acCurDb, ptBasePoint, selectedTablo)
-                    DrawAnnotations(ptBasePoint, panelCircuits)                                 ' Процедурата създава текстови анотации
 
+
+                    DrawMainSwitch(acDoc, acCurDb, ptBasePoint, panelCircuits)
+                    DrawGrounding(acDoc, acCurDb, ptBasePoint.X, ptBasePoint, selectedTablo)   ' Чертaем заземление само за главно разпределително табло
+                    DrawAnnotations(ptBasePoint, panelCircuits)                                ' Процедурата създава текстови анотации
                 Catch ex As Exception
                     trans.Abort()
                     MsgBox("Възникна грешка при чертане: " & vbCrLf & ex.Message & vbCrLf & vbCrLf & ex.StackTrace, MsgBoxStyle.Critical)
@@ -5791,36 +5792,55 @@ Public Class Form_Tablo_new
                ex.StackTrace.ToString)
         End Try
     End Sub
+    ''' <summary>
+    ''' Чертaе всички токови кръгове в таблото.
+    ''' Логиката:
+    ''' 1. Изчислява началните координати
+    ''' 2. Обхожда всички токови кръгове
+    ''' 3. Изчертава текстовете за всеки кръг
+    ''' 4. Вмъква прекъсвач и управляващи елементи
+    ''' 5. Чертaе свързващите линии
+    ''' </summary>
     Private Sub DrawCircuits(acDoc As Document, acCurDb As Database, basePoint As Point3d, circuits As List(Of strTokow))
-        ' Тук ще чертаем всеки токов кръг (прекъсвачи, текстове, линии)
+        ' Изчислява общия брой колони.
+        ' Ако има двойна шина (twoBus=True), една колона се резервира и не участва.
         Dim brColums As Integer = circuits.Count - If(twoBus, 1, 0)
+        ' Начална X координата след текстовата зона
         Dim X_Start As Double = basePoint.X + widthText + widthTextDim
+        ' Y координата на шината
         Dim Y_Shina As Double = basePoint.Y + Y_Шина
         Try
-            ' ЦИКЪЛ ЗА ВСЕКИ ТОКОВ КРЪГ
+            ' Индекс на текущата колона
             Dim colIndex As Integer = 0
+            ' Обхождаме всички токови кръгове
             For Each circuit As strTokow In circuits
-                ' Пропускаме специалните кръгове (Разединител)
+                ' Пропускаме специалните кръгове тип "Разединител"
                 If circuit.Device = "Разединител" Then Continue For
-                ' 3️ ИЗЧИСЛЯВАНЕ НА ПОЗИЦИЯТА ЗА ТОЗИ КРЪГ
-                Dim X As Double = X_Start + colIndex * widthColom + widthColom / 2
-                ' Чертaе текстовата информация за един токов кръг в таблицата на таблото
+                ' Изчисляване на X позицията за текущия кръг
+                Dim X As Double =
+                X_Start + colIndex * widthColom + widthColom / 2
+                ' Чертaе текстовата информация за токовия кръг
                 DrawCircuitTexts(acDoc, acCurDb, basePoint, circuit, X)
-                ' Пишем текстовете и  нищо друго не правим
+                ' Ако е запис "Табло" → пишем само текстовете
+                ' Не се чертаят прекъсвачи и линии
                 If circuit.Device = "Табло" Then Continue For
-                ' ВМЪКВАНЕ НА БЛОК ЗА ПРЕКЪСВАЧ
+                ' Вмъква блок за прекъсвач
                 DrawBreakerBlock(acDoc, acCurDb, basePoint, circuit, X, Y_Shina)
-                ' ЧЕРТАЕ НА УПРАВЛЯВАЩО УСТРОЙСТВО
+                ' Чертaе управляващо устройство (ако има)
                 DrawControlDevice(acDoc, acCurDb, circuit, X, Y_Shina)
-
-
-
-                ' Чертaе вертикална линия за токов кръг в таблото.
+                ' Чертaе вертикалните линии за кръга
                 DrawCircuitLines(X, circuit, Y_Shina)
+                ' Преминава към следващата колона
                 colIndex += 1
             Next
         Catch ex As Exception
-            MsgBox("Възникна грешка: " & vbCrLf & ex.Message & vbCrLf & vbCrLf & ex.StackTrace, MsgBoxStyle.Critical)
+            MsgBox("Възникна грешка: " &
+               vbCrLf &
+               ex.Message &
+               vbCrLf &
+               vbCrLf &
+               ex.StackTrace,
+               MsgBoxStyle.Critical)
         End Try
     End Sub
     ''' <summary>
@@ -6222,60 +6242,134 @@ Public Class Form_Tablo_new
     Private Sub DrawMainSwitch(acDoc As Document, acCurDb As Database, basePoint As Point3d, circuits As List(Of strTokow))
         ' Тук ще чертаем главния прекъсвач/разединител
     End Sub
-    Private Sub DrawGrounding(acDoc As Document, acCurDb As Database, basePoint As Point3d, panelName As String)
-        '' Тук ще чертаем заземление (ако е Гл.Р.Т.)
-        'If panelName = "Гл.Р.Т." Or panelName = "ГлРТ" Then
+    ''' <summary>
+    ''' Чертaе заземителната схема към главното табло.
+    ''' Логиката:
+    ''' 1. Проверява дали таблото е Гл.Р.Т.
+    ''' 2. Чертaе връзката към заземителя
+    ''' 3. Добавя текст за съпротивление на заземяване
+    ''' 4. Вмъква динамичен блок "Заземление"
+    ''' 5. Настройва параметрите и атрибутите на блока
+    ''' 6. Добавя означение за PE проводник
+    ''' </summary>
+    Private Sub DrawGrounding(acDoc As Document, acCurDb As Database, X As Double, ptbasePoint As Point3d, panelName As String)
+        ' Чертaем заземление само за главно разпределително табло
+        If panelName <> "Гл.Р.Т." AndAlso panelName <> "ГлРТ" Then Return
+        ' Хоризонтална линия към заземителя
+        cu.DrowLine(
+                    New Point3d(X, ptbasePoint.Y + Y_Шина, 0),
+                    New Point3d(X - widthColom, ptbasePoint.Y + Y_Шина, 0),
+                    "EL_ТАБЛА",
+                    Autodesk.AutoCAD.DatabaseServices.LineWeight.ByLayer,
+                    "ByLayer"
+                    )
+        ' Текст за съпротивление на заземяване
+        cu.InsertText(
+                "R<30Ω",
+                New Point3d(X - widthColom,
+                            ptbasePoint.Y + Y_Шина + 2 * padingText,
+                            0),
+                "EL__DIM",
+                heightText,
+                TextHorizontalMode.TextLeft,
+                TextVerticalMode.TextBase
+                )
 
-        '    cu.DrowLine(New Point3d(X, ptBasePoint.Y + Y_Шина, 0),
-        '            New Point3d(X - widthColom, ptBasePoint.Y + Y_Шина, 0),
-        '            "EL_ТАБЛА",
-        '            LineWeight.ByLayer,
-        '            "ByLayer")
+        ' Вмъкване на блока "Заземление"
+        Dim blkRecId =
+        cu.InsertBlock(
+            "Заземление",
+            New Point3d(X - widthColom,
+                         ptbasePoint.Y + Y_Шина,
+                         0),
+            "EL_ТАБЛА",
+            New Scale3d(0.21, 0.21, 0.21)
+        )
 
-        '    cu.InsertText("R<30Ω",
-        '              New Point3d(X - widthColom, ptBasePoint.Y + Y_Шина + 2 * padingText, 0),
-        '              "EL__DIM",
-        '              heightText,
-        '              TextHorizontalMode.TextLeft,
-        '              TextVerticalMode.TextBase)
+        ' Взимаме активния документ
+        Dim doc As Document =
+        Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument
 
-        '    Dim blkRecId = cu.InsertBlock("Заземление",
-        '                   New Point3d(X - widthColom, ptBasePoint.Y + Y_Шина, 0),
-        '                   "EL_ТАБЛА",
-        '                   New Scale3d(0.21, 0.21, 0.21)
-        '                   )
+        Using trans As Transaction = doc.TransactionManager.StartTransaction()
 
-        '    Dim doc As Document = Application.DocumentManager.MdiActiveDocument
-        '    Using trans As Transaction = doc.TransactionManager.StartTransaction()
-        '        Dim acBlkTbl As BlockTable = trans.GetObject(acCurDb.BlockTableId, OpenMode.ForRead)
-        '        Dim acBlkRef As BlockReference =
-        '            DirectCast(trans.GetObject(blkRecId, OpenMode.ForWrite), BlockReference)
+            ' Взимаме BlockTable
+            Dim acBlkTbl As BlockTable =
+            trans.GetObject(acCurDb.BlockTableId, OpenMode.ForRead)
 
-        '        Dim props As DynamicBlockReferencePropertyCollection = acBlkRef.DynamicBlockReferencePropertyCollection
+            ' Взимаме BlockReference на вмъкнатия блок
+            Dim acBlkRef As BlockReference =
+            DirectCast(
+                trans.GetObject(blkRecId, OpenMode.ForWrite),
+                BlockReference
+            )
 
-        '        For Each prop As DynamicBlockReferenceProperty In props
-        '            'This Is where you change states based on input
-        '            If prop.PropertyName = "Visibility" Then prop.Value = "Заземител-БЕЗ контролна клема"
-        '            If prop.PropertyName = "Position1 X" Then prop.Value = -10.0
-        '            If prop.PropertyName = "Position1 Y" Then prop.Value = -80.0
-        '            If prop.PropertyName = "Angle1" Then prop.Value = 0.0
-        '        Next
-        '        Dim attCol As AttributeCollection = acBlkRef.AttributeCollection
-        '        For Each objID As ObjectId In attCol
-        '            Dim dbObj As DBObject = trans.GetObject(objID, OpenMode.ForWrite)
-        '            Dim acAttRef As AttributeReference = dbObj
-        '            If acAttRef.Tag = "ТАБЛО" Then acAttRef.TextString = "2к"
-        '        Next
+            ' Достъп до динамичните параметри на блока
+            Dim props As DynamicBlockReferencePropertyCollection =
+            acBlkRef.DynamicBlockReferencePropertyCollection
 
-        '        trans.Commit()
-        '    End Using
-        '    cu.InsertText("PE",
-        '              New Point3d(X - widthColom + 3 * padingText, ptBasePoint.Y + Y_Шина - heightText - padingText, 0),
-        '              "EL__DIM",
-        '              heightText,
-        '              TextHorizontalMode.TextLeft,
-        '              TextVerticalMode.TextBase)
-        'End If
+            ' Настройване на параметрите на динамичния блок
+            For Each prop As DynamicBlockReferenceProperty In props
+
+                ' Настройка на Visibility State
+                If prop.PropertyName = "Visibility" Then
+                    prop.Value = "Заземител-БЕЗ контролна клема"
+                End If
+
+                ' Настройка на X позиция
+                If prop.PropertyName = "Position1 X" Then
+                    prop.Value = -10.0
+                End If
+
+                ' Настройка на Y позиция
+                If prop.PropertyName = "Position1 Y" Then
+                    prop.Value = -80.0
+                End If
+
+                ' Настройка на ъгъл
+                If prop.PropertyName = "Angle1" Then
+                    prop.Value = 0.0
+                End If
+
+            Next
+
+            ' Достъп до атрибутите на блока
+            Dim attCol As AttributeCollection =
+            acBlkRef.AttributeCollection
+
+            ' Попълване на атрибути
+            For Each objID As ObjectId In attCol
+
+                Dim dbObj As DBObject =
+                trans.GetObject(objID, OpenMode.ForWrite)
+
+                Dim acAttRef As AttributeReference = dbObj
+
+                ' Попълване на атрибут "ТАБЛО"
+                If acAttRef.Tag = "ТАБЛО" Then
+                    acAttRef.TextString = "2к"
+                End If
+
+            Next
+
+            ' Запис на промените
+            trans.Commit()
+
+        End Using
+
+        ' Добавяне на означение за защитен проводник
+        cu.InsertText(
+        "PE",
+        New Point3d(
+            X - widthColom + 3 * padingText,
+            ptbasePoint.Y + Y_Шина - heightText - padingText,
+            0
+        ),
+        "EL__DIM",
+        heightText,
+        TextHorizontalMode.TextLeft,
+        TextVerticalMode.TextBase
+    )
+
     End Sub
     ''' <summary>
     ''' Процедурата DrawAnnotations създава текстови анотации (бележки) в AutoCAD чертеж,

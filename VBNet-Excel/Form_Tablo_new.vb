@@ -6301,6 +6301,9 @@ Public Class Form_Tablo_new
     Private Sub DrawGrounding(acDoc As Document, acCurDb As Database, X As Double, ptbasePoint As Point3d, panelName As String)
         ' Чертaем заземление само за главно разпределително табло
         If panelName <> "Гл.Р.Т." AndAlso panelName <> "ГлРТ" Then Return
+        X = X +
+            widthText +       ' Ширина на колоната за текст (напр. "Токов кръг")
+            widthTextDim      ' Допълнителна ширина за текстова колона (напр. за единици)
         ' Хоризонтална линия към заземителя
         cu.DrowLine(
                     New Point3d(X, ptbasePoint.Y + Y_Шина, 0),
@@ -6339,28 +6342,21 @@ Public Class Form_Tablo_new
             trans.GetObject(acCurDb.BlockTableId, OpenMode.ForRead)
             ' Взимаме BlockReference на вмъкнатия блок
             Dim acBlkRef As BlockReference =
-            DirectCast(
-                trans.GetObject(blkRecId, OpenMode.ForWrite),
-                BlockReference
-            )
+                            DirectCast(
+                                trans.GetObject(blkRecId, OpenMode.ForWrite),
+                                BlockReference
+                            )
             ' Достъп до динамичните параметри на блока
             Dim props As DynamicBlockReferencePropertyCollection =
-            acBlkRef.DynamicBlockReferencePropertyCollection
+                         acBlkRef.DynamicBlockReferencePropertyCollection
             ' Настройване на параметрите на динамичния блок
             For Each prop As DynamicBlockReferenceProperty In props
                 Select Case prop.PropertyName
-                    Case "Visibility"
-                        ' Настройка на Visibility State
-                        prop.Value = "Заземител-БЕЗ контролна клема"
-                    Case "Position1 X"
-                        ' Настройка на X позиция
-                        prop.Value = -10.0
-                    Case "Position1 Y"
-                        ' Настройка на Y позиция
-                        prop.Value = -80.0
-                    Case "Angle1"
-                        ' Настройка на ъгъл
-                        prop.Value = 0.0
+                    Case "Visibility" : prop.Value = "Заземител-БЕЗ контролна клема"
+                    Case "Distance2" : prop.Value = 15.0
+                    Case "Position1 X" : prop.Value = 30.0
+                    Case "Position1 Y" : prop.Value = -50.0
+                    Case "Angle1" : prop.Value = 0.0
                 End Select
             Next
             ' Достъп до атрибутите на блока

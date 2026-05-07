@@ -5295,75 +5295,121 @@ Public Class Form_Tablo_new
                 "Ред: {2}" & vbCrLf & vbCrLf &
                 "StackTrace: {3}",
                 ex.Message, fileName, line, ex.StackTrace)
-
             MsgBox(errorMsg, MsgBoxStyle.Critical)
         Finally
             Me.Visible = True
         End Try
         FillDataGridViewForPanel()
     End Sub
+    ''' <summary>
+    ''' Чертaе RCD (ДТЗ) групи и разпределителни линии в таблото.
+    ''' Логиката:
+    ''' 1. Изчислява позициите на шините
+    ''' 2. Обхожда всички токови кръгове
+    ''' 3. Групира кръговете по RCD_Нула
+    ''' 4. При смяна на групата затваря предишната
+    ''' 5. Изчертава обща линия и RCD блок за всяка група
+    ''' </summary>
     Private Sub DrawRCDBusbar(acDoc As Document, acCurDb As Database,
-                              basePoint As Point3d,
-                              circuits As List(Of strTokow))
-        ' 1️ ИЗЧИСЛЯВАНЕ НА ОСНОВНИТЕ РАЗМЕРИ
-        Dim X_Start As Double = basePoint.X + widthText + widthTextDim
+                          basePoint As Point3d,
+                          circuits As List(Of strTokow))
+        ' Изчисляване на началната X координата
+        Dim X_Start As Double =
+        basePoint.X + widthText + widthTextDim
+        ' Y координата на главната шина
         Dim Y_Shina As Double = basePoint.Y + Y_Шина
-        Dim Y_RCD As Double = Y_Shina - 118             ' Позиция на RCD разпределителната линия
-        ' 2️ ПРОМЕНЛИВИ ЗА ГРУПИРАНЕ
-        Dim rcdGroupStart As Integer = 0                ' Начална колона на текущата група
-        Dim previousRCD_Null As String = ""             ' RCD_Нула на предишния кръг
-        Dim inRCDGroup As Boolean = False               ' Дали сме в активна група
-        Dim colIndex As Integer = 0                     ' Текуща колона
-        Dim currentGroupCircuit As strTokow = Nothing   ' ← Запазва последния circuit в групата
+        ' Y координата на RCD шината
+        Dim Y_RCD As Double = Y_Shina - 118
+        ' Начална колона на текущата RCD група
+        Dim rcdGroupStart As Integer = 0
+        ' RCD_Нула от предишния токов кръг
+        Dim previousRCD_Null As String = ""
+        ' Флаг дали в момента сме в активна RCD група
+        Dim inRCDGroup As Boolean = False
+        ' Текущ индекс на колоната
+        Dim colIndex As Integer = 0
+        ' Запазва последния токов кръг в активната група
+        Dim currentGroupCircuit As strTokow = Nothing
         Try
-            ' 3️ ЕДИН ЦИКЪЛ ПРЕЗ ВСИЧКИ КРЪГОВЕ
+            ' Обхождаме всички токови кръгове
             For Each circuit As strTokow In circuits
                 ' Пропускаме специалните кръгове
-                If circuit.ТоковКръг = "Разединител" OrElse circuit.ТоковКръг = "ОБЩО" Then Continue For
+                If circuit.ТоковКръг = "Разединител" OrElse
+               circuit.ТоковКръг = "ОБЩО" Then Continue For
+                ' Преминаваме към следващата колона
                 colIndex += 1
-                ' Проверяваме дали в токовия кръг има ДЗТ
-                Dim hasRCD As Boolean = Not String.IsNullOrEmpty(circuit.RCD_Нула) AndAlso
-                                        circuit.RCD_Нула.Trim().ToUpper() <> "N"
+                ' Проверка дали кръгът има ДТЗ
+                Dim hasRCD As Boolean =
+                Not String.IsNullOrEmpty(circuit.RCD_Нула) AndAlso
+                circuit.RCD_Нула.Trim().ToUpper() <> "N"
                 If hasRCD Then
+                    ' Ако няма активна група → започваме нова
                     If Not inRCDGroup Then
-                        ' Започваме нова група
                         rcdGroupStart = colIndex
                         previousRCD_Null = circuit.RCD_Нула.Trim().ToUpper()
-                        currentGroupCircuit = circuit  ' ← Запазваме първия circuit
+                        currentGroupCircuit = circuit
                         inRCDGroup = True
+                        ' Ако RCD_Нула е различно → затваряме старата група
                     ElseIf circuit.RCD_Нула.Trim().ToUpper() <> previousRCD_Null Then
-                        ' RCD_Нула е различно → затваряме предишната група
-                        DrawRCDGroupLine(acDoc, acCurDb, X_Start, Y_RCD, Y_Shina,
-                                 rcdGroupStart, colIndex - 1, currentGroupCircuit)  ' ← Предаваме последния
-                        ' Започваме нова група
+                        DrawRCDGroupLine(
+                                        acDoc,
+                                        acCurDb,
+                                        X_Start,
+                                        Y_RCD,
+                                        Y_Shina,
+                                        rcdGroupStart,
+                                        colIndex - 1,
+                                        currentGroupCircuit
+                                        )
+                        ' Стартираме нова група
                         rcdGroupStart = colIndex
                         previousRCD_Null = circuit.RCD_Нула.Trim().ToUpper()
-                        currentGroupCircuit = circuit  ' ← Запазваме новия circuit
+                        currentGroupCircuit = circuit
                     Else
-                        ' Същото RCD_Нула → продължаваме групата
-                        currentGroupCircuit = circuit  ' ← Обновяваме с текущия (последния)
+                        ' Същото RCD_Нула → групата продължава
+                        currentGroupCircuit = circuit
                     End If
                 Else
-                    ' Няма ДЗТ
+                    ' Ако няма ДТЗ и има активна група → затваряме я
                     If inRCDGroup Then
-                        ' Затваряме текущата група
-                        DrawRCDGroupLine(acDoc, acCurDb, X_Start, Y_RCD, Y_Shina,
-                                 rcdGroupStart, colIndex - 1, currentGroupCircuit)  ' ← Предаваме последния
+                        DrawRCDGroupLine(
+                                acDoc,
+                                acCurDb,
+                                X_Start,
+                                Y_RCD,
+                                Y_Shina,
+                                rcdGroupStart,
+                                colIndex - 1,
+                                currentGroupCircuit)
                         inRCDGroup = False
                         previousRCD_Null = ""
                         currentGroupCircuit = Nothing
                     End If
                 End If
             Next
-            ' ЗАТВАРЯНЕ НА ПОСЛЕДНАТА ГРУПА (АКО ОСТАВА)
+            ' Ако последната група е останала отворена → затваряме я
             If inRCDGroup Then
-                DrawRCDGroupLine(acDoc, acCurDb,
-                                 X_Start, Y_RCD, Y_Shina,
-                                 rcdGroupStart, colIndex,
-                                 currentGroupCircuit)
+                DrawRCDGroupLine(
+                        acDoc,
+                        acCurDb,
+                        X_Start,
+                        Y_RCD,
+                        Y_Shina,
+                        rcdGroupStart,
+                        colIndex,
+                        currentGroupCircuit)
+
             End If
         Catch ex As Exception
-            MsgBox("Възникна грешка: " & vbCrLf & ex.Message & vbCrLf & vbCrLf & ex.StackTrace, MsgBoxStyle.Critical)
+            MsgBox(
+            "Възникна грешка: " &
+            vbCrLf &
+            ex.Message &
+            vbCrLf &
+            vbCrLf &
+            ex.StackTrace,
+            MsgBoxStyle.Critical
+        )
         End Try
     End Sub
     ''' <summary>
@@ -6302,22 +6348,20 @@ Public Class Form_Tablo_new
             acBlkRef.DynamicBlockReferencePropertyCollection
             ' Настройване на параметрите на динамичния блок
             For Each prop As DynamicBlockReferenceProperty In props
-                ' Настройка на Visibility State
-                If prop.PropertyName = "Visibility" Then
-                    prop.Value = "Заземител-БЕЗ контролна клема"
-                End If
-                ' Настройка на X позиция
-                If prop.PropertyName = "Position1 X" Then
-                    prop.Value = -10.0
-                End If
-                ' Настройка на Y позиция
-                If prop.PropertyName = "Position1 Y" Then
-                    prop.Value = -80.0
-                End If
-                ' Настройка на ъгъл
-                If prop.PropertyName = "Angle1" Then
-                    prop.Value = 0.0
-                End If
+                Select Case prop.PropertyName
+                    Case "Visibility"
+                        ' Настройка на Visibility State
+                        prop.Value = "Заземител-БЕЗ контролна клема"
+                    Case "Position1 X"
+                        ' Настройка на X позиция
+                        prop.Value = -10.0
+                    Case "Position1 Y"
+                        ' Настройка на Y позиция
+                        prop.Value = -80.0
+                    Case "Angle1"
+                        ' Настройка на ъгъл
+                        prop.Value = 0.0
+                End Select
             Next
             ' Достъп до атрибутите на блока
             Dim attCol As AttributeCollection =
@@ -6328,9 +6372,7 @@ Public Class Form_Tablo_new
                 trans.GetObject(objID, OpenMode.ForWrite)
                 Dim acAttRef As AttributeReference = dbObj
                 ' Попълване на атрибут "ТАБЛО"
-                If acAttRef.Tag = "ТАБЛО" Then
-                    acAttRef.TextString = "2к"
-                End If
+                If acAttRef.Tag = "ТАБЛО" Then acAttRef.TextString = "2к"
             Next
             ' Запис на промените
             trans.Commit()

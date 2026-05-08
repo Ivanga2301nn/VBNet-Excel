@@ -1279,7 +1279,6 @@ Public Class Form_Tablo_new
                 Dim circuitsFolderNode As New TreeNode($"🔌 ТК ({totalCircuitsPower:F1} kW)")
                 circuitsFolderNode.ForeColor = Color.DarkBlue ' Тъмно син цвят за акцент
                 circuitsFolderNode.NodeFont = New Font(TreeView1.Font, FontStyle.Bold) ' Удебелен шрифт
-
                 ' Добавяме всеки отделен кръг вътре в папката
                 For Each circuitGroup In circuits
                     Dim circuitName As String = circuitGroup.Key
@@ -1294,7 +1293,6 @@ Public Class Form_Tablo_new
                 ' Добавяме "папката" към възела на таблото
                 panelNode.Nodes.Add(circuitsFolderNode)
             End If
-
             ' Добавяме таблото към корена
             rootNode.Nodes.Add(panelNode)
         Next
@@ -5268,9 +5266,6 @@ Public Class Form_Tablo_new
                     DrawBusbars(acDoc, acCurDb, ptBasePoint, panelCircuits)                     ' Тук чертаем шините
                     DrawCircuits(acDoc, acCurDb, ptBasePoint, panelCircuits)                    ' Тук чертаем всеки токов кръг (прекъсвачи, текстове, линии)
                     DrawRCDBusbar(acDoc, acCurDb, ptBasePoint, panelCircuits)                   ' Тук чертаем ДЗТ за токовите кръгове (прекъсвачи, текстове, линии)
-
-
-
 
                     DrawMainSwitch(acDoc, acCurDb, ptBasePoint, panelCircuits)
                     DrawGrounding(acDoc, acCurDb, ptBasePoint.X, ptBasePoint, selectedTablo)   ' Чертaем заземление само за главно разпределително табло

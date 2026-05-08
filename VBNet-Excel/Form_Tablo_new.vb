@@ -1254,18 +1254,15 @@ Public Class Form_Tablo_new
         ' Добавя валидните табла като деца на корена
         For Each panelGroup In validPanels
             Dim panelName As String = panelGroup.Key.Trim()
-
             ' 1. Намираме главния запис за мощността на таблото
             Dim tableDeviceRecord = panelGroup.FirstOrDefault(Function(k)
                                                                   Return String.Equals(k.Device, "Табло", StringComparison.OrdinalIgnoreCase)
                                                               End Function)
             Dim totalPower As Double = If(tableDeviceRecord IsNot Nothing, tableDeviceRecord.Мощност, 0)
-
             ' 2. Създаваме основния възел за ТАБЛОТО
             Dim panelNode As New TreeNode($"{panelName} ({totalPower:F1} kW)")
             panelNode.Name = panelName
             panelNode.Tag = panelGroup.ToList()
-
             ' 3. ГРУПИРАМЕ данните за токовите кръгове
             Dim circuits = panelGroup.Where(Function(k) Not String.Equals(k.Device, "Табло", StringComparison.OrdinalIgnoreCase)) _
                              .GroupBy(Function(k) k.ТоковКръг)
@@ -1274,7 +1271,6 @@ Public Class Form_Tablo_new
                 ' Изчисляваме сумата от мощностите на всички записи, които не са "Табло"
                 Dim totalCircuitsPower As Double = panelGroup.Where(Function(k) Not String.Equals(k.Device, "Табло", StringComparison.OrdinalIgnoreCase)) _
                                                      .Sum(Function(k) k.Мощност)
-
                 ' Създаваме заглавния възел с общата сума
                 Dim circuitsFolderNode As New TreeNode($"🔌 ТК ({totalCircuitsPower:F1} kW)")
                 circuitsFolderNode.ForeColor = Color.DarkBlue ' Тъмно син цвят за акцент
@@ -1283,13 +1279,10 @@ Public Class Form_Tablo_new
                 For Each circuitGroup In circuits
                     Dim circuitName As String = circuitGroup.Key
                     Dim circuitPower As Double = circuitGroup.Sum(Function(k) k.Мощност)
-
                     Dim circuitNode As New TreeNode($"{circuitName} ({circuitPower:F2} kW)")
                     circuitNode.Tag = circuitGroup.ToList()
-
                     circuitsFolderNode.Nodes.Add(circuitNode)
                 Next
-
                 ' Добавяме "папката" към възела на таблото
                 panelNode.Nodes.Add(circuitsFolderNode)
             End If
@@ -1415,6 +1408,7 @@ Public Class Form_Tablo_new
         Cursor = Cursors.WaitCursor
         ' Спираме прерисуването на контролата, за да няма трептене (flickering)
         TreeView1.BeginUpdate()
+
         Try
             ' 1. Изчистваме старите данни (ако BuildTreeView го изисква)
             TreeView1.Nodes.Clear()

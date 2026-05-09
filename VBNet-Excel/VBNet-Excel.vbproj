@@ -118,6 +118,7 @@
     <Compile Include="CreateLayout.vb" />
     <Compile Include="Dokmentaci.vb" />
     <Compile Include="DwgCleaner.vb" />
+    <Compile Include="Form_Tablo_new_AutoCadInserter.vb" />
     <Compile Include="Form_Tablo_new_BatchAddCircuits.vb">
       <SubType>Form</SubType>
     </Compile>

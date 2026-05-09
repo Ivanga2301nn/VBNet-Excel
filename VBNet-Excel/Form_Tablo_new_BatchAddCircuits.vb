@@ -2,6 +2,7 @@
 Imports System.Windows.Forms
 Imports Button = System.Windows.Forms.Button
 Imports Font = System.Drawing.Font
+
 Public Class Form_BatchAddCircuits
     Inherits Form
     ' Данни, подадени от основната форма

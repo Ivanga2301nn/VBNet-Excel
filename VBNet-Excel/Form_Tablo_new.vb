@@ -1401,33 +1401,230 @@ Public Class Form_Tablo_new
         End If
     End Sub
     ''' <summary>
-    ''' Логика за преизграждане на дървото.
+    ''' Обновява TreeView структурата и преизчислява всички данни.
+    ''' Логиката:
+    ''' 1. Активира режим "изчакване"
+    ''' 2. Спира временно обновяването на TreeView
+    ''' 3. Извършва пълно преизчисляване
+    ''' 4. Изгражда наново йерархичното дърво
+    ''' 5. Разгъва и избира коренния възел
+    ''' 6. Възстановява нормалното състояние на интерфейса
     ''' </summary>
     Private Sub RefreshTree_Click(sender As Object, e As EventArgs)
-        ' Сменяме курсора на "изчакване", за да знае потребителят, че нещо се случва
+        ' Показва курсор "изчакване"
         Cursor = Cursors.WaitCursor
-        ' Спираме прерисуването на контролата, за да няма трептене (flickering)
+        ' Спира визуалното обновяване на TreeView
+        ' Това предотвратява премигване и ускорява работата
         TreeView1.BeginUpdate()
-
         Try
-            ' 1. Изчистваме старите данни (ако BuildTreeView го изисква)
-            TreeView1.Nodes.Clear()
-            ' 2. Извикваме твоята основна процедура за пълнене на данни
-            BuildTreeViewFromKonsumatori()
-            ' 3. По желание: Разгъваме първия възел и го избираме
+            ' Пълно преизчисляване на всички данни
+            FullDataRecalculation()
+            ' Изгражда наново йерархичната структура
+            BuildHierarchicalTree()
+            ' Ако има поне един възел
             If TreeView1.Nodes.Count > 0 Then
+                ' Разгъва коренния възел
                 TreeView1.Nodes(0).Expand()
+                ' Избира коренния възел
                 TreeView1.SelectedNode = TreeView1.Nodes(0)
             End If
         Catch ex As Exception
-            ' Показваме съобщение при грешка (напр. проблем с базата данни)
-            MessageBox.Show("Грешка при обновяване на данните: " & vbCrLf & ex.Message,
-                        "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            ' Показва съобщение при грешка
+            MessageBox.Show(
+            "Грешка при обновяване: " & ex.Message,
+            "Внимание",
+            MessageBoxButtons.OK,
+            MessageBoxIcon.Error
+            )
         Finally
-            ' ВИНАГИ пускаме прерисуването обратно и връщаме нормалния курсор
+
+            ' Възстановява обновяването на TreeView
             TreeView1.EndUpdate()
+            ' Връща нормалния курсор
             Cursor = Cursors.Default
         End Try
+    End Sub
+    ''' <summary>
+    ''' Извършва пълно преизчисляване на всички табла и агрегирани стойности.
+    ''' Логиката:
+    ''' 1. Нулира натрупаните стойности на всички табла
+    ''' 2. Стартира рекурсивно преизчисляване от главното табло
+    ''' 3. Обновява крайните стойности за Гл.Р.Т.
+    ''' </summary>
+    Private Sub FullDataRecalculation()
+        ' Нулираме всички табла, за да започнем на чисто
+        For Each item In ListTokow.Where(Function(x) x.Device = "Табло")
+            item.Мощност = 0
+            item.brLamp = 0
+            item.brKontakt = 0
+        Next
+        ' Стартираме рекурсивното преизчисляване от главното табло
+        CalculatePanelRecursive("Гл.Р.Т.")
+        ' Намираме основния запис за главното табло
+        Dim rootMaster = ListTokow.FirstOrDefault(
+        Function(x)
+            Return x.Device = "Табло" AndAlso
+                   x.Tablo = "Гл.Р.Т."
+        End Function)
+        ' Ако съществува запис за главното табло
+        If rootMaster IsNot Nothing Then
+            ' Изчисляваме общата мощност на всички елементи в Гл.Р.Т.
+            rootMaster.Мощност = ListTokow.Where(Function(x)
+                                                     Return x.Tablo = "Гл.Р.Т." AndAlso
+                                                     x.Device <> "Табло"
+                                                 End Function).
+                                                 Sum(Function(x) x.Мощност)
+            ' Изчисляваме общия брой осветителни тела
+            rootMaster.brLamp = ListTokow.Where(Function(x)
+                                                    Return x.Tablo = "Гл.Р.Т." AndAlso
+                                                           x.Device <> "Табло"
+                                                End Function).
+                                                Sum(Function(x) x.brLamp)
+            ' Изчисляваме общия брой контакти
+            rootMaster.brKontakt = ListTokow.Where(Function(x)
+                                                       Return x.Tablo = "Гл.Р.Т." AndAlso
+                                                       x.Device <> "Табло"
+                                                   End Function).
+                                                   Sum(Function(x) x.brKontakt)
+        End If
+    End Sub
+    ''' <summary>
+    ''' Рекурсивно изчислява натрупаните стойности за табло и всички негови подтабла.
+    ''' Логиката:
+    ''' 1. Намира главния запис на текущото табло
+    ''' 2. Сумира директните консуматори
+    ''' 3. Намира всички свързани подтабла
+    ''' 4. Рекурсивно изчислява всяко подтабло
+    ''' 5. Прехвърля стойностите към връзката "Дете"
+    ''' 6. Натрупва стойностите към текущото табло
+    ''' </summary>
+    Private Sub CalculatePanelRecursive(panelName As String)
+        ' Намираме главния запис на текущото табло
+        Dim currentMaster = ListTokow.FirstOrDefault(
+                                    Function(x)
+                                        Return x.Device = "Табло" AndAlso
+                                               x.Tablo = panelName
+                                    End Function)
+        ' Ако няма такова табло → прекратяваме
+        If currentMaster Is Nothing Then Exit Sub
+        ' Взимаме всички директни консуматори
+        ' Изключваме:
+        ' - самото табло
+        ' - връзките тип "Дете"
+        Dim directConsumers = ListTokow.Where(
+                                Function(x)
+                                    Return x.Tablo = panelName AndAlso
+                                           x.Device <> "Табло" AndAlso
+                                           x.Device <> "Дете"
+                                End Function)
+        ' Натрупваме директните консуматори към таблото
+        For Each c In directConsumers
+            currentMaster.Мощност += c.Мощност
+            currentMaster.brLamp += c.brLamp
+            currentMaster.brKontakt += c.brKontakt
+        Next
+        ' Намираме всички подтабла (връзки тип "Дете")
+        Dim childLinks = ListTokow.Where(
+                                Function(x)
+                                    Return x.Tablo = panelName AndAlso
+                                           x.Device = "Дете"
+                                End Function)
+        ' Обработваме всяко подтабло
+        For Each link In childLinks
+            ' Името на подтаблото е записано в ТоковКръг
+            Dim subPanelName As String = link.ТоковКръг
+            ' Рекурсивно изчисляваме подтаблото
+            CalculatePanelRecursive(subPanelName)
+            ' Намираме главния запис на подтаблото
+            Dim subPanelMaster = ListTokow.FirstOrDefault(
+                                    Function(x)
+                                        Return x.Device = "Табло" AndAlso
+                                               x.Tablo = subPanelName
+                                    End Function)
+            ' Ако подтаблото съществува
+            If subPanelMaster IsNot Nothing Then
+                ' Прехвърляме стойностите към връзката "Дете"
+                link.Мощност = subPanelMaster.Мощност
+                link.brLamp = subPanelMaster.brLamp
+                link.brKontakt = subPanelMaster.brKontakt
+                ' Натрупваме стойностите към текущото табло
+                currentMaster.Мощност += link.Мощност
+                currentMaster.brLamp += link.brLamp
+                currentMaster.brKontakt += link.brKontakt
+            End If
+        Next
+        ' 2. СЛЕД КАТО СМЕ ОБНОВИЛИ ВСИЧКИ ДЕЦА, викаме твоя голям метод
+        ' Той ще събере ТК + обновените "Дете" записи и ще сметне ОБЩОТО за това табло
+        BuildPanelSummaryRecord(panelName)
+    End Sub
+    ''' <summary>
+    ''' Рекурсивно добавя под-табла и токови кръгове към даден възел.
+    ''' </summary>
+    Private Sub AddChildNodes(parentNode As TreeNode)
+        Dim parentName As String = parentNode.Name
+        ' Ако е корен, името за търсене в ListTokow е ROOT_NODE_TEXT
+        Dim searchName As String = If(parentName = ROOT_NODE_NAME, ROOT_NODE_TEXT, parentName)
+
+        ' --- СТЪПКА А: Добавяне на директни Токови Кръгове (🔌 ТК) ---
+        Dim consumers = ListTokow.Where(Function(x) x.Tablo = searchName AndAlso
+                                              x.Device <> "Табло" AndAlso
+                                              x.Device <> "Дете").ToList()
+        If consumers.Any() Then
+            Dim tkPower As Double = consumers.Sum(Function(x) x.Мощност)
+            Dim tkFolder As New TreeNode($"🔌 ТК ({tkPower:F1} kW)")
+            tkFolder.ForeColor = Color.DarkBlue
+            tkFolder.NodeFont = New Font(TreeView1.Font, FontStyle.Bold)
+            ' Групираме по име на кръг
+            For Each circuitGroup In consumers.GroupBy(Function(c) c.ТоковКръг)
+                Dim cNode As New TreeNode($"{circuitGroup.Key} ({circuitGroup.Sum(Function(x) x.Мощност):F2} kW)")
+                cNode.Tag = circuitGroup.ToList()
+                tkFolder.Nodes.Add(cNode)
+            Next
+            parentNode.Nodes.Add(tkFolder)
+        End If
+        ' --- СТЪПКА Б: Добавяне на Под-Табла (Йерархия) ---
+        ' Търсим всички записи "Дете", които се захранват от това табло
+        Dim childrenLinks = ListTokow.Where(Function(x) x.Device = "Дете" AndAlso x.Tablo = searchName).ToList()
+        For Each link In childrenLinks
+            Dim childPanelName As String = link.ТоковКръг
+            ' Намираме главния запис на под-таблото, за да му вземем мощността
+            Dim childMaster = ListTokow.FirstOrDefault(Function(x) x.Device = "Табло" AndAlso x.Tablo = childPanelName)
+            Dim pwr As Double = If(childMaster IsNot Nothing, childMaster.Мощност, 0)
+
+            Dim childNode As New TreeNode($"{childPanelName} ({pwr:F1} kW)")
+            childNode.Name = childPanelName
+            childNode.Tag = childPanelName
+            ' РЕКУРСИЯ: Викаме същата функция за новото табло (влизаме по-дълбоко)
+            AddChildNodes(childNode)
+            parentNode.Nodes.Add(childNode)
+        Next
+    End Sub
+    Private Sub UpdateAllMastersFromChildren()
+        ' Помощен метод, който събира всичко към Device="Табло"
+        For Each panel In ListTokow.Where(Function(x) x.Device = "Табло")
+            panel.Мощност = ListTokow.Where(Function(x) x.Tablo = panel.Tablo AndAlso x.Device <> "Табло").Sum(Function(x) x.Мощност)
+        Next
+    End Sub
+    ''' <summary>
+    ''' Нова процедура за изграждане на йерархично TreeView.
+    ''' Поддържа неограничено влагане на табла едно в друго.
+    ''' </summary>
+    Private Sub BuildHierarchicalTree()
+        TreeView1.Nodes.Clear()
+        ' 1. Създаваме корена (Гл.Р.Т.)
+        Dim rootMaster = ListTokow.FirstOrDefault(Function(x) x.Device = "Табло" AndAlso x.Tablo = ROOT_NODE_TEXT)
+        Dim rootPower As Double = If(rootMaster IsNot Nothing, rootMaster.Мощност, 0)
+        Dim rootNode As New TreeNode($"{ROOT_NODE_TEXT} ({rootPower:F1}kW)")
+        rootNode.Name = ROOT_NODE_NAME
+        rootNode.Tag = ROOT_NODE_TEXT ' Пазим името за референция
+        rootNode.ForeColor = Color.DarkBlue
+        ' 2. Стартираме рекурсивното добавяне на деца
+        AddChildNodes(rootNode)
+        ' 3. Добавяме корена в TreeView
+        TreeView1.Nodes.Add(rootNode)
+        ' 4. Добавяме "Без име" (ако има сираци)
+        'AddOrphanNodes(rootNode)
+        rootNode.Expand()
     End Sub
     ''' <summary>
     ''' Обработва операцията Drop в TreeView.

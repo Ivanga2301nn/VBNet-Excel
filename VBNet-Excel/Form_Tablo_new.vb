@@ -30,13 +30,16 @@ Imports Font = System.Drawing.Font
 ' 1. Form_Tablo_new_BatchAddCircuits | Form_Tablo_new_BatchAddCircuits.vb
 '    → Отговорност: Обработка на масово добавяне на кръгове (strTokow)
 '
-' 2. [Очаква се] TreeViewManager      | (файл)
+' 2. Form_Tablo_new_AutoCadInserter | Form_Tablo_new_AutoCadInserter.vb
+'    → Отговорност: AutoCAD чертане на табла, шини, кръгове и анотации
+'
+' [Очаква се] TreeViewManager      | (файл)
 '    → Отговорност: Управление на йерархия, Drag&Drop, форматиране
 '
-' 3. [Очаква се] LoadCalculator       | (файл)
+'[Очаква се] LoadCalculator       | (файл)
 '    → Отговорност: Изчисления на токове, избор на ДТЗ, фазов баланс
 '
-' 4. [Очаква се] ExcelAutoCadBridge   | (файл)
+' [Очаква се] ExcelAutoCadBridge   | (файл)
 '    → Отговорност: Експорт/импорт и интеграция с външни приложения
 #End Region
 
@@ -3855,7 +3858,6 @@ Public Class Form_Tablo_new
         Next
         Return text.Length > 0
     End Function
-
     ''' <summary>
     ''' Събитие, което се изпълнява при промяна на стойност в клетка на DataGridView1.
     '''
@@ -5415,12 +5417,7 @@ Public Class Form_Tablo_new
             Me.Visible = True
         End Try
         FillDataGridViewForPanel()
-
     End Sub
-
-
-
-
     Private Sub ToolStripButton_ШИНА_Click(sender As Object, e As EventArgs) Handles ToolStripButton_ШИНА.Click
         ' 1. Вземи избраното табло
         Dim selectedTablo As String = TreeView1.SelectedNode?.Text

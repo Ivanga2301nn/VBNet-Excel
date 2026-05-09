@@ -1,36 +1,16 @@
-﻿Imports System.Collections.Generic
-Imports System.Drawing
-Imports System.Drawing.Drawing2D
-Imports System.Linq
-Imports System.Security.Cryptography
-Imports System.Security.Cryptography.X509Certificates
-Imports System.Windows.Forms
-Imports System.Windows.Forms.VisualStyles.VisualStyleElement
+﻿Imports System.Windows.Forms
 Imports Autodesk.AutoCAD
 Imports Autodesk.AutoCAD.ApplicationServices
 Imports Autodesk.AutoCAD.DatabaseServices
-Imports Autodesk.AutoCAD.DatabaseServices.Filters
 Imports Autodesk.AutoCAD.EditorInput
 Imports Autodesk.AutoCAD.Geometry
-Imports Autodesk.AutoCAD.GraphicsSystem
-Imports Autodesk.AutoCAD.Internal.DatabaseServices
-Imports Autodesk.AutoCAD.PlottingServices
 Imports Autodesk.AutoCAD.Runtime
-Imports AXDBLib
-Imports iTextSharp.text.pdf
-Imports Newtonsoft.Json
-Imports Newtonsoft.Json.Linq
-Imports Org.BouncyCastle.Asn1.Cmp
-Imports Org.BouncyCastle.Math.EC.ECCurve
-Imports Button = System.Windows.Forms.Button
-Imports Font = System.Drawing.Font
 
 Public Class Form_Tablo_new_AutoCadInserter
     Dim PI As Double = 3.1415926535897931
     Dim cu As CommonUtil = New CommonUtil()
     Dim twoBus As Boolean
     Dim hasDisconnector As Boolean
-
     '===============================================================================
     ' КОНСТРУКТОР – Инициализация на зависимостите
     '===============================================================================

@@ -306,4 +306,8 @@ Public Class Form_Tablo_new_TreeViewManager
         Sum(Function(x) x.Мощност)
         Return feederPower + circuitPower
     End Function
+
+
+
+
 End Class

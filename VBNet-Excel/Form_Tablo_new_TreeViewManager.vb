@@ -307,7 +307,163 @@ Public Class Form_Tablo_new_TreeViewManager
         Return feederPower + circuitPower
     End Function
 
+    Private Sub Tv_ItemDrag(sender As Object, e As ItemDragEventArgs)
+        ' Започваме Drag операция с избрания възел
+        ' AllowDrop ефект: Copy (не местим, а копираме референцията)
+        tv.DoDragDrop(e.Item, DragDropEffects.Move)
+    End Sub
 
+    Private Sub Tv_DragEnter(sender As Object, e As DragEventArgs)
+        ' Проверяваме дали влаченият обект е TreeNode
+        If e.Data.GetDataPresent(GetType(TreeNode)) Then
+            ' Позволяваме Move операция
+            e.Effect = DragDropEffects.Move
+        Else
+            ' Не позволяваме drop на други обекти
+            e.Effect = DragDropEffects.None
+        End If
+    End Sub
+    Private Sub Tv_DragOver(sender As Object, e As DragEventArgs)
+        ' Получаваме точката, където е мишката (в координати на TreeView)
+        Dim targetPoint As Point = tv.PointToClient(New Point(e.X, e.Y))
 
+        ' Намираме възела под мишката
+        Dim targetNode As TreeNode = tv.GetNodeAt(targetPoint)
 
+        If targetNode IsNot Nothing Then
+            ' Получаваме влачения възел
+            Dim draggedNode As TreeNode = CType(e.Data.GetData(GetType(TreeNode)), TreeNode)
+
+            ' ВАЛИДАЦИЯ: Не позволяваме да drop-нем възел върху себе си или свои деца
+            If targetNode Is draggedNode OrElse IsChildOf(draggedNode, targetNode) Then
+                e.Effect = DragDropEffects.None
+                Return
+            End If
+
+            ' ВАЛИДАЦИЯ: Проверяваме дали и двата възела са табла (не "Токови кръгове")
+            If Not IsPanelNode(draggedNode) OrElse Not IsPanelNode(targetNode) Then
+                e.Effect = DragDropEffects.None
+                Return
+            End If
+
+            ' Всичко е наред - позволяваме drop
+            e.Effect = DragDropEffects.Move
+
+            ' Визуална обратна връзка: маркираме целевия възел
+            tv.SelectedNode = targetNode
+        Else
+            e.Effect = DragDropEffects.None
+        End If
+    End Sub
+
+    ''' <summary>
+    ''' Проверява дали node е дете на parentNode (рекурсивно)
+    ''' </summary>
+    Private Function IsChildOf(node As TreeNode, parentNode As TreeNode) As Boolean
+        Dim parent As TreeNode = node.Parent
+        While parent IsNot Nothing
+            If parent Is parentNode Then Return True
+            parent = parent.Parent
+        End While
+        Return False
+    End Function
+
+    ''' <summary>
+    ''' Проверява дали възелът е табло (а не "Токови кръгове" или отделен кръг)
+    ''' Текстът на таблото винаги завършва на "kW)" и НЕ съдържа "Токови кръгове"
+    ''' </summary>
+    Private Function IsPanelNode(node As TreeNode) As Boolean
+        If node Is Nothing Then Return False
+        ' Таблата имат формат: "T-1 (15.54 kW)"
+        ' "Токови кръгове" имат формат: "🔵 Токови кръгове (15.54 kW)"
+        Return node.Text.Contains("kW)") AndAlso Not node.Text.Contains("Токови кръгове")
+    End Function
+
+    ''' <summary>
+    ''' Извлича името на таблото от текста на възела
+    ''' Формат: "T-1 (15.54 kW)" → връща "T-1"
+    ''' </summary>
+    Private Function ExtractPanelName(nodeText As String) As String
+        If String.IsNullOrEmpty(nodeText) Then Return String.Empty
+        ' Намираме позицията на " ("
+        Dim idx = nodeText.IndexOf(" (")
+        If idx > 0 Then
+            Return nodeText.Substring(0, idx).Trim()
+        End If
+        Return nodeText.Trim()
+    End Function
+    Private Sub Tv_DragDrop(sender As Object, e As DragEventArgs)
+        ' 1. Взимаме възлите
+        Dim draggedNode As TreeNode = CType(e.Data.GetData(GetType(TreeNode)), TreeNode)
+        Dim targetPoint As Point = tv.PointToClient(New Point(e.X, e.Y))
+        Dim targetNode As TreeNode = tv.GetNodeAt(targetPoint)
+
+        If draggedNode Is Nothing OrElse targetNode Is Nothing OrElse draggedNode Is targetNode Then Return
+
+        ' 2. Валидация: само табла могат да се местят
+        If Not IsPanelNode(draggedNode) OrElse Not IsPanelNode(targetNode) Then Return
+        If IsChildOf(draggedNode, targetNode) Then Return ' Не позволяваме циклична зависимост
+
+        ' 3. Извличаме имената на таблата от текста (формат: "T-1 (15.54 kW)")
+        Dim draggedPanelName As String = ExtractPanelName(draggedNode.Text)
+        Dim targetPanelName As String = ExtractPanelName(targetNode.Text)
+
+        If String.IsNullOrEmpty(draggedPanelName) OrElse String.IsNullOrEmpty(targetPanelName) Then Return
+
+        ' 4. 🔥 АКТУАЛИЗИРАМЕ ДАННИТЕ (ListTokow)
+        ' Намираме всички записи, които принадлежат на местеното табло
+        Dim panelRecords = dataList.Where(Function(x) x.Tablo = draggedPanelName AndAlso x.Device = "Табло").ToList()
+
+        If panelRecords.Count = 0 Then Return
+
+        For Each rec In panelRecords
+            ' Променяме родителската връзка
+            rec.Табло_Родител = targetPanelName
+        Next
+
+        ' 5. АКТУАЛИЗИРАМЕ ВРЪЗКИТЕ (фийдърите)
+        ' Премахваме старата връзка (ако съществува)
+        Dim oldFeeders = dataList.Where(Function(x) x.Device = "Дете" AndAlso
+                                        String.Equals(x.ТоковКръг, draggedPanelName, StringComparison.OrdinalIgnoreCase)).ToList()
+        For Each f In oldFeeders
+            dataList.Remove(f)
+        Next
+
+        ' Създаваме нова връзка под новия родител
+        Dim masterRecord = panelRecords.FirstOrDefault()
+        If masterRecord IsNot Nothing Then
+            Dim newFeeder As Form_Tablo_new.strTokow = masterRecord.Clone()
+            newFeeder.Tablo = targetPanelName
+            newFeeder.Device = "Дете"
+            newFeeder.ТоковКръг = draggedPanelName
+            newFeeder.Табло_Родител = ""
+            newFeeder.Консуматор = "Табло"
+            newFeeder.предназначение = draggedPanelName
+            dataList.Add(newFeeder)
+        End If
+
+        ' 6. ПРЕИЗЧИСЛЯВАНЕ НА МОЩНОСТИТЕ
+        ' Преизчисляваме стария родител (ако го намерим)
+        Dim oldParentName = panelRecords.FirstOrDefault()?.Табло_Родител
+        If Not String.IsNullOrEmpty(oldParentName) Then
+            RecalculateParentSummary(oldParentName)
+        End If
+        ' Преизчисляваме новия родител
+        RecalculateParentSummary(targetPanelName)
+
+        ' 7. 🔄 ОБНОВЯВАНЕ НА TREEVIEW
+        ' Премахваме възела от старото място
+        If draggedNode.Parent IsNot Nothing Then
+            draggedNode.Parent.Nodes.Remove(draggedNode)
+        End If
+        ' Добавяме го под новия родител
+        targetNode.Nodes.Add(draggedNode)
+
+        ' Маркираме и разгъваме новия родител за визуална обратна връзка
+        tv.SelectedNode = targetNode
+        targetNode.Expand()
+
+        ' 8. (Опционално) Информиране на формата, че данните са променени
+        ' Ако формата има нужда да знае, че ListTokow е променен, тук може да се вдигне събитие
+    End Sub
 End Class

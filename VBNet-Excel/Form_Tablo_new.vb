@@ -273,7 +273,6 @@ Public Class Form_Tablo_new
     ''' Списък с токове на разединители (например 25A, 40A...)
     ''' </summary>
     Private Discon_Tok_For_combo As List(Of String)
-
     ' ============================================================
     ' НОВИ ПРОМЕНЛИВИ ЗА СЪСТОЯНИЕТО (State Variables)
     ' ============================================================
@@ -340,12 +339,11 @@ Public Class Form_Tablo_new
     }
     ' Клас за съхранение на техническите данни за моторана защита от каталога
     Public Class GV_Entry
-        Public MinCurrent As Double  ' Долна граница на тока (A)
-        Public MaxCurrent As Double  ' Горна граница на тока (A)
-        Public Type As String        ' Модел (напр. GV2-ME)
-        Public MotorPower As String  ' Мощност на двигателя (Pдвиг)
-        Public SettingRange As String ' Диапазон на настройка (Наст)
-
+        Public MinCurrent As Double     ' Долна граница на тока (A)
+        Public MaxCurrent As Double     ' Горна граница на тока (A)
+        Public Type As String           ' Модел (напр. GV2-ME)
+        Public MotorPower As String     ' Мощност на двигателя (Pдвиг)
+        Public SettingRange As String   ' Диапазон на настройка (Наст)
         Public Sub New(min As Double, max As Double, t As String, p As String, n As String)
             Me.MinCurrent = min
             Me.MaxCurrent = max
@@ -767,6 +765,11 @@ Public Class Form_Tablo_new
     ''' и визуализация (напр. в DataGridView).
     ''' </summary>
     Public Class strTokow
+        ''' <summary>
+        ''' Име на сградата/обекта, към който принадлежи таблото.
+        ''' Попълва се автоматично от името на DWG файла при зареждане.
+        ''' </summary>
+        Public BuildingName As String               ' Име на сградата/обекта, към който принадлежи таблото.
         ' ============================================================
         ' ИДЕНТИФИКАЦИЯ
         ' ============================================================

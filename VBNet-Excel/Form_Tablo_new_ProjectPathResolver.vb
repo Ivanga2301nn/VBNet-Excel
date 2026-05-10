@@ -1,133 +1,146 @@
-﻿Imports System.Collections.Generic
-Imports System.Drawing
-Imports System.Drawing.Drawing2D
-Imports System.Linq
-Imports System.Security.Cryptography
-Imports System.Security.Cryptography.X509Certificates
-Imports System.Windows.Forms
-Imports System.Windows.Forms.VisualStyles.VisualStyleElement
-Imports Autodesk.AutoCAD
-Imports Autodesk.AutoCAD.ApplicationServices
+﻿
 Imports Autodesk.AutoCAD.DatabaseServices
-Imports Autodesk.AutoCAD.DatabaseServices.Filters
-Imports Autodesk.AutoCAD.EditorInput
-Imports Autodesk.AutoCAD.Geometry
-Imports Autodesk.AutoCAD.GraphicsSystem
-Imports Autodesk.AutoCAD.Internal.DatabaseServices
-Imports Autodesk.AutoCAD.PlottingServices
 Imports Autodesk.AutoCAD.Runtime
-Imports AXDBLib
-Imports iTextSharp.text.pdf
-Imports Microsoft.Office.Interop.Word
 Imports Newtonsoft.Json
-Imports Newtonsoft.Json.Linq
-Imports Org.BouncyCastle.Asn1.Cmp
-Imports Org.BouncyCastle.Math.EC.ECCurve
-Imports Button = System.Windows.Forms.Button
-Imports Font = System.Drawing.Font
 Imports System.IO
 Imports System.Text.RegularExpressions
 
-
-
-
-
 Public Class Form_Tablo_new_ProjectPathResolver
-
-
-
-
-
-
     ''' <summary>
-    ''' Извлича името на сградата от пълния път на DWG файла.
-    ''' Връща чист текст, готов за използване в имена на файлове.
+    ''' Извлича име на сграда от името на DWG файла.
+    ''' Логиката:
+    ''' 1. Взима името на файла без разширението
+    ''' 2. Търси шаблон за сграда с номер
+    ''' 3. Ако няма шаблон → търси произволно число
+    ''' 4. Ако няма число → генерира безопасно име
+    ''' 5. Връща крайното име на проекта
     ''' </summary>
     Public Function GetBuildingNameFromDwg(dwgFullPath As String) As String
-        ' 1. Вземи само името на файла (без пътя и разширението)
-        Dim fileName As String = Path.GetFileNameWithoutExtension(dwgFullPath)
-        ' 2. Търси модел "Сграда" + число (напр. Сграда_1, Sgr2, Block 3)
-        ' Regex опции: IgnoreCase (да не прави разлика между главни/малки букви)
-        Dim pattern As String = "(?i)(?:сграда|sgr|block|blk|bldg)[\s_-]*(\d+)"
+        ' Взимаме името на файла без разширението
+        Dim fileName As String =
+        Path.GetFileNameWithoutExtension(dwgFullPath)
+        ' Шаблон за търсене:
+        ' сграда_1
+        ' sgr-2
+        ' blk 3
+        ' bldg4
+        Dim pattern As String =
+        "(?i)(?:сграда|sgr|block|blk|bldg)[\s_-]*(\d+)"
+        ' Търсим съвпадение по шаблона
         Dim match As Match = Regex.Match(fileName, pattern)
-        If match.Success AndAlso match.Groups.Count > 1 Then
-            ' Ако намерим (напр. "Project_Sgr1"), връщаме "Сграда_1"
-            Return $"Сграда_{match.Groups(1).Value}"
-        End If
-        ' 3. Ако няма ключова дума, търси просто число в името (напр. "DWG_02")
+        ' Ако намерим номер на сграда
+        If match.Success AndAlso match.Groups.Count > 1 Then Return $"Сграда_{match.Groups(1).Value}"
+        ' Ако няма шаблон → търсим произволно число
         Dim digitsPattern As String = "\d+"
-        Dim digitMatch As Match = Regex.Match(fileName, digitsPattern)
-        If digitMatch.Success Then
-            Return $"Сграда_{digitMatch.Value}"
-        End If
-        ' 4. Fallback: Ако не намерим нищо, използваме името на файла (почистено)
-        Dim safeName As String = Regex.Replace(fileName, "[^a-zA-Z0-9_-]", "_")
+        Dim digitMatch As Match =
+        Regex.Match(fileName, digitsPattern)
+        ' Ако намерим число
+        If digitMatch.Success Then Return $"Сграда_{digitMatch.Value}"
+        ' Ако няма числа → създаваме безопасно име
+        ' Премахваме неподходящите символи
+        Dim safeName As String =
+        Regex.Replace(fileName, "[^a-zA-Z0-9_-]", "_")
+        ' Ако резултатът е празен → използваме резервно име
         If String.IsNullOrEmpty(safeName) Then safeName = "Project"
+        ' Връщаме безопасното име
         Return safeName
     End Function
     ''' <summary>
-    ''' Генерира пълен път до JSON файла за запазване/зареждане.
-    ''' Формат: "{ПапкаНаDWG}\{ИмеНаСграда}_Tokowi.json"
+    ''' Генерира пълния път до JSON файла за текущия проект.
+    ''' Логиката:
+    ''' 1. Извлича папката на DWG файла
+    ''' 2. Проверява дали пътят е валиден
+    ''' 3. Извлича името на сградата от DWG файла
+    ''' 4. Използва резервни стойности при липсващи данни
+    ''' 5. Генерира крайния път до JSON файла
     ''' </summary>
     Public Function GetJsonTargetPath(dwgFullPath As String) As String
-        ' 1. Извличаме папката, в която се намира DWG файлът
+        ' Извличаме папката на DWG файла
         Dim directory As String = Path.GetDirectoryName(dwgFullPath)
-        If String.IsNullOrEmpty(directory) Then
-            directory = Environment.CurrentDirectory ' Fallback, ако пътят е невалиден
-        End If
-        ' 2. Извличаме името на сградата чрез първия метод
+        ' Ако пътят е невалиден → използваме текущата директория
+        If String.IsNullOrEmpty(directory) Then directory = Environment.CurrentDirectory
+        ' Извличаме името на сградата от DWG файла
         Dim buildingName As String = GetBuildingNameFromDwg(dwgFullPath)
-        If String.IsNullOrEmpty(buildingName) Then
-            buildingName = "Project" ' Fallback, ако не успеем да разчетем име
-        End If
-        ' 3. Комбинираме в краен път: C:\...\Папка\Сграда_1_Tokowi.json
+        ' Ако няма валидно име → използваме резервно име
+        If String.IsNullOrEmpty(buildingName) Then buildingName = "Project"
+        ' Генерираме и връщаме пълния път до JSON файла
         Return Path.Combine(directory, $"{buildingName}_Tokowi.json")
     End Function
     ''' <summary>
-    ''' Записва списъка с данни в JSON файл по подаден DWG път.
-    ''' Връща True при успешен запис, False при грешка.
+    ''' Записва проекта в JSON файл.
+    ''' Логиката:
+    ''' 1. Определя пътя до JSON файла
+    ''' 2. Проверява дали папката съществува
+    ''' 3. Сериализира данните в JSON формат
+    ''' 4. Записва JSON файла на диска
+    ''' 5. Връща True при успешен запис
+    ''' 6. Връща False при грешка
     ''' </summary>
-    Public Function SaveProject(data As List(Of Form_Tablo_new.strTokow), dwgFullPath As String) As Boolean
+    Public Function SaveProject(data As List(Of Form_Tablo_new.strTokow),
+                            dwgFullPath As String) As Boolean
+
         Try
-            ' 1. Генерираме целевия път
+            ' Определяме пътя до JSON файла
             Dim targetPath As String = GetJsonTargetPath(dwgFullPath)
+            ' Ако пътят е невалиден → прекратяваме
             If String.IsNullOrEmpty(targetPath) Then Return False
-            ' 2. Проверяваме дали папката съществува (поправен синтаксис)
+            ' Взимаме папката на файла
             Dim dir As String = IO.Path.GetDirectoryName(targetPath)
+            ' Ако папката не съществува → прекратяваме
             If Not IO.Directory.Exists(dir) Then Return False
-            ' 3. Сериализираме и записваме
-            Dim json As String = JsonConvert.SerializeObject(data, Formatting.Indented)
+            ' Сериализираме данните в JSON формат
+            Dim json As String =
+            JsonConvert.SerializeObject(data, Formatting.Indented)
+            ' Записваме JSON файла на диска
             IO.File.WriteAllText(targetPath, json)
+            ' Успешен запис
             Return True
         Catch
-            ' При всяка грешка (достъп, сериализация, диск) връщаме False
+            ' При грешка връщаме False
             Return False
         End Try
     End Function
     ''' <summary>
-    ''' Чете JSON файла и извиква процедурата за обработка и поправка на данните.
+    ''' Зарежда проект от JSON файл и възстановява данните в ListTokow.
+    ''' Логиката:
+    ''' 1. Определя пътя до JSON файла
+    ''' 2. Проверява дали файлът съществува
+    ''' 3. Прочита съдържанието на файла
+    ''' 4. Десериализира JSON данните
+    ''' 5. Подготвя и поправя заредените записи
+    ''' 6. При грешка запазва текущите данни без промяна
     ''' </summary>
-    Public Sub LoadProject(ByRef targetList As List(Of Form_Tablo_new.strTokow), dwgFullPath As String, acDb As Database)
+    Public Sub LoadProject(ByRef targetList As List(Of Form_Tablo_new.strTokow),
+                       dwgFullPath As String,
+                       acDb As Database)
         Try
+            ' Определяме пътя до JSON файла за текущия DWG
             Dim targetPath As String = GetJsonTargetPath(dwgFullPath)
-            ' Ако няма файл, просто изчистваме списъка и излизаме
-            If String.IsNullOrEmpty(targetPath) OrElse Not IO.File.Exists(targetPath) Then
+            ' Ако няма валиден път или файлът не съществува
+            If String.IsNullOrEmpty(targetPath) OrElse
+           Not IO.File.Exists(targetPath) Then
+                ' Стартираме обработка с празни данни
                 ProcessAndRepairList(targetList, Nothing, acDb)
                 Return
             End If
-            ' 1. Четем файла
+            ' Прочитаме съдържанието на JSON файла
             Dim json As String = IO.File.ReadAllText(targetPath)
+            ' Ако файлът е празен
             If String.IsNullOrEmpty(json) Then
+                ' Стартираме обработка с празни данни
                 ProcessAndRepairList(targetList, Nothing, acDb)
                 Return
             End If
-            ' 2. Десериализираме във временен списък
-            Dim loadedData As List(Of Form_Tablo_new.strTokow) = JsonConvert.DeserializeObject(Of List(Of Form_Tablo_new.strTokow))(json)
-            ' 3. Извикваме новата процедура за обработка и поправка на ID-та
+            ' Десериализираме JSON данните към списък от strTokow
+            Dim loadedData As List(Of Form_Tablo_new.strTokow) =
+            JsonConvert.DeserializeObject(Of List(Of Form_Tablo_new.strTokow))(json)
+            ' Обработваме и поправяме заредените данни
             ProcessAndRepairList(targetList, loadedData, acDb)
         Catch ex As Exception
-            ' При фатална грешка изчистваме списъка
-            targetList.Clear()
+            ' Ако възникне грешка:
+            ' - НЕ променяме targetList
+            ' - Старите данни остават запазени
+            ' - Програмата продължава работа без загуба на информация
         End Try
     End Sub
     ''' <summary>
@@ -139,7 +152,7 @@ Public Class Form_Tablo_new_ProjectPathResolver
                                      acDb As Database)
         Try
             ' 1. Изчистване на текущия списък (или бъдещ Merge логика тук)
-            targetList.Clear()
+            'targetList.Clear()
             ' 2. Добавяне на новите данни
             If sourceList IsNot Nothing Then
                 targetList.AddRange(sourceList)
@@ -165,6 +178,4 @@ Public Class Form_Tablo_new_ProjectPathResolver
             ' Програмата продължава нормално, без загуба на работа.
         End Try
     End Sub
-
-
 End Class

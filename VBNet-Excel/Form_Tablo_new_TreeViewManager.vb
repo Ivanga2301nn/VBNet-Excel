@@ -59,10 +59,10 @@ Public Class Form_Tablo_new_TreeViewManager
     Private Sub PreparePanelFeeders(rootName As String)
         ' Взимаме всички уникални табла от списъка
         Dim uniquePanels = dataList.
-                        Where(Function(x) Not String.IsNullOrWhiteSpace(x.Tablo)).
-                        Select(Function(x) x.Tablo.Trim()).
-                        Distinct().
-                        ToList()
+                            Where(Function(x) Not String.IsNullOrWhiteSpace(x.Tablo)).
+                            Select(Function(x) x.Tablo.Trim()).
+                            Distinct().
+                            ToList()
         For Each pName In uniquePanels
             ' Пропускаме кореновото табло
             If String.Equals(pName, rootName, StringComparison.OrdinalIgnoreCase) Then Continue For
@@ -98,23 +98,51 @@ Public Class Form_Tablo_new_TreeViewManager
         Next
     End Sub
     ''' <summary>
-    ''' Преизчислява мощност и ток на родителското табло.
-    ''' (Преместена логика от BuildPanelSummaryRecord)
+    ''' Преизчислява общите стойности (мощност и ток) за родителското табло.
+    ''' Логиката:
+    ''' 1. Намира главния запис на таблото
+    ''' 2. Взима всички директни подчинени елементи ("Дете")
+    ''' 3. Сумира мощност и ток от всички деца
+    ''' 4. Записва резултата в родителския запис
+    ''' 
+    ''' Използва се като част от йерархичното преизчисляване на таблата.
     ''' </summary>
     Private Sub RecalculateParentSummary(rootName As String)
-        ' Намираме записа на родителското табло
-        Dim parentRecord = dataList.FirstOrDefault(Function(x) x.Tablo = rootName AndAlso x.Device = "Табло")
+        ' Намираме основния запис на родителското табло
+        Dim parentRecord =
+        dataList.FirstOrDefault(Function(x)
+                                    Return x.Tablo = rootName AndAlso
+                                    x.Device = "Табло"
+                                End Function)
+        ' Ако няма такова табло → прекратяваме
         If parentRecord Is Nothing Then Return
-        ' Сумираме мощността и тока от всички деца, които са "Дете" (фийдъри)
-        Dim children = dataList.Where(Function(x) x.Tablo = rootName AndAlso x.Device = "Дете")
+        ' Взимаме всички директни деца на таблото
+        Dim children = dataList.Where(
+                            Function(x)
+                                Return x.Tablo = rootName AndAlso
+                                       x.Device = "Дете"
+                            End Function)
+        ' Сумираме мощността от всички деца
         parentRecord.Мощност = children.Sum(Function(c) c.Мощност)
+        ' Сумираме тока от всички деца
         parentRecord.Ток = children.Sum(Function(c) c.Ток)
     End Sub
-    ' ========================================================================
-    ' 🌲 ЛОГИКА ЗА ВИЗУАЛИЗАЦИЯ (TREEVIEW) - РЕКУРСИВНА
-    ' ========================================================================
     ''' <summary>
-    ''' Рисува TreeView с автоматична йерархия (линейна или сложна).
+    ''' КЛАС ЗА УПРАВЛЕНИЕ НА ЕЛЕКТРИЧЕСКИ ТАБЛА И ЙЕРАРХИЯ ОТ ТОКОВИ КРЪГОВЕ.
+    ''' 
+    ''' Основни отговорности:
+    ''' - Зареждане и съхранение на проектни данни (dataList)
+    ''' - Генериране и поддръжка на йерархична структура от табла и подтабла
+    ''' - Автоматично създаване на "фийдъри" (връзки между табла)
+    ''' - Рекурсивно преизчисляване на мощност и ток по йерархията
+    ''' - Изграждане на визуално дърво (TreeView)
+    ''' - Управление на JSON сериализация/десериализация на проектите
+    ''' - Извличане и нормализиране на име на сграда от DWG файл
+    ''' 
+    ''' Класът служи като централен слой между:
+    ''' UI (TreeView / Forms)
+    ''' и
+    ''' бизнес логиката за електрическите табла.
     ''' </summary>
     Private Sub BuildTree(rootNodeText As String)
         tv.Nodes.Clear()
@@ -157,40 +185,69 @@ Public Class Form_Tablo_new_TreeViewManager
         End Try
     End Sub
     ''' <summary>
-    ''' Намира всички табла, които са директно под даден родител
+    ''' Намира всички директно свързани подтабла (деца) към дадено родителско табло.
+    ''' 
+    ''' Логика:
+    ''' - Търси записи в dataList с Device = "Дете"
+    ''' - Филтрира по Tablo = parentName
+    ''' - Връща уникалните стойности от полето ТоковКръг (имената на подтаблата)
+    ''' - Подрежда резултата по азбучен ред
     ''' </summary>
     Private Function FindChildPanels(parentName As String) As List(Of String)
         ' Търсим записи с Device="Дете", където Tablo=parentName
         ' ТоковКръг съдържа името на детското табло
         Return dataList.
-            Where(Function(x) x.Device = "Дете" AndAlso
-                  String.Equals(x.Tablo, parentName, StringComparison.OrdinalIgnoreCase)).
-            Select(Function(x) x.ТоковКръг).
-            Distinct().
-            OrderBy(Function(x) x).
-            ToList()
+                Where(Function(x) x.Device = "Дете" AndAlso
+                String.Equals(x.Tablo, parentName, StringComparison.OrdinalIgnoreCase)).
+                    Select(Function(x) x.ТоковКръг).
+                    Distinct().
+                    OrderBy(Function(x) x).
+                    ToList()
     End Function
     ''' <summary>
-    ''' Намира кореновите табла за дадена сграда (тези, които нямат родител)
+    ''' Намира кореновите табла за дадена сграда.
+    ''' 
+    ''' Кореново табло е такова, което:
+    ''' - принадлежи към дадената сграда
+    ''' - не се среща като "дете" (няма родителска връзка в йерархията)
+    ''' 
+    ''' Логика:
+    ''' 1. Взимат се всички табла (Device = "Табло") за конкретната сграда
+    ''' 2. Взимат се всички табла, които са маркирани като "Дете"
+    ''' 3. От първия списък се изключват всички деца
+    ''' 4. Резултатът се подрежда по азбучен ред
     ''' </summary>
     Private Function FindRootPanelsForBuilding(buildingName As String) As List(Of String)
         ' Всички табла в тази сграда
         Dim allPanelsInBuilding = dataList.
-            Where(Function(x) x.BuildingName = buildingName AndAlso
-                  x.Device = "Табло").
-            Select(Function(x) x.Tablo).
-            Distinct()
+                                    Where(Function(x) x.BuildingName = buildingName AndAlso
+                                      x.Device = "Табло").
+                                Select(Function(x) x.Tablo).
+                                Distinct()
         ' Табла, които са деца на други (имат родител)
         Dim childPanels = dataList.
-            Where(Function(x) x.Device = "Дете").
-            Select(Function(x) x.ТоковКръг).
-            Distinct()
+                        Where(Function(x) x.Device = "Дете").
+                        Select(Function(x) x.ТоковКръг).
+                        Distinct()
         ' Коренови са тези, които са в сградата, но НЕ са деца
         Return allPanelsInBuilding.Except(childPanels).OrderBy(Function(x) x).ToList()
     End Function
     ''' <summary>
-    ''' РЕКУРСИВНО добавя табло и всичките му подтабла.
-    ''' Токовите кръгове са групирани под един общ нод (сгънат).
+    ''' Рекурсивно изгражда възел в TreeView за дадено табло и всички негови подтабла.
+    ''' 
+    ''' Структура:
+    ''' - Създава възел за текущото табло
+    ''' - Добавя подтабла чрез рекурсия (йерархично)
+    ''' - Групира всички токови кръгове в отделен под-възел
+    ''' - Създава листа за всеки токов кръг
+    ''' - Сгъва възлите за по-компактен визуален изглед
+    ''' 
+    ''' Логика:
+    ''' 1. Намира таблото в dataList
+    ''' 2. Изчислява общата мощност (включително деца)
+    ''' 3. Добавя рекурсивно всички подтабла
+    ''' 4. Добавя токовите кръгове като отделна група
+    ''' 5. Сгъва структурата за по-добра четимост
     ''' </summary>
     Private Sub AddPanelNodeRecursive(panelName As String, parentNodes As TreeNodeCollection)
         ' Намираме записа за това табло
@@ -201,50 +258,52 @@ Public Class Form_Tablo_new_TreeViewManager
         ' Създаваме възела за таблото
         Dim pNode As New TreeNode($"{panelName} ({totalPower:F2} kW)")
         parentNodes.Add(pNode)
-        ' ✅ РЕКУРСИЯ
+        ' РЕКУРСИЯ за подтаблата
         Dim childPanels = FindChildPanels(panelName)
         For Each childName In childPanels
             AddPanelNodeRecursive(childName, pNode.Nodes)
         Next
         ' Добавяме токовите кръгове
         Dim circuits = dataList.Where(Function(x) x.Tablo = panelName AndAlso
-                                     x.Device <> "Табло" AndAlso
-                                     x.Device <> "Дете" AndAlso
-                                     Not String.IsNullOrEmpty(x.ТоковКръг) AndAlso
-                                     x.ТоковКръг <> "ОБЩО").ToList()
+                                 x.Device <> "Табло" AndAlso
+                                 x.Device <> "Дете" AndAlso
+                                 Not String.IsNullOrEmpty(x.ТоковКръг) AndAlso
+                                 x.ТоковКръг <> "ОБЩО").ToList()
         If circuits.Count > 0 Then
             Dim totalCircuitPower = circuits.Sum(Function(c) c.Мощност)
             Dim circuitsNode As New TreeNode($"🔵 Токови кръгове ({totalCircuitPower:F2} kW)")
-            ' --- ШАРЕНИЯ ---
-            circuitsNode.ForeColor = Color.DarkBlue     ' Тъмно син цвят на текста
-            circuitsNode.BackColor = Color.Ivory        ' Нежен фонов цвят
-            circuitsNode.NodeFont = New Font(tv.Font, FontStyle.Bold) ' Удебелен шрифт
-            ' ----------------
+            circuitsNode.ForeColor = Color.DarkBlue
+            circuitsNode.BackColor = Color.Ivory
+            circuitsNode.NodeFont = New Font(tv.Font, FontStyle.Bold)
             pNode.Nodes.Add(circuitsNode)
             For Each tok In circuits
                 Dim tkNode As New TreeNode($"{tok.ТоковКръг} ({tok.Мощност:F2} kW)")
                 circuitsNode.Nodes.Add(tkNode)
             Next
-            ' Сгъваме възела с токовите кръгове
             circuitsNode.Collapse()
         End If
-        ' 🔥 КЛЮЧЪТ: Сгъваме самото табло (Т-маг), след като всичко в него е заредено
         pNode.Collapse()
     End Sub
     ''' <summary>
-    ''' Изчислява общата мощност на табло (деца + собствени кръгове)
+    ''' Изчислява общата мощност на дадено табло.
+    ''' 
+    ''' Включва:
+    ''' - Мощност от подтабла (чрез "Дете" връзки / фийдъри)
+    ''' - Мощност от директно свързани токови кръгове
+    ''' 
+    ''' Резултатът представлява сумарното натоварване на таблото.
     ''' </summary>
     Private Function CalculatePanelTotalPower(panelName As String) As Double
         ' Мощност от подтабла (чрез фийдърите)
         Dim feederPower = dataList.
-            Where(Function(x) x.Tablo = panelName AndAlso x.Device = "Дете").
-            Sum(Function(x) x.Мощност)
+        Where(Function(x) x.Tablo = panelName AndAlso x.Device = "Дете").
+        Sum(Function(x) x.Мощност)
         ' Мощност от собствени кръгове
         Dim circuitPower = dataList.
-            Where(Function(x) x.Tablo = panelName AndAlso
-                  x.Device <> "Табло" AndAlso
-                  x.Device <> "Дете").
-            Sum(Function(x) x.Мощност)
+        Where(Function(x) x.Tablo = panelName AndAlso
+              x.Device <> "Табло" AndAlso
+              x.Device <> "Дете").
+        Sum(Function(x) x.Мощност)
         Return feederPower + circuitPower
     End Function
 End Class

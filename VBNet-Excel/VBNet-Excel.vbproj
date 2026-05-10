@@ -123,6 +123,7 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Form_Tablo_new_ProjectPathResolver.vb" />
+    <Compile Include="Form_Tablo_new_TreeViewManager.vb" />
     <Compile Include="SheetSet_Monika.vb" />
     <Compile Include="SheetSet_new.vb" />
     <Compile Include="Form_Print.Designer.vb">

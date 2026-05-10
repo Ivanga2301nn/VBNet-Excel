@@ -33,17 +33,20 @@ Imports Font = System.Drawing.Font
 ' 2. Form_Tablo_new_AutoCadInserter | Form_Tablo_new_AutoCadInserter.vb
 '    → Отговорност: AutoCAD чертане на табла, шини, кръгове и анотации
 '
-' [Очаква се] TreeViewManager      | (файл)
-'    → Отговорност: Управление на йерархия, Drag&Drop, форматиране
+' 3. Form_Tablo_new_ProjectPathResolver | Form_Tablo_new_ProjectPathResolver.vb
+'    → Отговорност: Файлова логика (Save/Load), пътища, BuildingName, 
+'      сериализация и безопасна обработка на ListTokow (ProcessAndRepairList)
 '
-'[Очаква се] LoadCalculator       | (файл)
-'    → Отговорност: Изчисления на токове, избор на ДТЗ, фазов баланс
+' 4. [СЛЕДВАЩА СТЪПКА] TreeViewManager | Form_Tablo_new_TreeViewManager.vb
+'    → Отговорност: Йерархия (Сграда→Табло→TK→Консуматори), Drag&Drop (засега само табла), 
+'      синхронизация с UI и ListTokow
 '
-' [Очаква се] ExcelAutoCadBridge   | (файл)
-'    → Отговорност: Експорт/импорт и интеграция с външни приложения
+' 5. [ПЛАНИРАНО] LoadCalculator | Form_Tablo_new_LoadCalculator.vb
+'    → Отговорност: Изчисления на токове, избор на ДТЗ/прекъсвачи, фазов баланс
+'
+' 6. [ПЛАНИРАНО] ExcelAutoCadBridge | Form_Tablo_new_ExcelAutoCadBridge.vb
+'    → Отговорност: Експорт/импорт, интеграция с външни приложения и отчети
 #End Region
-
-
 
 ' ============================================================
 ' 1. КОМАНДА ЗА СТАРТИРАНЕ (Трябва да е извън класа на формата)
@@ -187,8 +190,9 @@ Public Class Form_Tablo_new
         ' TreeView се използва за визуална навигация
         ' и бърз преглед на структурата на таблото.
 #End Region
-        InitializePanelParents(ROOT_NODE_TEXT)
-        BuildTreeViewFromKonsumatori()
+        ' 🔄 ПРЕПРАЩАНЕ КЪМ МЕНИДЖЪРА
+        treeManager = New Form_Tablo_new_TreeViewManager(TreeView1, ListTokow)
+        treeManager.InitializeAndBuild(ROOT_NODE_TEXT)
 #Region "Подготовка на DataGridView"
         ' Конфигурира таблицата за редактиране на параметрите
         ' на токовите кръгове:
@@ -213,6 +217,11 @@ Public Class Form_Tablo_new
     Private ListKonsumator As New List(Of strKonsumator)
     ' Списък за токовите кръгове
     Dim ListTokow As New List(Of strTokow)
+
+    ' ✅ МЕНИДЖЪРЪТ ТРЯБВА ДА Е ГЛОБАЛЕН ЗА ФОРМАТА
+    Private treeManager As Form_Tablo_new_TreeViewManager
+
+    Dim fullBuildingName As String
     Private Const ZnakX As String = "х" ' Напиши го веднъж тук (на кирилица)
     ' ============================================================
     ' КАТАЛОЖНИ ПРОМЕНЛИВИ (на ниво форма)
@@ -2881,25 +2890,21 @@ Public Class Form_Tablo_new
                 Kons.Phase = 1  ' Всички тези са винаги 1 фаза
         End Select
     End Sub
-    ''' <summary>
-    ''' Създава списък от токови кръгове (ListTokow),
-    ''' като групира консуматорите (ListKonsumator)
-    ''' по комбинация от ТАБЛО и ТоковКръг.
-    '''
-    ''' Резултат:
-    ''' За всяка уникална двойка (ТАБЛО + ТоковКръг)
-    ''' се създава нов обект strTokow,
-    ''' който съдържа всички консуматори към този кръг.
-    ''' </summary>
     Private Sub CreateTokowList()
         If ListKonsumator Is Nothing Then Exit Sub
+        Dim doc As Autodesk.AutoCAD.ApplicationServices.Document =
+        Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument
+        Dim dwgFileName As String = System.IO.Path.GetFileNameWithoutExtension(doc.Name)
+        fullBuildingName = "Сграда_" & dwgFileName
         ListTokow = ListKonsumator _
-                    .Where(Function(k) Not String.IsNullOrEmpty(k.ТоковКръг)) _
-                    .GroupBy(Function(k) New With {Key k.ТАБЛО, Key k.ТоковКръг}) _
-                    .Select(Function(g) New strTokow With {
+                .Where(Function(k) Not String.IsNullOrWhiteSpace(k.ТоковКръг)) _
+                .GroupBy(Function(k) New With {Key k.ТАБЛО, Key k.ТоковКръг}) _
+                .Select(Function(g) New strTokow With {
+                            .BuildingName = fullBuildingName, ' Присвояваме името тук
                             .Tablo = g.Key.ТАБЛО,
                             .ТоковКръг = g.Key.ТоковКръг,
-                            .Konsumator = g.ToList()}).ToList()
+                            .Konsumator = g.ToList()
+                        }).ToList()
     End Sub
     ''' <summary>
     ''' Извлича брой от стойност като "3x100" → 3, "4х18" → 4, "100" → 1
@@ -3219,6 +3224,7 @@ Public Class Form_Tablo_new
             ' ----------------------------------------------------
             ' Избираме кабел според изчисления ток и брой полюси
             ' ----------------------------------------------------
+            tokow.BuildingName = fullBuildingName
             CalculateCable(tokow)
         Next
         ' ═══════════════════════════════════════════════════════════
@@ -3263,6 +3269,7 @@ Public Class Form_Tablo_new
             tokow.Breaker_Тип_Апарат = suitable.Type
             ' При разединител няма характеристика (крива)
             tokow.Breaker_Крива = "-"
+            tokow.BuildingName = fullBuildingName
         Else
             ' Ако няма подходящ апарат → показваме съобщение за грешка
             MsgBox(String.Format("Грешка: Не е намерен прекъсвач за {0}А с {1} полюса.", tokow.Ток, tokow.Брой_Полюси))

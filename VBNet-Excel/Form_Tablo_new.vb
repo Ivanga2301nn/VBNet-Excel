@@ -5135,15 +5135,18 @@ Public Class Form_Tablo_new
     End Function
     Private Sub SaveToolStripButton_Click(sender As Object, e As EventArgs) Handles SaveToolStripButton.Click
         Try
-            ' Вземаме пътя на текущо отворения DWG
+            ' Вземаме пътя на текущия DWG
             Dim dwgPath As String = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument.Name
-            Dim dwgFolder As String = IO.Path.GetDirectoryName(dwgPath)
-            Dim dwgName As String = IO.Path.GetFileNameWithoutExtension(dwgPath)
-            ' Създаваме име на JSON файла
-            Dim savePath As String = IO.Path.Combine(dwgFolder, dwgName & "_Tokowi.json")
-            ' Сериализиране на ListTokow
+            ' Използваме новия клас за генериране на целеви път
+            Dim resolver As New Form_Tablo_new_ProjectPathResolver()
+            Dim savePath As String = resolver.GetJsonTargetPath(dwgPath)
+            ' Предпазна мярка: ако пътят е невалиден, спираме
+            If String.IsNullOrEmpty(savePath) OrElse Not IO.Directory.Exists(IO.Path.GetDirectoryName(savePath)) Then
+                MessageBox.Show("Не може да се определи валидна папка за запис. Моля, запазете DWG файла първо.", "Грешка", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                Exit Sub
+            End If
+            '  СерIALIZАЦИЯ И ЗАПИС (възстановени)
             Dim json As String = JsonConvert.SerializeObject(ListTokow, Formatting.Indented)
-            ' Записване във файл
             IO.File.WriteAllText(savePath, json)
             MessageBox.Show($"Файлът е записан успешно: {savePath}", "OK", MessageBoxButtons.OK, MessageBoxIcon.Information)
         Catch ex As Exception
@@ -5152,49 +5155,24 @@ Public Class Form_Tablo_new
     End Sub
     Private Sub OpenToolStripButton_Click(sender As Object, e As EventArgs) Handles OpenToolStripButton.Click
         Try
-            ' Вземаме пътя на текущо отворения DWG
-            Dim dwgPath As String = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument.Name
-            Dim dwgFolder As String = IO.Path.GetDirectoryName(dwgPath)
-            Dim dwgName As String = IO.Path.GetFileNameWithoutExtension(dwgPath)
-            ' Създаваме име на JSON файла
-            Dim openPath As String = IO.Path.Combine(dwgFolder, dwgName & "_Tokowi.json")
-            ' Проверка дали файлът съществува
-            If Not IO.File.Exists(openPath) Then
-                MessageBox.Show("Файлът не е намерен: " & openPath, "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning)
-                Return
-            End If
-            ' Четене и десериализиране
-            Dim json As String = IO.File.ReadAllText(openPath)
-            Dim loadedList As List(Of strTokow) = JsonConvert.DeserializeObject(Of List(Of strTokow))(json)
-            If loadedList IsNot Nothing Then
-                ' 🔹 Изтриваме текущото съдържание
-                ListTokow.Clear()
-                ' 🔹 Записваме съдържанието от файла
-                ListTokow.AddRange(loadedList)
+            ' 1. Вземаме пътя и базата данни
+            Dim acDoc = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument
+            Dim dwgPath As String = acDoc.Name
+            Dim acCurDb As Database = acDoc.Database
+            ' 2. Извикваме новия клас
+            Dim resolver As New Form_Tablo_new_ProjectPathResolver()
+            ' Тук се случва всичко: четене, зареждане в ListTokow и поправка на ID-та
+            resolver.LoadProject(ListTokow, dwgPath, acCurDb)
+            ' 3. Ако списъкът е празен (липсва файл или грешка), информираме потребителя
+            If ListTokow.Count = 0 Then
+                MessageBox.Show("Файлът не е намерен или списъкът е празен.", "Информация", MessageBoxButtons.OK, MessageBoxIcon.Information)
             Else
-                ListTokow = New List(Of strTokow)
+                MessageBox.Show("Проектът е зареден успешно.", "OK", MessageBoxButtons.OK, MessageBoxIcon.Information)
             End If
-            ' 👉 Възстановяване на ObjectId от Handle_Block
-            Dim doc = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument
-            Dim db = doc.Database
-            For Each t In ListTokow
-                For Each k In t.Konsumator
-                    If Not String.IsNullOrEmpty(k.Handle_Block) Then
-                        Try
-                            Dim h As New Handle(Convert.ToInt64(k.Handle_Block, 16))
-                            k.ID_Block = db.GetObjectId(False, h, 0)
-                        Catch
-                            k.ID_Block = ObjectId.Null ' блокът вече не съществува
-                        End Try
-                    End If
-                Next
-            Next
-            MessageBox.Show("Файлът е зареден успешно: " & openPath, "OK", MessageBoxButtons.OK, MessageBoxIcon.Information)
-            ' 👉 Ако имаш DataGridView или UI, можеш да го обновиш:
-            ' RefreshGrid()
         Catch ex As Exception
-            MessageBox.Show("Грешка при четене на файла: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            MessageBox.Show("Грешка при зареждане: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
         End Try
+        ' 4. Винаги обновяваме визуалните компоненти
         BuildTreeViewFromKonsumatori()
         SetupDataGridView()
     End Sub

@@ -6,6 +6,7 @@ Public Class Form_Tablo_new_TreeViewManager
     ' Референции към контролата и данните
     Private tv As TreeView
     Private dataList As List(Of Form_Tablo_new.strTokow)
+    Private rootText As String
 
     ''' <summary>
     ''' Конструктор: Приема контролата и списъка с данни
@@ -34,12 +35,14 @@ Public Class Form_Tablo_new_TreeViewManager
     Public Sub InitializeAndBuild(rootNodeText As String)
         ' Ако няма данни → прекратяваме
         If dataList Is Nothing OrElse dataList.Count = 0 Then Return
-        ' Подготвяме логическите връзки между таблата
-        PreparePanelFeeders(rootNodeText)
-        ' Преизчисляваме всички родителски суми по йерархията
-        RecalculateParentSummary(rootNodeText)
-        ' Изграждаме визуалното дърво
-        BuildTree(rootNodeText)
+        ' ✅ 1. ПЪРВО ЗАПАЗВАМЕ СЪСТОЯНИЕТО (за да е достъпно навсякъде в класа)
+        rootText = rootNodeText
+        ' 2. Подготвяме логическите връзки между таблата
+        PreparePanelFeeders(rootText)
+        ' 3. Преизчисляваме всички родителски суми по йерархията
+        RecalculateParentSummary(rootText)
+        ' 4. Изграждаме визуалното дърво
+        BuildTree(rootText)
     End Sub
     ' ========================================================================
     ' 📊 ЛОГИКА ЗА ДАННИ (ПРЕДИ ВИЗУАЛИЗАЦИЯ)
@@ -108,24 +111,23 @@ Public Class Form_Tablo_new_TreeViewManager
     ''' Използва се като част от йерархичното преизчисляване на таблата.
     ''' </summary>
     Private Sub RecalculateParentSummary(rootName As String)
-        ' Намираме основния запис на родителското табло
-        Dim parentRecord =
-        dataList.FirstOrDefault(Function(x)
-                                    Return x.Tablo = rootName AndAlso
-                                    x.Device = "Табло"
-                                End Function)
-        ' Ако няма такова табло → прекратяваме
+        Dim parentRecord = dataList.FirstOrDefault(Function(x) x.Tablo = rootName AndAlso x.Device = "Табло")
         If parentRecord Is Nothing Then Return
-        ' Взимаме всички директни деца на таблото
-        Dim children = dataList.Where(
-                            Function(x)
-                                Return x.Tablo = rootName AndAlso
-                                       x.Device = "Дете"
-                            End Function)
-        ' Сумираме мощността от всички деца
-        parentRecord.Мощност = children.Sum(Function(c) c.Мощност)
-        ' Сумираме тока от всички деца
-        parentRecord.Ток = children.Sum(Function(c) c.Ток)
+
+        ' Сума от фийдъри (подтабла)
+        Dim feederPower = dataList.Where(Function(x) x.Tablo = rootName AndAlso x.Device = "Дете").Sum(Function(c) c.Мощност)
+        Dim feederCurrent = dataList.Where(Function(x) x.Tablo = rootName AndAlso x.Device = "Дете").Sum(Function(c) c.Ток)
+
+        ' Сума от директни токови кръгове (не табла и не фийдъри)
+        Dim circuitPower = dataList.Where(Function(x) x.Tablo = rootName AndAlso
+                                          x.Device <> "Табло" AndAlso
+                                          x.Device <> "Дете" AndAlso
+                                          Not String.IsNullOrEmpty(x.ТоковКръг) AndAlso
+                                          x.ТоковКръг <> "ОБЩО").Sum(Function(c) c.Мощност)
+
+        ' Общо за таблото
+        parentRecord.Мощност = feederPower + circuitPower
+        parentRecord.Ток = feederCurrent ' Токът на родител се определя от фийдърите
     End Sub
     ''' <summary>
     ''' КЛАС ЗА УПРАВЛЕНИЕ НА ЕЛЕКТРИЧЕСКИ ТАБЛА И ЙЕРАРХИЯ ОТ ТОКОВИ КРЪГОВЕ.
@@ -169,7 +171,6 @@ Public Class Form_Tablo_new_TreeViewManager
                     Dim bName = If(String.IsNullOrEmpty(bGrp.Key), "Неизвестна сграда", bGrp.Key)
                     Dim bNode As New TreeNode(bName)
                     tv.Nodes.Add(bNode)
-
                     ' За всяка сграда намираме кореновите табла (тези, които не са деца на други)
                     Dim rootPanels = FindRootPanelsForBuilding(bName)
                     For Each panelName In rootPanels
@@ -307,7 +308,24 @@ Public Class Form_Tablo_new_TreeViewManager
         Return feederPower + circuitPower
     End Function
 
+    ''' <summary>
+    ''' Изчислява ОБЩАТА мощност на всички табла (само кореновите, за да не се дублират стойностите)
+    ''' </summary>
+    Private Function CalculateTotalPower() As Double
+        ' 1. Намираме имената на всички обекти, които са посочени като "Дете" (подчинени табла)
+        Dim childPanelNames = dataList.Where(Function(x) x.Device = "Дете").
+                                   Select(Function(x) x.ТоковКръг).
+                                   Distinct().
+                                   ToList()
 
+        ' 2. Взимаме само тези записи за "Табло", чиито имена НЕ фигурират в списъка с деца
+        ' и сумираме тяхната мощност директно.
+        Dim totalPower = dataList.Where(Function(x) x.Device = "Табло" AndAlso
+                                              Not childPanelNames.Contains(x.Tablo)).
+                              Sum(Function(x) x.Мощност)
+
+        Return totalPower
+    End Function
 
     Private Sub Tv_ItemDrag(sender As Object, e As ItemDragEventArgs)
         ' Започваме Drag операция с избрания възел
@@ -371,64 +389,47 @@ Public Class Form_Tablo_new_TreeViewManager
         Return nodeText.Trim()
     End Function
     Private Sub Tv_DragDrop(sender As Object, e As DragEventArgs)
-        ' 1. Взимаме възлите
         Dim draggedNode As TreeNode = CType(e.Data.GetData(GetType(TreeNode)), TreeNode)
         Dim targetPoint As Point = tv.PointToClient(New Point(e.X, e.Y))
         Dim targetNode As TreeNode = tv.GetNodeAt(targetPoint)
         If draggedNode Is Nothing OrElse targetNode Is Nothing OrElse draggedNode Is targetNode Then Return
-        ' 2. Валидация: само табла могат да се местят
         If Not IsPanelNode(draggedNode) OrElse Not IsPanelNode(targetNode) Then Return
-        If IsChildOf(draggedNode, targetNode) Then Return ' Не позволяваме циклична зависимост
-        ' 3. Извличаме имената на таблата от текста (формат: "T-1 (15.54 kW)")
+        If IsChildOf(draggedNode, targetNode) Then Return
         Dim draggedPanelName As String = ExtractPanelName(draggedNode.Text)
         Dim targetPanelName As String = ExtractPanelName(targetNode.Text)
         If String.IsNullOrEmpty(draggedPanelName) OrElse String.IsNullOrEmpty(targetPanelName) Then Return
-        ' 4. 🔥 АКТУАЛИЗИРАМЕ ДАННИТЕ (ListTokow)
-        ' Намираме всички записи, които принадлежат на местеното табло
-        Dim panelRecords = dataList.Where(Function(x) x.Tablo = draggedPanelName AndAlso x.Device = "Табло").ToList()
-        If panelRecords.Count = 0 Then Return
-        For Each rec In panelRecords
-            ' Променяме родителската връзка
-            rec.Табло_Родител = targetPanelName
-        Next
-        ' 5. АКТУАЛИЗИРАМЕ ВРЪЗКИТЕ (фийдърите)
-        ' Премахваме старата връзка (ако съществува)
+        ' 1. Намираме мастер записа на местеното табло
+        Dim draggedMaster = dataList.FirstOrDefault(Function(x) x.Tablo = draggedPanelName AndAlso x.Device = "Табло")
+        If draggedMaster Is Nothing Then Return
+        ' 2. Запомняме стария родител преди промяна
+        Dim oldParentName As String = draggedMaster.Табло_Родител
+        ' 3. Актуализираме йерархията в данните
+        draggedMaster.Табло_Родител = targetPanelName
+        ' 4. Премахваме всички стари фийдъри, сочещи към това табло
         Dim oldFeeders = dataList.Where(Function(x) x.Device = "Дете" AndAlso
                                         String.Equals(x.ТоковКръг, draggedPanelName, StringComparison.OrdinalIgnoreCase)).ToList()
         For Each f In oldFeeders
             dataList.Remove(f)
         Next
-        ' Създаваме нова връзка под новия родител
-        Dim masterRecord = panelRecords.FirstOrDefault()
-        If masterRecord IsNot Nothing Then
-            Dim newFeeder As Form_Tablo_new.strTokow = masterRecord.Clone()
-            newFeeder.Tablo = targetPanelName
-            newFeeder.Device = "Дете"
-            newFeeder.ТоковКръг = draggedPanelName
-            newFeeder.Табло_Родител = ""
-            newFeeder.Консуматор = "Табло"
-            newFeeder.предназначение = draggedPanelName
-            dataList.Add(newFeeder)
-        End If
-        ' 6. ПРЕИЗЧИСЛЯВАНЕ НА МОЩНОСТИТЕ
-        ' Преизчисляваме стария родител (ако го намерим)
-        Dim oldParentName = panelRecords.FirstOrDefault()?.Табло_Родител
-        If Not String.IsNullOrEmpty(oldParentName) Then
+        ' 5. Създаваме нов фийдър (връзка) под новия родител
+        Dim newFeeder As Form_Tablo_new.strTokow = draggedMaster.Clone()
+        newFeeder.Device = "Дете"
+        newFeeder.Tablo = targetPanelName
+        newFeeder.ТоковКръг = draggedPanelName
+        newFeeder.Табло_Родител = ""
+        newFeeder.Консуматор = "Табло"
+        newFeeder.предназначение = draggedPanelName
+        ' 🔥 КЛЮЧОВА ПОПРАВКА: MemberwiseClone копира референцията на списъка.
+        ' Трябва да създадем нов празен списък, за да не "споделя" консуматори с оригинала.
+        newFeeder.Konsumator = New List(Of Form_Tablo_new.strKonsumator)
+        dataList.Add(newFeeder)
+        ' 6. Преизчисляване на мощностите
+        If Not String.IsNullOrEmpty(oldParentName) AndAlso oldParentName <> targetPanelName Then
             RecalculateParentSummary(oldParentName)
         End If
-        ' Преизчисляваме новия родител
         RecalculateParentSummary(targetPanelName)
-        ' 7. 🔄 ОБНОВЯВАНЕ НА TREEVIEW
-        ' Премахваме възела от старото място
-        If draggedNode.Parent IsNot Nothing Then
-            draggedNode.Parent.Nodes.Remove(draggedNode)
-        End If
-        ' Добавяме го под новия родител
-        targetNode.Nodes.Add(draggedNode)
-        ' Маркираме и разгъваме новия родител за визуална обратна връзка
-        tv.SelectedNode = targetNode
-        targetNode.Expand()
-        ' 8. (Опционално) Информиране на формата, че данните са променени
-        ' Ако формата има нужда да знае, че ListTokow е променен, тук може да се вдигне събитие
+        RecalculateParentSummary(draggedPanelName)
+        ' 7. Пълно обновяване на дървото
+        BuildTree(rootText)
     End Sub
 End Class

@@ -3553,8 +3553,8 @@ Public Class Form_Tablo_new
         Dim panelCircuits = ListTokow.Where(Function(t) t.Tablo.ToUpper() = selectedPanel.ToUpper()).ToList()
         ' Проверка дали има кръгове
         If panelCircuits Is Nothing OrElse panelCircuits.Count = 0 Then
-            MsgBox($"Няма намерени токови кръгове за табло '{selectedPanel}'",
-                   MsgBoxStyle.Information, "Няма данни")
+            'MsgBox($"Няма намерени токови кръгове за табло '{selectedPanel}'",
+            '       MsgBoxStyle.Information, "Няма данни")
             Return
         End If
         GroupBox2.Text = $"Обработвам табло '{selectedPanel}'"

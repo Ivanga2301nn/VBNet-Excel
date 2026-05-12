@@ -7,6 +7,7 @@ Public Class Form_Tablo_new_TreeViewManager
     Private tv As TreeView
     Private dataList As List(Of Form_Tablo_new.strTokow)
     Private rootText As String
+    Private currentBuildingName As String = String.Empty
 
     ''' <summary>
     ''' Конструктор: Приема контролата и списъка с данни
@@ -39,8 +40,10 @@ Public Class Form_Tablo_new_TreeViewManager
         rootText = rootNodeText
         ' 2. Подготвяме логическите връзки между таблата
         PreparePanelFeeders(rootText)
+        ' ✅ НОВО: Гарантираме съществуването на кореновия запис
+        EnsureRootPanelExists(rootText)
         ' 3. Преизчисляваме всички родителски суми по йерархията
-        RecalculateParentSummary(rootText)
+        UpdatePanelSummary(rootNodeText)
         ' 4. Изграждаме визуалното дърво
         BuildTree(rootText)
     End Sub
@@ -100,35 +103,7 @@ Public Class Form_Tablo_new_TreeViewManager
             End If
         Next
     End Sub
-    ''' <summary>
-    ''' Преизчислява общите стойности (мощност и ток) за родителското табло.
-    ''' Логиката:
-    ''' 1. Намира главния запис на таблото
-    ''' 2. Взима всички директни подчинени елементи ("Дете")
-    ''' 3. Сумира мощност и ток от всички деца
-    ''' 4. Записва резултата в родителския запис
-    ''' 
-    ''' Използва се като част от йерархичното преизчисляване на таблата.
-    ''' </summary>
-    Private Sub RecalculateParentSummary(rootName As String)
-        Dim parentRecord = dataList.FirstOrDefault(Function(x) x.Tablo = rootName AndAlso x.Device = "Табло")
-        If parentRecord Is Nothing Then Return
 
-        ' Сума от фийдъри (подтабла)
-        Dim feederPower = dataList.Where(Function(x) x.Tablo = rootName AndAlso x.Device = "Дете").Sum(Function(c) c.Мощност)
-        Dim feederCurrent = dataList.Where(Function(x) x.Tablo = rootName AndAlso x.Device = "Дете").Sum(Function(c) c.Ток)
-
-        ' Сума от директни токови кръгове (не табла и не фийдъри)
-        Dim circuitPower = dataList.Where(Function(x) x.Tablo = rootName AndAlso
-                                          x.Device <> "Табло" AndAlso
-                                          x.Device <> "Дете" AndAlso
-                                          Not String.IsNullOrEmpty(x.ТоковКръг) AndAlso
-                                          x.ТоковКръг <> "ОБЩО").Sum(Function(c) c.Мощност)
-
-        ' Общо за таблото
-        parentRecord.Мощност = feederPower + circuitPower
-        parentRecord.Ток = feederCurrent ' Токът на родител се определя от фийдърите
-    End Sub
     ''' <summary>
     ''' КЛАС ЗА УПРАВЛЕНИЕ НА ЕЛЕКТРИЧЕСКИ ТАБЛА И ЙЕРАРХИЯ ОТ ТОКОВИ КРЪГОВЕ.
     ''' 
@@ -148,30 +123,44 @@ Public Class Form_Tablo_new_TreeViewManager
     ''' </summary>
     Private Sub BuildTree(rootNodeText As String)
         tv.Nodes.Clear()
-        tv.BeginUpdate() ' За по-гладко обновяване
+        tv.BeginUpdate()
         Try
             ' ✅ ПРОВЕРКА: Колко сгради има?
             Dim distinctBuildings = dataList.
-                Where(Function(x) Not String.IsNullOrEmpty(x.BuildingName)).
-                Select(Function(x) x.BuildingName).
-                Distinct().Count()
+            Where(Function(x) Not String.IsNullOrEmpty(x.BuildingName)).
+            Select(Function(x) x.BuildingName).
+            Distinct().Count()
+
             If distinctBuildings <= 1 Then
-                ' 🏢 Една сграда → започваме от корена
-                Dim rootNode As New TreeNode(rootNodeText)
+                ' 🏢 Една сграда → Синхронизираме данните и взимаме общата мощност
+                UpdatePanelSummary(rootNodeText)
+                ' Взимаме актуализираната мощност от списъка (ако няма запис → 0)
+                Dim rootRecord = dataList.FirstOrDefault(Function(x) x.Tablo = rootNodeText AndAlso x.Device = "Табло")
+                Dim totalPower As Double = If(rootRecord?.Мощност, 0)
+                ' Създаваме името на корена: "Име (0.00 kW)"
+                Dim nodeName As String = $"{rootNodeText} ({totalPower:F2} kW)"
+                Dim rootNode As New TreeNode(nodeName)
                 tv.Nodes.Add(rootNode)
-                ' Намираме всички табла, които са директно под корена
+                ' Намираме всички табла под корена
                 Dim rootPanels = FindChildPanels(rootNodeText)
                 For Each panelName In rootPanels
                     AddPanelNodeRecursive(panelName, rootNode.Nodes)
                 Next
             Else
-                ' 🏘️ Няколко сгради → първо групираме по сграда
+                ' 🏘️ Няколко сгради
+                ' Тук можеш да направиш същото за всяка сграда в нейния собствен цикъл
                 Dim buildingGroups = dataList.GroupBy(Function(x) x.BuildingName)
                 For Each bGrp In buildingGroups
                     Dim bName = If(String.IsNullOrEmpty(bGrp.Key), "Неизвестна сграда", bGrp.Key)
-                    Dim bNode As New TreeNode(bName)
+
+                    ' Мощност за конкретната сграда (само кореновите табла за нея)
+                    Dim bPower = bGrp.Where(Function(x) x.Device = "Табло" AndAlso
+                                        Not dataList.Any(Function(d) d.Device = "Дете" AndAlso d.ТоковКръг = x.Tablo)).
+                                  Sum(Function(x) x.Мощност)
+
+                    Dim bNode As New TreeNode($"{bName} ({bPower:F2} kW)")
                     tv.Nodes.Add(bNode)
-                    ' За всяка сграда намираме кореновите табла (тези, които не са деца на други)
+
                     Dim rootPanels = FindRootPanelsForBuilding(bName)
                     For Each panelName In rootPanels
                         AddPanelNodeRecursive(panelName, bNode.Nodes)
@@ -180,7 +169,7 @@ Public Class Form_Tablo_new_TreeViewManager
             End If
         Finally
             If tv.Nodes.Count > 0 Then
-                tv.Nodes(0).Expand() ' Разгъваме първото ниво за по-добър изглед
+                tv.Nodes(0).Expand()
             End If
             tv.EndUpdate()
         End Try
@@ -307,25 +296,35 @@ Public Class Form_Tablo_new_TreeViewManager
         Sum(Function(x) x.Мощност)
         Return feederPower + circuitPower
     End Function
-
     ''' <summary>
-    ''' Изчислява ОБЩАТА мощност на всички табла (само кореновите, за да не се дублират стойностите)
+    ''' Преизчислява и актуализира обобщените стойности за дадено табло.
+    ''' Сумира мощност, брой контакти и брой лампи от всички записи под него,
+    ''' като игнорира самите обобщения (Device = "Табло").
+    ''' Поддържа филтър по сграда за бъдеща универсалност.
     ''' </summary>
-    Private Function CalculateTotalPower() As Double
-        ' 1. Намираме имената на всички обекти, които са посочени като "Дете" (подчинени табла)
-        Dim childPanelNames = dataList.Where(Function(x) x.Device = "Дете").
-                                   Select(Function(x) x.ТоковКръг).
-                                   Distinct().
-                                   ToList()
+    Private Sub UpdatePanelSummary(panelName As String, Optional buildingName As String = Nothing)
+        ' 1. Намираме целевия запис (Device = "Табло")
+        Dim targetRecord = dataList.FirstOrDefault(Function(x) x.Tablo = panelName AndAlso x.Device = "Табло")
+        If targetRecord Is Nothing Then Return
 
-        ' 2. Взимаме само тези записи за "Табло", чиито имена НЕ фигурират в списъка с деца
-        ' и сумираме тяхната мощност директно.
-        Dim totalPower = dataList.Where(Function(x) x.Device = "Табло" AndAlso
-                                              Not childPanelNames.Contains(x.Tablo)).
-                              Sum(Function(x) x.Мощност)
+        ' 2. Филтрираме източника по сграда, ако е подадена (за бъдеща поддръжка на много сгради)
+        Dim sourceData = If(String.IsNullOrEmpty(buildingName),
+                            dataList,
+                            dataList.Where(Function(x) x.BuildingName = buildingName))
 
-        Return totalPower
-    End Function
+        ' 3. Взимаме всички записи под това табло, БЕЗ да броим самото обобщение
+        Dim itemsToSum = sourceData.Where(Function(x) x.Tablo = panelName AndAlso x.Device <> "Табло")
+
+        ' 4. Изчисляваме сумите (LINQ автоматично връща 0 за празни колекции)
+        Dim totalPower As Double = itemsToSum.Sum(Function(x) x.Мощност)
+        Dim totalKontakt As Integer = itemsToSum.Sum(Function(x) x.brKontakt)
+        Dim totalLamp As Integer = itemsToSum.Sum(Function(x) x.brLamp)
+
+        ' 5. Записваме резултатите обратно в обекта
+        targetRecord.Мощност = totalPower
+        targetRecord.brKontakt = totalKontakt
+        targetRecord.brLamp = totalLamp
+    End Sub
 
     Private Sub Tv_ItemDrag(sender As Object, e As ItemDragEventArgs)
         ' Започваме Drag операция с избрания възел
@@ -425,11 +424,37 @@ Public Class Form_Tablo_new_TreeViewManager
         dataList.Add(newFeeder)
         ' 6. Преизчисляване на мощностите
         If Not String.IsNullOrEmpty(oldParentName) AndAlso oldParentName <> targetPanelName Then
-            RecalculateParentSummary(oldParentName)
+            UpdatePanelSummary(oldParentName)
         End If
-        RecalculateParentSummary(targetPanelName)
-        RecalculateParentSummary(draggedPanelName)
+        UpdatePanelSummary(targetPanelName)
         ' 7. Пълно обновяване на дървото
         BuildTree(rootText)
+    End Sub
+    ''' <summary>
+    ''' Гарантира, че в ListTokow съществува агрегиращ запис за корена.
+    ''' Не се дублира при повторно извикване.
+    ''' BuildingName се взима от първия наличен запис (консистентно с CreateTokowList).
+    ''' </summary>
+    Private Sub EnsureRootPanelExists(rootName As String)
+        ' Ако вече има запис → излизаме
+        If dataList.Any(Function(x) x.Tablo = rootName AndAlso x.Device = "Табло") Then Return
+
+        ' Взимаме BuildingName от първия наличен запис (ако има)
+        ' Това гарантира, че коренът е в същата "сграда" като останалите данни
+        Dim buildingName = If(dataList.FirstOrDefault()?.BuildingName, String.Empty)
+
+        ' Създаваме синтетичен запис само за сумиране
+        Dim rootPanel As New Form_Tablo_new.strTokow()
+        rootPanel.Tablo = rootName
+        rootPanel.Device = "Табло"
+        rootPanel.ТоковКръг = "ОБЩО"
+        rootPanel.Мощност = 0
+        rootPanel.Ток = 0
+        rootPanel.brKontakt = 0
+        rootPanel.brLamp = 0
+        rootPanel.BuildingName = buildingName
+        rootPanel.Табло_Родител = "" ' Коренът няма родител
+
+        dataList.Add(rootPanel)
     End Sub
 End Class

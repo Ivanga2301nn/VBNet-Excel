@@ -7,8 +7,6 @@ Public Class Form_Tablo_new_TreeViewManager
     Private tv As TreeView
     Private dataList As List(Of Form_Tablo_new.strTokow)
     Private rootText As String
-    Private currentBuildingName As String = String.Empty
-
     ''' <summary>
     ''' Конструктор: Приема контролата и списъка с данни
     ''' </summary>

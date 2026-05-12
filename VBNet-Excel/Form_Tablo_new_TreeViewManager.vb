@@ -325,7 +325,6 @@ Public Class Form_Tablo_new_TreeViewManager
         targetRecord.brKontakt = totalKontakt
         targetRecord.brLamp = totalLamp
     End Sub
-
     Private Sub Tv_ItemDrag(sender As Object, e As ItemDragEventArgs)
         ' Започваме Drag операция с избрания възел
         ' AllowDrop ефект: Copy (не местим, а копираме референцията)

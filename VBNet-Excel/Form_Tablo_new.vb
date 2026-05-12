@@ -5362,48 +5362,68 @@ Public Class Form_Tablo_new
             End Select
         End If
     End Sub
+    ''' <summary>
+    ''' Вмъква избраното табло в AutoCAD.
+    ''' 
+    ''' Логика:
+    ''' 1. Проверява дали има избрано табло в TreeView
+    ''' 2. Извлича чистото име на таблото
+    ''' 3. Зарежда всички токови кръгове за избраното табло
+    ''' 4. Стартира AutoCAD inserter класа
+    ''' 5. Изчертава таблото в активния DWG
+    ''' 
+    ''' При грешка:
+    ''' - Показва детайлна информация (файл, ред и stack trace)
+    ''' - Възстановява видимостта на формата
+    ''' </summary>
     Private Sub ToolStripButton_Вмъни_Autocad_Click(sender As Object, e As EventArgs) Handles ToolStripButton_Вмъкни_Autocad.Click
         Try
-            ' 1. ВЗЕМИ ИЗБРАНОТО ТАБЛО ОТ TREEVIEW
+            ' Взимаме избраното табло от TreeView
             Dim selectedTablo As String = TreeView1.SelectedNode?.Text
+            ' Проверка дали има избран възел
             If String.IsNullOrEmpty(selectedTablo) Then
                 MsgBox("Моля, изберете табло от дървото!", MsgBoxStyle.Exclamation)
                 Exit Sub
             End If
-            ' Премахване на допълнителен текст (например "(...)" )
+            ' Премахваме текстa с мощността от името
+            ' Пример: "Табло 1 (25.4 kW)" → "Табло 1"
             If selectedTablo.Contains("(") Then
                 selectedTablo = selectedTablo.Substring(0, selectedTablo.IndexOf("(")).Trim()
             End If
-            '' ФИЛТРИРАЙ КРЪГОВЕТЕ ЗА ТОВА ТАБЛО
+            ' Взимаме всички кръгове за избраното табло
             Dim panelCircuits = ListTokow.Where(Function(t)
                                                     Return t.Tablo = selectedTablo
                                                 End Function).ToList()
+            ' Проверка дали има намерени данни
             If panelCircuits.Count = 0 Then
                 MsgBox("Няма намерени кръгове за табло: " & selectedTablo, MsgBoxStyle.Exclamation)
                 Exit Sub
             End If
+            ' Скриваме формата по време на AutoCAD операцията
             Me.Visible = False
-            ' 6. ИЗВИКАЙ НОВИЯ КЛАС ЗА ЧЕРТАНЕ
+            ' Създаваме класа за вмъкване в AutoCAD
             Dim inserter As New Form_Tablo_new_AutoCadInserter(GV_Database)
+            ' Стартираме вмъкването
             inserter.ExecuteInsert(panelCircuits, selectedTablo)
-
         Catch ex As Exception
-            ' Извличане на информация за реда
+            ' Извличаме информация за мястото на грешката
             Dim st As New StackTrace(ex, True)
-            Dim frame As StackFrame = st.GetFrame(0) ' Взема последния фрейм, където е гръмнало
+            Dim frame As StackFrame = st.GetFrame(0)
             Dim line As Integer = frame.GetFileLineNumber()
             Dim fileName As String = frame.GetFileName()
-
+            ' Подготвяме детайлно съобщение за грешката
             Dim errorMsg As String = String.Format(
-                "Грешка: {0}" & vbCrLf &
-                "Файл: {1}" & vbCrLf &
-                "Ред: {2}" & vbCrLf & vbCrLf &
-                "StackTrace: {3}",
-                ex.Message, fileName, line, ex.StackTrace)
+            "Грешка: {0}" & vbCrLf &
+            "Файл: {1}" & vbCrLf &
+            "Ред: {2}" & vbCrLf & vbCrLf &
+            "StackTrace: {3}",
+            ex.Message, fileName, line, ex.StackTrace)
             MsgBox(errorMsg, MsgBoxStyle.Critical)
         Finally
+            ' Възстановяваме видимостта на формата
             Me.Visible = True
         End Try
+        ' Обновяване на DataGridView след операцията
         FillDataGridViewForPanel()
     End Sub
     Private Sub ToolStripButton_ШИНА_Click(sender As Object, e As EventArgs) Handles ToolStripButton_ШИНА.Click

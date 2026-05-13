@@ -7,6 +7,22 @@ Public Class Form_Tablo_new_TreeViewManager
     Private tv As TreeView
     Private dataList As List(Of Form_Tablo_new.strTokow)
     Private rootText As String
+    ' ========================================================================
+    ' 🎨 UI КОНСТАНТИ (лесни за промяна на едно място)
+    ' ========================================================================
+    ' ========================================================================
+    ' 🎨 UI КОНСТАНТИ & ШАБЛОНИ (едно място за всички визуални промени)
+    ' ========================================================================
+    Private Const ICON_BUILDING As String = "🏢"        ' Сграда / Комплекс
+    Private Const ICON_PANEL As String = "🗄️"           ' Разпределително табло
+    Private Const ICON_CIRCUITS As String = "🔵"        ' Група токови кръгове
+    Private Const LABEL_CIRCUITS As String = "Т.К."     ' Име на групата токови кръгове
+    Private Const POWER_UNIT As String = "kW"
+
+    '  ШАБЛОНИ ЗА ФОРМАТИРАНЕ (използват String.Format)
+    Private ReadOnly Property BuildingTemplate As String = ICON_BUILDING & " {0} ({1:F2} " & POWER_UNIT & ")"
+    Private ReadOnly Property PanelTemplate As String = ICON_PANEL & " {0} ({1:F2} " & POWER_UNIT & ")"
+    Private ReadOnly Property CircuitsTemplate As String = ICON_CIRCUITS & " " & LABEL_CIRCUITS & " ({0:F2} " & POWER_UNIT & ")"
     ''' <summary>
     ''' Конструктор: Приема контролата и списъка с данни
     ''' </summary>
@@ -155,8 +171,8 @@ Public Class Form_Tablo_new_TreeViewManager
                     Dim bPower = bGrp.Where(Function(x) x.Device = "Табло" AndAlso
                                         Not dataList.Any(Function(d) d.Device = "Дете" AndAlso d.ТоковКръг = x.Tablo)).
                                   Sum(Function(x) x.Мощност)
-
-                    Dim bNode As New TreeNode($"{bName} ({bPower:F2} kW)")
+                    Dim bNode As New TreeNode(String.Format(BuildingTemplate, bName, bPower))
+                    'Dim bNode As New TreeNode($"{bName} ({bPower:F2} kW)")
                     tv.Nodes.Add(bNode)
 
                     Dim rootPanels = FindRootPanelsForBuilding(bName)
@@ -244,7 +260,8 @@ Public Class Form_Tablo_new_TreeViewManager
         ' Изчисляваме общата мощност (сумираме децата + собствените кръгове)
         Dim totalPower = CalculatePanelTotalPower(panelName)
         ' Създаваме възела за таблото
-        Dim pNode As New TreeNode($"{panelName} ({totalPower:F2} kW)")
+        ' Dim pNode As New TreeNode($"{panelName} ({totalPower:F2} kW)")
+        Dim pNode As New TreeNode(String.Format(PanelTemplate, panelName, totalPower))
         parentNodes.Add(pNode)
         ' РЕКУРСИЯ за подтаблата
         Dim childPanels = FindChildPanels(panelName)
@@ -259,7 +276,8 @@ Public Class Form_Tablo_new_TreeViewManager
                                  x.ТоковКръг <> "ОБЩО").ToList()
         If circuits.Count > 0 Then
             Dim totalCircuitPower = circuits.Sum(Function(c) c.Мощност)
-            Dim circuitsNode As New TreeNode($"🔵 Токови кръгове ({totalCircuitPower:F2} kW)")
+            'Dim circuitsNode As New TreeNode($"🔵 Т.К.({totalCircuitPower:F2} kW)")
+            Dim circuitsNode As New TreeNode(String.Format(CircuitsTemplate, totalCircuitPower))
             circuitsNode.ForeColor = Color.DarkBlue
             circuitsNode.BackColor = Color.Ivory
             circuitsNode.NodeFont = New Font(tv.Font, FontStyle.Bold)

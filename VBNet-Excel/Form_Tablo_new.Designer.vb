@@ -47,29 +47,20 @@ Partial Class Form_Tablo_new
         Me.ToolStripSeparator5 = New System.Windows.Forms.ToolStripSeparator()
         Me.ToolStripButton_ШИНА = New System.Windows.Forms.ToolStripButton()
         Me.ToolStripButton_Добави_резерва = New System.Windows.Forms.ToolStripButton()
-        Me.TableLayoutPanel1 = New System.Windows.Forms.TableLayoutPanel()
         Me.GroupBox2 = New System.Windows.Forms.GroupBox()
         Me.DataGridView1 = New System.Windows.Forms.DataGridView()
-        Me.ToolStrip2 = New System.Windows.Forms.ToolStrip()
-        Me.NewToolStripButton1 = New System.Windows.Forms.ToolStripButton()
-        Me.OpenToolStripButton1 = New System.Windows.Forms.ToolStripButton()
-        Me.SaveToolStripButton1 = New System.Windows.Forms.ToolStripButton()
-        Me.PrintToolStripButton1 = New System.Windows.Forms.ToolStripButton()
-        Me.toolStripSeparator = New System.Windows.Forms.ToolStripSeparator()
-        Me.CutToolStripButton1 = New System.Windows.Forms.ToolStripButton()
-        Me.CopyToolStripButton1 = New System.Windows.Forms.ToolStripButton()
-        Me.PasteToolStripButton1 = New System.Windows.Forms.ToolStripButton()
-        Me.toolStripSeparator8 = New System.Windows.Forms.ToolStripSeparator()
-        Me.HelpToolStripButton1 = New System.Windows.Forms.ToolStripButton()
         Me.GroupBox1 = New System.Windows.Forms.GroupBox()
         Me.TreeView1 = New System.Windows.Forms.TreeView()
+        Me.SplitContainer1 = New System.Windows.Forms.SplitContainer()
         Me.StatusStrip1.SuspendLayout()
         Me.ToolStrip1.SuspendLayout()
-        Me.TableLayoutPanel1.SuspendLayout()
         Me.GroupBox2.SuspendLayout()
         CType(Me.DataGridView1, System.ComponentModel.ISupportInitialize).BeginInit()
-        Me.ToolStrip2.SuspendLayout()
         Me.GroupBox1.SuspendLayout()
+        CType(Me.SplitContainer1, System.ComponentModel.ISupportInitialize).BeginInit()
+        Me.SplitContainer1.Panel1.SuspendLayout()
+        Me.SplitContainer1.Panel2.SuspendLayout()
+        Me.SplitContainer1.SuspendLayout()
         Me.SuspendLayout()
         '
         'StatusStrip1
@@ -258,32 +249,14 @@ Partial Class Form_Tablo_new
         Me.ToolStripButton_Добави_резерва.Text = "Съществуващ/Резерва"
         Me.ToolStripButton_Добави_резерва.ToolTipText = "Добавяне на съществуващи и резервни токови кръгове"
         '
-        'TableLayoutPanel1
-        '
-        Me.TableLayoutPanel1.ColumnCount = 2
-        Me.TableLayoutPanel1.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 20.8303!))
-        Me.TableLayoutPanel1.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 79.1697!))
-        Me.TableLayoutPanel1.Controls.Add(Me.GroupBox2, 1, 0)
-        Me.TableLayoutPanel1.Controls.Add(Me.ToolStrip2, 0, 0)
-        Me.TableLayoutPanel1.Controls.Add(Me.GroupBox1, 0, 1)
-        Me.TableLayoutPanel1.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.TableLayoutPanel1.Location = New System.Drawing.Point(5, 30)
-        Me.TableLayoutPanel1.Name = "TableLayoutPanel1"
-        Me.TableLayoutPanel1.RowCount = 2
-        Me.TableLayoutPanel1.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 25.0!))
-        Me.TableLayoutPanel1.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100.0!))
-        Me.TableLayoutPanel1.Size = New System.Drawing.Size(1373, 830)
-        Me.TableLayoutPanel1.TabIndex = 3
-        '
         'GroupBox2
         '
         Me.GroupBox2.Controls.Add(Me.DataGridView1)
         Me.GroupBox2.Dock = System.Windows.Forms.DockStyle.Fill
         Me.GroupBox2.Font = New System.Drawing.Font("Microsoft Sans Serif", 12.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
-        Me.GroupBox2.Location = New System.Drawing.Point(289, 3)
+        Me.GroupBox2.Location = New System.Drawing.Point(0, 0)
         Me.GroupBox2.Name = "GroupBox2"
-        Me.TableLayoutPanel1.SetRowSpan(Me.GroupBox2, 2)
-        Me.GroupBox2.Size = New System.Drawing.Size(1081, 824)
+        Me.GroupBox2.Size = New System.Drawing.Size(1169, 830)
         Me.GroupBox2.TabIndex = 1
         Me.GroupBox2.TabStop = False
         Me.GroupBox2.Text = "GroupBox2"
@@ -294,108 +267,17 @@ Partial Class Form_Tablo_new
         Me.DataGridView1.Dock = System.Windows.Forms.DockStyle.Fill
         Me.DataGridView1.Location = New System.Drawing.Point(3, 22)
         Me.DataGridView1.Name = "DataGridView1"
-        Me.DataGridView1.Size = New System.Drawing.Size(1075, 799)
+        Me.DataGridView1.Size = New System.Drawing.Size(1163, 805)
         Me.DataGridView1.TabIndex = 0
-        '
-        'ToolStrip2
-        '
-        Me.ToolStrip2.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.NewToolStripButton1, Me.OpenToolStripButton1, Me.SaveToolStripButton1, Me.PrintToolStripButton1, Me.toolStripSeparator, Me.CutToolStripButton1, Me.CopyToolStripButton1, Me.PasteToolStripButton1, Me.toolStripSeparator8, Me.HelpToolStripButton1})
-        Me.ToolStrip2.Location = New System.Drawing.Point(0, 0)
-        Me.ToolStrip2.Name = "ToolStrip2"
-        Me.ToolStrip2.Size = New System.Drawing.Size(286, 25)
-        Me.ToolStrip2.TabIndex = 2
-        Me.ToolStrip2.Text = "ToolStrip2"
-        '
-        'NewToolStripButton1
-        '
-        Me.NewToolStripButton1.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image
-        Me.NewToolStripButton1.Image = CType(resources.GetObject("NewToolStripButton1.Image"), System.Drawing.Image)
-        Me.NewToolStripButton1.ImageTransparentColor = System.Drawing.Color.Magenta
-        Me.NewToolStripButton1.Name = "NewToolStripButton1"
-        Me.NewToolStripButton1.Size = New System.Drawing.Size(23, 22)
-        Me.NewToolStripButton1.Text = "&New"
-        '
-        'OpenToolStripButton1
-        '
-        Me.OpenToolStripButton1.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image
-        Me.OpenToolStripButton1.Image = CType(resources.GetObject("OpenToolStripButton1.Image"), System.Drawing.Image)
-        Me.OpenToolStripButton1.ImageTransparentColor = System.Drawing.Color.Magenta
-        Me.OpenToolStripButton1.Name = "OpenToolStripButton1"
-        Me.OpenToolStripButton1.Size = New System.Drawing.Size(23, 22)
-        Me.OpenToolStripButton1.Text = "&Open"
-        '
-        'SaveToolStripButton1
-        '
-        Me.SaveToolStripButton1.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image
-        Me.SaveToolStripButton1.Image = CType(resources.GetObject("SaveToolStripButton1.Image"), System.Drawing.Image)
-        Me.SaveToolStripButton1.ImageTransparentColor = System.Drawing.Color.Magenta
-        Me.SaveToolStripButton1.Name = "SaveToolStripButton1"
-        Me.SaveToolStripButton1.Size = New System.Drawing.Size(23, 22)
-        Me.SaveToolStripButton1.Text = "&Save"
-        '
-        'PrintToolStripButton1
-        '
-        Me.PrintToolStripButton1.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image
-        Me.PrintToolStripButton1.Image = CType(resources.GetObject("PrintToolStripButton1.Image"), System.Drawing.Image)
-        Me.PrintToolStripButton1.ImageTransparentColor = System.Drawing.Color.Magenta
-        Me.PrintToolStripButton1.Name = "PrintToolStripButton1"
-        Me.PrintToolStripButton1.Size = New System.Drawing.Size(23, 22)
-        Me.PrintToolStripButton1.Text = "&Print"
-        '
-        'toolStripSeparator
-        '
-        Me.toolStripSeparator.Name = "toolStripSeparator"
-        Me.toolStripSeparator.Size = New System.Drawing.Size(6, 25)
-        '
-        'CutToolStripButton1
-        '
-        Me.CutToolStripButton1.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image
-        Me.CutToolStripButton1.Image = CType(resources.GetObject("CutToolStripButton1.Image"), System.Drawing.Image)
-        Me.CutToolStripButton1.ImageTransparentColor = System.Drawing.Color.Magenta
-        Me.CutToolStripButton1.Name = "CutToolStripButton1"
-        Me.CutToolStripButton1.Size = New System.Drawing.Size(23, 22)
-        Me.CutToolStripButton1.Text = "C&ut"
-        '
-        'CopyToolStripButton1
-        '
-        Me.CopyToolStripButton1.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image
-        Me.CopyToolStripButton1.Image = CType(resources.GetObject("CopyToolStripButton1.Image"), System.Drawing.Image)
-        Me.CopyToolStripButton1.ImageTransparentColor = System.Drawing.Color.Magenta
-        Me.CopyToolStripButton1.Name = "CopyToolStripButton1"
-        Me.CopyToolStripButton1.Size = New System.Drawing.Size(23, 22)
-        Me.CopyToolStripButton1.Text = "&Copy"
-        '
-        'PasteToolStripButton1
-        '
-        Me.PasteToolStripButton1.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image
-        Me.PasteToolStripButton1.Image = CType(resources.GetObject("PasteToolStripButton1.Image"), System.Drawing.Image)
-        Me.PasteToolStripButton1.ImageTransparentColor = System.Drawing.Color.Magenta
-        Me.PasteToolStripButton1.Name = "PasteToolStripButton1"
-        Me.PasteToolStripButton1.Size = New System.Drawing.Size(23, 22)
-        Me.PasteToolStripButton1.Text = "&Paste"
-        '
-        'toolStripSeparator8
-        '
-        Me.toolStripSeparator8.Name = "toolStripSeparator8"
-        Me.toolStripSeparator8.Size = New System.Drawing.Size(6, 25)
-        '
-        'HelpToolStripButton1
-        '
-        Me.HelpToolStripButton1.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image
-        Me.HelpToolStripButton1.Image = CType(resources.GetObject("HelpToolStripButton1.Image"), System.Drawing.Image)
-        Me.HelpToolStripButton1.ImageTransparentColor = System.Drawing.Color.Magenta
-        Me.HelpToolStripButton1.Name = "HelpToolStripButton1"
-        Me.HelpToolStripButton1.Size = New System.Drawing.Size(23, 22)
-        Me.HelpToolStripButton1.Text = "He&lp"
         '
         'GroupBox1
         '
         Me.GroupBox1.Controls.Add(Me.TreeView1)
         Me.GroupBox1.Dock = System.Windows.Forms.DockStyle.Fill
         Me.GroupBox1.Font = New System.Drawing.Font("Microsoft Sans Serif", 12.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
-        Me.GroupBox1.Location = New System.Drawing.Point(3, 28)
+        Me.GroupBox1.Location = New System.Drawing.Point(0, 0)
         Me.GroupBox1.Name = "GroupBox1"
-        Me.GroupBox1.Size = New System.Drawing.Size(280, 799)
+        Me.GroupBox1.Size = New System.Drawing.Size(200, 830)
         Me.GroupBox1.TabIndex = 0
         Me.GroupBox1.TabStop = False
         Me.GroupBox1.Text = "Изберете табло"
@@ -405,15 +287,32 @@ Partial Class Form_Tablo_new
         Me.TreeView1.Dock = System.Windows.Forms.DockStyle.Fill
         Me.TreeView1.Location = New System.Drawing.Point(3, 22)
         Me.TreeView1.Name = "TreeView1"
-        Me.TreeView1.Size = New System.Drawing.Size(274, 774)
+        Me.TreeView1.Size = New System.Drawing.Size(194, 805)
         Me.TreeView1.TabIndex = 0
+        '
+        'SplitContainer1
+        '
+        Me.SplitContainer1.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.SplitContainer1.Location = New System.Drawing.Point(5, 30)
+        Me.SplitContainer1.Name = "SplitContainer1"
+        '
+        'SplitContainer1.Panel1
+        '
+        Me.SplitContainer1.Panel1.Controls.Add(Me.GroupBox1)
+        '
+        'SplitContainer1.Panel2
+        '
+        Me.SplitContainer1.Panel2.Controls.Add(Me.GroupBox2)
+        Me.SplitContainer1.Size = New System.Drawing.Size(1373, 830)
+        Me.SplitContainer1.SplitterDistance = 200
+        Me.SplitContainer1.TabIndex = 4
         '
         'Form_Tablo_new
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(9.0!, 20.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
         Me.ClientSize = New System.Drawing.Size(1383, 896)
-        Me.Controls.Add(Me.TableLayoutPanel1)
+        Me.Controls.Add(Me.SplitContainer1)
         Me.Controls.Add(Me.ToolStrip1)
         Me.Controls.Add(Me.StatusStrip1)
         Me.Font = New System.Drawing.Font("Microsoft Sans Serif", 12.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
@@ -426,13 +325,13 @@ Partial Class Form_Tablo_new
         Me.StatusStrip1.PerformLayout()
         Me.ToolStrip1.ResumeLayout(False)
         Me.ToolStrip1.PerformLayout()
-        Me.TableLayoutPanel1.ResumeLayout(False)
-        Me.TableLayoutPanel1.PerformLayout()
         Me.GroupBox2.ResumeLayout(False)
         CType(Me.DataGridView1, System.ComponentModel.ISupportInitialize).EndInit()
-        Me.ToolStrip2.ResumeLayout(False)
-        Me.ToolStrip2.PerformLayout()
         Me.GroupBox1.ResumeLayout(False)
+        Me.SplitContainer1.Panel1.ResumeLayout(False)
+        Me.SplitContainer1.Panel2.ResumeLayout(False)
+        CType(Me.SplitContainer1, System.ComponentModel.ISupportInitialize).EndInit()
+        Me.SplitContainer1.ResumeLayout(False)
         Me.ResumeLayout(False)
         Me.PerformLayout()
 
@@ -451,7 +350,6 @@ Partial Class Form_Tablo_new
     Friend WithEvents HelpToolStripButton As Windows.Forms.ToolStripButton
     Friend WithEvents ToolStripProgressBar1 As Windows.Forms.ToolStripProgressBar
     Friend WithEvents ToolStripButton_Балансирай_фазите As Windows.Forms.ToolStripButton
-    Friend WithEvents TableLayoutPanel1 As Windows.Forms.TableLayoutPanel
     Friend WithEvents GroupBox1 As Windows.Forms.GroupBox
     Friend WithEvents TreeView1 As Windows.Forms.TreeView
     Friend WithEvents GroupBox2 As Windows.Forms.GroupBox
@@ -465,16 +363,6 @@ Partial Class Form_Tablo_new
     Friend WithEvents ToolStripButton_Поправи_ДЗТ As Windows.Forms.ToolStripButton
     Friend WithEvents ToolStripSeparator5 As Windows.Forms.ToolStripSeparator
     Friend WithEvents ToolStripButton_ШИНА As Windows.Forms.ToolStripButton
-    Friend WithEvents ToolStrip2 As Windows.Forms.ToolStrip
-    Friend WithEvents NewToolStripButton1 As Windows.Forms.ToolStripButton
-    Friend WithEvents OpenToolStripButton1 As Windows.Forms.ToolStripButton
-    Friend WithEvents SaveToolStripButton1 As Windows.Forms.ToolStripButton
-    Friend WithEvents PrintToolStripButton1 As Windows.Forms.ToolStripButton
-    Friend WithEvents toolStripSeparator As Windows.Forms.ToolStripSeparator
-    Friend WithEvents CutToolStripButton1 As Windows.Forms.ToolStripButton
-    Friend WithEvents CopyToolStripButton1 As Windows.Forms.ToolStripButton
-    Friend WithEvents PasteToolStripButton1 As Windows.Forms.ToolStripButton
-    Friend WithEvents toolStripSeparator8 As Windows.Forms.ToolStripSeparator
-    Friend WithEvents HelpToolStripButton1 As Windows.Forms.ToolStripButton
     Friend WithEvents ToolStripButton_Добави_резерва As Windows.Forms.ToolStripButton
+    Friend WithEvents SplitContainer1 As Windows.Forms.SplitContainer
 End Class

@@ -6378,6 +6378,10 @@ Public Class Form_ExcelUtilForm
                                       "Врата: " + Trim(wsElboard.Cells(i, 7).Value) + ";",
                                       "")
                     Call Excel_Kol_smetka_Razdel(wsKol_Smetka, text, "B" & Trim(index.ToString), "D" & Trim(index.ToString))
+                    With wsKol_Smetka
+                        .Cells(index, 3).Value = "бр."
+                        .Cells(index, 4).Value = "1"
+                    End With
                     wsElboard.Cells(i, 20).Value = "стоящ монтаж"
                     index += 1
                     text = "В т.ч. доставени и монтирани в таблото елементи:"
@@ -6395,6 +6399,10 @@ Public Class Form_ExcelUtilForm
                                       "Врата: " + Trim(wsElboard.Cells(i, 7).Value) + ";",
                                       "")
                     Call Excel_Kol_smetka_Razdel(wsKol_Smetka, text, "B" & Trim(index.ToString), "D" & Trim(index.ToString))
+                    With wsKol_Smetka
+                        .Cells(index, 3).Value = "бр."
+                        .Cells(index, 4).Value = "1"
+                    End With
                     index += 1
                     wsElboard.Cells(i, 20).Value = "метален шкаф"
                     text = "В т.ч. доставени и монтирани в таблото елементи:"
@@ -6412,6 +6420,10 @@ Public Class Form_ExcelUtilForm
                         text = text + "Врата: " + Trim(wsElboard.Cells(i, 5).Value)
                     End If
                     Call Excel_Kol_smetka_Razdel(wsKol_Smetka, text, "B" & Trim(index.ToString), "D" & Trim(index.ToString))
+                    With wsKol_Smetka
+                        .Cells(index, 3).Value = "бр."
+                        .Cells(index, 4).Value = "1"
+                    End With
                     index += 1
                     wsElboard.Cells(i, 20).Value = "Изпъкнал монтаж"
                     text = "В т.ч. доставени и монтирани в таблото елементи:"
@@ -6429,6 +6441,10 @@ Public Class Form_ExcelUtilForm
                         text = text + "Врата: " + Trim(wsElboard.Cells(i, 5).Value)
                     End If
                     Call Excel_Kol_smetka_Razdel(wsKol_Smetka, text, "B" & Trim(index.ToString), "D" & Trim(index.ToString))
+                    With wsKol_Smetka
+                        .Cells(index, 3).Value = "бр."
+                        .Cells(index, 4).Value = "1"
+                    End With
                     wsElboard.Cells(i, 20).Value = "Вграден монтаж"
                     index += 1
                     text = "В т.ч. доставени и монтирани в таблото елементи:"
@@ -6456,6 +6472,10 @@ Public Class Form_ExcelUtilForm
                     End If
                     text += "; Степен на защита: IP65"
                     Call Excel_Kol_smetka_Razdel(wsKol_Smetka, text, "B" & Trim(index.ToString), "D" & Trim(index.ToString))
+                    With wsKol_Smetka
+                        .Cells(index, 3).Value = "бр."
+                        .Cells(index, 4).Value = "1"
+                    End With
                     wsElboard.Cells(i, 20).Value = "Вграден монтаж"
                     index += 1
                     text = "В т.ч. доставени и монтирани в таблото елементи:"

@@ -190,8 +190,12 @@ Public Class Form_Tablo_new
         ' TreeView се използва за визуална навигация
         ' и бърз преглед на структурата на таблото.
 #End Region
-        ' 🔄 ПРЕПРАЩАНЕ КЪМ МЕНИДЖЪРА
+        ' ✅ 1. Създаваме мениджъра
         treeManager = New Form_Tablo_new_TreeViewManager(TreeView1, ListTokow)
+        ' ✅ 2. СВЪРЗВАМЕ СЪБИТИЯТА (това липсваше досега)
+        AddHandler treeManager.NodeParentChanged, AddressOf OnNodeParentChanged
+        AddHandler treeManager.NodeSelected, AddressOf OnNodeSelected
+        ' ✅ 3. Изграждаме дървото
         treeManager.InitializeAndBuild(ROOT_NODE_TEXT)
 #Region "Подготовка на DataGridView"
         ' Конфигурира таблицата за редактиране на параметрите
@@ -851,6 +855,10 @@ Public Class Form_Tablo_new
             End If
             Return DirectCast(Me.MemberwiseClone(), strTokow)
         End Function
+        ' ✅ НОВИ ПОЛЕТА ЗА ЙЕРАРХИЯ И ИДЕНТИФИКАЦИЯ
+        Public ID As Integer = -1              ' Уникален номер на записа
+        Public ParentID As Integer = -1        ' ID на родителското табло (-1 = корен/Гл.Р.Т.)
+        Public Name As String = ""             ' Текст за показване в TreeView (напр. "🗄️ T-1 (15.54 kW)")
     End Class
     ''' <summary>
     ''' КАТАЛОГ автоматичен прекъсвач – MCB, MCCB или ACB.
@@ -2894,10 +2902,12 @@ Public Class Form_Tablo_new
     '''   може да забави интерфейса; в такива случаи може да се наложи оптимизация или асинхронно обновяване.
     ''' - Това е стандартен подход за синхронизация на TreeView с DataGridView в WinForms.
     ''' </remarks>
-    Private Sub TreeView1_AfterSelect(sender As Object, e As TreeViewEventArgs) Handles TreeView1.AfterSelect
-        ' Обновяване на DataGridView според избрания панел/група в TreeView
-        FillDataGridViewForPanel()
-    End Sub
+    'Private Sub TreeView1_AfterSelect(sender As Object, e As TreeViewEventArgs) Handles TreeView1.AfterSelect
+    '    selectedTablo = treeManager.ExtractPanelName(e.Node.Text)
+    '    SortCircuits()
+    '    ' Обновяване на DataGridView според избрания панел/група в TreeView
+    '    FillDataGridViewForPanel()
+    'End Sub
     ''' <summary>
     ''' Попълва DataGridView1 с данни за избраното табло
     ''' </summary>
@@ -2908,21 +2918,20 @@ Public Class Form_Tablo_new
             Return
         End If
         ' Вземи името на избраното табло
-        Dim selectedPanel As String = TreeView1.SelectedNode.Text
         ' Ако има "(", вземи само текста преди него
-        If selectedPanel.Contains("(") Then
-            selectedPanel = selectedPanel.Substring(0, selectedPanel.IndexOf("(")).Trim()
+        If selectedTablo.Contains("(") Then
+            selectedTablo = selectedTablo.Substring(0, selectedTablo.IndexOf("(")).Trim()
         End If
         ' Филтрирай токовите кръгове за това табло
         ' ListTokow вече е сортиран, така че просто вземи кръговете за това табло
-        Dim panelCircuits = ListTokow.Where(Function(t) t.Tablo.ToUpper() = selectedPanel.ToUpper()).ToList()
+        Dim panelCircuits = ListTokow.Where(Function(t) t.Tablo.ToUpper() = selectedTablo.ToUpper()).ToList()
         ' Проверка дали има кръгове
         If panelCircuits Is Nothing OrElse panelCircuits.Count = 0 Then
             'MsgBox($"Няма намерени токови кръгове за табло '{selectedPanel}'",
             '       MsgBoxStyle.Information, "Няма данни")
             Return
         End If
-        GroupBox2.Text = $"Обработвам табло '{selectedPanel}'"
+        GroupBox2.Text = $"Обработвам табло '{selectedTablo}'"
         ' 1. Добави колони за кръговете
         AddCircuitColumns(panelCircuits)
         ' 2. Попълни данните
@@ -3938,7 +3947,7 @@ Public Class Form_Tablo_new
     ''' </summary>
     Private Function FindTokowByColumn(circuitName As String) As strTokow
         ' 1. Взимаме таблото от TreeView
-        Dim selectedTablo As String = TreeView1.SelectedNode?.Text
+        'Dim selectedTablo As String = TreeView1.SelectedNode?.Text
         If String.IsNullOrEmpty(selectedTablo) Then Return Nothing  ' Няма избрано табло
         ' 2. ИЗЧИСТВАНЕ НА ИМЕТО ОТ ДОПЪЛНИТЕЛЕН ТЕКСТ
         ' Пример: "Табло 1 (3 кръга, 5.2kW)" → "Табло 1"
@@ -4173,7 +4182,7 @@ Public Class Form_Tablo_new
     ''' </summary>
     Private Sub RedistributeRCDGroups()
         ' 1. ✅ Вземи избраното табло от TreeView
-        Dim selectedTablo As String = TreeView1.SelectedNode?.Text
+        'Dim selectedTablo As String = TreeView1.SelectedNode?.Text
         ' Няма избрано табло
         If String.IsNullOrEmpty(selectedTablo) Then Return
         ' 2. ✅ Изчисти името от допълнителен текст (ако има)
@@ -4237,7 +4246,7 @@ Public Class Form_Tablo_new
         ' =====================================================
         ' 1. ВЗЕМИ ИЗБРАНОТО ТАБЛО
         ' =====================================================
-        Dim selectedTablo As String = TreeView1.SelectedNode?.Text
+        ' Dim selectedTablo As String = TreeView1.SelectedNode?.Text
         ' Ако няма избран възел → прекратяване
         If String.IsNullOrEmpty(selectedTablo) Then Return
         ' Премахване на допълнителен текст (например "(...)" )
@@ -4742,7 +4751,7 @@ Public Class Form_Tablo_new
     Private Sub ToolStripButton_Вмъни_Autocad_Click(sender As Object, e As EventArgs) Handles ToolStripButton_Вмъкни_Autocad.Click
         Try
             ' Взимаме избраното табло от TreeView
-            Dim selectedTablo As String = TreeView1.SelectedNode?.Text
+            'Dim selectedTablo As String = TreeView1.SelectedNode?.Text
             ' Проверка дали има избран възел
             If String.IsNullOrEmpty(selectedTablo) Then
                 MsgBox("Моля, изберете табло от дървото!", MsgBoxStyle.Exclamation)
@@ -4791,11 +4800,9 @@ Public Class Form_Tablo_new
     End Sub
     Private Sub ToolStripButton_ШИНА_Click(sender As Object, e As EventArgs) Handles ToolStripButton_ШИНА.Click
         ' 1. Вземи избраното табло
-        Dim selectedTablo As String = TreeView1.SelectedNode?.Text
+        'Dim selectedTablo As String = TreeView1.SelectedNode?.Text
         If String.IsNullOrEmpty(selectedTablo) Then Return
-        If selectedTablo.Contains("(") Then
-            selectedTablo = selectedTablo.Substring(0, selectedTablo.IndexOf("(")).Trim()
-        End If
+        selectedTablo = Form_Tablo_new_TreeViewManager.ExtractPanelName(selectedTablo)
         ' 2. Извикай процедурата за избор на разединител на шина
         UpdateDisconnectorRecord(selectedTablo)
         SetupDataGridView_Total()
@@ -4970,7 +4977,7 @@ Public Class Form_Tablo_new
     ''' </summary>
     Private Sub ToolStripButton_Добави_резерва_Click(sender As Object, e As EventArgs) Handles ToolStripButton_Добави_резерва.Click
         ' 1. Взимаме текущо избраното табло от TreeView
-        Dim selectedTablo As String = TreeView1.SelectedNode?.Text
+        'Dim selectedTablo As String = TreeView1.SelectedNode?.Text
         ' 2. Проверка дали има избрано табло
         If String.IsNullOrEmpty(selectedTablo) Then
             MessageBox.Show("Моля, първо изберете табло от списъка вляво.", "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Warning)
@@ -4989,5 +4996,35 @@ Public Class Form_Tablo_new
                 FillDataGridViewForPanel()
             End If
         End Using
+    End Sub
+    ' ========================================================================
+    ' 📡 ОБРАБОТЧИЦИ НА СЪБИТИЯ (Event Handlers)
+    ' Тези методи се извикват АВТОМАТИЧНО от TreeViewManager
+    ' ========================================================================
+    ''' <summary>
+    ''' Извиква се, когато потребител пусне възел (Drag & Drop)
+    ''' </summary>
+    Private Sub OnNodeParentChanged(childId As Integer, newParentId As Integer)
+        Debug.WriteLine($"🔄 Преместен ID: {childId} към Нов Родител ID: {newParentId}")
+        ' 1. Намираме записа в главния списък
+        Dim record = ListTokow.FirstOrDefault(Function(x) x.ID = childId)
+        If record IsNot Nothing Then
+            ' 2. Обновяваме родителската връзка
+            record.ParentID = newParentId
+            ' TODO: Тук по-късно ще добавим преизчисляване на суми
+            ' TODO: Тук ще извикаме treeManager.BuildTree() за визуално обновяване
+        End If
+    End Sub
+    ''' <summary>
+    ''' Извиква се, когато потребител кликне на възел
+    ''' </summary>
+    Private Sub OnNodeSelected(nodeId As Integer)
+        Debug.WriteLine($"👆 Избран ID: {nodeId}")
+        ' 1. Намираме записа
+        Dim record = ListTokow.FirstOrDefault(Function(x) x.ID = nodeId)
+        If record IsNot Nothing Then
+            ' TODO: Тук по-късно ще зареждаме DataGridView
+            ' FillDataGridViewForPanel(record.Tablo)
+        End If
     End Sub
 End Class

@@ -1,527 +1,434 @@
-﻿Imports System.Windows.Forms
-Imports System.Linq
-Imports System.Drawing
+﻿Imports System.Drawing
+Imports System.Windows.Forms
 
 Public Class Form_Tablo_new_TreeViewManager
-    ' Референции към контролата и данните
-    Private tv As TreeView
-    Private dataList As List(Of Form_Tablo_new.strTokow)
-    Private rootText As String
     ' ========================================================================
-    ' ✅ ТУКА ДОБАВИ СЪБИТИЯТА
-    ' Това позволява на Мениджъра да "вика" Формата
+    ' 📌 ОСНОВНИ ПОЛЕТА И СЪБИТИЯ
     ' ========================================================================
-    Public Event NodeParentChanged(childId As Integer, newParentId As Integer)
-    Public Event NodeSelected(nodeId As Integer)
-    ' ========================================================================
-    ' 🎨 UI КОНСТАНТИ (лесни за промяна на едно място)
-    ' ========================================================================
-    ' ========================================================================
-    ' 🎨 UI КОНСТАНТИ & ШАБЛОНИ (едно място за всички визуални промени)
-    ' ========================================================================
-    Private Const ICON_BUILDING As String = "🏢"        ' Сграда / Комплекс
-    Private Const ICON_PANEL As String = "🗄️"           ' Разпределително табло
-    Private Const ICON_CIRCUITS As String = "🔵"        ' Група токови кръгове
-    Private Const LABEL_CIRCUITS As String = "Т.К."     ' Име на групата токови кръгове
-    Private Const POWER_UNIT As String = "kW"
-
-    '  ШАБЛОНИ ЗА ФОРМАТИРАНЕ (използват String.Format)
-    Private ReadOnly Property BuildingTemplate As String = ICON_BUILDING & " {0} ({1:F2} " & POWER_UNIT & ")"
-    Private ReadOnly Property PanelTemplate As String = ICON_PANEL & " {0} ({1:F2} " & POWER_UNIT & ")"
-    Private ReadOnly Property CircuitsTemplate As String = ICON_CIRCUITS & " " & LABEL_CIRCUITS & " ({0:F2} " & POWER_UNIT & ")"
+    ' TreeView контролът, който се управлява от класа
+    Private ReadOnly _tv As TreeView
+    ' Основният списък с данни за табла и токови кръгове
+    Private ReadOnly _listTokow As List(Of Form_Tablo_new.strTokow)
     ''' <summary>
-    ''' Конструктор: Приема контролата и списъка с данни
+    ''' Събитие при избор на обект от TreeView.
+    ''' Изпраща избрания запис към основната форма.
     ''' </summary>
-    Public Sub New(treeViewControl As TreeView, data As List(Of Form_Tablo_new.strTokow))
-        tv = treeViewControl
-        dataList = data
-        ' Активиране на Drag & Drop
-        tv.AllowDrop = True
-        AddHandler tv.ItemDrag, AddressOf Tv_ItemDrag
-        AddHandler tv.DragEnter, AddressOf Tv_DragEnter
-        AddHandler tv.DragOver, AddressOf Tv_DragOver
-        AddHandler tv.DragDrop, AddressOf Tv_DragDrop
+    Public Event ObjectSelected(ByVal selectedItem As Form_Tablo_new.strTokow)
+    ''' <summary>
+    ''' Събитие при заявка за преместване чрез Drag & Drop.
+    ''' Изпраща източника и целевия обект към бизнес логиката.
+    ''' </summary>
+    Public Event RequestMoveObject(ByVal source As Form_Tablo_new.strTokow,
+                               ByVal target As Form_Tablo_new.strTokow)
+    ' ========================================================================
+    ' 🎨 UI КОНСТАНТИ И ВИЗУАЛНИ ШАБЛОНИ
+    ' ========================================================================
+    Private Const ICON_BUILDING As String = "🏢"     ' Иконка за сграда
+    Private Const ICON_PANEL As String = "🗄️"        ' Иконка за табло
+    Private Const ICON_CIRCUITS As String = "🔵"     ' Иконка за токов кръг
+    Private Const LABEL_CIRCUITS As String = "ТК"    ' Кратък етикет за токов кръг
+    Private Const POWER_UNIT As String = "kW"        ' Единица за мощност
+    Private Const DECIMAL_PLACES As Integer = 2     ' Брой знаци след десетичната запетая при визуализация.
+    ''' <summary>
+    ''' Форматира текста на възел за табло.
+    ''' Добавя иконка и обща мощност.
+    ''' </summary>
+    Private Function FormatPanelText(item As Form_Tablo_new.strTokow) As String
+        ' Създава формат според зададения брой десетични знаци
+        Dim formatSpecifier As String = "F" & DECIMAL_PLACES
+        ' Форматира мощността
+        Dim formattedPower As String = item.Мощност.ToString(formatSpecifier)
+        ' Връща готов текст за визуализация
+        Return $"{ICON_PANEL} {item.Tablo} ({formattedPower} {POWER_UNIT})"
+    End Function
+    ''' <summary>
+    ''' Форматира текста на възел за токов кръг.
+    ''' </summary>
+    Private Function FormatCircuitText(item As Form_Tablo_new.strTokow) As String
+        ' Връща готов текст за визуализация
+        Return $"{ICON_CIRCUITS} {LABEL_CIRCUITS} {item.ТоковКръг} - {item.Device}"
+    End Function
+    ''' <summary>
+    ''' Конструктор на TreeViewManager.
+    ''' 
+    ''' Инициализира:
+    ''' - референция към TreeView контрола
+    ''' - референция към основния списък с токови кръгове
+    ''' - обработчици за избор на възел
+    ''' - Drag & Drop логиката за преместване на табла
+    ''' 
+    ''' Логика:
+    ''' 1. Запазва подадените референции
+    ''' 2. Разрешава Drag & Drop върху TreeView
+    ''' 3. Закача всички необходими събития:
+    '''    - AfterSelect
+    '''    - ItemDrag
+    '''    - DragEnter
+    '''    - DragOver
+    '''    - DragDrop
+    ''' </summary>
+    Public Sub New(ByVal targetTreeView As TreeView, ByRef data As List(Of Form_Tablo_new.strTokow))
+        _tv = targetTreeView
+        _listTokow = data
+        ' Събитие при избор на възел
+        AddHandler _tv.AfterSelect, AddressOf HandleAfterSelect
+        ' Разрешаваме Drag & Drop върху TreeView
+        _tv.AllowDrop = True
+        ' Закачаме събитията за Drag & Drop
+        AddHandler _tv.ItemDrag, AddressOf HandleItemDrag
+        AddHandler _tv.DragEnter, AddressOf HandleDragEnter
+        AddHandler _tv.DragOver, AddressOf HandleDragOver
+        AddHandler _tv.DragDrop, AddressOf HandleDragDrop
     End Sub
-    ''' <summary>
-    ''' Главен входен метод за инициализация и изграждане на дървовидната структура.
-    ''' Логиката:
-    ''' 1. Проверява дали има налични данни
-    ''' 2. Подготвя връзките между таблата (feeder структура)
-    ''' 3. Преизчислява агрегатните стойности по йерархията
-    ''' 4. Изгражда визуалното TreeView дърво
-    ''' 
-    ''' Този метод заменя старите отделни извиквания и гарантира,
-    ''' че данните и визуализацията винаги са синхронизирани.
-    ''' </summary>
-    Public Sub InitializeAndBuild(rootNodeText As String)
-        ' Ако няма данни → прекратяваме
-        If dataList Is Nothing OrElse dataList.Count = 0 Then Return
-        ' ✅ 1. ПЪРВО ЗАПАЗВАМЕ СЪСТОЯНИЕТО (за да е достъпно навсякъде в класа)
-        rootText = rootNodeText
-        ' 2. Подготвяме логическите връзки между таблата
-        PreparePanelFeeders(rootText)
-        ' ✅ НОВО: Гарантираме съществуването на кореновия запис
-        EnsureRootPanelExists(rootText)
-        ' 3. Преизчисляваме всички родителски суми по йерархията
-        UpdatePanelSummary(rootNodeText)
-        ' 4. Изграждаме визуалното дърво
-        BuildTree(rootText)
-    End Sub
-    ' ========================================================================
-    ' 📊 ЛОГИКА ЗА ДАННИ (ПРЕДИ ВИЗУАЛИЗАЦИЯ)
-    ' ========================================================================
-    ''' <summary>
-    ''' Подготвя логическите връзки (feeder-и) между главното табло и подтаблата.
-    ''' Логиката:
-    ''' 1. Извлича всички уникални табла от данните
-    ''' 2. Пропуска кореновото табло
-    ''' 3. Проверява дали вече съществува връзка "Дете"
-    ''' 4. Ако няма → създава нова връзка към подтабло
-    ''' 5. Използва копие на оригиналния запис, за да не се губят данни
-    ''' 6. Добавя връзката в основния списък
-    ''' 
-    ''' Цел: изграждане на йерархия между таблата за последващо изчисление и визуализация
-    ''' </summary>
-    Private Sub PreparePanelFeeders(rootName As String)
-        ' Взимаме всички уникални табла от списъка
-        Dim uniquePanels = dataList.
-                            Where(Function(x) Not String.IsNullOrWhiteSpace(x.Tablo)).
-                            Select(Function(x) x.Tablo.Trim()).
-                            Distinct().
-                            ToList()
-        For Each pName In uniquePanels
-            ' Пропускаме кореновото табло
-            If String.Equals(pName, rootName, StringComparison.OrdinalIgnoreCase) Then Continue For
-            ' Проверка дали вече съществува връзка към това табло
-            Dim linkExists = dataList.Any(
-                            Function(x)
-                                Return x.Tablo = rootName AndAlso
-                                       x.Device = "Дете" AndAlso
-                                       String.Equals(x.ТоковКръг, pName, StringComparison.OrdinalIgnoreCase)
-                            End Function)
-            ' Ако връзката не съществува → създаваме я
-            If Not linkExists Then
-                ' Намираме оригиналния запис на подтаблото
-                Dim childMaster = dataList.FirstOrDefault(
-                                    Function(x)
-                                        Return x.Tablo = pName AndAlso
-                                               x.Device = "Табло"
-                                    End Function)
-                If childMaster IsNot Nothing Then
-                    ' Създаваме независимо копие на обекта
-                    Dim feeder As Form_Tablo_new.strTokow = childMaster.Clone()
-                    ' Превръщаме го във връзка "Дете"
-                    feeder.Tablo = rootName
-                    feeder.Device = "Дете"
-                    feeder.ТоковКръг = pName
-                    feeder.Табло_Родител = ""
-                    feeder.Консуматор = "Табло"
-                    feeder.предназначение = pName
-                    ' Добавяме връзката към основния списък
-                    dataList.Add(feeder)
-                End If
-            End If
-        Next
-    End Sub
-
-    ''' <summary>
-    ''' КЛАС ЗА УПРАВЛЕНИЕ НА ЕЛЕКТРИЧЕСКИ ТАБЛА И ЙЕРАРХИЯ ОТ ТОКОВИ КРЪГОВЕ.
-    ''' 
-    ''' Основни отговорности:
-    ''' - Зареждане и съхранение на проектни данни (dataList)
-    ''' - Генериране и поддръжка на йерархична структура от табла и подтабла
-    ''' - Автоматично създаване на "фийдъри" (връзки между табла)
-    ''' - Рекурсивно преизчисляване на мощност и ток по йерархията
-    ''' - Изграждане на визуално дърво (TreeView)
-    ''' - Управление на JSON сериализация/десериализация на проектите
-    ''' - Извличане и нормализиране на име на сграда от DWG файл
-    ''' 
-    ''' Класът служи като централен слой между:
-    ''' UI (TreeView / Forms)
-    ''' и
-    ''' бизнес логиката за електрическите табла.
-    ''' </summary>
-    Private Sub BuildTree(rootNodeText As String)
-        tv.Nodes.Clear()
-        tv.BeginUpdate()
+    ' =============================================================
+    ' Процедура: RefreshTree
+    ' =============================================================
+    ' <summary>
+    ' Основна процедура за обновяване (refresh) на TreeView контролата (_tv),
+    ' която визуализира йерархична структура от данни, съдържащи:
+    ' - Сгради (Buildings)
+    ' - Табла (Panels / Boards)
+    ' - Консуматори / токови кръгове (Circuits)
+    '
+    ' Данните се вземат от колекцията _listTokow и се организират в дървовидна структура.
+    '
+    ' Целта на метода е:
+    ' - да изгради TreeView от нулата при всяко извикване
+    ' - да гарантира уникалност на възлите
+    ' - да поддържа йерархия: Сграда → Табло → Табло (вложено) → Консуматори
+    ' </summary>
+    Public Sub RefreshTree()
+        ' <summary>
+        ' BeginUpdate спира визуалното обновяване на TreeView-а,
+        ' за да се избегне трептене и да се подобри производителността
+        ' при масово добавяне/изтриване на възли.
+        ' </summary>
+        _tv.BeginUpdate()
+        ' <summary>
+        ' Изчистване на текущата дървовидна структура.
+        ' Това гарантира, че всяко извикване започва от "чисто състояние".
+        ' </summary>
+        _tv.Nodes.Clear()
         Try
-            ' ✅ ПРОВЕРКА: Колко сгради има?
-            Dim distinctBuildings = dataList.
-            Where(Function(x) Not String.IsNullOrEmpty(x.BuildingName)).
-            Select(Function(x) x.BuildingName).
-            Distinct().Count()
-
-            If distinctBuildings <= 1 Then
-                ' 🏢 Една сграда → Синхронизираме данните и взимаме общата мощност
-                UpdatePanelSummary(rootNodeText)
-                ' Взимаме актуализираната мощност от списъка (ако няма запис → 0)
-                Dim rootRecord = dataList.FirstOrDefault(Function(x) x.Tablo = rootNodeText AndAlso x.Device = "Табло")
-                Dim totalPower As Double = If(rootRecord?.Мощност, 0)
-                ' Създаваме името на корена: "Име (0.00 kW)"
-                Dim nodeName As String = $"{rootNodeText} ({totalPower:F2} kW)"
-                Dim rootNode As New TreeNode(nodeName)
-                tv.Nodes.Add(rootNode)
-                ' Намираме всички табла под корена
-                Dim rootPanels = FindChildPanels(rootNodeText)
-                For Each panelName In rootPanels
-                    AddPanelNodeRecursive(panelName, rootNode.Nodes)
-                Next
-            Else
-                ' 🏘️ Няколко сгради
-                ' Тук можеш да направиш същото за всяка сграда в нейния собствен цикъл
-                Dim buildingGroups = dataList.GroupBy(Function(x) x.BuildingName)
-                For Each bGrp In buildingGroups
-                    Dim bName = If(String.IsNullOrEmpty(bGrp.Key), "Неизвестна сграда", bGrp.Key)
-
-                    ' Мощност за конкретната сграда (само кореновите табла за нея)
-                    Dim bPower = bGrp.Where(Function(x) x.Device = "Табло" AndAlso
-                                        Not dataList.Any(Function(d) d.Device = "Дете" AndAlso d.ТоковКръг = x.Tablo)).
-                                  Sum(Function(x) x.Мощност)
-                    Dim bNode As New TreeNode(String.Format(BuildingTemplate, bName, bPower))
-                    'Dim bNode As New TreeNode($"{bName} ({bPower:F2} kW)")
-                    tv.Nodes.Add(bNode)
-
-                    Dim rootPanels = FindRootPanelsForBuilding(bName)
-                    For Each panelName In rootPanels
-                        AddPanelNodeRecursive(panelName, bNode.Nodes)
-                    Next
-                Next
-            End If
+            ' =============================================================
+            ' Речници за бърз достъп до вече създадени възли
+            ' =============================================================
+            ' <summary>
+            ' buildingNodes:
+            ' Ключ: име на сграда (String)
+            ' Стойност: TreeNode, представляващ съответната сграда в TreeView
+            '
+            ' Използва се за:
+            ' - предотвратяване на дублиране на сгради
+            ' - бързо намиране на root node за дадена сграда
+            ' </summary>
+            Dim buildingNodes As New Dictionary(Of String, TreeNode)
+            ' <summary>
+            ' allTabloNodes:
+            ' Ключ: уникален идентификатор "Сграда_Табло"
+            ' Стойност: TreeNode за конкретно табло
+            '
+            ' Използва се за:
+            ' - гарантиране на уникалност на таблата
+            ' - позволяване на вложени табла (табло в табло)
+            ' - бърз достъп при добавяне на консуматори
+            ' </summary>
+            Dim allTabloNodes As New Dictionary(Of String, TreeNode)
+            ' =============================================================
+            ' 1. ПЪРВИ ПАС: Създаване на възлите за СГРАДИ
+            ' =============================================================
+            ' <summary>
+            ' Обхождаме всички елементи в _listTokow, за да създадем
+            ' уникален набор от сгради (root nodes).
+            ' </summary>
+            For Each item In _listTokow
+                ' <summary>
+                ' bName:
+                ' Нормализирано име на сграда.
+                ' Ако BuildingName е празно или whitespace → използва "Обект"
+                '
+                ' Това гарантира:
+                ' - че няма "празни" корени в TreeView
+                ' - че всеки елемент винаги принадлежи към някакъв root
+                ' </summary>
+                Dim bName = If(String.IsNullOrWhiteSpace(item.BuildingName), "Обект", item.BuildingName)
+                ' <summary>
+                ' Проверка за дублиране:
+                ' Ако сградата вече съществува, не я създаваме повторно.
+                ' </summary>
+                If Not buildingNodes.ContainsKey(bName) Then
+                    ' <summary>
+                    ' Създаване на TreeNode за сграда.
+                    ' ICON_BUILDING е визуален индикатор (икона/символ).
+                    ' </summary>
+                    Dim bNode As New TreeNode($"{ICON_BUILDING} {bName}")
+                    ' Добавяне към TreeView root ниво
+                    _tv.Nodes.Add(bNode)
+                    ' Съхраняване в речника за бъдеща референция
+                    buildingNodes.Add(bName, bNode)
+                End If
+            Next
+            ' =============================================================
+            ' 2. ВТОРИ ПАС: Създаване на уникални ТАБЛА (без йерархия)
+            ' =============================================================
+            ' <summary>
+            ' В този пас се създават всички възли от тип "Табло",
+            ' но без да се подреждат в дървото.
+            '
+            ' Причина:
+            ' - първо се гарантира уникалност
+            ' - после се прави йерархично свързване (в 3-ти пас)
+            ' </summary>
+            For Each item In _listTokow
+                If item.Device = "Табло" Then
+                    ' <summary>
+                    ' tabloKey:
+                    ' Уникален ключ за табло в рамките на сграда.
+                    '
+                    ' Формат:
+                    ' "Сграда_Табло"
+                    '
+                    ' Това предотвратява конфликт при:
+                    ' - еднакви имена на табла в различни сгради
+                    ' </summary>
+                    Dim tabloKey = item.BuildingName & "_" & item.Tablo
+                    If Not allTabloNodes.ContainsKey(tabloKey) Then
+                        ' <summary>
+                        ' Създаване на TreeNode за табло.
+                        '
+                        ' FormatPanelText(item):
+                        ' централен шаблон за визуализация:
+                        ' - икона
+                        ' - име
+                        ' - формат/десетични знаци
+                        ' </summary>
+                        Dim tNode As New TreeNode(FormatPanelText(item))
+                        ' <summary>
+                        ' Tag:
+                        ' Съхранява оригиналния обект item,
+                        ' за да може по-късно да се извлича логика/данни
+                        ' при селекция в TreeView.
+                        ' </summary>
+                        tNode.Tag = item
+                        allTabloNodes(tabloKey) = tNode
+                    End If
+                End If
+            Next
+            ' =============================================================
+            ' 3. ТРЕТИ ПАС: ЙЕРАРХИЧНО ПОДРЕЖДАНЕ НА ТАБЛАТА
+            ' =============================================================
+            ' <summary>
+            ' Тук вече се определя къде точно отива всяко табло:
+            ' - в друго табло (вложена структура)
+            ' - или директно под сграда
+            ' </summary>
+            For Each item In _listTokow
+                If item.Device = "Табло" Then
+                    Dim tabloKey = item.BuildingName & "_" & item.Tablo
+                    Dim currentNode = allTabloNodes(tabloKey)
+                    ' <summary>
+                    ' Защита срещу дублирано закачане:
+                    ' Ако node вече има родител → пропускаме
+                    ' (предотвратява многократно добавяне)
+                    ' </summary>
+                    If currentNode.Parent IsNot Nothing Then Continue For
+                    ' <summary>
+                    ' Проверка за родителско табло:
+                    ' item.Табло_Родител съдържа име на "родителско" табло
+                    ' </summary>
+                    If Not String.IsNullOrEmpty(item.Табло_Родител) Then
+                        Dim parentKey = item.BuildingName & "_" & item.Табло_Родител
+                        If allTabloNodes.ContainsKey(parentKey) Then
+                            ' Вложено табло → добавяне под родителя
+                            allTabloNodes(parentKey).Nodes.Add(currentNode)
+                        End If
+                    Else
+                        ' <summary>
+                        ' Ако няма родител:
+                        ' таблото се добавя директно под съответната сграда
+                        ' </summary>
+                        Dim bName = If(String.IsNullOrWhiteSpace(item.BuildingName), "Обект", item.BuildingName)
+                        buildingNodes(bName).Nodes.Add(currentNode)
+                    End If
+                End If
+            Next
+            ' =============================================================
+            ' 4. ЧЕТВЪРТИ ПАС: ДОБАВЯНЕ НА КОНСУМАТОРИ (КРЪГОВЕ)
+            ' =============================================================
+            ' <summary>
+            ' В този етап се добавят всички елементи,
+            ' които НЕ са "Табло" → т.е. консуматори / токови кръгове.
+            ' </summary>
+            For Each item In _listTokow
+                If item.Device <> "Табло" Then
+                    Dim tabloKey = item.BuildingName & "_" & item.Tablo
+                    If allTabloNodes.ContainsKey(tabloKey) Then
+                        ' <summary>
+                        ' Създаване на възел за токов кръг (консуматор).
+                        '
+                        ' FormatCircuitText(item):
+                        ' шаблон за визуализация на електрически кръг
+                        ' </summary>
+                        Dim cNode As New TreeNode(FormatCircuitText(item))
+                        cNode.Tag = item
+                        allTabloNodes(tabloKey).Nodes.Add(cNode)
+                    End If
+                End If
+            Next
         Finally
-            If tv.Nodes.Count > 0 Then
-                tv.Nodes(0).Expand()
-            End If
-            tv.EndUpdate()
+            ' =============================================================
+            ' ФИНАЛНА ВИЗУАЛНА ОРГАНИЗАЦИЯ НА ДЪРВОТО
+            ' =============================================================
+            ' <summary>
+            ' CollapseAll:
+            ' Свива всички възли в TreeView.
+            ' </summary>
+            _tv.CollapseAll()
+            ' <summary>
+            ' Разгъване само на root нивото (сградите),
+            ' за да се покаже първо структурното ниво на проекта.
+            ' </summary>
+            For Each rootNode As TreeNode In _tv.Nodes
+                rootNode.Expand()
+            Next
+            ' <summary>
+            ' EndUpdate възстановява визуалното обновяване
+            ' и показва финалната структура наведнъж.
+            ' </summary>
+            _tv.EndUpdate()
         End Try
     End Sub
     ''' <summary>
-    ''' Намира всички директно свързани подтабла (деца) към дадено родителско табло.
+    ''' Обработва избора на възел в TreeView.
     ''' 
-    ''' Логика:
-    ''' - Търси записи в dataList с Device = "Дете"
-    ''' - Филтрира по Tablo = parentName
-    ''' - Връща уникалните стойности от полето ТоковКръг (имената на подтаблата)
-    ''' - Подрежда резултата по азбучен ред
+    ''' Ако избраният възел съдържа обект от тип strTokow
+    ''' в свойството Tag, събитието ObjectSelected се
+    ''' извиква и предава избрания обект към външния код.
+    ''' 
+    ''' Използва се за синхронизация между TreeView,
+    ''' DataGridView и останалата логика на формата.
     ''' </summary>
-    Private Function FindChildPanels(parentName As String) As List(Of String)
-        ' Търсим записи с Device="Дете", където Tablo=parentName
-        ' ТоковКръг съдържа името на детското табло
-        Return dataList.
-                Where(Function(x) x.Device = "Дете" AndAlso
-                String.Equals(x.Tablo, parentName, StringComparison.OrdinalIgnoreCase)).
-                    Select(Function(x) x.ТоковКръг).
-                    Distinct().
-                    OrderBy(Function(x) x).
-                    ToList()
-    End Function
-    ''' <summary>
-    ''' Намира кореновите табла за дадена сграда.
-    ''' 
-    ''' Кореново табло е такова, което:
-    ''' - принадлежи към дадената сграда
-    ''' - не се среща като "дете" (няма родителска връзка в йерархията)
-    ''' 
-    ''' Логика:
-    ''' 1. Взимат се всички табла (Device = "Табло") за конкретната сграда
-    ''' 2. Взимат се всички табла, които са маркирани като "Дете"
-    ''' 3. От първия списък се изключват всички деца
-    ''' 4. Резултатът се подрежда по азбучен ред
-    ''' </summary>
-    Private Function FindRootPanelsForBuilding(buildingName As String) As List(Of String)
-        ' Всички табла в тази сграда
-        Dim allPanelsInBuilding = dataList.
-                                    Where(Function(x) x.BuildingName = buildingName AndAlso
-                                      x.Device = "Табло").
-                                Select(Function(x) x.Tablo).
-                                Distinct()
-        ' Табла, които са деца на други (имат родител)
-        Dim childPanels = dataList.
-                        Where(Function(x) x.Device = "Дете").
-                        Select(Function(x) x.ТоковКръг).
-                        Distinct()
-        ' Коренови са тези, които са в сградата, но НЕ са деца
-        Return allPanelsInBuilding.Except(childPanels).OrderBy(Function(x) x).ToList()
-    End Function
-    ''' <summary>
-    ''' Рекурсивно изгражда възел в TreeView за дадено табло и всички негови подтабла.
-    ''' 
-    ''' Структура:
-    ''' - Създава възел за текущото табло
-    ''' - Добавя подтабла чрез рекурсия (йерархично)
-    ''' - Групира всички токови кръгове в отделен под-възел
-    ''' - Създава листа за всеки токов кръг
-    ''' - Сгъва възлите за по-компактен визуален изглед
-    ''' 
-    ''' Логика:
-    ''' 1. Намира таблото в dataList
-    ''' 2. Изчислява общата мощност (включително деца)
-    ''' 3. Добавя рекурсивно всички подтабла
-    ''' 4. Добавя токовите кръгове като отделна група
-    ''' 5. Сгъва структурата за по-добра четимост
-    ''' </summary>
-    Private Sub AddPanelNodeRecursive(panelName As String, parentNodes As TreeNodeCollection)
-        ' Намираме записа за това табло
-        Dim panelRecord = dataList.FirstOrDefault(Function(x) x.Tablo = panelName AndAlso x.Device = "Табло")
-        If panelRecord Is Nothing Then Return
-        ' Изчисляваме общата мощност (сумираме децата + собствените кръгове)
-        Dim totalPower = CalculatePanelTotalPower(panelName)
-        ' Създаваме възела за таблото
-        ' Dim pNode As New TreeNode($"{panelName} ({totalPower:F2} kW)")
-        Dim pNode As New TreeNode(String.Format(PanelTemplate, panelName, totalPower))
-        parentNodes.Add(pNode)
-        ' РЕКУРСИЯ за подтаблата
-        Dim childPanels = FindChildPanels(panelName)
-        For Each childName In childPanels
-            AddPanelNodeRecursive(childName, pNode.Nodes)
-        Next
-        ' Добавяме токовите кръгове
-        Dim circuits = dataList.Where(Function(x) x.Tablo = panelName AndAlso
-                                 x.Device <> "Табло" AndAlso
-                                 x.Device <> "Дете" AndAlso
-                                 Not String.IsNullOrEmpty(x.ТоковКръг) AndAlso
-                                 x.ТоковКръг <> "ОБЩО").ToList()
-        If circuits.Count > 0 Then
-            Dim totalCircuitPower = circuits.Sum(Function(c) c.Мощност)
-            'Dim circuitsNode As New TreeNode($"🔵 Т.К.({totalCircuitPower:F2} kW)")
-            Dim circuitsNode As New TreeNode(String.Format(CircuitsTemplate, totalCircuitPower))
-            circuitsNode.ForeColor = Color.DarkBlue
-            circuitsNode.BackColor = Color.Ivory
-            circuitsNode.NodeFont = New Font(tv.Font, FontStyle.Bold)
-            pNode.Nodes.Add(circuitsNode)
-            For Each tok In circuits
-                Dim tkNode As New TreeNode($"{tok.ТоковКръг} ({tok.Мощност:F2} kW)")
-                circuitsNode.Nodes.Add(tkNode)
-            Next
-            circuitsNode.Collapse()
-        End If
-        pNode.Collapse()
-    End Sub
-    ''' <summary>
-    ''' Изчислява общата мощност на дадено табло.
-    ''' 
-    ''' Включва:
-    ''' - Мощност от подтабла (чрез "Дете" връзки / фийдъри)
-    ''' - Мощност от директно свързани токови кръгове
-    ''' 
-    ''' Резултатът представлява сумарното натоварване на таблото.
-    ''' </summary>
-    Private Function CalculatePanelTotalPower(panelName As String) As Double
-        ' Мощност от подтабла (чрез фийдърите)
-        Dim feederPower = dataList.
-        Where(Function(x) x.Tablo = panelName AndAlso x.Device = "Дете").
-        Sum(Function(x) x.Мощност)
-        ' Мощност от собствени кръгове
-        Dim circuitPower = dataList.
-        Where(Function(x) x.Tablo = panelName AndAlso
-              x.Device <> "Табло" AndAlso
-              x.Device <> "Дете").
-        Sum(Function(x) x.Мощност)
-        Return feederPower + circuitPower
-    End Function
-    ''' <summary>
-    ''' Преизчислява и актуализира обобщените стойности за дадено табло.
-    ''' Сумира мощност, брой контакти и брой лампи от всички записи под него,
-    ''' като игнорира самите обобщения (Device = "Табло").
-    ''' Поддържа филтър по сграда за бъдеща универсалност.
-    ''' </summary>
-    Private Sub UpdatePanelSummary(panelName As String, Optional buildingName As String = Nothing)
-        ' 1. Намираме целевия запис (Device = "Табло")
-        Dim targetRecord = dataList.FirstOrDefault(Function(x) x.Tablo = panelName AndAlso x.Device = "Табло")
-        If targetRecord Is Nothing Then Return
-
-        ' 2. Филтрираме източника по сграда, ако е подадена (за бъдеща поддръжка на много сгради)
-        Dim sourceData = If(String.IsNullOrEmpty(buildingName),
-                            dataList,
-                            dataList.Where(Function(x) x.BuildingName = buildingName))
-
-        ' 3. Взимаме всички записи под това табло, БЕЗ да броим самото обобщение
-        Dim itemsToSum = sourceData.Where(Function(x) x.Tablo = panelName AndAlso x.Device <> "Табло")
-
-        ' 4. Изчисляваме сумите (LINQ автоматично връща 0 за празни колекции)
-        Dim totalPower As Double = itemsToSum.Sum(Function(x) x.Мощност)
-        Dim totalKontakt As Integer = itemsToSum.Sum(Function(x) x.brKontakt)
-        Dim totalLamp As Integer = itemsToSum.Sum(Function(x) x.brLamp)
-
-        ' 5. Записваме резултатите обратно в обекта
-        targetRecord.Мощност = totalPower
-        targetRecord.brKontakt = totalKontakt
-        targetRecord.brLamp = totalLamp
-    End Sub
-    Private Sub Tv_ItemDrag(sender As Object, e As ItemDragEventArgs)
-        ' Започваме Drag операция с избрания възел
-        ' AllowDrop ефект: Copy (не местим, а копираме референцията)
-        tv.DoDragDrop(e.Item, DragDropEffects.Move)
-    End Sub
-    Private Sub Tv_DragEnter(sender As Object, e As DragEventArgs)
-        ' Проверяваме дали влаченият обект е TreeNode
-        If e.Data.GetDataPresent(GetType(TreeNode)) Then
-            ' Позволяваме Move операция
-            e.Effect = DragDropEffects.Move
-        Else
-            ' Не позволяваме drop на други обекти
-            e.Effect = DragDropEffects.None
+    ''' <param name="sender">
+    ''' TreeView контролът, който е генерирал събитието.
+    ''' </param>
+    ''' <param name="e">
+    ''' Данни за избрания възел.
+    ''' </param>
+    Private Sub HandleAfterSelect(sender As Object, e As TreeViewEventArgs)
+        If e.Node.Tag IsNot Nothing AndAlso TypeOf e.Node.Tag Is Form_Tablo_new.strTokow Then
+            RaiseEvent ObjectSelected(DirectCast(e.Node.Tag, Form_Tablo_new.strTokow))
         End If
     End Sub
-    Private Sub Tv_DragOver(sender As Object, e As DragEventArgs)
-        ' Получаваме точката, където е мишката (в координати на TreeView)
-        Dim targetPoint As Point = tv.PointToClient(New Point(e.X, e.Y))
-        ' Намираме възела под мишката
-        Dim targetNode As TreeNode = tv.GetNodeAt(targetPoint)
-        If targetNode IsNot Nothing Then
-            ' Получаваме влачения възел
-            Dim draggedNode As TreeNode = CType(e.Data.GetData(GetType(TreeNode)), TreeNode)
-            ' ВАЛИДАЦИЯ: Не позволяваме да drop-нем възел върху себе си или свои деца
-            If targetNode Is draggedNode OrElse IsChildOf(draggedNode, targetNode) Then
-                e.Effect = DragDropEffects.None
-                Return
+    ''' <summary>
+    ''' Стартира Drag & Drop операция при влачене на възел от TreeView.
+    ''' 
+    ''' Методът:
+    ''' 1. Маркира текущо влачения възел като SelectedNode
+    ''' 2. Стартира операция по преместване (Move)
+    ''' 
+    ''' Използва се като начална точка за прехвърляне
+    ''' на табла и токови кръгове в йерархията.
+    ''' </summary>
+    ''' <param name="sender">
+    ''' TreeView контролът, който генерира събитието.
+    ''' </param>
+    ''' <param name="e">
+    ''' Данни за влачения обект.
+    ''' </param>
+    Private Sub HandleItemDrag(sender As Object, e As ItemDragEventArgs)
+        _tv.SelectedNode = DirectCast(e.Item, TreeNode)
+        _tv.DoDragDrop(e.Item, DragDropEffects.Move)
+    End Sub
+    ''' <summary>
+    ''' Активира Drag & Drop операция при навлизане на мишката
+    ''' в зоната на TreeView.
+    ''' 
+    ''' Задава ефект "Move", което указва,
+    ''' че възелът може да бъде преместен.
+    ''' </summary>
+    ''' <param name="sender">
+    ''' TreeView контролът, който приема Drag & Drop операцията.
+    ''' </param>
+    ''' <param name="e">
+    ''' Данни за текущата Drag & Drop операция.
+    ''' </param>
+    Private Sub HandleDragEnter(sender As Object, e As DragEventArgs)
+        e.Effect = DragDropEffects.Move
+    End Sub
+    ''' <summary>
+    ''' Обработва движението на влачения елемент над TreeView.
+    ''' 
+    ''' Методът:
+    ''' 1. Преобразува координатите на мишката към TreeView
+    ''' 2. Намира възела под курсора
+    ''' 3. Маркира възела визуално като текуща цел
+    ''' 
+    ''' Използва се за по-удобна визуална навигация
+    ''' по време на Drag & Drop операция.
+    ''' </summary>
+    ''' <param name="sender">
+    ''' TreeView контролът, върху който се извършва влаченето.
+    ''' </param>
+    ''' <param name="e">
+    ''' Данни за текущата Drag & Drop операция.
+    ''' </param>
+    Private Sub HandleDragOver(sender As Object, e As DragEventArgs)
+        Dim targetPoint As Point = _tv.PointToClient(New Point(e.X, e.Y))
+        _tv.SelectedNode = _tv.GetNodeAt(targetPoint) ' Визуално маркираме целта
+    End Sub
+    ''' <summary>
+    ''' Финализира Drag & Drop операцията при пускане на възел.
+    ''' 
+    ''' Методът:
+    ''' 1. Определя върху кой възел е пуснат елементът
+    ''' 2. Извлича влачения и целевия обект от Tag
+    ''' 3. Проверява дали операцията е валидна
+    ''' 4. Изпраща заявка към формата за преместване
+    ''' 
+    ''' Позволява:
+    ''' • местене на токови кръгове между табла
+    ''' • преместване на табла в други табла
+    ''' • изграждане на йерархична структура
+    ''' 
+    ''' Забранява:
+    ''' • пускане върху самия себе си
+    ''' • невалидни цели
+    ''' </summary>
+    ''' <param name="sender">
+    ''' TreeView контролът, който приема операцията.
+    ''' </param>
+    ''' <param name="e">
+    ''' Данни за Drag & Drop операцията.
+    ''' </param>
+    Private Sub HandleDragDrop(sender As Object, e As DragEventArgs)
+        ' Вземаме точката, в която е пуснат бутонът
+        Dim targetPoint As Point = _tv.PointToClient(New Point(e.X, e.Y))
+        ' Намираме възела под курсора
+        Dim targetNode As TreeNode = _tv.GetNodeAt(targetPoint)
+        ' Вземаме влачения възел
+        Dim draggedNode As TreeNode =
+        DirectCast(e.Data.GetData(GetType(TreeNode)), TreeNode)
+        ' Проверка:
+        ' • дали имаме валидни възли
+        ' • дали не местим възела върху самия него
+        If draggedNode IsNot Nothing AndAlso
+       targetNode IsNot Nothing AndAlso
+       Not draggedNode.Equals(targetNode) Then
+            ' Вземаме обектите от Tag-а
+            Dim sourceObj As Form_Tablo_new.strTokow =
+            DirectCast(draggedNode.Tag, Form_Tablo_new.strTokow)
+            Dim targetObj As Form_Tablo_new.strTokow =
+            DirectCast(targetNode.Tag, Form_Tablo_new.strTokow)
+            ' Разрешаваме местене само:
+            ' • в друго табло
+            ' • или в корен/сграда
+            If targetObj.Device = "Табло" OrElse
+           String.IsNullOrEmpty(targetObj.Tablo) Then
+                ' Изпращаме заявка към формата,
+                ' която реално ще обнови данните
+                RaiseEvent RequestMoveObject(sourceObj, targetObj)
             End If
-            ' ВАЛИДАЦИЯ: Проверяваме дали и двата възела са табла (не "Токови кръгове")
-            If Not IsPanelNode(draggedNode) OrElse Not IsPanelNode(targetNode) Then
-                e.Effect = DragDropEffects.None
-                Return
-            End If
-            ' Всичко е наред - позволяваме drop
-            e.Effect = DragDropEffects.Move
-            ' Визуална обратна връзка: маркираме целевия възел
-            tv.SelectedNode = targetNode
-        Else
-            e.Effect = DragDropEffects.None
         End If
     End Sub
-    Private Function IsChildOf(node As TreeNode, parentNode As TreeNode) As Boolean
-        Dim parent As TreeNode = node.Parent
-        While parent IsNot Nothing
-            If parent Is parentNode Then Return True
-            parent = parent.Parent
-        End While
-        Return False
-    End Function
-    Private Function IsPanelNode(node As TreeNode) As Boolean
-        Return node.Text.Contains("kW)") AndAlso Not node.Text.Contains("Токови кръгове")
-    End Function
-    ''' <summary>
-    ''' Извлича името на таблото от текста на възела, премахвайки иконата.
-    ''' Формат: "🗄️ T-1 (15.54 kW)" → връща "T-1"
-    ''' </summary>
-    Public Shared Function ExtractPanelName(nodeText As String) As String
-        If String.IsNullOrEmpty(nodeText) Then Return String.Empty
-        ' 1. Премахваме мощността: "🗄️ T-1 (15.54 kW)" → "🗄️ T-1"
-        Dim idx = nodeText.IndexOf(" (")
-        If idx > 0 Then
-            nodeText = nodeText.Substring(0, idx).Trim()
-        End If
-        ' 2. Премахваме иконата/символи отпред, докато не стигнем до буква/цифра
-        For i As Integer = 0 To nodeText.Length - 1
-            Dim c = nodeText(i)
-            If Char.IsLetterOrDigit(c) OrElse c = "-"c OrElse c = "_"c Then
-                Return nodeText.Substring(i).Trim()
-            End If
-        Next
-        ' Fallback: ако няма букви/цифри, връщаме какво каквото остане
-        Return nodeText.Trim()
-    End Function
-    Private Sub Tv_DragDrop(sender As Object, e As DragEventArgs)
-        Debug.WriteLine("📥 Tv_DragDrop започна")
 
-        Dim targetPoint As Point = tv.PointToClient(New Point(e.X, e.Y))
-        Dim targetNode As TreeNode = tv.GetNodeAt(targetPoint)
-
-        If targetNode Is Nothing Then
-            Debug.WriteLine("❌ Спирам: targetNode е Nothing")
-            Exit Sub
-        End If
-
-        Dim draggedNode As TreeNode = CType(e.Data.GetData(GetType(TreeNode)), TreeNode)
-        If draggedNode Is Nothing Then
-            Debug.WriteLine("❌ Спирам: draggedNode е Nothing")
-            Exit Sub
-        End If
-
-        If draggedNode Is targetNode Then
-            Debug.WriteLine("❌ Спирам: draggedNode е същият като targetNode")
-            Exit Sub
-        End If
-
-        ' Проверка дали таговете съдържат ID
-        If draggedNode.Tag Is Nothing OrElse targetNode.Tag Is Nothing Then
-            Debug.WriteLine("❌ Спирам: Липсва Tag в някой от възлите")
-            Exit Sub
-        End If
-
-        Dim childId As Integer = CInt(draggedNode.Tag)
-        Dim newParentId As Integer = CInt(targetNode.Tag)
-
-        Debug.WriteLine($"✅ Извиквам събитие: childId={childId}, newParentId={newParentId}")
-        RaiseEvent NodeParentChanged(childId, newParentId)
-    End Sub
-    'Private Sub Tv_DragDrop(sender As Object, e As DragEventArgs)
-    '    Dim draggedNode As TreeNode = CType(e.Data.GetData(GetType(TreeNode)), TreeNode)
-    '    Dim targetPoint As Point = tv.PointToClient(New Point(e.X, e.Y))
-    '    Dim targetNode As TreeNode = tv.GetNodeAt(targetPoint)
-    '    If draggedNode Is Nothing OrElse targetNode Is Nothing OrElse draggedNode Is targetNode Then Return
-    '    If Not IsPanelNode(draggedNode) OrElse Not IsPanelNode(targetNode) Then Return
-    '    If IsChildOf(draggedNode, targetNode) Then Return
-    '    Dim draggedPanelName As String = ExtractPanelName(draggedNode.Text)
-    '    Dim targetPanelName As String = ExtractPanelName(targetNode.Text)
-    '    If String.IsNullOrEmpty(draggedPanelName) OrElse String.IsNullOrEmpty(targetPanelName) Then Return
-    '    ' 1. Намираме мастер записа на местеното табло
-    '    Dim draggedMaster = dataList.FirstOrDefault(Function(x) x.Tablo = draggedPanelName AndAlso x.Device = "Табло")
-    '    If draggedMaster Is Nothing Then Return
-    '    ' 2. Запомняме стария родител преди промяна
-    '    Dim oldParentName As String = draggedMaster.Табло_Родител
-    '    ' 3. Актуализираме йерархията в данните
-    '    draggedMaster.Табло_Родител = targetPanelName
-    '    ' 4. Премахваме всички стари фийдъри, сочещи към това табло
-    '    Dim oldFeeders = dataList.Where(Function(x) x.Device = "Дете" AndAlso
-    '                                    String.Equals(x.ТоковКръг, draggedPanelName, StringComparison.OrdinalIgnoreCase)).ToList()
-    '    For Each f In oldFeeders
-    '        dataList.Remove(f)
-    '    Next
-    '    ' 5. Създаваме нов фийдър (връзка) под новия родител
-    '    Dim newFeeder As Form_Tablo_new.strTokow = draggedMaster.Clone()
-    '    newFeeder.Device = "Дете"
-    '    newFeeder.Tablo = targetPanelName
-    '    newFeeder.ТоковКръг = draggedPanelName
-    '    newFeeder.Табло_Родител = ""
-    '    newFeeder.Консуматор = "Табло"
-    '    newFeeder.предназначение = draggedPanelName
-    '    ' 🔥 КЛЮЧОВА ПОПРАВКА: MemberwiseClone копира референцията на списъка.
-    '    ' Трябва да създадем нов празен списък, за да не "споделя" консуматори с оригинала.
-    '    newFeeder.Konsumator = New List(Of Form_Tablo_new.strKonsumator)
-    '    dataList.Add(newFeeder)
-    '    ' 6. Преизчисляване на мощностите
-    '    If Not String.IsNullOrEmpty(oldParentName) AndAlso oldParentName <> targetPanelName Then
-    '        UpdatePanelSummary(oldParentName)
-    '    End If
-    '    UpdatePanelSummary(targetPanelName)
-    '    ' 7. Пълно обновяване на дървото
-    '    BuildTree(rootText)
-    'End Sub
-    ''' <summary>
-    ''' Гарантира, че в ListTokow съществува агрегиращ запис за корена.
-    ''' Не се дублира при повторно извикване.
-    ''' BuildingName се взима от първия наличен запис (консистентно с CreateTokowList).
-    ''' </summary>
-    Private Sub EnsureRootPanelExists(rootName As String)
-        ' Ако вече има запис → излизаме
-        If dataList.Any(Function(x) x.Tablo = rootName AndAlso x.Device = "Табло") Then Return
-
-        ' Взимаме BuildingName от първия наличен запис (ако има)
-        ' Това гарантира, че коренът е в същата "сграда" като останалите данни
-        Dim buildingName = If(dataList.FirstOrDefault()?.BuildingName, String.Empty)
-
-        ' Създаваме синтетичен запис само за сумиране
-        Dim rootPanel As New Form_Tablo_new.strTokow()
-        rootPanel.Tablo = rootName
-        rootPanel.Device = "Табло"
-        rootPanel.ТоковКръг = "ОБЩО"
-        rootPanel.Мощност = 0
-        rootPanel.Ток = 0
-        rootPanel.brKontakt = 0
-        rootPanel.brLamp = 0
-        rootPanel.BuildingName = buildingName
-        rootPanel.Табло_Родител = "" ' Коренът няма родител
-
-        dataList.Add(rootPanel)
-    End Sub
 End Class

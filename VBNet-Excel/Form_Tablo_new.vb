@@ -190,13 +190,10 @@ Public Class Form_Tablo_new
         ' TreeView се използва за визуална навигация
         ' и бърз преглед на структурата на таблото.
 #End Region
-        ' ✅ 1. Създаваме мениджъра
-        treeManager = New Form_Tablo_new_TreeViewManager(TreeView1, ListTokow)
-        ' ✅ 2. СВЪРЗВАМЕ СЪБИТИЯТА (това липсваше досега)
-        AddHandler treeManager.NodeParentChanged, AddressOf OnNodeParentChanged
-        AddHandler treeManager.NodeSelected, AddressOf OnNodeSelected
-        ' ✅ 3. Изграждаме дървото
-        treeManager.InitializeAndBuild(ROOT_NODE_TEXT)
+        ' Приемаме, че ListTokow вече е дефиниран и запълнен някъде във формата
+        ' Инициализираме с двата параметъра
+        treeManager = New Form_Tablo_new_TreeViewManager(Me.TreeView_Табло, ListTokow)
+        treeManager.RefreshTree()
 #Region "Подготовка на DataGridView"
         ' Конфигурира таблицата за редактиране на параметрите
         ' на токовите кръгове:
@@ -223,7 +220,7 @@ Public Class Form_Tablo_new
     Dim ListTokow As New List(Of strTokow)
 
     ' ✅ МЕНИДЖЪРЪТ ТРЯБВА ДА Е ГЛОБАЛЕН ЗА ФОРМАТА
-    Private treeManager As Form_Tablo_new_TreeViewManager
+    Private WithEvents treeManager As Form_Tablo_new_TreeViewManager
 
     Dim fullBuildingName As String
     Private Const ZnakX As String = "х" ' Напиши го веднъж тук (на кирилица)
@@ -241,14 +238,14 @@ Public Class Form_Tablo_new
     Private IcableDict As New Dictionary(Of String, Integer())
     Private Catalog_Cables As New List(Of CableInfo)
     Public Class CableInfo
-        Public Property PhaseSize As String         ' "2,5", "4", и т.н.
-        Public Property NeutralSize As String       ' "0", "1,5", "2,5", и т.н.
-        Public Property MaxCurrent_Air As Double    ' Допустим ток във въздух
-        Public Property MaxCurrent_Ground As Double ' Допустим ток в земя
-        Public Property Material As String          ' "Cu", "Al"
-        Public Property CableType As String         ' "СВТ", "САВТ", "Al/R"
-        Public Property MaxWorkingTemp As Double    ' ← ← ← НОВО! (65, 70, 90°C)
-        Public Property InsulationType As String    ' ← ← ← НОВО! ("ПВЦ", "XLPE", "GUM")
+        Public PhaseSize As String         ' "2,5", "4", и т.н.
+        Public NeutralSize As String       ' "0", "1,5", "2,5", и т.н.
+        Public MaxCurrent_Air As Double    ' Допустим ток във въздух
+        Public MaxCurrent_Ground As Double ' Допустим ток в земя
+        Public Material As String          ' "Cu", "Al"
+        Public CableType As String         ' "СВТ", "САВТ", "Al/R"
+        Public MaxWorkingTemp As Double    ' ← ← ← НОВО! (65, 70, 90°C)
+        Public InsulationType As String    ' ← ← ← НОВО! ("ПВЦ", "XLPE", "GUM")
     End Class
     Public Structure strMountMethod
         Dim Simbol As String
@@ -841,24 +838,16 @@ Public Class Form_Tablo_new
         ' КОНСУМАТОРИ В КРЪГА
         ' ============================================================
         Public Konsumator As List(Of strKonsumator)
-        ' Списък с всички реални консуматори,
-        ' принадлежащи към този токов кръг.
-        ''' <summary>
-        ''' Създава независимо копие на записа (идеално за Class типове)
-        ''' </summary>
-        Public Function Clone() As strTokow
-            ' MemberwiseClone копира всички стойности (String, Integer, Boolean и др.)
-            ' в нов обект от същия тип. За примитиви и String това е напълно безопасно.
-            If Me.Tablo = "__ROOT__" OrElse Me.ТоковКръг = "__ROOT__" Then
-                ' СЛОЖИ BREAKPOINT ТУК!
-                Debug.WriteLine("Клонира се обект, съдържащ __ROOT__")
-            End If
-            Return DirectCast(Me.MemberwiseClone(), strTokow)
-        End Function
         ' ✅ НОВИ ПОЛЕТА ЗА ЙЕРАРХИЯ И ИДЕНТИФИКАЦИЯ
         Public ID As Integer = -1              ' Уникален номер на записа
         Public ParentID As Integer = -1        ' ID на родителското табло (-1 = корен/Гл.Р.Т.)
         Public Name As String = ""             ' Текст за показване в TreeView (напр. "🗄️ T-1 (15.54 kW)")
+        ''' <summary>
+        ''' Създава независимо копие на записа (идеално за Class типове)
+        ''' </summary>
+        Public Function Clone() As strTokow
+            Return DirectCast(Me.MemberwiseClone(), strTokow)
+        End Function
     End Class
     ''' <summary>
     ''' КАТАЛОГ автоматичен прекъсвач – MCB, MCCB или ACB.
@@ -2885,72 +2874,151 @@ Public Class Form_Tablo_new
         End If
         Return Inom                                                 ' Връща изчисления номинален ток
     End Function
-    ''' <summary>
-    ''' Събитие: TreeView1_AfterSelect
-    ''' </summary>
-    ''' <remarks>
-    ''' Това събитие се извиква веднага след като потребителят избере (кликне) елемент в TreeView1.
-    ''' 
-    ''' Основната логика на процедурата е:
-    ''' - Извикване на FillDataGridViewForPanel(), която актуализира съдържанието на DataGridView
-    '''   според избрания панел или група в дървовидната структура.
-    '''
-    ''' Потенциални особености:
-    ''' - Предполага се, че методът FillDataGridViewForPanel() използва текущо избрания елемент
-    '''   (TreeView1.SelectedNode) за определяне на кои токови кръгове или табла да покаже данни.
-    ''' - Ако FillDataGridViewForPanel() е тежка операция, често селектирането на различни елементи
-    '''   може да забави интерфейса; в такива случаи може да се наложи оптимизация или асинхронно обновяване.
-    ''' - Това е стандартен подход за синхронизация на TreeView с DataGridView в WinForms.
-    ''' </remarks>
-    'Private Sub TreeView1_AfterSelect(sender As Object, e As TreeViewEventArgs) Handles TreeView1.AfterSelect
-    '    selectedTablo = treeManager.ExtractPanelName(e.Node.Text)
-    '    SortCircuits()
-    '    ' Обновяване на DataGridView според избрания панел/група в TreeView
-    '    FillDataGridViewForPanel()
-    'End Sub
-    ''' <summary>
-    ''' Попълва DataGridView1 с данни за избраното табло
-    ''' </summary>
+    ' =============================================================
+    ' Процедура: FillDataGridViewForPanel
+    ' =============================================================
+    ' <summary>
+    ' Основна процедура за попълване на DataGridView (DataGridView1)
+    ' с данни за токови кръгове (circuits), свързани с избрано табло.
+    '
+    ' Логика:
+    ' - взима избраното табло от TreeView (TreeView_Табло)
+    ' - филтрира ListTokow по това табло
+    ' - генерира и попълва DataGridView колони за всеки кръг
+    '
+    ' Цел:
+    ' - визуализация на електрическите параметри по табла
+    ' - синхронизация между TreeView избор и табличен изглед
+    ' </summary>
     Private Sub FillDataGridViewForPanel()
-        ' Проверка дали има избран възел
-        If TreeView1.SelectedNode Is Nothing Then
+        ' =============================================================
+        ' 1. ПРОВЕРКА ЗА ИЗБРАН ВЪЗЕЛ В TREEVIEW
+        ' =============================================================
+        ' <summary>
+        ' Проверява дали потребителят е избрал възел в TreeView_Табло.
+        ' Ако няма селекция → операцията се прекратява.
+        ' </summary>
+        If TreeView_Табло.SelectedNode Is Nothing Then
             MsgBox("Моля, изберете табло от дървото!", MsgBoxStyle.Exclamation, "Няма избор")
             Return
         End If
-        ' Вземи името на избраното табло
-        ' Ако има "(", вземи само текста преди него
-        If selectedTablo.Contains("(") Then
-            selectedTablo = selectedTablo.Substring(0, selectedTablo.IndexOf("(")).Trim()
-        End If
-        ' Филтрирай токовите кръгове за това табло
-        ' ListTokow вече е сортиран, така че просто вземи кръговете за това табло
+        ' =============================================================
+        ' 2. НОРМАЛИЗАЦИЯ НА ИМЕТО НА ИЗБРАНОТО ТАБЛО
+        ' =============================================================
+        ' <summary>
+        ' selectedTablo:
+        ' глобална/класова променлива, която съдържа името на текущо избраното табло
+        '
+        ' Възможен формат:
+        ' - "Табло (допълнителна информация)"
+        '
+        ' Затова се премахва всичко след "(" за да остане чисто име.
+        ' </summary>
+        If selectedTablo.Contains("(") Then selectedTablo = selectedTablo.Substring(0, selectedTablo.IndexOf("(")).Trim()
+        ' =============================================================
+        ' 3. ФИЛТРИРАНЕ НА КОНСУМАТОРИТЕ ЗА ТОВА ТАБЛО
+        ' =============================================================
+        ' <summary>
+        ' panelCircuits:
+        ' списък от всички елементи в ListTokow,
+        ' които принадлежат към текущото табло.     
+        ' Сравнението се прави case-insensitive (ToUpper),
+        ' за да се избегнат проблеми с различни регистри.
+        ' </summary>
         Dim panelCircuits = ListTokow.Where(Function(t) t.Tablo.ToUpper() = selectedTablo.ToUpper()).ToList()
-        ' Проверка дали има кръгове
-        If panelCircuits Is Nothing OrElse panelCircuits.Count = 0 Then
-            'MsgBox($"Няма намерени токови кръгове за табло '{selectedPanel}'",
-            '       MsgBoxStyle.Information, "Няма данни")
-            Return
-        End If
+        ' =============================================================
+        ' 4. ПРОВЕРКА ЗА ПРАЗЕН РЕЗУЛТАТ
+        ' =============================================================
+        ' <summary>
+        ' Ако няма намерени кръгове:
+        ' - прекратява се изпълнението
+        ' - не се показва съобщение (закоментирано е)
+        ' </summary>
+        If panelCircuits Is Nothing OrElse panelCircuits.Count = 0 Then Return
+        ' <summary>
+        ' Обновяване на заглавието на GroupBox,
+        ' за да покаже текущо обработваното табло.
+        ' </summary>
         GroupBox2.Text = $"Обработвам табло '{selectedTablo}'"
-        ' 1. Добави колони за кръговете
+        ' =============================================================
+        ' 5. СЪЗДАВАНЕ НА КОЛОНИ В DATAGRIDVIEW
+        ' =============================================================
+        ' <summary>
+        ' AddCircuitColumns:
+        ' процедура, която динамично добавя колони в DataGridView1
+        ' за всеки токов кръг в panelCircuits.
+        '
+        ' Това означава:
+        ' - всяко табло има различен брой колони
+        ' - колоните се генерират runtime
+        ' </summary>
         AddCircuitColumns(panelCircuits)
-        ' 2. Попълни данните
+        ' =============================================================
+        ' 6. ПОПЪЛВАНЕ НА ДАННИТЕ В DATAGRIDVIEW
+        ' =============================================================
+        ' <summary>
+        ' Обхожда всички редове в DataGridView1,
+        ' за да се попълнят стойности по параметри.
+        ' row.Cells(0):
+        ' съдържа името на параметъра (например напрежение, ток и т.н.)
+        ' </summary>
         For Each row As DataGridViewRow In DataGridView1.Rows
             Dim paramName As String = row.Cells(0).Value.ToString()
-            ' Пропусни разделителите и заглавията
+            ' =============================================================
+            ' 6.1 ФИЛТРИРАНЕ НА "НЕ-ИНФОРМАТИВНИ" РЕДОВЕ
+            ' =============================================================
+            ' <summary>
+            ' Пропускат се редове, които са:
+            ' - разделители
+            ' - заглавия на секции (напр. Прекъсвач, ДТЗ, Кабел)
+            '
+            ' Тези редове не съдържат данни за попълване.
+            ' </summary>
             If paramName = "---------" OrElse
-                paramName = "Прекъсвач" OrElse
-                paramName = "ДТЗ" OrElse
-                paramName = "Управление" OrElse
-                paramName = "Кабел" Then
+           paramName = "Прекъсвач" OrElse
+           paramName = "ДТЗ" OrElse
+           paramName = "Управление" OrElse
+           paramName = "Кабел" Then
                 Continue For
             End If
-            ' Вместо For i As Integer = 0 To panelCircuits.Count - 1
+            ' =============================================================
+            ' 6.2 ОБХОЖДАНЕ НА ВСЕКИ КОНСУМАТОР (КРЪГ)
+            ' =============================================================
+            ' <summary>
+            ' За всеки токов кръг се определя:
+            ' - индекс (позиция в списъка)
+            ' - съответна колона в DataGridView         
+            ' Важно:
+            ' IndexOf() се използва вътре в цикъла, което означава
+            ' повторно търсене на индекса при всяка итерация.
+            ' </summary>
             For Each circuit As strTokow In panelCircuits
-                ' За индекса на колоната ще ти трябва брояч, ако държиш на него
+                ' <summary>
+                ' i:
+                ' индекс на текущия токов кръг в списъка panelCircuits
+                ' </summary>
                 Dim i As Integer = panelCircuits.IndexOf(circuit)
+                ' <summary>
+                ' colIndex:
+                ' реален индекс на колоната в DataGridView
+                '
+                ' +2 означава, че първите 2 колони са резервирани
+                ' (например: параметър + описание)
+                ' </summary>
                 Dim colIndex As Integer = i + 2
+                ' <summary>
+                ' Проверка за валиден индекс на колона,
+                ' за да се избегне излизане извън граници.
+                ' </summary>
                 If colIndex < DataGridView1.Columns.Count Then
+                    ' <summary>
+                    ' UpdateCircuitColumn:
+                    ' функция, която попълва конкретна клетка/колона
+                    ' с данни от токовия кръг.
+                    '
+                    ' Последният параметър "" вероятно е placeholder
+                    ' за допълнителна информация или формат.
+                    ' </summary>
                     UpdateCircuitColumn(circuit, colIndex, "")
                 End If
             Next
@@ -3947,7 +4015,6 @@ Public Class Form_Tablo_new
     ''' </summary>
     Private Function FindTokowByColumn(circuitName As String) As strTokow
         ' 1. Взимаме таблото от TreeView
-        'Dim selectedTablo As String = TreeView1.SelectedNode?.Text
         If String.IsNullOrEmpty(selectedTablo) Then Return Nothing  ' Няма избрано табло
         ' 2. ИЗЧИСТВАНЕ НА ИМЕТО ОТ ДОПЪЛНИТЕЛЕН ТЕКСТ
         ' Пример: "Табло 1 (3 кръга, 5.2kW)" → "Табло 1"
@@ -4181,8 +4248,6 @@ Public Class Form_Tablo_new
     ''' РАБОТИ САМО С ИЗБРАНОТО ТАБЛО В TREEVIEW!
     ''' </summary>
     Private Sub RedistributeRCDGroups()
-        ' 1. ✅ Вземи избраното табло от TreeView
-        'Dim selectedTablo As String = TreeView1.SelectedNode?.Text
         ' Няма избрано табло
         If String.IsNullOrEmpty(selectedTablo) Then Return
         ' 2. ✅ Изчисти името от допълнителен текст (ако има)
@@ -4243,10 +4308,6 @@ Public Class Form_Tablo_new
         lastCircuit.RCD_Нула = originalNula
     End Sub
     Private Sub ToolStripButton_Балансирай_фазите_Click(sender As Object, e As EventArgs) Handles ToolStripButton_Балансирай_фазите.Click
-        ' =====================================================
-        ' 1. ВЗЕМИ ИЗБРАНОТО ТАБЛО
-        ' =====================================================
-        ' Dim selectedTablo As String = TreeView1.SelectedNode?.Text
         ' Ако няма избран възел → прекратяване
         If String.IsNullOrEmpty(selectedTablo) Then Return
         ' Премахване на допълнителен текст (например "(...)" )
@@ -4750,8 +4811,6 @@ Public Class Form_Tablo_new
     ''' </summary>
     Private Sub ToolStripButton_Вмъни_Autocad_Click(sender As Object, e As EventArgs) Handles ToolStripButton_Вмъкни_Autocad.Click
         Try
-            ' Взимаме избраното табло от TreeView
-            'Dim selectedTablo As String = TreeView1.SelectedNode?.Text
             ' Проверка дали има избран възел
             If String.IsNullOrEmpty(selectedTablo) Then
                 MsgBox("Моля, изберете табло от дървото!", MsgBoxStyle.Exclamation)
@@ -4800,9 +4859,7 @@ Public Class Form_Tablo_new
     End Sub
     Private Sub ToolStripButton_ШИНА_Click(sender As Object, e As EventArgs) Handles ToolStripButton_ШИНА.Click
         ' 1. Вземи избраното табло
-        'Dim selectedTablo As String = TreeView1.SelectedNode?.Text
         If String.IsNullOrEmpty(selectedTablo) Then Return
-        selectedTablo = Form_Tablo_new_TreeViewManager.ExtractPanelName(selectedTablo)
         ' 2. Извикай процедурата за избор на разединител на шина
         UpdateDisconnectorRecord(selectedTablo)
         SetupDataGridView_Total()
@@ -4997,34 +5054,66 @@ Public Class Form_Tablo_new
             End If
         End Using
     End Sub
-    ' ========================================================================
-    ' 📡 ОБРАБОТЧИЦИ НА СЪБИТИЯ (Event Handlers)
-    ' Тези методи се извикват АВТОМАТИЧНО от TreeViewManager
-    ' ========================================================================
     ''' <summary>
-    ''' Извиква се, когато потребител пусне възел (Drag & Drop)
+    ''' Обработва избора на елемент от TreeViewManager.
+    ''' 
+    ''' Методът се извиква автоматично при избор на възел
+    ''' в TreeView и получава директно бизнес обекта strTokow,
+    ''' без нужда от работа с TreeNode или Tag.
+    ''' 
+    ''' Използва се за:
+    ''' • синхронизация между TreeView и DataGridView
+    ''' • зареждане на данни за избраното табло
+    ''' • обновяване на визуализацията във формата
+    ''' 
+    ''' Това е основната връзка между UI слоя
+    ''' и бизнес логиката на приложението.
     ''' </summary>
-    Private Sub OnNodeParentChanged(childId As Integer, newParentId As Integer)
-        Debug.WriteLine($"🔄 Преместен ID: {childId} към Нов Родител ID: {newParentId}")
-        ' 1. Намираме записа в главния списък
-        Dim record = ListTokow.FirstOrDefault(Function(x) x.ID = childId)
-        If record IsNot Nothing Then
-            ' 2. Обновяваме родителската връзка
-            record.ParentID = newParentId
-            ' TODO: Тук по-късно ще добавим преизчисляване на суми
-            ' TODO: Тук ще извикаме treeManager.BuildTree() за визуално обновяване
+    ''' <param name="selectedItem">
+    ''' Избраният обект от дървовидната структура.
+    ''' </param>
+    Private Sub treeManager_ObjectSelected(ByVal selectedItem As strTokow
+                                           ) Handles treeManager.ObjectSelected
+        ' ТУК Е МОЗЪКЪТ!
+        ' Потребителят е кликнал в дървото и
+        ' избраният бизнес обект идва директно тук.
+        ' Запомняме текущото табло
+        selectedTablo = selectedItem.Tablo
+        ' Ако е избрано табло,
+        ' зареждаме неговите токови кръгове
+        If selectedItem.Device = "Табло" Then
+            FillDataGridViewForPanel()
         End If
     End Sub
-    ''' <summary>
-    ''' Извиква се, когато потребител кликне на възел
-    ''' </summary>
-    Private Sub OnNodeSelected(nodeId As Integer)
-        Debug.WriteLine($"👆 Избран ID: {nodeId}")
-        ' 1. Намираме записа
-        Dim record = ListTokow.FirstOrDefault(Function(x) x.ID = nodeId)
-        If record IsNot Nothing Then
-            ' TODO: Тук по-късно ще зареждаме DataGridView
-            ' FillDataGridViewForPanel(record.Tablo)
+    Private Sub treeManager_RequestMoveObject(source As strTokow,   ' ТОВА Е ДЕТЕТОДЕТЕТО (което местим)
+                                              target As strTokow    ' ТОВА Е РОДИТЕЛЯ (където го пускаме)
+                                              ) Handles treeManager.RequestMoveObject
+        ' 1. ЗАЩИТА ОТ ГРЕШКИ: Да не вкараме табло в самото него
+        If source.Tablo.ToUpper() = target.Tablo.ToUpper() Then Return
+        ' 2. ЗАПОМНЯМЕ СТАРИЯ РОДИТЕЛ: Взимаме името му, преди да сме го променили
+        Dim oldParentName As String = source.Табло_Родител
+        ' 3. КЛОНИРАНЕ ЗА БЕЗОПАСНОСТ: Правим независимо копие на ДЕТЕТО
+        Dim clonedChild As strTokow = source.Clone()
+        ' 4. СМЯНА НА ЖИТЕЛСТВОТО: Записваме новата йерархия в оригиналния обект
+        source.Табло_Родител = target.Tablo
+        source.BuildingName = target.BuildingName ' Уверяваме се, че и сградата съвпада
+        ' ========================================================================
+        ' 🔄 ВЕРИЖНА РЕАКЦИЯ НА ПРЕИЗЧИСЛЯВАНЕ (Семейството)
+        ' ========================================================================
+        ' Стъпка А: Ако е имало СТАР РОДИТЕЛ, той трябва да "олекне" и да се преизчисли
+        If Not String.IsNullOrEmpty(oldParentName) Then
+            ' Тук викаме твоя метод за преизчисляване на стария родител
+            BuildPanelSummaryRecord(oldParentName)
         End If
+        ' Стъпка Б: НОВИЯТ РОДИТЕЛ трябва да "натежи" - преизчисляваме го с новите данни
+        ' (Вътре в BuildPanelSummaryRecord той ще събере мощността на новото дете)
+        BuildPanelSummaryRecord(target.Tablo)
+        ' ========================================================================
+        ' 🎨 ОБНОВЯВАНЕ НА ИНТЕРФЕЙСА
+        ' ========================================================================
+        ' Казваме на мениджъра да нарисува дървото наново с новите позиции
+        treeManager.RefreshTree()
+        ' Опресняваме таблицата на екрана
+        FillDataGridViewForPanel()
     End Sub
 End Class

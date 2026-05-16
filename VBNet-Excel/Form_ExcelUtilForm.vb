@@ -6784,8 +6784,10 @@ Public Class Form_ExcelUtilForm
                     text = "НЕИЗВЕСТЕН ЕЛЕМЕНТ --> " + wsElboard.Cells(i, 12).Value
             End Select
             wsKol_Smetka.Cells(index, 2).Value = text
-            wsKol_Smetka.Cells(index, 3).Value = "бр."
-            wsKol_Smetka.Cells(index, 4).Value = wsElboard.Cells(i, 3).Value
+            If text <> "В т.ч. доставени и монтирани в таблото елементи:" Then
+                wsKol_Smetka.Cells(index, 3).Value = "бр."
+                wsKol_Smetka.Cells(index, 4).Value = wsElboard.Cells(i, 3).Value
+            End If
             index += 1
             Брой_Връзки_2 = Брой_Връзки_2 + wsElboard.Range("P" & i.ToString).Value
             Брой_Връзки_16 = Брой_Връзки_16 + wsElboard.Range("Q" & i.ToString).Value

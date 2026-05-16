@@ -50,7 +50,7 @@ Partial Class Form_Tablo_new
         Me.GroupBox2 = New System.Windows.Forms.GroupBox()
         Me.DataGridView1 = New System.Windows.Forms.DataGridView()
         Me.GroupBox1 = New System.Windows.Forms.GroupBox()
-        Me.TreeView1 = New System.Windows.Forms.TreeView()
+        Me.TreeView_Табло = New System.Windows.Forms.TreeView()
         Me.SplitContainer1 = New System.Windows.Forms.SplitContainer()
         Me.StatusStrip1.SuspendLayout()
         Me.ToolStrip1.SuspendLayout()
@@ -272,7 +272,7 @@ Partial Class Form_Tablo_new
         '
         'GroupBox1
         '
-        Me.GroupBox1.Controls.Add(Me.TreeView1)
+        Me.GroupBox1.Controls.Add(Me.TreeView_Табло)
         Me.GroupBox1.Dock = System.Windows.Forms.DockStyle.Fill
         Me.GroupBox1.Font = New System.Drawing.Font("Microsoft Sans Serif", 12.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.GroupBox1.Location = New System.Drawing.Point(0, 0)
@@ -282,13 +282,13 @@ Partial Class Form_Tablo_new
         Me.GroupBox1.TabStop = False
         Me.GroupBox1.Text = "Изберете табло"
         '
-        'TreeView1
+        'TreeView_Табло
         '
-        Me.TreeView1.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.TreeView1.Location = New System.Drawing.Point(3, 22)
-        Me.TreeView1.Name = "TreeView1"
-        Me.TreeView1.Size = New System.Drawing.Size(194, 805)
-        Me.TreeView1.TabIndex = 0
+        Me.TreeView_Табло.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.TreeView_Табло.Location = New System.Drawing.Point(3, 22)
+        Me.TreeView_Табло.Name = "TreeView_Табло"
+        Me.TreeView_Табло.Size = New System.Drawing.Size(194, 805)
+        Me.TreeView_Табло.TabIndex = 0
         '
         'SplitContainer1
         '
@@ -351,7 +351,7 @@ Partial Class Form_Tablo_new
     Friend WithEvents ToolStripProgressBar1 As Windows.Forms.ToolStripProgressBar
     Friend WithEvents ToolStripButton_Балансирай_фазите As Windows.Forms.ToolStripButton
     Friend WithEvents GroupBox1 As Windows.Forms.GroupBox
-    Friend WithEvents TreeView1 As Windows.Forms.TreeView
+    Friend WithEvents TreeView_Табло As Windows.Forms.TreeView
     Friend WithEvents GroupBox2 As Windows.Forms.GroupBox
     Friend WithEvents DataGridView1 As Windows.Forms.DataGridView
     Friend WithEvents ToolStripSeparator1 As Windows.Forms.ToolStripSeparator

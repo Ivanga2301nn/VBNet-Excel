@@ -26,9 +26,11 @@ Public Class Form_Tablo_new_TreeViewManager
     Private Const ICON_BUILDING As String = "🏢"     ' Иконка за сграда
     Private Const ICON_PANEL As String = "🗄️"        ' Иконка за табло
     Private Const ICON_CIRCUITS As String = "🔵"     ' Иконка за токов кръг
+    Private Const ICON_FOLDER As String = "📂"        ' New: Иконка за папката с токови кръгове
     Private Const LABEL_CIRCUITS As String = "ТК"    ' Кратък етикет за токов кръг
     Private Const POWER_UNIT As String = "kW"        ' Единица за мощност
-    Private Const DECIMAL_PLACES As Integer = 2     ' Брой знаци след десетичната запетая при визуализация.
+    Private Const DECIMAL_PLACES As Integer = 2      ' Брой знаци след десетичната запетая при визуализация.
+
     ''' <summary>
     ''' Форматира текста на възел за табло.
     ''' Добавя иконка и обща мощност.
@@ -276,25 +278,17 @@ Public Class Form_Tablo_new_TreeViewManager
                 End If
             Next
         Finally
-            ' =============================================================
-            ' ФИНАЛНА ВИЗУАЛНА ОРГАНИЗАЦИЯ НА ДЪРВОТО
-            ' =============================================================
-            ' <summary>
-            ' CollapseAll:
-            ' Свива всички възли в TreeView.
-            ' </summary>
+            ' 1. Свиваме АБСОЛЮТНО ВСИЧКО
             _tv.CollapseAll()
-            ' <summary>
-            ' Разгъване само на root нивото (сградите),
-            ' за да се покаже първо структурното ниво на проекта.
-            ' </summary>
+            ' 2. Разгъваме САМО сградите (root ниво)
             For Each rootNode As TreeNode In _tv.Nodes
                 rootNode.Expand()
+                ' 3. Експлицитно гарантираме, че всички табла (и тяхното съдържание) остават свити
+                For Each panelNode As TreeNode In rootNode.Nodes
+                    panelNode.Collapse()
+                Next
             Next
-            ' <summary>
-            ' EndUpdate възстановява визуалното обновяване
-            ' и показва финалната структура наведнъж.
-            ' </summary>
+            ' 4. Връщаме визуалното обновяване
             _tv.EndUpdate()
         End Try
     End Sub
@@ -430,4 +424,5 @@ Public Class Form_Tablo_new_TreeViewManager
             End If
         End If
     End Sub
+
 End Class

@@ -1661,10 +1661,7 @@ Public Class Form_Tablo_new
             New strMountMethod With {.Simbol = "F", .Text = "Многож. скара"},
             New strMountMethod With {.Simbol = "G", .Text = "Свободен въздух"}
             }
-        ' 1. От Символ към Текст (за запълване на таблицата)
-        ' Return mountMethod.FirstOrDefault(Function(m) m.Simbol = simbol).Text
-        ' 2. От Текст към Символ (ако ти трябва да разбереш кода при избран елемент в UI)
-        ' Return mountMethod.FirstOrDefault(Function(m) m.Text = Text).Simbol
+        ' каталога с реални данни от Schneider Electric TeSys D
         Catalog_Contactor = LoadContactorCatalog()
         ' Добавяне на записи за серия GV2-ME
         GV_Database.Add(New GV_Entry(0.1, 0.16, "GV2-ME", "<0,06kW", "0.1-0.16A"))
@@ -1710,7 +1707,6 @@ Public Class Form_Tablo_new
             {60, 0.9}
         }
     })
-
         ' LC1D12 - 12A AC-3
         catalog.Add("LC1D12", New ContactorEntry With {
         .PartNumber = "LC1D12",
@@ -1729,7 +1725,6 @@ Public Class Form_Tablo_new
             {60, 0.9}
         }
     })
-
         ' LC1D18 - 18A AC-3
         catalog.Add("LC1D18", New ContactorEntry With {
         .PartNumber = "LC1D18",
@@ -1748,7 +1743,6 @@ Public Class Form_Tablo_new
             {60, 0.9}
         }
     })
-
         ' LC1D25 - 25A AC-3
         catalog.Add("LC1D25", New ContactorEntry With {
         .PartNumber = "LC1D25",
@@ -1767,7 +1761,6 @@ Public Class Form_Tablo_new
             {60, 0.9}
         }
     })
-
         ' LC1D32 - 32A AC-3
         catalog.Add("LC1D32", New ContactorEntry With {
         .PartNumber = "LC1D32",
@@ -1786,7 +1779,6 @@ Public Class Form_Tablo_new
             {60, 0.9}
         }
     })
-
         ' LC1D38 - 38A AC-3
         catalog.Add("LC1D38", New ContactorEntry With {
         .PartNumber = "LC1D38",
@@ -1805,7 +1797,6 @@ Public Class Form_Tablo_new
             {60, 0.9}
         }
     })
-
         ' LC1D50 - 50A AC-3
         catalog.Add("LC1D50", New ContactorEntry With {
         .PartNumber = "LC1D50",
@@ -1824,7 +1815,6 @@ Public Class Form_Tablo_new
             {60, 0.9}
         }
     })
-
         Return catalog
     End Function
     Private Sub FillCables()
@@ -3003,7 +2993,7 @@ Public Class Form_Tablo_new
                 ' реален индекс на колоната в DataGridView
                 '
                 ' +2 означава, че първите 2 колони са резервирани
-                ' (например: параметър + описание)
+                ' (параметър + описание)
                 ' </summary>
                 Dim colIndex As Integer = i + 2
                 ' <summary>
@@ -4895,12 +4885,24 @@ Public Class Form_Tablo_new
     ''' - намиране или създаване на запис "ОБЩО"
     ''' - изчисляване на ток и избор на апаратура
     ''' </summary>
-    Private Sub BuildPanelSummaryRecord(tabloName As String)
+    Private Sub BuildPanelSummaryRecord(tabloName As String ' Табло което обработваме
+                                        )
         ' Взима всички кръгове за текущото табло без вече съществуващите "ОБЩО"
+        'Dim panelCircuits As List(Of strTokow) = ListTokow.Where(Function(t)
+        '                                                             Return t.Tablo = tabloName AndAlso
+        '                                                          t.ТоковКръг <> "ОБЩО"
+        '                                                         End Function).ToList()
+
+        'Dim panelCircuits As List(Of strTokow) = ListTokow.Where(Function(t)
+        '                                                             Return (t.Tablo = tabloName OrElse t.BuildingName = tabloName) AndAlso
+        '                                                            t.ТоковКръг <> "ОБЩО"
+        '                                                         End Function).ToList()
+        ' Взима собствените кръгове на таблото И записите "ОБЩО" на неговите подтабла
         Dim panelCircuits As List(Of strTokow) = ListTokow.Where(Function(t)
-                                                                     Return t.Tablo = tabloName AndAlso
-                                                                  t.ТоковКръг <> "ОБЩО"
+                                                                     Return (t.Tablo = tabloName AndAlso t.ТоковКръг <> "ОБЩО") OrElse
+                                                                    (t.Табло_Родител = tabloName AndAlso t.ТоковКръг = "ОБЩО")
                                                                  End Function).ToList()
+
         ' Ако няма кръгове, прекратяваме обработката
         If panelCircuits.Count = 0 Then Exit Sub
         ' Обща мощност на таблото
@@ -4930,6 +4932,7 @@ Public Class Form_Tablo_new
         End If
         ' Попълване на обобщените данни
         With totalTokow
+            .BuildingName = panelCircuits(0).BuildingName
             .Device = "Табло"
             .Tablo = tabloName
             .ТоковКръг = "ОБЩО"
@@ -5075,17 +5078,13 @@ Public Class Form_Tablo_new
     Private Sub treeManager_ObjectSelected(ByVal selectedItem As strTokow
                                            ) Handles treeManager.ObjectSelected
         ' ТУК Е МОЗЪКЪТ!
-        ' Потребителят е кликнал в дървото и
-        ' избраният бизнес обект идва директно тук.
-        ' Запомняме текущото табло
+
         selectedTablo = selectedItem.Tablo
-        ' Ако е избрано табло,
-        ' зареждаме неговите токови кръгове
         If selectedItem.Device = "Табло" Then
             FillDataGridViewForPanel()
         End If
     End Sub
-    Private Sub treeManager_RequestMoveObject(source As strTokow,   ' ТОВА Е ДЕТЕТОДЕТЕТО (което местим)
+    Private Sub treeManager_RequestMoveObject(source As strTokow,   ' ТОВА Е ДЕТЕТО (което местим)
                                               target As strTokow    ' ТОВА Е РОДИТЕЛЯ (където го пускаме)
                                               ) Handles treeManager.RequestMoveObject
         ' 1. ЗАЩИТА ОТ ГРЕШКИ: Да не вкараме табло в самото него

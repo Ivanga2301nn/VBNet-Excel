@@ -215,6 +215,7 @@ Public Class Form_ExcelUtilForm
             ' Ако Обект е празен, а Място не е – използваме само Място
             Obekt = Място
         End If
+        Return Obekt
     End Function
     Public Function CorrectText(Text As String) As String
         Do

@@ -196,165 +196,99 @@ Public Class Form_Tablo_new_TreeViewManager
     ' - да поддържа йерархия: Сграда → Табло → Табло (вложено) → Консуматори
     ' </summary>
     Public Sub RefreshTree()
-        ' <summary>
-        ' BeginUpdate спира визуалното обновяване на TreeView-а,
-        ' за да се избегне трептене и да се подобри производителността
-        ' при масово добавяне/изтриване на възли.
-        ' </summary>
         _tv.BeginUpdate()
-        ' <summary>
-        ' Изчистване на текущата дървовидна структура.
-        ' Това гарантира, че всяко извикване започва от "чисто състояние".
-        ' </summary>
         _tv.Nodes.Clear()
-        Try
-            ' =============================================================
-            ' Речници за бърз достъп до вече създадени възли
-            ' =============================================================
-            ' <summary>
-            ' buildingNodes:
-            ' Ключ: име на сграда (String)
-            ' Стойност: TreeNode, представляващ съответната сграда в TreeView
-            '
-            ' Използва се за:
-            ' - предотвратяване на дублиране на сгради
-            ' - бързо намиране на root node за дадена сграда
-            ' </summary>
-            Dim buildingNodes As New Dictionary(Of String, TreeNode)
-            ' <summary>
-            ' allTabloNodes:
-            ' Ключ: уникален идентификатор "Сграда_Табло"
-            ' Стойност: TreeNode за конкретно табло
-            '
-            ' Използва се за:
-            ' - гарантиране на уникалност на таблата
-            ' - позволяване на вложени табла (табло в табло)
-            ' - бърз достъп при добавяне на консуматори
-            ' </summary>
-            Dim allTabloNodes As New Dictionary(Of String, TreeNode)
-            ' =============================================================
-            ' 1. ПЪРВИ ПАС: Създаване на възлите за СГРАДИ
-            ' =============================================================
-            ' <summary>
-            ' Обхождаме всички елементи в _listTokow, за да създадем
-            ' уникален набор от сгради (root nodes).
-            ' </summary>
-            ' =============================================================
-            ' 1. ПЪРВИ ПАС: Създаване на възлите за СГРАДИ
-            ' =============================================================
-            For Each item In _listTokow
-                ' Заменяме "Обект" с динамичната променлива от формата
-                Dim bName = If(String.IsNullOrWhiteSpace(item.BuildingName), Form_Tablo_new.ROOT_NODE_TEXT, item.BuildingName)
 
+        Try
+            ' Речници със защита от разлики в главни/малки букви
+            Dim buildingNodes As New Dictionary(Of String, TreeNode)(StringComparer.OrdinalIgnoreCase)
+            Dim allTabloNodes As New Dictionary(Of String, TreeNode)(StringComparer.OrdinalIgnoreCase)
+            Dim tabloToBuilding As New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase)
+            Dim tabloToParent As New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase)
+
+            ' 1. ПЪРВИ ПАС: Създаване на СГРАДИ
+            For Each item In _listTokow
+                Dim bName = If(String.IsNullOrWhiteSpace(item.BuildingName), Form_Tablo_new.ROOT_NODE_TEXT, item.BuildingName.Trim())
                 If Not buildingNodes.ContainsKey(bName) Then
                     Dim bNode As New TreeNode($"{ICON_BUILDING} {bName}")
                     _tv.Nodes.Add(bNode)
                     buildingNodes.Add(bName, bNode)
                 End If
             Next
-            ' =============================================================
-            ' 2. ВТОРИ ПАС: Създаване на уникални ТАБЛА (без йерархия)
-            ' =============================================================
-            ' <summary>
-            ' В този пас се създават всички възли от тип "Табло",
-            ' но без да се подреждат в дървото.
-            '
-            ' Причина:
-            ' - първо се гарантира уникалност
-            ' - после се прави йерархично свързване (в 3-ти пас)
-            ' </summary>
+
+            ' 2. ВТОРИ ПАС: Създаване на ТАБЛА
             For Each item In _listTokow
-                If item.Device = "Табло" Then
-                    ' <summary>
-                    ' tabloKey:
-                    ' Уникален ключ за табло в рамките на сграда.
-                    '
-                    ' Формат:
-                    ' "Сграда_Табло"
-                    '
-                    ' Това предотвратява конфликт при:
-                    ' - еднакви имена на табла в различни сгради
-                    ' </summary>
-                    Dim tabloKey = item.BuildingName & "_" & item.Tablo
+                If item.Device IsNot Nothing AndAlso item.Device.Trim().Equals("Табло", StringComparison.OrdinalIgnoreCase) Then
+                    Dim bName = If(String.IsNullOrWhiteSpace(item.BuildingName), Form_Tablo_new.ROOT_NODE_TEXT, item.BuildingName.Trim())
+                    Dim tName = If(item.Tablo Is Nothing, "", item.Tablo.Trim())
+                    Dim tabloKey = bName & "_" & tName
+
                     If Not allTabloNodes.ContainsKey(tabloKey) Then
-                        ' <summary>
-                        ' Създаване на TreeNode за табло.
-                        '
-                        ' FormatPanelText(item):
-                        ' централен шаблон за визуализация:
-                        ' - икона
-                        ' - име
-                        ' - формат/десетични знаци
-                        ' </summary>
                         Dim tNode As New TreeNode(FormatPanelText(item))
-                        ' <summary>
-                        ' Tag:
-                        ' Съхранява оригиналния обект item,
-                        ' за да може по-късно да се извлича логика/данни
-                        ' при селекция в TreeView.
-                        ' </summary>
                         tNode.Tag = item
                         allTabloNodes(tabloKey) = tNode
+                        tabloToBuilding(tabloKey) = bName
+                        tabloToParent(tabloKey) = ""
+                    End If
+
+                    ' Записваме родителя, ако съществува
+                    If Not String.IsNullOrWhiteSpace(item.Табло_Родител) AndAlso item.Табло_Родител.Trim() <> Form_Tablo_new.ROOT_NODE_TEXT Then
+                        tabloToParent(tabloKey) = bName & "_" & item.Табло_Родител.Trim()
                     End If
                 End If
             Next
-            ' =============================================================
-            ' 3. ТРЕТИ ПАС: ЙЕРАРХИЧНО ПОДРЕЖДАНЕ НА ТАБЛАТА
-            ' =============================================================
-            For Each item In _listTokow
-                If item.Device = "Табло" Then ' (Забележка: провери дали е "Табло" или "Taбло" с латинско 'a')
-                    Dim tabloKey = item.BuildingName & "_" & item.Tablo
-                    Dim currentNode = allTabloNodes(tabloKey)
 
-                    If currentNode.Parent IsNot Nothing Then Continue For
+            ' 3. ТРЕТИ ПАС: ЙЕРАРХИЧНО СВЪРЗВАНЕ
+            For Each tabloKey In allTabloNodes.Keys
+                Dim currentNode = allTabloNodes(tabloKey)
+                Dim parentKey = tabloToParent(tabloKey)
+                Dim bName = tabloToBuilding(tabloKey)
 
-                    If Not String.IsNullOrEmpty(item.Табло_Родител) Then
-                        Dim parentKey = item.BuildingName & "_" & item.Табло_Родител
-                        If allTabloNodes.ContainsKey(parentKey) Then
-                            allTabloNodes(parentKey).Nodes.Add(currentNode)
-                        End If
-                    Else
-                        ' Заменяме "Обект" с динамичната променлива от формата и тук
-                        Dim bName = If(String.IsNullOrWhiteSpace(item.BuildingName), Form_Tablo_new.ROOT_NODE_TEXT, item.BuildingName)
+                ' А) Има родител-табло -> закачаме го към него
+                If Not String.IsNullOrEmpty(parentKey) AndAlso parentKey <> tabloKey AndAlso allTabloNodes.ContainsKey(parentKey) Then
+                    allTabloNodes(parentKey).Nodes.Add(currentNode)
+
+                    ' Б) Това е "Гл.Р.Т." -> закачаме го директно към Сградата
+                ElseIf tabloKey.EndsWith("_Гл.Р.Т.", StringComparison.OrdinalIgnoreCase) Then
+                    If buildingNodes.ContainsKey(bName) Then
+                        buildingNodes(bName).Nodes.Add(currentNode)
+                    End If
+
+                    ' В) Други табла без родител -> закачаме ги към Гл.Р.Т. на същата сграда
+                Else
+                    Dim glrtKey = bName & "_Гл.Р.Т."
+                    If allTabloNodes.ContainsKey(glrtKey) Then
+                        allTabloNodes(glrtKey).Nodes.Add(currentNode)
+                    ElseIf buildingNodes.ContainsKey(bName) Then
                         buildingNodes(bName).Nodes.Add(currentNode)
                     End If
                 End If
             Next
-            ' =============================================================
-            ' 4. ЧЕТВЪРТИ ПАС: ДОБАВЯНЕ НА КОНСУМАТОРИ (КРЪГОВЕ)
-            ' =============================================================
-            ' <summary>
-            ' В този етап се добавят всички елементи,
-            ' които НЕ са "Табло" → т.е. консуматори / токови кръгове.
-            ' </summary>
+
+            ' 4. ЧЕТВЪРТИ ПАС: ДОБАВЯНЕ НА КОНСУМАТОРИ
             For Each item In _listTokow
-                If item.Device <> "Табло" Then
-                    Dim tabloKey = item.BuildingName & "_" & item.Tablo
+                If item.Device Is Nothing OrElse Not item.Device.Trim().Equals("Табло", StringComparison.OrdinalIgnoreCase) Then
+                    Dim bName = If(String.IsNullOrWhiteSpace(item.BuildingName), Form_Tablo_new.ROOT_NODE_TEXT, item.BuildingName.Trim())
+                    Dim tName = If(item.Tablo Is Nothing, "", item.Tablo.Trim())
+                    Dim tabloKey = bName & "_" & tName
+
                     If allTabloNodes.ContainsKey(tabloKey) Then
-                        ' <summary>
-                        ' Създаване на възел за токов кръг (консуматор).
-                        '
-                        ' FormatCircuitText(item):
-                        ' шаблон за визуализация на електрически кръг
-                        ' </summary>
                         Dim cNode As New TreeNode(FormatCircuitText(item))
                         cNode.Tag = item
                         allTabloNodes(tabloKey).Nodes.Add(cNode)
                     End If
                 End If
             Next
+
         Finally
-            ' 1. Свиваме АБСОЛЮТНО ВСИЧКО
             _tv.CollapseAll()
-            ' 2. Разгъваме САМО сградите (root ниво)
             For Each rootNode As TreeNode In _tv.Nodes
                 rootNode.Expand()
-                ' 3. Експлицитно гарантираме, че всички табла (и тяхното съдържание) остават свити
+                ' Свиваме всички табла, за да е прегледно дървото
                 For Each panelNode As TreeNode In rootNode.Nodes
                     panelNode.Collapse()
                 Next
             Next
-            ' 4. Връщаме визуалното обновяване
             _tv.EndUpdate()
         End Try
     End Sub

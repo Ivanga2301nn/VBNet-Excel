@@ -30,10 +30,13 @@ Public Class Form_Tablo_new_TreeViewManager
     Private Const LABEL_CIRCUITS As String = "ТК"    ' Кратък етикет за токов кръг
     Private Const POWER_UNIT As String = "kW"        ' Единица за мощност
     Private Const DECIMAL_PLACES As Integer = 2      ' Брой знаци след десетичната запетая при визуализация.
+    ' ========================================================================
+    ' 🖱️ КОНТЕКСТНО МЕНЮ (ДЕ СЕН БУТОН)
+    ' ========================================================================
+    Private WithEvents _contextMenu As ContextMenuStrip
     ' Дефинираме максималното ниво на разгъване. 
     ' За момента е 0 (само сградите), но лесно можеш да го промениш на 1, 2 или 3.
     Private MaxExpandLevel As Integer = 0
-    Private WithEvents _contextMenu As ContextMenuStrip
     ''' <summary>
     ''' Форматира текста на възел за табло.
     ''' Добавя иконка и обща мощност.
@@ -84,6 +87,96 @@ Public Class Form_Tablo_new_TreeViewManager
         AddHandler _tv.DragEnter, AddressOf HandleDragEnter
         AddHandler _tv.DragOver, AddressOf HandleDragOver
         AddHandler _tv.DragDrop, AddressOf HandleDragDrop
+        ' Инициализиране на менюто за десен бутон
+        InitializeContextMenu()
+    End Sub
+    ' ========================================================================
+    ' Метод: InitializeContextMenu
+    ' ========================================================================
+    ''' <summary>
+    ''' Конструира елементите на контекстното меню и го обвързва с TreeView контролата.
+    ''' </summary>
+    Private Sub InitializeContextMenu()
+        _contextMenu = New ContextMenuStrip()
+
+        ' Създаване на бутони с иконки и шаблони за управление
+        Dim menuAddPanel As New ToolStripMenuItem("➕ Добави под-табло", Nothing, AddressOf MenuAddPanel_Click)
+        Dim menuDelete As New ToolStripMenuItem("❌ Изтрий избран елемент", Nothing, AddressOf MenuDelete_Click)
+        Dim menuSeparator As New ToolStripSeparator()
+        Dim menuExpandAll As New ToolStripMenuItem("📂 Разгъни всичко", Nothing, AddressOf MenuExpandAll_Click)
+        Dim menuCollapseAll As New ToolStripMenuItem("📁 Свий всичко", Nothing, AddressOf MenuCollapseAll_Click)
+
+        ' Набиване на елементите в менюто
+        _contextMenu.Items.Add(menuAddPanel)
+        _contextMenu.Items.Add(menuDelete)
+        _contextMenu.Items.Add(menuSeparator)
+        _contextMenu.Items.Add(menuExpandAll)
+        _contextMenu.Items.Add(menuCollapseAll)
+
+        ' Закачане на менюто към твоя TreeView (_tv)
+        _tv.ContextMenuStrip = _contextMenu
+        AddHandler _tv.NodeMouseClick, AddressOf _tv_NodeMouseClick
+    End Sub
+    ' ========================================================================
+    ' Контекстни команди (Действия при клик)
+    ' ========================================================================
+    Private Sub MenuAddPanel_Click(sender As Object, e As EventArgs)
+        Dim selectedNode = _tv.SelectedNode
+        If selectedNode IsNot Nothing Then
+            Dim currentItem As Form_Tablo_new.strTokow = TryCast(selectedNode.Tag, Form_Tablo_new.strTokow)
+            If currentItem IsNot Nothing Then
+                MessageBox.Show($"Тук ще добавим ново табло, чийто родител ще бъде: {currentItem.Tablo}")
+                ' След добавяне в _listTokow ще викаме твоя RefreshTree()
+            End If
+        End If
+    End Sub
+    Private Sub MenuDelete_Click(sender As Object, e As EventArgs)
+        Dim selectedNode = _tv.SelectedNode
+        If selectedNode IsNot Nothing Then
+            ' Ако е папка "Токови кръгове", тя няма Tag, но таблата и кръговете имат
+            Dim labelText As String = selectedNode.Text
+            Dim result = MessageBox.Show($"Сигурни ли сте, че искате да изтриете {labelText}?", "Потвърждение", MessageBoxButtons.YesNo, MessageBoxIcon.Warning)
+
+            If result = DialogResult.Yes Then
+                ' Логика за триене от _listTokow и обновяване на дървото
+                RefreshTree()
+            End If
+        End If
+    End Sub
+    Private Sub MenuExpandAll_Click(sender As Object, e As EventArgs)
+        _tv.BeginUpdate()
+        _tv.ExpandAll()
+        _tv.EndUpdate()
+    End Sub
+    Private Sub MenuCollapseAll_Click(sender As Object, e As EventArgs)
+        _tv.BeginUpdate()
+        _tv.CollapseAll()
+        ' Прилагаме динамичното свиване/разгъване, което направихме, 
+        ' за да се отворят само сградите (Ниво 0)
+        For Each rootNode As TreeNode In _tv.Nodes
+            ExpandNodesToLevel(rootNode, MaxExpandLevel)
+        Next
+        _tv.EndUpdate()
+    End Sub
+    ' ========================================================================
+    ' Събитие: _tv_NodeMouseClick
+    ' ========================================================================
+    ''' <summary>
+    ''' Гарантира, че десният клик маркира възела под мишката и управлява видимостта на бутоните.
+    ''' </summary>
+    Private Sub _tv_NodeMouseClick(sender As Object, e As TreeNodeMouseClickEventArgs)
+
+        If e.Button = MouseButtons.Right Then
+            ' Автоматично селектираме възела, върху който е кликнато
+            _tv.SelectedNode = e.Node
+
+            ' Проверка дали маркираният възел е реално Табло (чрез Tag структурата ти)
+            Dim currentItem As Form_Tablo_new.strTokow = TryCast(e.Node.Tag, Form_Tablo_new.strTokow)
+            Dim isPanel As Boolean = (currentItem IsNot Nothing AndAlso currentItem.Device = "Табло")
+
+            ' Защита: Бутонът "Добави под-табло" е активен САМО ако сме кликнали върху Табло
+            _contextMenu.Items(0).Enabled = isPanel
+        End If
     End Sub
     ' =============================================================
     ' Процедура: RefreshTree
@@ -146,30 +239,16 @@ Public Class Form_Tablo_new_TreeViewManager
             ' Обхождаме всички елементи в _listTokow, за да създадем
             ' уникален набор от сгради (root nodes).
             ' </summary>
+            ' =============================================================
+            ' 1. ПЪРВИ ПАС: Създаване на възлите за СГРАДИ
+            ' =============================================================
             For Each item In _listTokow
-                ' <summary>
-                ' bName:
-                ' Нормализирано име на сграда.
-                ' Ако BuildingName е празно или whitespace → използва "Обект"
-                '
-                ' Това гарантира:
-                ' - че няма "празни" корени в TreeView
-                ' - че всеки елемент винаги принадлежи към някакъв root
-                ' </summary>
-                Dim bName = If(String.IsNullOrWhiteSpace(item.BuildingName), "Обект", item.BuildingName)
-                ' <summary>
-                ' Проверка за дублиране:
-                ' Ако сградата вече съществува, не я създаваме повторно.
-                ' </summary>
+                ' Заменяме "Обект" с динамичната променлива от формата
+                Dim bName = If(String.IsNullOrWhiteSpace(item.BuildingName), Form_Tablo_new.ROOT_NODE_TEXT, item.BuildingName)
+
                 If Not buildingNodes.ContainsKey(bName) Then
-                    ' <summary>
-                    ' Създаване на TreeNode за сграда.
-                    ' ICON_BUILDING е визуален индикатор (икона/символ).
-                    ' </summary>
                     Dim bNode As New TreeNode($"{ICON_BUILDING} {bName}")
-                    ' Добавяне към TreeView root ниво
                     _tv.Nodes.Add(bNode)
-                    ' Съхраняване в речника за бъдеща референция
                     buildingNodes.Add(bName, bNode)
                 End If
             Next
@@ -222,37 +301,21 @@ Public Class Form_Tablo_new_TreeViewManager
             ' =============================================================
             ' 3. ТРЕТИ ПАС: ЙЕРАРХИЧНО ПОДРЕЖДАНЕ НА ТАБЛАТА
             ' =============================================================
-            ' <summary>
-            ' Тук вече се определя къде точно отива всяко табло:
-            ' - в друго табло (вложена структура)
-            ' - или директно под сграда
-            ' </summary>
             For Each item In _listTokow
-                If item.Device = "Табло" Then
+                If item.Device = "Табло" Then ' (Забележка: провери дали е "Табло" или "Taбло" с латинско 'a')
                     Dim tabloKey = item.BuildingName & "_" & item.Tablo
                     Dim currentNode = allTabloNodes(tabloKey)
-                    ' <summary>
-                    ' Защита срещу дублирано закачане:
-                    ' Ако node вече има родител → пропускаме
-                    ' (предотвратява многократно добавяне)
-                    ' </summary>
+
                     If currentNode.Parent IsNot Nothing Then Continue For
-                    ' <summary>
-                    ' Проверка за родителско табло:
-                    ' item.Табло_Родител съдържа име на "родителско" табло
-                    ' </summary>
+
                     If Not String.IsNullOrEmpty(item.Табло_Родител) Then
                         Dim parentKey = item.BuildingName & "_" & item.Табло_Родител
                         If allTabloNodes.ContainsKey(parentKey) Then
-                            ' Вложено табло → добавяне под родителя
                             allTabloNodes(parentKey).Nodes.Add(currentNode)
                         End If
                     Else
-                        ' <summary>
-                        ' Ако няма родител:
-                        ' таблото се добавя директно под съответната сграда
-                        ' </summary>
-                        Dim bName = If(String.IsNullOrWhiteSpace(item.BuildingName), "Обект", item.BuildingName)
+                        ' Заменяме "Обект" с динамичната променлива от формата и тук
+                        Dim bName = If(String.IsNullOrWhiteSpace(item.BuildingName), Form_Tablo_new.ROOT_NODE_TEXT, item.BuildingName)
                         buildingNodes(bName).Nodes.Add(currentNode)
                     End If
                 End If

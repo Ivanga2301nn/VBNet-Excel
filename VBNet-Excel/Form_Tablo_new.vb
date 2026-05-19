@@ -294,7 +294,7 @@ Public Class Form_Tablo_new
     ' КОНСТАНТИ & ПРОМЕНЛИВИ ЗА ВИЗУАЛНА МАРКИРОВКА
     ' ─────────────────────────────────────────────────────────────
     ' Friend, за да може TreeViewManager-ът да я чете
-    Friend ROOT_NODE_TEXT As String = "Гл.Р.Т."
+    Friend Shared ROOT_NODE_TEXT As String = "Гл.Р.Т."
     Private highlightNode As TreeNode = Nothing
     Private originalBackColor As Color = SystemColors.Window
     Private originalForeColor As Color = SystemColors.WindowText
@@ -2505,6 +2505,8 @@ Public Class Form_Tablo_new
                     tokow.ДТЗ_RCD = True
                     tokow.RCD_Автомат = True
                     tokow.Device = "Бойлер"
+                Else
+                    tokow.Device = "Консуматор"
                 End If
         End Select
     End Sub
@@ -2576,8 +2578,8 @@ Public Class Form_Tablo_new
             ' ----------------------------------------------------
             ' Избираме кабел според изчисления ток и брой полюси
             ' ----------------------------------------------------
-            tokow.BuildingName = fullBuildingName
             CalculateCable(tokow)
+            tokow.BuildingName = fullBuildingName
         Next
         ' ═══════════════════════════════════════════════════════════
         ' 7) ДОБАВИ ЗАПИС ЗА ОБЩОТО НА ТАБЛОТО
@@ -4886,16 +4888,6 @@ Public Class Form_Tablo_new
     ''' </summary>
     Private Sub BuildPanelSummaryRecord(tabloName As String ' Табло което обработваме
                                         )
-        ' Взима всички кръгове за текущото табло без вече съществуващите "ОБЩО"
-        'Dim panelCircuits As List(Of strTokow) = ListTokow.Where(Function(t)
-        '                                                             Return t.Tablo = tabloName AndAlso
-        '                                                          t.ТоковКръг <> "ОБЩО"
-        '                                                         End Function).ToList()
-
-        'Dim panelCircuits As List(Of strTokow) = ListTokow.Where(Function(t)
-        '                                                             Return (t.Tablo = tabloName OrElse t.BuildingName = tabloName) AndAlso
-        '                                                            t.ТоковКръг <> "ОБЩО"
-        '                                                         End Function).ToList()
         ' Взима собствените кръгове на таблото И записите "ОБЩО" на неговите подтабла
         Dim panelCircuits As List(Of strTokow) = ListTokow.Where(Function(t)
                                                                      Return (t.Tablo = tabloName AndAlso t.ТоковКръг <> "ОБЩО") OrElse
@@ -4932,6 +4924,7 @@ Public Class Form_Tablo_new
         ' Попълване на обобщените данни
         With totalTokow
             .BuildingName = panelCircuits(0).BuildingName
+            .Табло_Родител = ROOT_NODE_TEXT
             .Device = "Табло"
             .Tablo = tabloName
             .ТоковКръг = "ОБЩО"
@@ -4940,7 +4933,6 @@ Public Class Form_Tablo_new
             .Фаза = totalPhase
             .brLamp = totalLamps
             .brKontakt = totalContacts
-            .Табло_Родител = ""
             If .Tablo = ROOT_NODE_TEXT Then
                 .Консуматор = "Ке="
                 .предназначение = "Рпр.=15кW"

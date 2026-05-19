@@ -218,7 +218,6 @@ Public Class Form_Tablo_new
     Private ListKonsumator As New List(Of strKonsumator)
     ' Списък за токовите кръгове
     Dim ListTokow As New List(Of strTokow)
-
     ' ✅ МЕНИДЖЪРЪТ ТРЯБВА ДА Е ГЛОБАЛЕН ЗА ФОРМАТА
     Private WithEvents treeManager As Form_Tablo_new_TreeViewManager
 
@@ -294,7 +293,8 @@ Public Class Form_Tablo_new
     ' ─────────────────────────────────────────────────────────────
     ' КОНСТАНТИ & ПРОМЕНЛИВИ ЗА ВИЗУАЛНА МАРКИРОВКА
     ' ─────────────────────────────────────────────────────────────
-    Private ROOT_NODE_TEXT As String = "Гл.Р.Т."
+    ' Friend, за да може TreeViewManager-ът да я чете
+    Friend ROOT_NODE_TEXT As String = "Гл.Р.Т."
     Private highlightNode As TreeNode = Nothing
     Private originalBackColor As Color = SystemColors.Window
     Private originalForeColor As Color = SystemColors.WindowText
@@ -4781,7 +4781,6 @@ Public Class Form_Tablo_new
                     'Case Keys.X
                     '    CutToolStripButton_Click(sender, e)
                     '    e.Handled = True
-
             End Select
         End If
     End Sub
@@ -5077,8 +5076,6 @@ Public Class Form_Tablo_new
     ''' </param>
     Private Sub treeManager_ObjectSelected(ByVal selectedItem As strTokow
                                            ) Handles treeManager.ObjectSelected
-        ' ТУК Е МОЗЪКЪТ!
-
         selectedTablo = selectedItem.Tablo
         If selectedItem.Device = "Табло" Then
             FillDataGridViewForPanel()

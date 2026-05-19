@@ -30,7 +30,10 @@ Public Class Form_Tablo_new_TreeViewManager
     Private Const LABEL_CIRCUITS As String = "ТК"    ' Кратък етикет за токов кръг
     Private Const POWER_UNIT As String = "kW"        ' Единица за мощност
     Private Const DECIMAL_PLACES As Integer = 2      ' Брой знаци след десетичната запетая при визуализация.
-
+    ' Дефинираме максималното ниво на разгъване. 
+    ' За момента е 0 (само сградите), но лесно можеш да го промениш на 1, 2 или 3.
+    Private MaxExpandLevel As Integer = 0
+    Private WithEvents _contextMenu As ContextMenuStrip
     ''' <summary>
     ''' Форматира текста на възел за табло.
     ''' Добавя иконка и обща мощност.
@@ -293,6 +296,22 @@ Public Class Form_Tablo_new_TreeViewManager
         End Try
     End Sub
     ''' <summary>
+    ''' Контролирано разгъва TreeView структурата до определено ниво в дълбочина.
+    ''' </summary>
+    Private Sub ExpandNodesToLevel(node As TreeNode, maxLevel As Integer)
+        ' Ако текущото ниво е в разрешения диапазон, разгъваме възела
+        If node.Level <= maxLevel Then
+            node.Expand()
+            ' Рекурсивно проверяваме и разгъваме децата му
+            For Each childNode As TreeNode In node.Nodes
+                ExpandNodesToLevel(childNode, maxLevel)
+            Next
+        Else
+            ' Ако сме надвишили максималното ниво, за всеки случай свиваме нагоре
+            node.Collapse()
+        End If
+    End Sub
+    ''' <summary>
     ''' Обработва избора на възел в TreeView.
     ''' 
     ''' Ако избраният възел съдържа обект от тип strTokow
@@ -424,5 +443,4 @@ Public Class Form_Tablo_new_TreeViewManager
             End If
         End If
     End Sub
-
 End Class

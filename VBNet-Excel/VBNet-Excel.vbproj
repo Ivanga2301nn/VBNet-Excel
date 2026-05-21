@@ -141,9 +141,7 @@
     <Compile Include="Form_Tablo_new.Designer.vb">
       <DependentUpon>Form_Tablo_new.vb</DependentUpon>
     </Compile>
-    <Compile Include="Form_Tablo_new.vb">
-      <SubType>Form</SubType>
-    </Compile>
+    <Compile Include="Form_Tablo_new.vb" />
     <Compile Include="Class_Kabelni_kanali.vb" />
     <Compile Include="Class_Skari_Kanali.vb" />
     <Compile Include="Form_KabelniKanali.Designer.vb">

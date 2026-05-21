@@ -37,7 +37,7 @@ Imports Font = System.Drawing.Font
 '    → Отговорност: Файлова логика (Save/Load), пътища, BuildingName, 
 '      сериализация и безопасна обработка на ListTokow (ProcessAndRepairList)
 '
-' 4. [СЛЕДВАЩА СТЪПКА] TreeViewManager | Form_Tablo_new_TreeViewManager.vb
+' 4. TreeViewManager | Form_Tablo_new_TreeViewManager.vb
 '    → Отговорност: Йерархия (Сграда→Табло→TK→Консуматори), Drag&Drop (засега само табла), 
 '      синхронизация с UI и ListTokow
 '
@@ -4875,57 +4875,48 @@ Public Class Form_Tablo_new
     ''' 5. Създава нов запис "ОБЩО"
     ''' 6. Изчислява ток, прекъсвач и кабел
     ''' </summary>
-    'Private Sub AddFeederRecords()
-    '    ' 1️ НАМИРАНЕ НА ВСИЧКИ УНИКАЛНИ ТАБЛА
-    '    ' Извлича всички уникални стойности на Tablo от ListTokow
-    '    Dim allTablos As List(Of String) =
-    '                     ListTokow.Select(Function(t) t.Tablo).Distinct().ToList()
-    '    ' 2️ ОБХОЖДАНЕ НА ВСЯКО ТАБЛО
-    '    For Each tabloName As String In allTablos
-    '        BuildPanelSummaryRecord(tabloName)
-    '    Next
-    'End Sub
+    ' Това е "Архитектът на сградите" - неговата единствена задача е да намери сградите
     Private Sub AddFeederRecords()
-        ' 1. Взимаме списък с всички уникални сгради
         Dim buildings As List(Of String) = ListTokow.Select(Function(t) t.BuildingName).Distinct().ToList()
-        ' 2. Обхождаме всяка сграда поотделно
         For Each bName As String In buildings
-            ' Всяка сграда има свои табла. Извличаме ги:
-            Dim panelsInBuilding As List(Of String) = ListTokow _
-                                .Where(Function(t) t.BuildingName = bName AndAlso t.Device = "Табло") _
-                                .Select(Function(t) t.Tablo).Distinct().ToList()
-            ' 3. СОРТИРАНЕ ЗА ЙЕРАРХИЯ (Много важно!)
-            ' За да сме сигурни, че детето е изчислено преди родителя, 
-            ' можем да сортираме таблата по "ниво на дълбочина" или 
-            ' просто да ги въртим, докато се стабилизират сумите.
-            ' Най-сигурно е да обхождаме от най-дълбоките към най-плитките:
-            Dim sortedPanels = panelsInBuilding.OrderByDescending(Function(tName) CountLevels(bName, tName)).ToList()
-            ' 4. Преизчисляваме всяко табло в тази сграда
-            For Each tName As String In sortedPanels
-                BuildPanelSummaryRecord(bName, tName)
-            Next
+            ' Делегираме цялата логика за топологията на сградата
+            ProcessBuildingTopology(bName)
         Next
     End Sub
     Private Sub ProcessBuildingTopology(buildingName As String)
-        ' 1. Извличаме уникалните табла в сградата (без корена)
-        Dim panelsInBuilding = ListTokow.Where(Function(t) t.BuildingName = buildingName AndAlso t.Device = "Табло") _
-                                    .Select(Function(t) t.Tablo).Distinct().ToList()
-
-        ' 2. Сортираме по "дълбочина" (децата преди родителите)
-        ' Тук разчитаме на това, че колкото повече нива нагоре по родителската верига имаш, 
-        ' толкова по-късно трябва да си изчислен.
-        Dim sortedPanels = panelsInBuilding.OrderByDescending(Function(tName) GetHierarchyLevel(buildingName, tName)).ToList()
-
-        ' 3. Изпълнение на изчисленията (Оркестрация)
-        For Each tabloName As String In sortedPanels
-            BuildPanelSummaryRecord(buildingName, tabloName)
+        ' 1. Създаваме речник за нивата (кеш)
+        Dim levels As New Dictionary(Of String, Integer)
+        Dim allPanels = ListTokow.Where(Function(t) t.BuildingName = buildingName AndAlso t.Device = "Табло").ToList()
+        ' 2. Попълваме речника (пресмятаме само веднъж за всяко табло)
+        For Each p In allPanels
+            levels(p.Tablo) = CalculateLevel(buildingName, p.Tablo)
+        Next
+        ' 3. Сортираме, използвайки речника (много бързо!)
+        Dim sortedPanels = allPanels.OrderByDescending(Function(t) levels(t.Tablo)) _
+                                .Select(Function(t) t.Tablo).Distinct().ToList()
+        ' 4. Оркестрация
+        For Each tName As String In sortedPanels
+            BuildPanelSummaryRecord(buildingName, tName)
         Next
     End Sub
-    ' Помощна функция за броене на нивата в дървото
-    Private Function CountLevels(bName As String, tName As String) As Integer
-        Dim current = ListTokow.FirstOrDefault(Function(x) x.BuildingName = bName AndAlso x.Tablo = tName)
-        If current Is Nothing OrElse String.IsNullOrEmpty(current.Табло_Родител) Then Return 0
-        Return 1 + CountLevels(bName, current.Табло_Родител)
+    ' Помощна функция само за изчислението, която ползваме за кеширането
+    Private Function CalculateLevel(buildingName As String, tabloName As String) As Integer
+        ' Тук остава твоята логика с While, тя е стабилна
+        Dim level As Integer = 0
+        Dim currentName As String = tabloName
+        While True
+            'Dim t = ListTokow.FirstOrDefault(Function(x) _
+            '                                     x.BuildingName = buildingName AndAlso
+            '                                     x.Tablo = currentName)
+            ' Смени този ред вътре в CalculateLevel:
+            Dim t = ListTokow.FirstOrDefault(Function(x) x.BuildingName = buildingName AndAlso
+                                             x.Tablo = currentName AndAlso
+                                             x.ТоковКръг = "ОБЩО")
+            If t Is Nothing OrElse String.IsNullOrEmpty(t.Табло_Родител) Then Exit While
+            level += 1
+            currentName = t.Табло_Родител
+        End While
+        Return level
     End Function
     Private Sub EnsureRootNodesForAllBuildings()
         ' 1. Взимаме всички уникални сгради, които съществуват в списъка

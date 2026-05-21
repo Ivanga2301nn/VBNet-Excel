@@ -2471,64 +2471,6 @@ Public Class Form_Tablo_new
         End If
     End Sub
     ''' <summary>
-    ''' Връща информация за начин на монтаж на база подадена стойност (символ или текст).
-    ''' </summary>
-    ''' <param name="inputValue">
-    ''' Входна стойност за търсене.
-    ''' Може да бъде:
-    ''' - символ (например "A1", "B2" и т.н.)
-    ''' - текстово описание на начина на монтаж
-    ''' </param>
-    ''' <returns>
-    ''' Връща съответстващата стойност:
-    ''' - ако е подаден символ → връща текстовото описание
-    ''' - ако е подаден текст → връща символа
-    ''' - ако няма съвпадение → връща "Не е намерено"
-    ''' </returns>
-    ''' <remarks>
-    ''' Функцията използва колекцията LiMountMethod, която съдържа обекти с поне две свойства:
-    ''' - Simbol (символ на метода)
-    ''' - Text (описание на метода)
-    '''
-    ''' Логика на работа:
-    ''' 1. Търси първия елемент, при който:
-    '''    - Simbol съвпада с inputValue
-    '''    ИЛИ
-    '''    - Text съвпада с inputValue
-    '''
-    ''' 2. Ако бъде намерен резултат:
-    '''    - ако входът е символ → връща текст
-    '''    - ако входът е текст → връща символ
-    '''
-    ''' 3. Ако няма намерен резултат:
-    '''    - връща "Не е намерено"
-    '''
-    ''' Типично приложение:
-    ''' - преобразуване между кодове и описания
-    ''' - визуализация в UI (например ComboBox, DataGridView)
-    ''' - валидиране на въведени данни
-    '''
-    ''' Потенциални особености:
-    ''' - FirstOrDefault връща "празен" обект (Nothing за референтен тип или default за структура),
-    '''   затова проверката result.Simbol IsNot Nothing се използва за валидност.
-    ''' - Ако Simbol е String, проверката IsNot Nothing не гарантира, че е намерен реален запис
-    '''   (възможно е да е празен низ "").
-    ''' - Ако има дублиращи се записи, ще се върне първият срещнат.
-    ''' - Сравнението е case-sensitive (зависи от настройките), което може да доведе до пропуснати съвпадения.
-    ''' </remarks>
-    Public Function GetMountMethodInfo(inputValue As String) As String
-        ' Търсене на първия запис, който съвпада по символ или текст
-        Dim result = NewCables.LiMountMethod.FirstOrDefault(Function(m) m.Simbol = inputValue Or m.Text = inputValue)
-        ' Проверка дали е намерен резултат
-        If result.Simbol IsNot Nothing Then
-            ' Ако входът съвпада със символ → връща текст
-            ' Ако входът съвпада с текст → връща символ
-            Return If(result.Simbol = inputValue, result.Text, result.Simbol)
-        End If
-        ' Ако няма съвпадение
-        Return "Не е намерено"
-    End Function
-    ''' <summary>
     ''' Определя и задава подходящ прекъсвач за даден токов кръг.
     '''
     ''' Процедурата използва изчисления ток на кръга (tokow.Ток) и
@@ -3264,7 +3206,7 @@ Public Class Form_Tablo_new
                         NewCables.CalculateCable(tokow,
                                        Type:=tokow.Кабел_Тип,
                                        layMethod:=If(tokow.Кабел_Полагане = "Във въздух", 0, 1),
-                                       mountMethod:=GetMountMethodInfo(tokow.Кабел_Монтаж),
+                                       mountMethod:=NewCables.GetMountMethodInfo(tokow.Кабел_Монтаж),
                                        Broj_Cable:=tokow.Кабел_Брой_Група,
                                        matType:=GetCableTypeResult(tokow.Кабел_Тип)
                                        )
@@ -3273,7 +3215,7 @@ Public Class Form_Tablo_new
                         NewCables.CalculateCable(tokow,
                                        Type:=tokow.Кабел_Тип,
                                        layMethod:=If(tokow.Кабел_Полагане = "Във въздух", 0, 1),
-                                       mountMethod:=GetMountMethodInfo(tokow.Кабел_Монтаж),
+                                       mountMethod:=NewCables.GetMountMethodInfo(tokow.Кабел_Монтаж),
                                        Broj_Cable:=tokow.Кабел_Брой_Група,
                                        matType:=GetCableTypeResult(tokow.Кабел_Тип)
                                        )
@@ -3349,7 +3291,7 @@ Public Class Form_Tablo_new
                         NewCables.CalculateCable(tokow,
                                        Type:=tokow.Кабел_Тип,
                                        layMethod:=If(selectedValue = "Във въздух", 0, 1),
-                                       mountMethod:=GetMountMethodInfo(tokow.Кабел_Монтаж),
+                                       mountMethod:=NewCables.GetMountMethodInfo(tokow.Кабел_Монтаж),
                                        Broj_Cable:=tokow.Кабел_Брой_Група,
                                        matType:=GetCableTypeResult(tokow.Кабел_Тип)
                                        )
@@ -3363,7 +3305,7 @@ Public Class Form_Tablo_new
                             NewCables.CalculateCable(tokow,
                                            Type:=selectedValue,
                                            layMethod:=If(tokow.Кабел_Полагане = "Във въздух", 0, 1),
-                                           mountMethod:=GetMountMethodInfo(tokow.Кабел_Монтаж),
+                                           mountMethod:=NewCables.GetMountMethodInfo(tokow.Кабел_Монтаж),
                                            Broj_Cable:=tokow.Кабел_Брой_Група,
                                            matType:=GetCableTypeResult(selectedValue)
                                            )
@@ -3376,7 +3318,7 @@ Public Class Form_Tablo_new
                             NewCables.CalculateCable(tokow,
                                            Type:=selectedValue,
                                            layMethod:=If(tokow.Кабел_Полагане = "Във въздух", 0, 1),
-                                           mountMethod:=GetMountMethodInfo(tokow.Кабел_Монтаж),
+                                           mountMethod:=NewCables.GetMountMethodInfo(tokow.Кабел_Монтаж),
                                            Broj_Cable:=tokow.Кабел_Брой_Група,
                                            matType:=GetCableTypeResult(selectedValue)
                                            )

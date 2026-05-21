@@ -331,5 +331,17 @@ Public Class CableCatalog
         If String.IsNullOrEmpty(sizeStr) Then Return 0
         Return Val(sizeStr.Replace(",", "."))
     End Function
+    ''' <summary>
+    ''' Връща информация за начин на монтаж на база подадена стойност (символ или текст).
+    ''' </summary>
+    Public Function GetMountMethodInfo(inputValue As String) As String
+        If String.IsNullOrEmpty(inputValue) Then Return "Не е намерено"
+        ' Търсене в локалния списък на класа
+        Dim result = LiMountMethod.FirstOrDefault(Function(m) m.Simbol.Equals(inputValue, StringComparison.OrdinalIgnoreCase) OrElse m.Text = inputValue)
+        If Not String.IsNullOrEmpty(result.Simbol) Then
+            Return If(result.Simbol.Equals(inputValue, StringComparison.OrdinalIgnoreCase), result.Text, result.Simbol)
+        End If
+        Return "Не е намерено"
+    End Function
 End Class
 #End Region

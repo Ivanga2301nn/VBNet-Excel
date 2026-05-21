@@ -14,6 +14,12 @@ Public Class CableCatalog
     End Class
     ' Складът за всички кабели (замества DataList)
     Public Property DataList As New List(Of CableInfo)()
+    ' Списъкът с методи за монтаж
+    Public Property LiMountMethod As New List(Of strMountMethod)()
+    Public Structure strMountMethod
+        Public Simbol As String
+        Public Text As String
+    End Structure
     ' Списък с уникалните типове кабели за запълване на ComboBox (замества Cable_For_combo)
     Public Property CableTypesForCombo As New List(Of String)()
     ''' <summary>
@@ -303,6 +309,21 @@ Public Class CableCatalog
             Case Else : Return "Под мазилка"
         End Select
     End Function
+    ''' <summary>
+    ''' Напълва списъка с дефинираните начини на монтаж
+    ''' </summary>
+    Public Sub LoadMountMethods()
+        LiMountMethod = New List(Of strMountMethod) From {
+        New strMountMethod With {.Simbol = "A1", .Text = "В изолация"},
+        New strMountMethod With {.Simbol = "B1", .Text = "Тръба (стена)"},
+        New strMountMethod With {.Simbol = "C", .Text = "Върху стена"},
+        New strMountMethod With {.Simbol = "D1", .Text = "Тръба (земя)"},
+        New strMountMethod With {.Simbol = "D2", .Text = "Кабел (земя)"},
+        New strMountMethod With {.Simbol = "E", .Text = "Кабелна скара"},
+        New strMountMethod With {.Simbol = "F", .Text = "Многож. скара"},
+        New strMountMethod With {.Simbol = "G", .Text = "Свободен въздух"}
+    }
+    End Sub
     ''' <summary>
     ''' Помощен метод за правилно конвертиране на сечение от стринг към double (справя се с запетаи)
     ''' </summary>

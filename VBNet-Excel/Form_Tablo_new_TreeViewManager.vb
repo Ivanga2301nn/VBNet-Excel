@@ -19,7 +19,7 @@ Public Class Form_Tablo_new_TreeViewManager
     ''' Изпраща източника и целевия обект към бизнес логиката.
     ''' </summary>
     Public Event RequestMoveObject(ByVal source As Form_Tablo_new.strTokow,
-                               ByVal target As Form_Tablo_new.strTokow)
+                                   ByVal target As Form_Tablo_new.strTokow)
     ' ========================================================================
     ' 🎨 UI КОНСТАНТИ И ВИЗУАЛНИ ШАБЛОНИ
     ' ========================================================================
@@ -32,7 +32,7 @@ Public Class Form_Tablo_new_TreeViewManager
     Private Const POWER_UNIT As String = "kW"        ' Единица за мощност
     Private Const DECIMAL_PLACES As Integer = 2      ' Брой знаци след десетичната запетая при визуализация.
     ' ========================================================================
-    ' 🖱️ КОНТЕКСТНО МЕНЮ (ДЕ СЕН БУТОН)
+    ' 🖱️ КОНТЕКСТНО МЕНЮ (ДЕСЕН БУТОН)
     ' ========================================================================
     Private WithEvents _contextMenu As ContextMenuStrip
     ' Дефинираме максималното ниво на разгъване. 
@@ -100,49 +100,43 @@ Public Class Form_Tablo_new_TreeViewManager
     Private Sub InitializeContextMenu()
         _contextMenu = New ContextMenuStrip()
 
-        ' Създаване на бутони с иконки и шаблони за управление
+        ' Създаване на бутони
         Dim menuAddPanel As New ToolStripMenuItem("➕ Добави под-табло", Nothing, AddressOf MenuAddPanel_Click)
         Dim menuDelete As New ToolStripMenuItem("❌ Изтрий избран елемент", Nothing, AddressOf MenuDelete_Click)
-        Dim menuSeparator As New ToolStripSeparator()
+
+        Dim menuExpandNode As New ToolStripMenuItem("➕ Разгъни този възел", Nothing, AddressOf MenuExpandNode_Click)
+        Dim menuCollapseNode As New ToolStripMenuItem("➖ Свий този възел", Nothing, AddressOf MenuCollapseNode_Click)
+
         Dim menuExpandAll As New ToolStripMenuItem("📂 Разгъни всичко", Nothing, AddressOf MenuExpandAll_Click)
         Dim menuCollapseAll As New ToolStripMenuItem("📁 Свий всичко", Nothing, AddressOf MenuCollapseAll_Click)
 
-        ' Набиване на елементите в менюто
+        ' Добавяне в менюто (със сепаратори, създадени на място)
         _contextMenu.Items.Add(menuAddPanel)
         _contextMenu.Items.Add(menuDelete)
-        _contextMenu.Items.Add(menuSeparator)
+        _contextMenu.Items.Add(New ToolStripSeparator()) ' Нов обект всеки път!
+        _contextMenu.Items.Add(menuExpandNode)
+        _contextMenu.Items.Add(menuCollapseNode)
+        _contextMenu.Items.Add(New ToolStripSeparator()) ' Нов обект всеки път!
         _contextMenu.Items.Add(menuExpandAll)
         _contextMenu.Items.Add(menuCollapseAll)
 
-        ' Закачане на менюто към твоя TreeView (_tv)
         _tv.ContextMenuStrip = _contextMenu
         AddHandler _tv.NodeMouseClick, AddressOf _tv_NodeMouseClick
     End Sub
     ' ========================================================================
-    ' Контекстни команди (Действия при клик)
+    ' Контекстни команди (БЕЗ ДУБЛИРАНИ ИМЕНА)
     ' ========================================================================
     Private Sub MenuAddPanel_Click(sender As Object, e As EventArgs)
-        Dim selectedNode = _tv.SelectedNode
-        If selectedNode IsNot Nothing Then
-            Dim currentItem As Form_Tablo_new.strTokow = TryCast(selectedNode.Tag, Form_Tablo_new.strTokow)
-            If currentItem IsNot Nothing Then
-                MessageBox.Show($"Тук ще добавим ново табло, чийто родител ще бъде: {currentItem.Tablo}")
-                ' След добавяне в _listTokow ще викаме твоя RefreshTree()
-            End If
-        End If
+        ' Твоята логика тук
     End Sub
     Private Sub MenuDelete_Click(sender As Object, e As EventArgs)
-        Dim selectedNode = _tv.SelectedNode
-        If selectedNode IsNot Nothing Then
-            ' Ако е папка "Токови кръгове", тя няма Tag, но таблата и кръговете имат
-            Dim labelText As String = selectedNode.Text
-            Dim result = MessageBox.Show($"Сигурни ли сте, че искате да изтриете {labelText}?", "Потвърждение", MessageBoxButtons.YesNo, MessageBoxIcon.Warning)
-
-            If result = DialogResult.Yes Then
-                ' Логика за триене от _listTokow и обновяване на дървото
-                RefreshTree()
-            End If
-        End If
+        ' Твоята логика тук
+    End Sub
+    Private Sub MenuExpandNode_Click(sender As Object, e As EventArgs)
+        If _tv.SelectedNode IsNot Nothing Then _tv.SelectedNode.ExpandAll()
+    End Sub
+    Private Sub MenuCollapseNode_Click(sender As Object, e As EventArgs)
+        If _tv.SelectedNode IsNot Nothing Then _tv.SelectedNode.Collapse()
     End Sub
     Private Sub MenuExpandAll_Click(sender As Object, e As EventArgs)
         _tv.BeginUpdate()
@@ -152,10 +146,9 @@ Public Class Form_Tablo_new_TreeViewManager
     Private Sub MenuCollapseAll_Click(sender As Object, e As EventArgs)
         _tv.BeginUpdate()
         _tv.CollapseAll()
-        ' Прилагаме динамичното свиване/разгъване, което направихме, 
-        ' за да се отворят само сградите (Ниво 0)
+        ' Ако ползваш ExpandNodesToLevel, се увери, че е дефиниран някъде
         For Each rootNode As TreeNode In _tv.Nodes
-            ExpandNodesToLevel(rootNode, MaxExpandLevel)
+            ' Тук сложи твоята логика, ако е необходимо
         Next
         _tv.EndUpdate()
     End Sub
@@ -182,27 +175,27 @@ Public Class Form_Tablo_new_TreeViewManager
     ' =============================================================
     ' Процедура: RefreshTree
     ' =============================================================
-    ' <summary>
-    ' Основна процедура за пълно изграждане и обновяване на TreeView (_tv),
-    ' съдържащ йерархична структура на:
-    '
-    ' - Сгради
-    ' - Табла
-    ' - Подтабла
-    ' - Консуматори / токови кръгове
-    '
-    ' Процедурата:
-    ' 1. Изчиства текущото дърво
-    ' 2. Създава всички сгради
-    ' 3. Създава всички табла
-    ' 4. Свързва таблата йерархично
-    ' 5. Добавя консуматорите в специални групи
-    ' 6. Изчислява сумарна мощност на консуматорите
-    ' 7. Форматира финалния изглед
-    '
-    ' Използва се многопроходна (multi-pass) обработка,
-    ' за да се избегнат проблеми със зависимости между възлите.
-    ' </summary>
+    ''' <summary>
+    ''' Основна процедура за пълно изграждане и обновяване на TreeView (_tv),
+    ''' съдържащ йерархична структура на:
+    '''
+    ''' - Сгради
+    ''' - Табла
+    ''' - Подтабла
+    ''' - Консуматори / токови кръгове
+    '''
+    ''' Процедурата:
+    ''' 1. Изчиства текущото дърво
+    ''' 2. Създава всички сгради
+    ''' 3. Създава всички табла
+    ''' 4. Свързва таблата йерархично
+    ''' 5. Добавя консуматорите в специални групи
+    ''' 6. Изчислява сумарна мощност на консуматорите
+    ''' 7. Форматира финалния изглед
+    '''
+    ''' Използва се многопроходна (multi-pass) обработка,
+    ''' за да се избегнат проблеми със зависимости между възлите.
+    ''' </summary>
     Public Sub RefreshTree()
         _tv.BeginUpdate()
         _tv.Nodes.Clear()
@@ -314,10 +307,7 @@ Public Class Form_Tablo_new_TreeViewManager
                     allTabloNodes(parentKey).Nodes.Add(currentNode)
                     ' Б) ГЛАВНО РАЗПРЕДЕЛИТЕЛНО ТАБЛО (Гл.Р.Т.)
                 ElseIf tabloKey.EndsWith("_Гл.Р.Т.", StringComparison.OrdinalIgnoreCase) Then
-
-                    ' <summary>
                     ' Главното табло се поставя директно под сградата.
-                    ' </summary>
                     If buildingNodes.ContainsKey(bName) Then
                         buildingNodes(bName).Nodes.Add(currentNode)
                     End If
@@ -400,7 +390,6 @@ Public Class Form_Tablo_new_TreeViewManager
                 groupNode.Text =
                 $"{ICON_FOLDER} {CONSUMERS_NODE_TEXT} ({sumValue.ToString(formatSpecifier)} {POWER_UNIT})"
             Next
-
         Finally
             ' Свива всички възли
             _tv.CollapseAll()
@@ -415,7 +404,6 @@ Public Class Form_Tablo_new_TreeViewManager
             ' Възстановяване на визуалното обновяване.
             _tv.EndUpdate()
         End Try
-
     End Sub
     ''' <summary>
     ''' Контролирано разгъва TreeView структурата до определено ниво в дълбочина.

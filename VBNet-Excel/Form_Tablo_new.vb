@@ -178,13 +178,16 @@ Public Class Form_Tablo_new
         SortCircuits()
         ' 8. ✅ ГРУПИРАНЕ НА КОНТАКТИТЕ ПО ДЗТ (НОВО!)
         GroupContactsForRCD()
-
         ' ═══════════════════════════════════════════════════════════
         ' 7) ДОБАВИ ЗАПИС ЗА ОБЩОТО НА ТАБЛОТО
         ' ═══════════════════════════════════════════════════════════
+        ' 1. Създава ГЛАВНИТЕ ТАБЛА (ROOT) за всяка сграда
+        EnsureTotalRecordsExists()
+        ' 2. Създава ОБОБЩЕНИТЕ ЗАПИСИ "ОБЩО" за всички останали табла
+        EnsureRootNodesForAllBuildings()
+        ' 3. Сумира мощностите по йерархия
         AddFeederRecords()
-        EnsureRootNodeExists()
-        BuildPanelSummaryRecord(ROOT_NODE_TEXT)
+        'BuildPanelSummaryRecord(ROOT_NODE_TEXT)
 #Region "Създаване на TreeView структура"
         ' Изгражда йерархично представяне на консуматорите:
         '
@@ -4299,13 +4302,22 @@ Public Class Form_Tablo_new
         lastCircuit.RCD_Нула = originalNula
     End Sub
     Private Sub ToolStripButton_Балансирай_фазите_Click(sender As Object, e As EventArgs) Handles ToolStripButton_Балансирай_фазите.Click
-        ' Ако няма избран възел → прекратяване
-        If String.IsNullOrEmpty(selectedTablo) Then Return
-        ' Премахване на допълнителен текст (например "(...)" )
-        If selectedTablo.Contains("(") Then
-            selectedTablo = selectedTablo.Substring(0, selectedTablo.IndexOf("(")).Trim()
+        ' 1. Проверка дали има избран възел
+        Dim selectedNode As TreeNode = TreeView_Табло.SelectedNode
+        If selectedNode Is Nothing Then Return
+        ' 2. Извличане на данните от Tag (това е най-сигурният начин)
+        ' Предполагам, че при създаването на TreeView си закачил обекта или данните в Tag
+        Dim data As strTokow = TryCast(selectedNode.Tag, strTokow)
+        If data Is Nothing Then Return
+        Dim buildingName As String = data.BuildingName
+        Dim tabloName As String = data.Tablo
+        ' 3. Премахване на допълнителен текст, ако е необходимо
+        If tabloName.Contains("(") Then
+            tabloName = tabloName.Substring(0, tabloName.IndexOf("(")).Trim()
         End If
-        BalancePhases(selectedTablo)
+        ' 4. Извикване на рефакторираната процедура
+        BalancePhases(buildingName, tabloName)
+        ' 5. Актуализация
         FillDataGridViewForPanel()
     End Sub
     ''' <summary>
@@ -4344,17 +4356,12 @@ Public Class Form_Tablo_new
     ''' - Използване на числови стойности вместо парсване на текст
     ''' - Сортиране на групите по ток преди балансиране
     ''' </remarks>
-    Private Sub BalancePhases(selectedTablo As String)
-        ' =====================================================
+    Private Sub BalancePhases(buildingName As String, tabloName As String)
         ' 1. ВЗЕМИ КРЪГОВЕТЕ (БЕЗ "ОБЩО")
-        ' =====================================================
-        'Dim panelCircuits = ListTokow.Where(Function(t)
-        '                                        Return t.Tablo = selectedTablo AndAlso
-        '                                           t.ТоковКръг <> "ОБЩО"
-        '                                    End Function).ToList()
+        ' Вече филтрираме по сграда AND табло
         Dim panelCircuits As List(Of strTokow) = ListTokow.Where(Function(t)
-                                                                     Return (t.Tablo = selectedTablo AndAlso t.ТоковКръг <> "ОБЩО") OrElse
-                                                                    (t.Табло_Родител = selectedTablo AndAlso t.ТоковКръг = "ОБЩО")
+                                                                     Return (t.BuildingName = buildingName AndAlso t.Tablo = tabloName AndAlso t.ТоковКръг <> "ОБЩО") OrElse
+               (t.BuildingName = buildingName AndAlso t.Табло_Родител = tabloName AndAlso t.ТоковКръг = "ОБЩО")
                                                                  End Function).ToList()
         ' Ако няма кръгове → прекратяване
         If panelCircuits.Count = 0 Then Return
@@ -4375,14 +4382,12 @@ Public Class Form_Tablo_new
         )
             If result = MsgBoxResult.No Then Return
         End If
-        ' =====================================================
         ' 3. НАМИРАНЕ НА РЕД "ОБЩО"
-        ' =====================================================
         Dim totalRow = ListTokow.FirstOrDefault(Function(t)
-                                                    Return t.Tablo = selectedTablo AndAlso
+                                                    Return t.BuildingName = buildingName AndAlso
+                                                       t.Tablo = tabloName AndAlso
                                                        t.ТоковКръг = "ОБЩО"
                                                 End Function)
-
         ' Маркиране като трифазен
         totalRow.Брой_Полюси = 3
         totalRow.Фаза = "L1,L2,L3"
@@ -4870,30 +4875,110 @@ Public Class Form_Tablo_new
     ''' 5. Създава нов запис "ОБЩО"
     ''' 6. Изчислява ток, прекъсвач и кабел
     ''' </summary>
+    'Private Sub AddFeederRecords()
+    '    ' 1️ НАМИРАНЕ НА ВСИЧКИ УНИКАЛНИ ТАБЛА
+    '    ' Извлича всички уникални стойности на Tablo от ListTokow
+    '    Dim allTablos As List(Of String) =
+    '                     ListTokow.Select(Function(t) t.Tablo).Distinct().ToList()
+    '    ' 2️ ОБХОЖДАНЕ НА ВСЯКО ТАБЛО
+    '    For Each tabloName As String In allTablos
+    '        BuildPanelSummaryRecord(tabloName)
+    '    Next
+    'End Sub
     Private Sub AddFeederRecords()
-        ' 1️ НАМИРАНЕ НА ВСИЧКИ УНИКАЛНИ ТАБЛА
-        ' Извлича всички уникални стойности на Tablo от ListTokow
-        Dim allTablos As List(Of String) =
-        ListTokow.Select(Function(t) t.Tablo).Distinct().ToList()
-        ' 2️ ОБХОЖДАНЕ НА ВСЯКО ТАБЛО
-        For Each tabloName As String In allTablos
-            BuildPanelSummaryRecord(tabloName)
+        ' 1. Взимаме списък с всички уникални сгради
+        Dim buildings As List(Of String) = ListTokow.Select(Function(t) t.BuildingName).Distinct().ToList()
+        ' 2. Обхождаме всяка сграда поотделно
+        For Each bName As String In buildings
+            ' Всяка сграда има свои табла. Извличаме ги:
+            Dim panelsInBuilding As List(Of String) = ListTokow _
+                                .Where(Function(t) t.BuildingName = bName AndAlso t.Device = "Табло") _
+                                .Select(Function(t) t.Tablo).Distinct().ToList()
+            ' 3. СОРТИРАНЕ ЗА ЙЕРАРХИЯ (Много важно!)
+            ' За да сме сигурни, че детето е изчислено преди родителя, 
+            ' можем да сортираме таблата по "ниво на дълбочина" или 
+            ' просто да ги въртим, докато се стабилизират сумите.
+            ' Най-сигурно е да обхождаме от най-дълбоките към най-плитките:
+            Dim sortedPanels = panelsInBuilding.OrderByDescending(Function(tName) CountLevels(bName, tName)).ToList()
+            ' 4. Преизчисляваме всяко табло в тази сграда
+            For Each tName As String In sortedPanels
+                BuildPanelSummaryRecord(bName, tName)
+            Next
         Next
     End Sub
-    Private Sub EnsureRootNodeExists()
-        ' Проверка дали вече има корен за тази сграда
-        Dim rootExists As Boolean = ListTokow.Any(Function(x) x.Tablo = ROOT_NODE_TEXT AndAlso x.BuildingName = fullBuildingName)
+    Private Sub ProcessBuildingTopology(buildingName As String)
+        ' 1. Извличаме уникалните табла в сградата (без корена)
+        Dim panelsInBuilding = ListTokow.Where(Function(t) t.BuildingName = buildingName AndAlso t.Device = "Табло") _
+                                    .Select(Function(t) t.Tablo).Distinct().ToList()
 
-        If Not rootExists Then
-            Dim rootPanel As New strTokow With {
-            .BuildingName = fullBuildingName,
-            .Tablo = ROOT_NODE_TEXT,
-            .Device = "Табло",
-            .Табло_Родител = "",
-            .ТоковКръг = "ОБЩО"
-        }
-            ListTokow.Add(rootPanel)
-        End If
+        ' 2. Сортираме по "дълбочина" (децата преди родителите)
+        ' Тук разчитаме на това, че колкото повече нива нагоре по родителската верига имаш, 
+        ' толкова по-късно трябва да си изчислен.
+        Dim sortedPanels = panelsInBuilding.OrderByDescending(Function(tName) GetHierarchyLevel(buildingName, tName)).ToList()
+
+        ' 3. Изпълнение на изчисленията (Оркестрация)
+        For Each tabloName As String In sortedPanels
+            BuildPanelSummaryRecord(buildingName, tabloName)
+        Next
+    End Sub
+    ' Помощна функция за броене на нивата в дървото
+    Private Function CountLevels(bName As String, tName As String) As Integer
+        Dim current = ListTokow.FirstOrDefault(Function(x) x.BuildingName = bName AndAlso x.Tablo = tName)
+        If current Is Nothing OrElse String.IsNullOrEmpty(current.Табло_Родител) Then Return 0
+        Return 1 + CountLevels(bName, current.Табло_Родител)
+    End Function
+    Private Sub EnsureRootNodesForAllBuildings()
+        ' 1. Взимаме всички уникални сгради, които съществуват в списъка
+        Dim allBuildings As List(Of String) = ListTokow.Select(Function(x) x.BuildingName) _
+                                                      .Distinct() _
+                                                      .ToList()
+        ' 2. Обхождаме всяка сграда
+        For Each bName As String In allBuildings
+            ' Използваме bName вместо fullBuildingName
+            Dim rootExists As Boolean = ListTokow.Any(Function(x) x.Tablo = ROOT_NODE_TEXT AndAlso
+                                                          x.BuildingName = bName)
+            If Not rootExists Then
+                Dim rootPanel As New strTokow With {
+                .BuildingName = bName,
+                .Tablo = ROOT_NODE_TEXT,
+                .Device = "Табло",
+                .Табло_Родител = "",
+                .ТоковКръг = "ОБЩО"
+            }
+                ListTokow.Add(rootPanel)
+            End If
+        Next
+    End Sub
+    Private Sub EnsureTotalRecordsExists()
+        ' 1. Взимаме всички уникални сгради
+        Dim allBuildings As List(Of String) = ListTokow.Select(Function(x) x.BuildingName).Distinct().ToList()
+        ' 2. Обхождаме всяка сграда
+        For Each bName As String In allBuildings
+            ' 3. За текущата сграда намираме уникалните имена на табла (без корена)
+            Dim panelsInCurrentBuilding = ListTokow.Where(Function(t) t.BuildingName = bName AndAlso
+                                                                  t.Tablo <> ROOT_NODE_TEXT) _
+                                               .Select(Function(t) t.Tablo) _
+                                               .Distinct() _
+                                               .ToList()
+            ' 4. Обхождаме намерените табла за тази сграда
+            For Each tName As String In panelsInCurrentBuilding
+                ' 5. Проверяваме дали вече съществува "ОБЩО" запис за това табло
+                Dim exists As Boolean = ListTokow.Any(Function(x) x.BuildingName = bName AndAlso
+                                                              x.Tablo = tName AndAlso
+                                                              x.ТоковКръг = "ОБЩО")
+                ' 6. Ако не съществува - добавяме го
+                If Not exists Then
+                    Dim totalRecord As New strTokow With {
+                    .BuildingName = bName,
+                    .Tablo = tName,
+                    .ТоковКръг = "ОБЩО",
+                    .Device = "Табло",
+                    .Табло_Родител = ROOT_NODE_TEXT ' Всяко табло се закача за корена
+                }
+                    ListTokow.Add(totalRecord)
+                End If
+            Next
+        Next
     End Sub
     ''' <summary>
     ''' Изгражда обобщен запис "ОБЩО" за дадено табло.
@@ -4904,67 +4989,47 @@ Public Class Form_Tablo_new
     ''' - намиране или създаване на запис "ОБЩО"
     ''' - изчисляване на ток и избор на апаратура
     ''' </summary>
-    Private Sub BuildPanelSummaryRecord(tabloName As String ' Табло което обработваме
-                                        )
-        'If tabloName = ROOT_NODE_TEXT Then Exit Sub
-
-        ' Взима собствените кръгове на таблото И записите "ОБЩО" на неговите подтабла
+    Private Sub BuildPanelSummaryRecord(buildingName As String, tabloName As String)
+        ' ВЗИМАМЕ САМО ДИРЕКТНИТЕ ДЕЦА
+        ' 1. Преки консуматори в това табло
+        ' 2. Преки "ОБЩО" записи на табла, чийто Табло_Родител Е ТОВА табло
         Dim panelCircuits As List(Of strTokow) = ListTokow.Where(Function(t)
-                                                                     Return (t.Tablo = tabloName AndAlso t.ТоковКръг <> "ОБЩО") OrElse
-                                                                    (t.Табло_Родител = tabloName AndAlso t.ТоковКръг = "ОБЩО")
+                                                                     Dim isOwn = (t.BuildingName = buildingName AndAlso t.Tablo = tabloName AndAlso t.ТоковКръг <> "ОБЩО")
+                                                                     Dim isDirectChild = (t.BuildingName = buildingName AndAlso t.Табло_Родител = tabloName AndAlso t.ТоковКръг = "ОБЩО")
+                                                                     Return isOwn OrElse isDirectChild
                                                                  End Function).ToList()
-        ' Ако няма кръгове, прекратяваме обработката
+        ' Ако няма нищо за обработка, излизаме
         If panelCircuits.Count = 0 Then Exit Sub
-        ' Обща мощност на таблото
+        ' 2. ИЗЧИСЛЕНИЯ
         Dim totalPower As Double = panelCircuits.Sum(Function(c) c.Мощност)
-        ' Общ брой осветителни тела
         Dim totalLamps As Integer = panelCircuits.Sum(Function(c) c.brLamp)
-        ' Общ брой контакти
         Dim totalContacts As Integer = panelCircuits.Sum(Function(c) c.brKontakt)
-        ' Проверка дали има трифазни консуматори
         Dim hasThreePhase As Boolean = panelCircuits.Any(Function(c) c.Брой_Полюси = 3)
-        ' Определяне на брой полюси (3 ако има трифазни, иначе 1)
-        Dim mostCommonPoles As Integer = If(panelCircuits.Any(Function(c) c.Брой_Полюси = 3), 3, 1)
-        ' Определяне на фазово обозначение
+        Dim mostCommonPoles As Integer = If(hasThreePhase, 3, 1)
         Dim totalPhase As String = If(hasThreePhase, "L1,L2,L3", "L")
-        ' Търсене на съществуващ запис "ОБЩО"
+        ' 3. НАМИРАНЕ НА ЗАПИСА "ОБЩО" ЗА ТОВА ТАБЛО В ТАЗИ СГРАДА
         Dim totalTokow = ListTokow.FirstOrDefault(Function(t)
-                                                      Return t.Tablo = tabloName AndAlso
-                                                      t.ТоковКръг = "ОБЩО"
+                                                      Return t.BuildingName = buildingName AndAlso
+                                                      t.Tablo = tabloName AndAlso t.ТоковКръг = "ОБЩО"
                                                   End Function)
-        ' Ако не съществува, създаваме нов запис
-        If totalTokow Is Nothing Then
-            totalTokow = New strTokow With {
-                             .Tablo = tabloName,
-                             .ТоковКръг = "ОБЩО"
-            }
-            ListTokow.Add(totalTokow)
-        End If
-        ' Попълване на обобщените данни
+        ' 4. ПОПЪЛВАНЕ НА ДАННИТЕ
         With totalTokow
-            .BuildingName = panelCircuits(0).BuildingName
-            .Табло_Родител = ROOT_NODE_TEXT
+            .Табло_Родител = GetParentForTablo(buildingName, tabloName) ' Помощна функция за намиране на родителя
             .Device = "Табло"
-            .Tablo = tabloName
-            .ТоковКръг = "ОБЩО"
             .Брой_Полюси = mostCommonPoles
             .Мощност = totalPower
             .Фаза = totalPhase
             .brLamp = totalLamps
             .brKontakt = totalContacts
-            If .Tablo = ROOT_NODE_TEXT Then
+            ' Специфична логика за главното табло на сградата
+            If .Tablo.Contains("Гл.Р.Т.") Then
                 .Консуматор = "Ке="
                 .предназначение = "Рпр.=15кW"
-                .Табло_Родител = ""
-            Else
-                .Консуматор = ""
-                .предназначение = ""
             End If
         End With
-        ' Изчисляване на ток
+        ' 5. ЕЛЕКТРИЧЕСКИ ИЗЧИСЛЕНИЯ
         If hasThreePhase Then
-            ' Балансиране на фазите
-            BalancePhases(tabloName)
+            BalancePhases(buildingName, tabloName) ' Тук също трябва да подаваме (bName, tName)
             ' Извличане на стойности от текстови полета (формат "X>стойност")
             Dim valL1 As Double = CDbl(totalTokow.RCD_Клас.Split(">"c)(1))
             Dim valL2 As Double = CDbl(totalTokow.RCD_Ток.Split(">"c)(1))
@@ -4972,14 +5037,26 @@ Public Class Form_Tablo_new
             ' Изчисляване на максимален ток
             totalTokow.Ток = Math.Max(valL1, Math.Max(valL2, valL3))
         Else
-            ' Изчисляване на еднофазен ток
             totalTokow.Ток = calc_Inom(totalTokow.Мощност, totalTokow.Брой_Полюси)
         End If
-        ' Избор на прекъсвач/разединител
         CalculateDisconnector(totalTokow)
-        ' Избор на кабел
         CalculateCable(totalTokow)
     End Sub
+    Private Function GetParentForTablo(buildingName As String, tabloName As String) As String
+        ' 1. Намираме самия запис за текущото табло (който е от тип "Табло")
+        Dim currentTabloRecord = ListTokow.FirstOrDefault(Function(t)
+                                                              Return t.BuildingName = buildingName AndAlso
+                                                                     t.Tablo = tabloName AndAlso
+                                                                     t.Device = "Табло"
+                                                          End Function)
+
+        ' 2. Ако записът съществува, връщаме неговия "Табло_Родител"
+        ' Ако не съществува или е корен (сграда), връщаме празен низ или ROOT_NODE_TEXT
+        If currentTabloRecord IsNot Nothing Then
+            Return If(String.IsNullOrEmpty(currentTabloRecord.Табло_Родител), "", currentTabloRecord.Табло_Родител)
+        End If
+        Return ""
+    End Function
     ''' <summary>
     ''' Актуализира (или създава) запис за разединител в дадено табло.
     ''' Логиката:
@@ -5093,35 +5170,44 @@ Public Class Form_Tablo_new
             FillDataGridViewForPanel()
         End If
     End Sub
-    Private Sub treeManager_RequestMoveObject(source As strTokow,   ' ТОВА Е ДЕТЕТО (което местим)
-                                              target As strTokow    ' ТОВА Е РОДИТЕЛЯ (където го пускаме)
-                                              ) Handles treeManager.RequestMoveObject
-        ' 1. ЗАЩИТА ОТ ГРЕШКИ: Да не вкараме табло в самото него
-        If source.Tablo.ToUpper() = target.Tablo.ToUpper() Then Return
-        ' 2. ЗАПОМНЯМЕ СТАРИЯ РОДИТЕЛ: Взимаме името му, преди да сме го променили
-        Dim oldParentName As String = source.Табло_Родител
-        ' 3. КЛОНИРАНЕ ЗА БЕЗОПАСНОСТ: Правим независимо копие на ДЕТЕТО
-        Dim clonedChild As strTokow = source.Clone()
-        ' 4. СМЯНА НА ЖИТЕЛСТВОТО: Записваме новата йерархия в оригиналния обект
-        source.Табло_Родител = target.Tablo
-        source.BuildingName = target.BuildingName ' Уверяваме се, че и сградата съвпада
-        ' ========================================================================
-        ' 🔄 ВЕРИЖНА РЕАКЦИЯ НА ПРЕИЗЧИСЛЯВАНЕ (Семейството)
-        ' ========================================================================
-        ' Стъпка А: Ако е имало СТАР РОДИТЕЛ, той трябва да "олекне" и да се преизчисли
-        If Not String.IsNullOrEmpty(oldParentName) Then
-            ' Тук викаме твоя метод за преизчисляване на стария родител
-            BuildPanelSummaryRecord(oldParentName)
+    Private Sub treeManager_RequestMoveObject(source As strTokow, target As strTokow) Handles treeManager.RequestMoveObject
+        ' 1. Защита от местене в себе си
+        If source Is target Then Return
+        ' 2. ЗАЩИТА ОТ ЦИКЛИЧНОСТ: Проверка дали целевото табло не е дете (или внук) на източника
+        If IsDescendant(target, source) Then
+            MessageBox.Show("Грешка: Не можете да поставите таблото в негов собствен под-елемент!", "Забранено действие", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            Return
         End If
-        ' Стъпка Б: НОВИЯТ РОДИТЕЛ трябва да "натежи" - преизчисляваме го с новите данни
-        ' (Вътре в BuildPanelSummaryRecord той ще събере мощността на новото дете)
-        BuildPanelSummaryRecord(target.Tablo)
-        ' ========================================================================
-        ' 🎨 ОБНОВЯВАНЕ НА ИНТЕРФЕЙСА
-        ' ========================================================================
-        ' Казваме на мениджъра да нарисува дървото наново с новите позиции
+        ' Продължаваме с местенето...
+        source.Табло_Родител = target.Tablo
+        source.BuildingName = target.BuildingName
+        AddFeederRecords()
         treeManager.RefreshTree()
-        ' Опресняваме таблицата на екрана
         FillDataGridViewForPanel()
     End Sub
+    Private Function IsDescendant(potentialDescendant As strTokow, potentialAncestor As strTokow) As Boolean
+        ' 1. Ако сме в една и съща сграда и табло, това е самият обект (цикъл при местене в себе си)
+        If potentialDescendant.BuildingName = potentialAncestor.BuildingName AndAlso
+           potentialDescendant.Tablo = potentialAncestor.Tablo Then Return True
+        Dim current = potentialDescendant
+        ' Изкачваме се нагоре по дървото, докато стигнем до корена (празен родител)
+        While Not String.IsNullOrEmpty(current.Табло_Родител)
+            ' Търсим родителя в СЪЩАТА сграда
+            Dim parent = ListTokow.FirstOrDefault(Function(t)
+                                                      Return t.Tablo = current.Табло_Родител AndAlso
+                                                      t.BuildingName = current.BuildingName AndAlso
+                                                      t.Device = "Табло"
+                                                  End Function)
+            ' Ако не намерим родител (счупена връзка) - спираме
+            If parent Is Nothing Then Exit While
+            ' Проверяваме дали текущият родител е нашият търсен "Ancestor"
+            If parent.BuildingName = potentialAncestor.BuildingName AndAlso
+               parent.Tablo = potentialAncestor.Tablo Then
+                Return True
+            End If
+            ' Продължаваме нагоре
+            current = parent
+        End While
+        Return False
+    End Function
 End Class

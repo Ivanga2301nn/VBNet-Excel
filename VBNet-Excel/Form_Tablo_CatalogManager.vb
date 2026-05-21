@@ -148,14 +148,15 @@ Public Class CableCatalog
     ''' Изчислява необходимото сечение на кабел според тока и условията на полагане
     ''' Оптимизиран за сградни инсталации
     ''' </summary>
-    Public Sub CalculateCable(ByRef tokow As Form_Tablo_new.strToko,
-                                Optional Type As String = "СВТ",
-                                Optional layMethod As Integer = 0,
-                                Optional mountMethod As String = "B1",
-                                Optional Broj_Cable As Integer = 1,
-                                Optional Tipe_Cable As Integer = 0,
-                                Optional matType As Integer = 0,
-                                Optional RetType As Integer = 1)
+    Public Sub CalculateCable(ByRef tokow As Form_Tablo_new.strTokow,
+                                 Optional Type As String = "СВТ",        ' Тип кабел (СВТ, САВТ, NYY...)
+                                Optional layMethod As Integer = 0,      ' 0=въздух (35°C), 1=земя (15°C)
+                                Optional mountMethod As String = "B1",  ' "A1"=гипсокартон, "B2"=под мазилка, "C"=над таван
+                                Optional Broj_Cable As Integer = 1,     ' Брой паралелни кабели
+                                Optional Tipe_Cable As Integer = 0,     ' 0=кабел (3-жилен), 1=проводник (1-жилен)
+                                Optional matType As Integer = 0,        ' 0=мед (Cu), 1=алуминий (Al)
+                                Optional RetType As Integer = 1         ' 0=само сечение, 1=пълно означение
+                                )
 
         If tokow.Device = "Разединител" OrElse
            tokow.Device = "Съществуващ" OrElse
@@ -284,7 +285,30 @@ Public Class CableCatalog
         tokow.Кабел_Сечение = Text
         tokow.Кабел_Тип = Type
         tokow.Кабел_Полагане = If(layMethod = 0, "Във въздух", "В земя")
-        tokow.Кабел_Монтаж = mountMethod
+        tokow.Кабел_Монтаж = GetMountMethodInfo(mountMethod)
     End Sub
+    ''' <summary>
+    ''' Капсулирана помощна функция, пренесена от формата за разчитане на метода за монтаж.
+    ''' </summary>
+    Private Function GetMountMethodInfo(mountMethod As String) As String
+        Select Case mountMethod
+            Case "A1" : Return "В тръба в изолация"
+            Case "B1" : Return "В тръба на стена"
+            Case "B2" : Return "В тръба в мазилка"
+            Case "C" : Return "Директно на стена"
+            Case "D1" : Return "В тръба в земя"
+            Case "D2" : Return "Директно в земя"
+            Case "E" : Return "На въздух/скара"
+            Case "F" : Return "В пакет"
+            Case Else : Return "Под мазилка"
+        End Select
+    End Function
+    ''' <summary>
+    ''' Помощен метод за правилно конвертиране на сечение от стринг към double (справя се с запетаи)
+    ''' </summary>
+    Private Function Method_StringSizeToDouble(sizeStr As String) As Double
+        If String.IsNullOrEmpty(sizeStr) Then Return 0
+        Return Val(sizeStr.Replace(",", "."))
+    End Function
 End Class
 #End Region

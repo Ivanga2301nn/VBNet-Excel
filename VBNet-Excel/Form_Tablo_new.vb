@@ -261,8 +261,8 @@ Public Class Form_Tablo_new
         Dim Text As String
     End Structure
     Dim LiMountMethod As New List(Of strMountMethod)
-    Private Cable_AlR_2 As New Dictionary(Of Integer, String)
-    Private Cable_AlR_4 As New Dictionary(Of Integer, String)
+    'Private Cable_AlR_2 As New Dictionary(Of Integer, String)
+    'Private Cable_AlR_4 As New Dictionary(Of Integer, String)
     ''' <summary>
     ''' Съдържа всички разединители (обекти с параметри)
     ''' Използва се като основна база данни

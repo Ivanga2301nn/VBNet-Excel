@@ -294,22 +294,6 @@ Public Class CableCatalog
         tokow.Кабел_Монтаж = GetMountMethodInfo(mountMethod)
     End Sub
     ''' <summary>
-    ''' Капсулирана помощна функция, пренесена от формата за разчитане на метода за монтаж.
-    ''' </summary>
-    Private Function GetMountMethodInfo(mountMethod As String) As String
-        Select Case mountMethod
-            Case "A1" : Return "В тръба в изолация"
-            Case "B1" : Return "В тръба на стена"
-            Case "B2" : Return "В тръба в мазилка"
-            Case "C" : Return "Директно на стена"
-            Case "D1" : Return "В тръба в земя"
-            Case "D2" : Return "Директно в земя"
-            Case "E" : Return "На въздух/скара"
-            Case "F" : Return "В пакет"
-            Case Else : Return "Под мазилка"
-        End Select
-    End Function
-    ''' <summary>
     ''' Напълва списъка с дефинираните начини на монтаж
     ''' </summary>
     Public Sub LoadMountMethods()
@@ -342,6 +326,24 @@ Public Class CableCatalog
             Return If(result.Simbol.Equals(inputValue, StringComparison.OrdinalIgnoreCase), result.Text, result.Simbol)
         End If
         Return "Не е намерено"
+    End Function
+    ''' <summary>
+    ''' Връща типа на материала на кабела: 0 за Мед (Cu), 1 за Алуминий (Al).
+    ''' </summary>
+    Public Function GetCableTypeResult(cableName As String) As Integer
+        If String.IsNullOrEmpty(cableName) Then Return 0
+        ' Списък с алуминиеви кабели
+        Dim targetCables As String() = {"САВТ", "NA2XY", "Al/R", "NAYY"}
+        ' Сравняваме, като превръщаме входа в главни букви (за по-сигурно)
+        ' Забележка: Тъй като Al/R съдържа латински букви, inputValue.ToUpper() ще го направи AL/R
+        Dim upperName As String = cableName.ToUpper()
+        ' Правим и масива с главни букви, за да съвпаднат перфектно
+        Dim targetCablesUpper As String() = {"САВТ", "NA2XY", "AL/R", "NAYY"}
+        If targetCablesUpper.Contains(upperName) Then
+            Return 1 ' Алуминий
+        Else
+            Return 0 ' Мед
+        End If
     End Function
 End Class
 #End Region

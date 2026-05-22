@@ -1497,9 +1497,6 @@ Public Class Form_Tablo_new
     End Sub
     ' ФУНКЦИЯ ЗА ЗАРЕЖДАНЕ НА КАТАЛОЗИТЕ
     Private Sub SetCatalog()
-        ' Речник за всички кабели
-        ' FillCables()
-        ' Речник за всички автоматични прекъсвачи
         ' Инициализиране на списъка
         Breakers = New List(Of BreakerInfo)
         ' Попълване на всички прекъсвачи чрез отделната процедура
@@ -3208,7 +3205,7 @@ Public Class Form_Tablo_new
                                        layMethod:=If(tokow.Кабел_Полагане = "Във въздух", 0, 1),
                                        mountMethod:=NewCables.GetMountMethodInfo(tokow.Кабел_Монтаж),
                                        Broj_Cable:=tokow.Кабел_Брой_Група,
-                                       matType:=GetCableTypeResult(tokow.Кабел_Тип)
+                                       matType:=NewCables.GetCableTypeResult(tokow.Кабел_Тип)
                                        )
                     Case "Съседни кабели (група):"
                         tokow.Кабел_Брой_Група = selectedValue
@@ -3217,7 +3214,7 @@ Public Class Form_Tablo_new
                                        layMethod:=If(tokow.Кабел_Полагане = "Във въздух", 0, 1),
                                        mountMethod:=NewCables.GetMountMethodInfo(tokow.Кабел_Монтаж),
                                        Broj_Cable:=tokow.Кабел_Брой_Група,
-                                       matType:=GetCableTypeResult(tokow.Кабел_Тип)
+                                       matType:=NewCables.GetCableTypeResult(tokow.Кабел_Тип)
                                        )
                     Case "Консуматор"
                         If tokow.Device <> "Табло" Then tokow.Консуматор = selectedValue
@@ -3293,7 +3290,7 @@ Public Class Form_Tablo_new
                                        layMethod:=If(selectedValue = "Във въздух", 0, 1),
                                        mountMethod:=NewCables.GetMountMethodInfo(tokow.Кабел_Монтаж),
                                        Broj_Cable:=tokow.Кабел_Брой_Група,
-                                       matType:=GetCableTypeResult(tokow.Кабел_Тип)
+                                       matType:=NewCables.GetCableTypeResult(tokow.Кабел_Тип)
                                        )
                         ' Подаваме го към твоята процедура
                         UpdateComboRow("Начин на полагане", valuesLaying, e.ColumnIndex)
@@ -3307,7 +3304,7 @@ Public Class Form_Tablo_new
                                            layMethod:=If(tokow.Кабел_Полагане = "Във въздух", 0, 1),
                                            mountMethod:=NewCables.GetMountMethodInfo(tokow.Кабел_Монтаж),
                                            Broj_Cable:=tokow.Кабел_Брой_Група,
-                                           matType:=GetCableTypeResult(selectedValue)
+                                           matType:=NewCables.GetCableTypeResult(selectedValue)
                                            )
                             UpdateComboRow("Тип кабел", uniqueCableTypes, e.ColumnIndex)
                             ' Правим прост списък само с двете опции
@@ -3320,7 +3317,7 @@ Public Class Form_Tablo_new
                                            layMethod:=If(tokow.Кабел_Полагане = "Във въздух", 0, 1),
                                            mountMethod:=NewCables.GetMountMethodInfo(tokow.Кабел_Монтаж),
                                            Broj_Cable:=tokow.Кабел_Брой_Група,
-                                           matType:=GetCableTypeResult(selectedValue)
+                                           matType:=NewCables.GetCableTypeResult(selectedValue)
                                            )
                         End If
                         ' Подаваме списъка към твоята процедура
@@ -3342,45 +3339,7 @@ Public Class Form_Tablo_new
             'isUpdatingGrid = False
         End Try
     End Sub
-    ''' <summary>
-    ''' Проверява дали даден тип кабел принадлежи към предварително дефинирана група.
-    ''' </summary>
-    ''' <param name="cableName">Име/тип на кабела (например "САВТ", "NAYY" и др.)</param>
-    ''' <returns>
-    ''' Връща:
-    ''' - 1 → ако кабелът принадлежи към зададената група
-    ''' - 0 → ако не принадлежи
-    ''' </returns>
-    ''' <remarks>
-    ''' Функцията сравнява подаденото име на кабел със списък от "целеви" кабели:
-    '''     {"САВТ", "NA2XY", "Al/R", "NAYY"}
-    '''
-    ''' Използва се методът Contains(), който проверява дали има точно съвпадение.
-    '''
-    ''' Типично приложение:
-    ''' - класификация на кабели (например алуминиеви)
-    ''' - избор на коефициенти при изчисления
-    ''' - условна логика при оразмеряване
-    '''
-    ''' Потенциални особености:
-    ''' - Сравнението е case-sensitive (например "na2xy" няма да съвпадне)
-    ''' - Ако входът е Nothing → ще върне 0 (без грешка)
-    ''' - При нужда от разширение, списъкът може да се направи динамичен (List или база данни)
-    '''
-    ''' Възможно подобрение:
-    ''' - Да се използва StringComparer.OrdinalIgnoreCase за нечувствително към регистъра сравнение
-    ''' - Да се върне Boolean вместо Integer за по-ясна логика
-    ''' </remarks>
-    Public Function GetCableTypeResult(cableName As String) As Integer
-        ' Списък с кабели, които попадат в конкретната група
-        Dim targetCables As String() = {"САВТ", "NA2XY", "Al/R", "NAYY"}
-        ' Проверка дали подаденият кабел е в списъка
-        If targetCables.Contains(cableName) Then
-            Return 1
-        Else
-            Return 0
-        End If
-    End Function
+
     ''' <summary>
     ''' Валидира и форматира стойност за RCD_Нула
     ''' </summary>

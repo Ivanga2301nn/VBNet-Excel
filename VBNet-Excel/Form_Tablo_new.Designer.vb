@@ -37,7 +37,7 @@ Partial Class Form_Tablo_new
         Me.toolStripSeparator7 = New System.Windows.Forms.ToolStripSeparator()
         Me.HelpToolStripButton = New System.Windows.Forms.ToolStripButton()
         Me.ToolStripSeparator2 = New System.Windows.Forms.ToolStripSeparator()
-        Me.ToolStripComboBox1 = New System.Windows.Forms.ToolStripComboBox()
+        Me.TscboManufacturer = New System.Windows.Forms.ToolStripComboBox()
         Me.ToolStripSeparator4 = New System.Windows.Forms.ToolStripSeparator()
         Me.ToolStripButton_Балансирай_фазите = New System.Windows.Forms.ToolStripButton()
         Me.ToolStripSeparator3 = New System.Windows.Forms.ToolStripSeparator()
@@ -82,7 +82,7 @@ Partial Class Form_Tablo_new
         '
         'ToolStrip1
         '
-        Me.ToolStrip1.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.NewToolStripButton, Me.OpenToolStripButton, Me.SaveToolStripButton, Me.PrintToolStripButton, Me.toolStripSeparator6, Me.CutToolStripButton, Me.CopyToolStripButton, Me.PasteToolStripButton, Me.toolStripSeparator7, Me.HelpToolStripButton, Me.ToolStripSeparator2, Me.ToolStripComboBox1, Me.ToolStripSeparator4, Me.ToolStripButton_Балансирай_фазите, Me.ToolStripSeparator3, Me.ToolStripButton_Поправи_ДЗТ, Me.ToolStripSeparator1, Me.ToolStripButton_Вмъкни_Autocad, Me.ToolStripSeparator5, Me.ToolStripButton_ШИНА, Me.ToolStripButton_Добави_резерва})
+        Me.ToolStrip1.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.NewToolStripButton, Me.OpenToolStripButton, Me.SaveToolStripButton, Me.PrintToolStripButton, Me.toolStripSeparator6, Me.CutToolStripButton, Me.CopyToolStripButton, Me.PasteToolStripButton, Me.toolStripSeparator7, Me.HelpToolStripButton, Me.ToolStripSeparator2, Me.TscboManufacturer, Me.ToolStripSeparator4, Me.ToolStripButton_Балансирай_фазите, Me.ToolStripSeparator3, Me.ToolStripButton_Поправи_ДЗТ, Me.ToolStripSeparator1, Me.ToolStripButton_Вмъкни_Autocad, Me.ToolStripSeparator5, Me.ToolStripButton_ШИНА, Me.ToolStripButton_Добави_резерва})
         Me.ToolStrip1.Location = New System.Drawing.Point(5, 5)
         Me.ToolStrip1.Name = "ToolStrip1"
         Me.ToolStrip1.Size = New System.Drawing.Size(1373, 25)
@@ -173,12 +173,12 @@ Partial Class Form_Tablo_new
         Me.ToolStripSeparator2.Name = "ToolStripSeparator2"
         Me.ToolStripSeparator2.Size = New System.Drawing.Size(6, 25)
         '
-        'ToolStripComboBox1
+        'TscboManufacturer
         '
-        Me.ToolStripComboBox1.Items.AddRange(New Object() {"Schneider Electric", "Schrack Technik"})
-        Me.ToolStripComboBox1.Name = "ToolStripComboBox1"
-        Me.ToolStripComboBox1.Size = New System.Drawing.Size(121, 25)
-        Me.ToolStripComboBox1.Text = "Schneider Electric"
+        Me.TscboManufacturer.Items.AddRange(New Object() {"Schneider Electric", "Schrack Technik"})
+        Me.TscboManufacturer.Name = "TscboManufacturer"
+        Me.TscboManufacturer.Size = New System.Drawing.Size(121, 25)
+        Me.TscboManufacturer.Text = "Schneider Electric"
         '
         'ToolStripSeparator4
         '
@@ -358,7 +358,7 @@ Partial Class Form_Tablo_new
     Friend WithEvents ToolStripButton_Вмъкни_Autocad As Windows.Forms.ToolStripButton
     Friend WithEvents ToolStripSeparator2 As Windows.Forms.ToolStripSeparator
     Friend WithEvents ToolStripSeparator3 As Windows.Forms.ToolStripSeparator
-    Friend WithEvents ToolStripComboBox1 As Windows.Forms.ToolStripComboBox
+    Friend WithEvents TscboManufacturer As Windows.Forms.ToolStripComboBox
     Friend WithEvents ToolStripSeparator4 As Windows.Forms.ToolStripSeparator
     Friend WithEvents ToolStripButton_Поправи_ДЗТ As Windows.Forms.ToolStripButton
     Friend WithEvents ToolStripSeparator5 As Windows.Forms.ToolStripSeparator

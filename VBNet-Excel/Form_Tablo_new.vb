@@ -77,10 +77,7 @@ Public Class Form_Tablo_new
         ' Тази процедура подготвя данните, които по-късно ще се
         ' използват от SelectBreaker() и други функции.
 #End Region
-        ' Инициализиране на новия каталог за кабели
-        NewCables.LoadCatalog()
-        ' Зареждаме методите за монтаж от новата процедура
-        NewCables.LoadMountMethods()
+        InitializeCatalogs()
         SetCatalog()
 #Region "Извличане на консуматорите от AutoCAD"
         ' Обхожда всички избрани блокове в чертежа и:
@@ -227,6 +224,34 @@ Public Class Form_Tablo_new
         SetupDataGridView_Total()
         calcBreaker = False
     End Sub
+    ''' <summary>
+    ''' Инициализира всички каталози (кабели, прекъсвачи) и зарежда първоначалните марки в UI.
+    ''' </summary>
+    Private Sub InitializeCatalogs()
+        ' 1. Инициализиране на каталога за кабели и методите за монтаж
+        NewCables.LoadCatalog()
+        NewCables.LoadMountMethods()
+        ' 2. Изчистване на служебните елементи в ComboBox-а за производители
+        TscboManufacturer.Items.Clear()
+        ' 3. Пълнене на ToolStripComboBox-а директно от списъка Brand_For_combo в класа
+        TscboManufacturer.Items.AddRange(NewBreakers.Brand_For_combo.ToArray())
+        ' 4. Автоматично избиране на първия производител от списъка (напр. "Schneider Electric")
+        If TscboManufacturer.Items.Count > 0 Then TscboManufacturer.SelectedIndex = 0
+    End Sub
+    ''' <summary>
+    ''' Задейства се автоматично при всяка смяна на марката от потребителя.
+    ''' </summary>
+    Private Sub TscboManufacturer_SelectedIndexChanged(sender As Object, e As EventArgs) Handles TscboManufacturer.SelectedIndexChanged
+        ' 1. Проверяваме дали има избран елемент, за да избегнем грешки
+        If TscboManufacturer.SelectedIndex = -1 Then Exit Sub
+        ' 2. Вземаме избраната марка като чист текст
+        Dim selectedBrand As String = TscboManufacturer.SelectedItem.ToString()
+        ' 3. Извикваме метода от твоя нов клас, който да зареди съответната марка
+        NewBreakers.LoadCatalog(selectedBrand)
+        ' 4. Тук по-късно ще добавим извикване на преизчисленията (напр. CalculateCircuitLoads), 
+        ' за да може при смяна на марката апаратите в таблицата веднага да се преизчислят с новите модели!
+    End Sub
+
     Dim PI As Double = 3.1415926535897931
     Dim cu As CommonUtil = New CommonUtil()
     Private ListKonsumator As New List(Of strKonsumator)

@@ -375,23 +375,57 @@ Public Class BreakerCatalog
     Public Property Curve_For_combo As New List(Of String)()
     Public Sub New()
         ' ✅ Твърдо дефинираме поддържаните марки, за да заредим първия ComboBox на формата
-        Brand_For_combo = New List(Of String) From {"Schneider Electric", "Siemens", "ABB"}
+        Brand_For_combo = New List(Of String) From {"Schneider Electric", "Schrack Technik", "Siemens", "ABB"}
     End Sub
     ''' <summary>
-    ''' Зарежда каталога само за избрания производител.
+    ''' Генерира декартово произведение от всички възможни комбинации на параметрите 
+    ''' и ги добавя в списъка 'Breakers'.
     ''' </summary>
-    ''' <param name="selectedBrand">Името на марката от ComboBox-а на формата (напр. "Schneider Electric")</param>
+    ''' <param name="brand">Марка на апаратурата (напр. "Schneider", "Schrack")</param>
+    ''' <param name="series">Серия на модела (напр. "EZ9 MCB", "Amparo 6kA")</param>
+    ''' <param name="category">Категория на уреда (напр. "MCB", "RCCB", "RCBO", "MCCB")</param>
+    ''' <param name="currents">Номинални токове Inom в Ампери - Integer() {6, 10, 16...}</param>
+    ''' <param name="curves">Криви на изключване (B, C, D) - String(). Ако е излишно (напр. за ДТЗ), подай: Nothing (автоматично става "-")</param>
+    ''' <param name="polesList">Брой полюси (1, 2, 3, 4) - Integer(). Ако е Nothing, автоматично става: 0</param>
+    ''' <param name="icsValues">Изключвателна способност в kA - Decimal(). Ако е Nothing, автоматично става: 0</param>
+    ''' <param name="tripUnits">Тип защита/утечка (напр. "30mA", "TM", "Electronic") - String(). Ако е Nothing, остава: Nothing</param>
+    ''' <remarks>
+    ''' ПОДРЕДБА НА ПАРАМЕТРИТЕ ПРИ ИЗВИКВАНЕ:
+    ''' 1. Brand (String)      -> "Schrack"
+    ''' 2. Series (String)     -> "Amparo"
+    ''' 3. Category (String)   -> "MCB"
+    ''' 4. Currents (Integer()) -> {6, 10, 16, 20}
+    ''' 5. Curves (String())   -> {"B", "C"}       <-- (Подай Nothing за уреди без крива)
+    ''' 6. Poles (Integer())   -> {1, 3}
+    ''' 7. Ics kA (Decimal())  -> {6}
+    ''' 8. TripUnit (String()) -> Nothing          <-- (За ДТЗ/електронни защити, напр. {"30mA"})
+    ''' 
+    ''' КАК РАБОТИ ВГРАДЕНАТА ЗАЩИТА С If(..., New ...):
+    ''' Ако подадеш 'Nothing' за масив, циклите няма да гръмнат, а ще се завъртят точно веднъж със следните служебни стойности:
+    ''' - Curves    -> "-"
+    ''' - Poles     -> 0
+    ''' - Ics_kA    -> 0
+    ''' - TripUnit  -> Nothing
+    ''' </remarks>
     Public Sub LoadCatalog(selectedBrand As String)
         Breakers.Clear()
         ' В момента генерираме кода софтуерно в зависимост от избора
         Select Case selectedBrand
             Case "Schneider Electric", "Schneider"
                 ' MCB
-                AddBreakerSeries("Schneider", "EZ9 MCB", "MCB", {6, 10, 16, 20, 25, 32, 40, 50, 63}, {"C", "B", "D"}, {1, 3}, {6}, Nothing)
-                AddBreakerSeries("Schneider", "iC60N", "MCB", {2, 3, 4, 6, 10, 16, 20, 25, 32, 40, 50, 63}, {"C", "B", "D"}, {1, 3}, {6}, Nothing)
-                AddBreakerSeries("Schneider", "C120", "MCB", {80, 100, 125}, {"C", "D"}, {1, 3}, {10}, Nothing)
+                AddBreakerSeries("Schneider", "EZ9 MCB", "MCB",
+                                 {6, 10, 16, 20, 25, 32, 40, 50, 63},
+                                 {"C", "B", "D"}, {1, 3}, {6}, Nothing)
+                AddBreakerSeries("Schneider", "iC60N", "MCB",
+                                 {2, 3, 4, 6, 10, 16, 20, 25, 32, 40, 50, 63},
+                                 {"C", "B", "D"}, {1, 3}, {6}, Nothing)
+                AddBreakerSeries("Schneider", "C120", "MCB",
+                                 {80, 100, 125}, {"C", "D"},
+                                 {1, 3}, {10}, Nothing)
                 ' MCCB
-                AddBreakerSeries("Schneider", "NSXm", "MCCB", {16, 25, 32, 40, 50, 63, 80, 100, 125, 160}, {"E", "B", "F", "N", "H"}, {3}, {25}, {"TM-D", "TM-DC"})
+                AddBreakerSeries("Schneider", "NSXm", "MCCB",
+                                 {16, 25, 32, 40, 50, 63, 80, 100, 125, 160},
+                                 {"E", "B", "F", "N", "H"}, {3}, {25}, {"TM-D", "TM-DC"})
                 AddBreakerSeries("Schneider", "NSX100", "MCCB", {16, 25, 32, 40, 63, 80, 100}, {"B", "F", "N", "H", "S", "L"}, {3}, {25}, {"TM-D", "TM-DC"})
                 AddBreakerSeries("Schneider", "NSX160", "MCCB", {80, 100, 125, 160}, {"B", "F", "N", "H", "S", "L"}, {3}, {36}, {"TM-D"})
                 AddBreakerSeries("Schneider", "NSX250", "MCCB", {125, 160, 200, 250}, {"B", "F", "N", "H", "S", "L"}, {3}, {50}, {"TM-D", "Micrologic 2.0", "Micrologic 5.0"})
@@ -404,6 +438,27 @@ Public Class BreakerCatalog
                 ' AddBreakerSeries("Siemens", "5SY", "MCB", {6, 10, 16...}, ...)
             Case "ABB"
                 ' TODO: Тук се добавят редове за ABB утре
+            Case "Schrack Technik"
+                ' Amparo 6kA (Битови серии) - обикновено B и C крива, 1-полюсни и 3-полюсни
+                AddBreakerSeries("Schrack", "Amparo 6kA", "MCB",
+                                 {6, 10, 13, 16, 20, 25, 32, 40, 50, 63},
+                                 {"B", "C"}, {1, 3}, {6}, Nothing)
+                ' BMS-6 (Индустриална / стандартна серия 6kA) - B, C и D крива, включва и 2p / 4p
+                AddBreakerSeries("Schrack", "BMS-6", "MCB",
+                                 {1, 2, 4, 6, 10, 13, 16, 20, 25, 32, 40, 50, 63},
+                                 {"B", "C", "D"}, {1, 2, 3, 4}, {6}, Nothing)
+                ' BMS-10 (Усилена серия 10kA)
+                AddBreakerSeries("Schrack", "BMS-10", "MCB",
+                                 {0.5, 1, 2, 4, 6, 10, 16, 20, 25, 32, 40, 50, 63},
+                                 {"B", "C", "D"}, {1, 2, 3, 4}, {10}, Nothing)
+                ' MC1 - по-малките ляти корпуси (до 160A)
+                AddBreakerSeries("Schrack", "MC1", "MCCB",
+                                 {20, 25, 32, 40, 50, 63, 80, 100, 125, 160},
+                                 Nothing, {3, 4}, {25, 50}, {"TM (Thermal-Magnetic)"})
+                ' MC2 - среден размер (до 300A)
+                AddBreakerSeries("Schrack", "MC2", "MCCB",
+                                 {160, 200, 250, 300},
+                                 Nothing, {3, 4}, {50}, {"TM", "Electronic"})
         End Select
         ' ✅ Автоматично пълним масивите за останалите ComboBox-ове на база избраната марка
         Breakers_For_combo = Breakers.Select(Function(b) b.Series).Distinct().ToList()

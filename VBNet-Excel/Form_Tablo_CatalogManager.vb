@@ -438,7 +438,7 @@ Public Class BreakerCatalog
                 ' AddBreakerSeries("Siemens", "5SY", "MCB", {6, 10, 16...}, ...)
             Case "ABB"
                 ' TODO: Тук се добавят редове за ABB утре
-            Case "Schrack Technik"
+            Case "Schrack Technik", "Schrack"
                 ' Amparo 6kA (Битови серии) - обикновено B и C крива, 1-полюсни и 3-полюсни
                 AddBreakerSeries("Schrack", "Amparo 6kA", "MCB",
                                  {6, 10, 13, 16, 20, 25, 32, 40, 50, 63},
@@ -500,7 +500,7 @@ Public Class BreakerCatalog
     ''' <summary>
     ''' Определя и задава подходящ прекъсвач за даден токов кръг.
     ''' </summary>
-    Private Sub CalculateBreaker(ByRef tokow As Form_Tablo_new.strTokow)
+    Public Sub CalculateBreaker(ByRef tokow As Form_Tablo_new.strTokow)
         ' Деклариране на променлива за намерения прекъсвач от новия клас
         Dim breaker As BreakerCatalog.BreakerInfo = Nothing
         ' ------------------------------------------------------------
@@ -562,29 +562,105 @@ Public Class BreakerCatalog
             tokow.Breaker_Защитен_блок = If(breaker.TripUnit, "-")
         End If
     End Sub
-    ''' <summary>
-    ''' Автоматично избира прекъсвач от каталога според тока и броя полюси.
-    ''' </summary>
-    Public Function SelectBreaker(calculatedCurrent As Double, poles As Integer, Optional curveOrSeries As String = "C") As BreakerInfo
-        ' 1. Първо прилагаме коефициента за сигурност директно върху изчисления ток
-        Const SAFETY_FACTOR As Double = 1.15 ' Прекъсвачът трябва да е по-голям от (Тока * 1.15)
+    ' =============================================================
+    ' Функция: SelectBreaker
+    ' =============================================================
+    ' <summary>
+    ' Избира подходящ прекъсвач (BreakerInfo) от колекцията Breakers
+    ' според:
+    '
+    ' - изчислен ток
+    ' - брой полюси
+    ' - крива или серия
+    '
+    ' Логиката работи на два етапа:
+    '
+    ' 1. Основен избор:
+    '    търси най-близкия стандартен прекъсвач,
+    '    който покрива тока с резерв.
+    '
+    ' 2. Fallback избор:
+    '    ако няма намерен прекъсвач за зададената
+    '    крива/серия → търси произволен подходящ прекъсвач.
+    '
+    ' Цел:
+    ' - автоматичен подбор на защитен апарат
+    ' - избягване на undersized прекъсвач
+    ' - използване на стандартни номинали
+    ' </summary>
+    '
+    ' <param name="calculatedCurrent">
+    ' Изчислен работен ток.
+    ' </param>
+    '
+    ' <param name="poles">
+    ' Необходим брой полюси.
+    ' </param>
+    '
+    ' <param name="curveOrSeries">
+    ' Крива или серия на прекъсвача.
+    '
+    ' По подразбиране:
+    ' "C"
+    ' </param>
+    '
+    ' <returns>
+    ' BreakerInfo:
+    ' избраният прекъсвач,
+    ' или Nothing при липса на подходящ.
+    ' </returns>
+    Public Function SelectBreaker(calculatedCurrent As Double,
+                              poles As Integer,
+                              Optional curveOrSeries As String = "C") As BreakerInfo
+        ' <summary>
+        ' резерв при подбора на прекъсвача.        '
+        ' Прекъсвачът трябва да бъде
+        ' по-голям от изчисления ток.
+        ' </summary>
+        Const SAFETY_FACTOR As Double = 1.15
+        ' <summary>
+        ' minimumRequiredCurrent:
+        ' минимален необходим номинален ток
+        ' след прилагане на резерва.
+        ' </summary>
         Dim minimumRequiredCurrent As Double = calculatedCurrent * SAFETY_FACTOR
-        ' 2. Търсим най-близкия стандартен апарат, който покрива това изискване
-        ' Търсим по Полюси И (Крива ИЛИ Серия)
-        Dim selectedBreaker = Breakers.
-            Where(Function(b) b.Poles = poles AndAlso
-                              (b.Curve.Equals(curveOrSeries, StringComparison.OrdinalIgnoreCase) OrElse
-                               b.Series.Equals(curveOrSeries, StringComparison.OrdinalIgnoreCase))).
-            OrderBy(Function(b) b.NominalCurrent).
-            FirstOrDefault(Function(b) b.NominalCurrent >= minimumRequiredCurrent)
-        ' 3. План Б (Fallback): Ако изчисленият ток е твърде голям за тази крива/серия и няма намерено нищо
+        ' СТЪПКА 1: Опит за намиране на прекъсвач по точни критерии (Полюси + Крива/Серия + Ток)
+        Dim selectedBreaker = Breakers _
+            .Where(Function(b) b.Poles = poles) _
+            .Where(Function(b) b.Curve.Equals(curveOrSeries, StringComparison.OrdinalIgnoreCase) OrElse
+            b.Series.Equals(curveOrSeries, StringComparison.OrdinalIgnoreCase)) _
+            .OrderBy(Function(b) b.NominalCurrent) _
+            .FirstOrDefault(Function(b) b.NominalCurrent >= minimumRequiredCurrent)        ' 1. Филтър по полюси
+        ' 2. Филтър по Крива или Серия (игнорирайки регистъра на буквите)
+        ' 3. Сортиране по номинален ток (от най-малък към най-голям)
+        ' 4. Вземане на първия прекъсвач, чийто ток е по-голям или равен на минимално изисквания
+        ' СТЪПКА 2: Резервен вариант (Fallback), ако първото търсене не е върнало резултат
         If selectedBreaker Is Nothing Then
-            selectedBreaker = Breakers.
-                Where(Function(b) b.Poles = poles AndAlso b.NominalCurrent >= calculatedCurrent).
-                OrderBy(Function(b) b.NominalCurrent).
-                FirstOrDefault()
+            ' Ако не е намерен съвпадащ прекъсвач, търсим алтернативен само по полюси и изчислен ток
+            selectedBreaker = Breakers _
+                .Where(Function(b) b.Poles = poles) _
+                .Where(Function(b) b.NominalCurrent >= calculatedCurrent) _
+                .OrderBy(Function(b) b.NominalCurrent) _
+                .FirstOrDefault()
+            ' 1. Филтрираме по същия брой полюси
+            ' 2. Филтрираме прекъсвачите с ток, по-голям или равен на изчисления (calculatedCurrent)
+            ' 3. Сортираме ги по ток възходящо
+            ' 4. Вземаме първия (най-икономичния/близкия по стойност) прекъсвач
         End If
+        ' =============================================================
+        ' ВРЪЩАНЕ НА РЕЗУЛТАТ
+        ' =============================================================
         Return selectedBreaker
     End Function
+    ''' <summary>
+    ''' Изчиства данните за прекъсвач (MCB)
+    ''' </summary>
+    Public Sub ClearBreaker(ByRef tokow As Form_Tablo_new.strTokow)
+        tokow.Breaker_Тип_Апарат = ""           ' Серия апарат (EZ9, C120, NSX, MTZ)
+        tokow.Breaker_Крива = ""                ' Характеристика (B, C, D)
+        tokow.Breaker_Номинален_Ток = ""        ' Номинален ток (пример: "16A")
+        tokow.Breaker_Изкл_Възможност = ""      ' Изключвателна способност ("6000A", "10000A")
+        tokow.Breaker_Защитен_блок = ""         ' Изключвателна способност ("6000A", "10000A")
+    End Sub
 End Class
 #End Region

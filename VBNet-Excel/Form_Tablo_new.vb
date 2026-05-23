@@ -251,7 +251,6 @@ Public Class Form_Tablo_new
         ' 4. Тук по-късно ще добавим извикване на преизчисленията (напр. CalculateCircuitLoads), 
         ' за да може при смяна на марката апаратите в таблицата веднага да се преизчислят с новите модели!
     End Sub
-
     Dim PI As Double = 3.1415926535897931
     Dim cu As CommonUtil = New CommonUtil()
     Private ListKonsumator As New List(Of strKonsumator)
@@ -269,7 +268,7 @@ Public Class Form_Tablo_new
     ' КАТАЛОЖНИ ПРОМЕНЛИВИ (на ниво форма)
     ' ============================================================
     Private BlockConfigs As New List(Of BlockConfig)
-    Private Breakers As New List(Of BreakerInfo)
+    'Private Breakers As New List(Of BreakerInfo)
     Private Busbars_Cu As New List(Of BusbarInfo)
     Private Busbars_Al As New List(Of BusbarInfo)
     Private RCD_Catalog As New List(Of RCDInfo)
@@ -281,18 +280,6 @@ Public Class Form_Tablo_new
     ''' Използва се като основна база данни
     ''' </summary>
     Private Disconnectors As New List(Of DisconnectorInfo)
-    ''' <summary>
-    ''' Списък с автоматични прекъсвачи
-    ''' </summary>
-    Private Breakers_For_combo As List(Of String)
-    ''' <summary>
-    ''' Списък с токови защити (Trip Unit)
-    ''' </summary>
-    Private TripUnit_For_combo As List(Of String)
-    ''' <summary>
-    ''' Списък с характеристики на прекъсвачи (B, C, D и др.)
-    ''' </summary>
-    Private Curve_For_combo As List(Of String)
     ''' <summary>
     ''' Списък с типове разединители (за избор)
     ''' </summary>
@@ -869,37 +856,6 @@ Public Class Form_Tablo_new
     ''' Може да се използва за избор на прекъсвач за генераторни табла,
     ''' както и за по-сложни сценарии с селективност и късо съединение.
     ''' </summary>
-    Public Class BreakerInfo
-        Public Brand As String                      ' Производител на прекъсвача (например "Schneider").
-        Public Series As String                     ' Серия или модел на прекъсвача (например "EZ9", "C120", "NSX", "MTZ").
-        ''' <summary>
-        ''' Категория на прекъсвача:
-        ''' - "MCB" – миниатюрен автоматичен прекъсвач
-        ''' - "MCCB" – корпусен прекъсвач
-        ''' - "ACB" – въздушен прекъсвач
-        ''' </summary>
-        Public Category As String
-        Public NominalCurrent As Integer            ' Номинален ток на прекъсвача в ампери.
-        Public Poles As Integer                     ' Брой полюси (1P, 2P, 3P или 4P).
-        ''' <summary>
-        ''' Работна прекъсвателна способност (Ics) в kA.
-        ''' Това е стойността, до която прекъсвачът може да изключва многократно.
-        ''' </summary>
-        Public Ics_kA As Decimal
-        ''' <summary>
-        ''' Крива на MCB (B, C или D). 
-        ''' Само за миниатюрни автоматични прекъсвачи.  
-        ''' Определя характеристиката на изключване при късо съединение.
-        ''' MCCB и ACB не използват това поле.
-        ''' </summary>
-        Public Curve As String
-        ''' <summary>
-        ''' Тип на защитната единица (Trip Unit) – TM-D, Micrologic и т.н.
-        ''' Само за MCCB и ACB.  
-        ''' Определя електронната или термомагнитната защита.
-        ''' </summary>
-        Public TripUnit As String
-    End Class
     ''' <summary>
     ''' Конфигурация за всеки тип блок
     ''' </summary>
@@ -1438,7 +1394,7 @@ Public Class Form_Tablo_new
                 If Discon Then
                     comboCell.Items.AddRange(Disconnectors_For_combo.ToArray())
                 Else
-                    comboCell.Items.AddRange(Breakers_For_combo.ToArray())
+                    comboCell.Items.AddRange(NewBreakers.Breakers_For_combo.ToArray())
                 End If
             Case "Номинален ток"
                 If Discon Then
@@ -1523,10 +1479,6 @@ Public Class Form_Tablo_new
     End Sub
     ' ФУНКЦИЯ ЗА ЗАРЕЖДАНЕ НА КАТАЛОЗИТЕ
     Private Sub SetCatalog()
-        ' Инициализиране на списъка
-        Breakers = New List(Of BreakerInfo)
-        ' Попълване на всички прекъсвачи чрез отделната процедура
-        FillBreakers()
         ' ============================================================
         ' РАЗЕДИНИТЕЛИ (Товарови прекъсвачи)
         ' ============================================================
@@ -1819,223 +1771,7 @@ Public Class Form_Tablo_new
     })
         Return catalog
     End Function
-    ''' <summary>
-    ''' Процедура за добавяне на всички прекъсвачи.
-    ''' Тук се генерират MCB, MCCB и ACB.
-    ''' </summary>
-    Private Sub FillBreakers()
-        Breakers.Clear()
-        ' ==========================
-        ' MCB – EZ9
-        ' ==========================
-        Dim EZ9_Currents = {6, 10, 16, 20, 25, 32, 40, 50, 63}
-        Dim EZ9_Curves = {"C", "B", "D"}
-        Dim EZ9_Poles = {1, 3}
-        For Each Inom In EZ9_Currents
-            For Each curve In EZ9_Curves
-                For Each poles In EZ9_Poles
-                    Breakers.Add(New BreakerInfo With {
-                    .Brand = "Schneider",
-                    .Series = "EZ9 MCB",
-                    .Category = "MCB",
-                    .NominalCurrent = Inom,
-                    .Poles = poles,
-                    .Curve = curve,
-                    .Ics_kA = 6,
-                    .TripUnit = Nothing
-                })
-                Next
-            Next
-        Next
-        ' ==========================
-        ' MCB – Acti9 iC60N (6kA / 10kA)
-        ' ==========================
-        ' iC60N предлага изключително малки токове за защита на контролни вериги
-        Dim iC60_Currents = {2, 3, 4, 6, 10, 16, 20, 25, 32, 40, 50, 63}
-        Dim iC60_Curves = {"C", "B", "D"}
-        Dim iC60_Poles = {1, 3}
-        For Each Inom In iC60_Currents
-            For Each curve In iC60_Curves
-                For Each poles In iC60_Poles
-                    Breakers.Add(New BreakerInfo With {
-                .Brand = "Schneider",
-                .Series = "iC60N",
-                .Category = "MCB",
-                .NominalCurrent = Inom,
-                .Poles = poles,
-                .Curve = curve,
-                .Ics_kA = 6,
-                .TripUnit = Nothing
-            })
-                Next
-            Next
-        Next
-        ' ==========================
-        ' MCB – C120
-        ' ==========================
-        Dim C120_Currents = {80, 100, 125}
-        Dim C120_Curves = {"C", "D"}
-        Dim C120_Poles = {1, 3}
-        For Each Inom In C120_Currents
-            For Each curve In C120_Curves
-                For Each poles In C120_Poles
-                    Breakers.Add(New BreakerInfo With {
-                    .Brand = "Schneider",
-                    .Series = "C120",
-                    .Category = "MCB",
-                    .NominalCurrent = Inom,
-                    .Poles = poles,
-                    .Curve = curve,
-                    .Ics_kA = 10,
-                    .TripUnit = Nothing
-                })
-                Next
-            Next
-        Next
-        ' ==========================
-        ' MCCB – ComPacT NSXm (16A до 160A)
-        ' ==========================
-        Dim NSXm_Currents = {16, 25, 32, 40, 50, 63, 80, 100, 125, 160}
-        Dim NSXm_Curves = {"E", "B", "F", "N", "H"}
-        Dim NSXm_TripUnits = {"TM-D", "TM-DC"}
-        For Each Inom In NSXm_Currents
-            For Each curve In NSXm_Curves
-                For Each trip In NSXm_TripUnits
-                    Breakers.Add(New BreakerInfo With {
-                       .Brand = "Schneider",
-                        .Series = "NSXm",
-                        .Category = "MCCB",
-                        .NominalCurrent = Inom,
-                        .Poles = 3,
-                        .TripUnit = trip,
-                        .Ics_kA = 25,
-                        .Curve = curve
-                        })
-                Next
-            Next
-        Next
-        ' NSX100 – TM‑D, TM‑DC
-        Dim NSX100_Currents = {16, 25, 32, 40, 63, 80, 100}
-        Dim NSX100_Curves = {"B", "F", "N", "H", "S", "L"}
-        Dim NSX100_TripUnits = {"TM-D", "TM-DC"}
-        For Each Inom In NSX100_Currents
-            For Each curve In NSX100_Curves
-                For Each trip In NSX100_TripUnits
-                    Breakers.Add(New BreakerInfo With {
-                        .Brand = "Schneider",
-                        .Series = "NSX100",
-                        .Category = "MCCB",
-                        .NominalCurrent = Inom,
-                        .Poles = 3,
-                        .TripUnit = trip,
-                        .Ics_kA = 25,
-                        .Curve = curve
-                    })
-                Next
-            Next
-        Next
-        ' NSX160 – TM‑D, TM‑DC
-        Dim NSX160_Currents = {80, 100, 125, 160}
-        Dim NSX160_Curves = {"B", "F", "N", "H", "S", "L"}
-        Dim NSX160_TripUnits = {"TM-D"}
-        For Each Inom In NSX160_Currents
-            For Each curve In NSX160_Curves
-                For Each trip In NSX160_TripUnits
-                    Breakers.Add(New BreakerInfo With {
-                        .Brand = "Schneider",
-                        .Series = "NSX160",
-                        .Category = "MCCB",
-                        .NominalCurrent = Inom,
-                        .Poles = 3,
-                        .TripUnit = trip,
-                        .Ics_kA = 36,
-                        .Curve = curve
-                    })
-                Next
-            Next
-        Next
-        ' NSX250 – Micrologic (по‑големи токове обикновено с електронна защита)
-        Dim NSX250_Currents = {125, 160, 200, 250}
-        Dim NSX250_Curves = {"B", "F", "N", "H", "S", "L"}
-        Dim NSX250_TripUnits = {"TM-D", "Micrologic 2.0", "Micrologic 5.0"}
-        For Each Inom In NSX250_Currents
-            For Each curve In NSX250_Curves
-                For Each trip In NSX250_TripUnits
-                    Breakers.Add(New BreakerInfo With {
-                        .Brand = "Schneider",
-                        .Series = "NSX250",
-                        .Category = "MCCB",
-                        .NominalCurrent = Inom,
-                        .Poles = 3,
-                        .TripUnit = trip,
-                        .Ics_kA = 50,
-                        .Curve = curve
-                    })
-                Next
-            Next
-        Next
-        ' NSX400/NSX630 – Micrologic
-        Dim NSX400_Currents = {250, 320, 400}
-        Dim NSX400_Curves = {"F", "N", "H", "S", "L"}
-        Dim NSX_High_TripUnits = {"Micrologic 2.3"}
-        For Each Inom In NSX400_Currents
-            For Each curve In NSX400_Curves
-                For Each trip In NSX_High_TripUnits
-                    Breakers.Add(New BreakerInfo With {
-                        .Brand = "Schneider",
-                        .Series = "NSX400",
-                        .Category = "MCCB",
-                        .NominalCurrent = Inom,
-                        .Poles = 3,
-                        .TripUnit = trip,
-                        .Ics_kA = 70,
-                        .Curve = curve
-                    })
-                Next
-            Next
-        Next
-        Dim NSX630_Currents = {400, 500, 630}
-        For Each Inom In NSX630_Currents
-            For Each curve In NSX400_Curves
-                For Each trip In NSX_High_TripUnits
-                    Breakers.Add(New BreakerInfo With {
-                        .Brand = "Schneider",
-                        .Series = "NSX630",
-                        .Category = "MCCB",
-                        .NominalCurrent = Inom,
-                        .Poles = 3,
-                        .TripUnit = trip,
-                        .Ics_kA = 100,
-                        .Curve = curve
-                    })
-                Next
-            Next
-        Next
-        ' ACB – MTZ
-        Dim MTZ_Currents = {800, 1000, 1250, 1600, 2000, 2500, 3200, 4000, 5000, 6300}
-        Dim MTZ_Icu = {42, 65, 100}
-        Dim MTZ_Poles = {3, 4}
-        For Each Inom In MTZ_Currents
-            For Each icuValue In MTZ_Icu
-                For Each poles In MTZ_Poles
-                    Breakers.Add(New BreakerInfo With {
-                    .Brand = "Schneider",
-                    .Series = "MTZ",
-                    .Category = "ACB",
-                    .NominalCurrent = Inom,
-                    .Poles = poles,
-                    .TripUnit = "Micrologic 6.0",
-                    .Ics_kA = icuValue,
-                    .Curve = "MTZ"
-                })
-                Next
-            Next
-        Next
-        ' ✅ Попълни ComboBox стойностите от Breakers
-        Breakers_For_combo = Breakers.Select(Function(b) b.Series).Distinct().ToList()
-        TripUnit_For_combo = Breakers.Select(Function(b) b.TripUnit).Distinct().ToList()
-        Curve_For_combo = Breakers.Select(Function(b) b.Curve).Distinct().ToList()
-    End Sub
+
     ''' <summary>
     ''' Обработва блока според неговото име и Visibility свойство
     ''' Определя типа и брой фази (1 или 3)
@@ -2435,7 +2171,7 @@ Public Class Form_Tablo_new
             ' --------------------------------------------------------
             ' 5) Избор на прекъсвач
             ' --------------------------------------------------------
-            CalculateBreaker(tokow)
+            NewBreakers.CalculateBreaker(tokow)
             Dim I_Get As Double = 0
             Double.TryParse(tokow.Breaker_Номинален_Ток, I_Get)
             If I_Def > I_Get Then
@@ -2493,155 +2229,6 @@ Public Class Form_Tablo_new
             MsgBox(String.Format("Грешка: Не е намерен прекъсвач за {0}А с {1} полюса.", tokow.Ток, tokow.Брой_Полюси))
         End If
     End Sub
-    ''' <summary>
-    ''' Определя и задава подходящ прекъсвач за даден токов кръг.
-    '''
-    ''' Процедурата използва изчисления ток на кръга (tokow.Ток) и
-    ''' броя на полюсите (tokow.Брой_Полюси), за да избере подходящ
-    ''' прекъсвач от каталога Breakers чрез функцията SelectBreaker().
-    '''
-    ''' Логика на избор:
-    ''' Изборът на серия прекъсвач се базира на диапазона на тока:
-    '''
-    ''' ≤ 63A   → MCB (Easy9, iC60N) – модулни автоматични прекъсвачи
-    ''' ≤ 125A  → C120 – модулни прекъсвачи с по-висок номинал
-    ''' ≤ 160A  → NSXm – компактни MCCB прекъсвачи
-    ''' ≤ 630A  → NSX  – MCCB прекъсвачи за по-големи товари
-    ''' > 630A  → MTZ  – въздушни прекъсвачи (ACB)
-    '''
-    ''' Ако се намери подходящ прекъсвач:
-    ''' - параметрите на токовия кръг се обновяват със стойностите
-    '''   от каталога BreakerInfo.
-    '''
-    ''' Ако не се намери:
-    ''' - показва се информационно съобщение с данни за таблото,
-    '''   кръга, мощността и изчисления ток.
-    '''
-    ''' Цел:
-    ''' Автоматично оразмеряване на защитната апаратура спрямо
-    ''' изчисленото натоварване на токовия кръг.
-    ''' </summary>
-    Private Sub CalculateBreaker(tokow As strTokow)
-        ' 0) Проверка дали може да се преизчислява прекъсвача
-        ' по принцип в тази процедура НЕ трбва да се влиза
-        ' след първоначалното изчислиение!!!
-        ' Ако се влезе тук след това се променят стойности зададени от потребителя.
-        ' След първоначалния избор може да се призичлява прекъсвач
-        ' само когато се избра ДЗТ и след това се премахва!!!
-        ' ------------------------------------------------------------
-        If Not calcBreaker Then Exit Sub
-        ' ------------------------------------------------------------
-        ' ------------------------------------------------------------
-        ' Деклариране на променлива за намерения прекъсвач
-        ' ------------------------------------------------------------
-        ' Ако не се намери подходящ прекъсвач, стойността остава Nothing
-        Dim breaker As BreakerInfo = Nothing
-        ' ------------------------------------------------------------
-        ' Избор на серия прекъсвач според изчисления ток
-        ' ------------------------------------------------------------
-        Select Case tokow.Device
-            Case "Разединител"
-            Case "Бойлер"
-                If tokow.Ток > 17 Then
-                    breaker = SelectBreaker(tokow.Ток, tokow.Брой_Полюси, "C")
-                Else
-                    breaker = SelectBreaker(17, tokow.Брой_Полюси, "C")
-                End If
-                ' За бойлери използваме по-строги критерии (крива C)
-            Case "Контакт"
-                ' За контакти също използваме крива C
-                If tokow.Ток > 17 Then
-                    breaker = SelectBreaker(tokow.Ток, tokow.Брой_Полюси, "C")
-                Else
-                    breaker = SelectBreaker(17, tokow.Брой_Полюси, "C")
-                End If
-            Case "Лампа"
-                ' За лампи може да се използва по-лека крива (B), но за по-големи токове – C
-                breaker = SelectBreaker(8.5, tokow.Брой_Полюси, "C")
-            Case Else
-                ' За други устройства – използваме крива C като универсална
-                Select Case tokow.Ток
-                    Case Is <= 63
-                        ' MCB – модулни прекъсвачи (Easy9, iC60N)
-                        ' Използва се характеристика C (подходяща за смесени товари)
-                        breaker = SelectBreaker(tokow.Ток, tokow.Брой_Полюси, "C")
-                    Case Is <= 125
-                        ' C120 – модулни прекъсвачи за по-големи токове
-                        ' Също използва крива C
-                        breaker = SelectBreaker(tokow.Ток, tokow.Брой_Полюси, "C")
-                    Case Is <= 160
-                        ' NSXm – компактни MCCB прекъсвачи
-                        ' Обикновено се използва характеристика N
-                        breaker = SelectBreaker(tokow.Ток, tokow.Брой_Полюси, "N")
-                    Case Is <= 630
-                        ' NSX – MCCB прекъсвачи за индустриални табла
-                        ' Характеристика N
-                        breaker = SelectBreaker(tokow.Ток, tokow.Брой_Полюси, "N")
-                    Case Else
-                        ' MTZ – въздушни прекъсвачи (ACB)
-                        ' Тук вместо крива се използва специална серия
-                        breaker = SelectBreaker(tokow.Ток, tokow.Брой_Полюси, "MTZ")
-                End Select
-        End Select
-        ' ------------------------------------------------------------
-        ' Проверка дали е намерен подходящ прекъсвач
-        ' ------------------------------------------------------------
-        If breaker Is Nothing Then
-            ' Ако не е намерен – показва се информативно съобщение
-            ' с параметрите на токовия кръг
-            Dim info As String =
-                    $"Внимание: Не е намерен прекъсвач в {tokow.Tablo}!" & vbCrLf &
-                    "Детайли:" & vbCrLf &
-                    $"- Табло: {tokow.Tablo}" & vbCrLf &
-                    $"- Кръг: {tokow.ТоковКръг}" & vbCrLf &
-                    $"- Мощност: {tokow.Мощност} kW" & vbCrLf &
-                    $"- Ток: {tokow.Ток} A"
-            MsgBox(info, MsgBoxStyle.Exclamation, "Инфо за LayerPair")
-        Else
-            ' --------------------------------------------------------
-            ' Обновяване на параметрите на токовия кръг
-            ' със стойностите на избрания прекъсвач
-            ' --------------------------------------------------------
-            tokow.Breaker_Номинален_Ток = breaker.NominalCurrent.ToString() ' Номинален ток на прекъсвача
-            tokow.Breaker_Тип_Апарат = breaker.Series                       ' Серия на прекъсвача (EZ9, C120, NSX, MTZ и др.)
-            tokow.Breaker_Крива = breaker.Curve                             ' Характеристика на прекъсвача (B, C, D, N и др.)
-            tokow.Breaker_Изкл_Възможност = breaker.Ics_kA & "kA"           ' Изключвателна способност (например 6kA, 10kA, 50kA)
-            tokow.Брой_Полюси = breaker.Poles                               ' Брой полюси на прекъсвача
-            tokow.Breaker_Защитен_блок = breaker.TripUnit                   ' Тип защитен блок (trip unit)
-        End If
-    End Sub
-    ''' <summary>
-    ''' Автоматично избира прекъсвач от каталога според тока и броя полюси
-    ''' </summary>
-    ''' <param name="calculatedCurrent">Изчислен ток (A)</param>
-    ''' <param name="poles">Брой полюси (1 или 3)</param>
-    ''' <param name="curve">Крива по подразбиране ("C")</param>
-    ''' <returns>BreakerInfo или Nothing ако не е намерен</returns>
-    Private Function SelectBreaker(calculatedCurrent As Double,
-                               poles As Integer,
-                               Optional curve As String = "C") As BreakerInfo
-        ' Дефиниране на константи за диапазона (коефициенти)
-        Const MIN_FACTOR As Double = 1.15 ' Прекъсвачът трябва да е поне 15% над изчисления ток
-        Const MAX_FACTOR As Double = 1.25 ' Но не повече от 25% над него (примерно)
-        Dim minRange As Double = calculatedCurrent * MIN_FACTOR
-        Dim maxRange As Double = calculatedCurrent * MAX_FACTOR
-        ' Филтрираме прекъсвачите, които попадат точно в този "прозорец"
-        Dim suitableBreakers = Breakers.Where(Function(b) b.Poles = poles AndAlso
-                            String.Equals(b.Curve, curve, StringComparison.OrdinalIgnoreCase) AndAlso
-                            b.NominalCurrent >= minRange AndAlso
-                            b.NominalCurrent <= maxRange
-                            ).OrderBy(Function(b) b.NominalCurrent).ToList()
-        ' Връщаме първия (най-малкия подходящ) от диапазона
-        Dim selectedBreaker = suitableBreakers.FirstOrDefault()
-        ' Ако не открием прекъсвач в този тесен диапазон, 
-        ' можем да върнем първия по-голям (fallback), за да не остане празен резултат
-        If selectedBreaker Is Nothing Then
-            selectedBreaker = Breakers.Where(Function(b) b.Poles = poles AndAlso
-                                b.NominalCurrent >= minRange
-                                ).OrderBy(Function(b) b.NominalCurrent).FirstOrDefault()
-        End If
-        Return selectedBreaker
-    End Function
     ''' <summary>
     ''' Изчислява номиналния ток за токов кръг
     ''' </summary>
@@ -3178,7 +2765,7 @@ Public Class Form_Tablo_new
                                 UpdateComboRow("Номинален ток", valuesForCombo, e.ColumnIndex)
                                 tokow.Device = tokow.Device '"Табло"
                             Case Else
-                                Dim filteredBreakers = Breakers.Where(Function(b) b.Series = selectedValue).ToList()
+                                Dim filteredBreakers = NewBreakers.Breakers.Where(Function(b) b.Series = selectedValue).ToList()
                                 If filteredBreakers.Count = 0 Then Exit Select
                                 tokow.Breaker_Изкл_Възможност = filteredBreakers.First().Ics_kA & "kA"
                                 Dim valuesForCombo = filteredBreakers _
@@ -3399,14 +2986,14 @@ Public Class Form_Tablo_new
             ' ✅ СЛАГАМЕ ДТЗ
             tokow.RCD_Автомат = True
             SetRCD(tokow)               ' Избираме ДТЗ от каталога
-            ClearBreaker(tokow)         ' Изчистваме MCB данните
+            NewBreakers.ClearBreaker(tokow)         ' Изчистваме MCB данните
         Else
             ' След първоначалния избор може да се призичлява прекъсвач
             ' само когато се избра ДЗТ и след това се премахва!!!
             ' ------------------------------------------------------------
             calcBreaker = True
             ' ✅ СЛАГАМЕ ПРЕКЪСВАЧ
-            CalculateBreaker(tokow)     ' Избираме прекъсвач
+            NewBreakers.CalculateBreaker(tokow)     ' Избираме прекъсвач
             ClearRCD(tokow)             ' Изчистваме ДТЗ данните
             tokow.RCD_Автомат = False
             ' След първоначалния избор може да се призичлява прекъсвач
@@ -3414,16 +3001,6 @@ Public Class Form_Tablo_new
             ' ------------------------------------------------------------
             calcBreaker = False
         End If
-    End Sub
-    ''' <summary>
-    ''' Изчиства данните за прекъсвач (MCB)
-    ''' </summary>
-    Private Sub ClearBreaker(tokow As strTokow)
-        tokow.Breaker_Тип_Апарат = ""           ' Серия апарат (EZ9, C120, NSX, MTZ)
-        tokow.Breaker_Крива = ""                ' Характеристика (B, C, D)
-        tokow.Breaker_Номинален_Ток = ""        ' Номинален ток (пример: "16A")
-        tokow.Breaker_Изкл_Възможност = ""      ' Изключвателна способност ("6000A", "10000A")
-        tokow.Breaker_Защитен_блок = ""         ' Изключвателна способност ("6000A", "10000A")
     End Sub
     ''' <summary>
     ''' Изчиства данните за ДТЗ (RCD)
@@ -3589,7 +3166,7 @@ Public Class Form_Tablo_new
             tokow.RCD_Полюси = selectedRCD.Poles
             tokow.RCD_Нула = "N"
             tokow.RCD_Автомат = selectedRCD.Breaker
-            If tokow.RCD_Тип = "EZ9 RCBO" Then ClearBreaker(tokow)
+            If tokow.RCD_Тип = "EZ9 RCBO" Then NewBreakers.ClearBreaker(tokow)
         End If
     End Sub
     ''' <summary>

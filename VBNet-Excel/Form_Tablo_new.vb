@@ -236,7 +236,8 @@ Public Class Form_Tablo_new
     Private WithEvents treeManager As Form_Tablo_new_TreeViewManager
     ' Този обект управлява каталог за кабели и техните сечения.
     Public NewCables As New CableCatalog()
-
+    ' Инстанция на новия каталог
+    Private NewBreakers As New BreakerCatalog()
     Dim fullBuildingName As String
     Private Const ZnakX As String = "х" ' Напиши го веднъж тук (на кирилица)
     ' ============================================================
@@ -292,7 +293,7 @@ Public Class Form_Tablo_new
     Private originalBackColor As Color = SystemColors.Window
     Private originalForeColor As Color = SystemColors.WindowText
     ' Флаг, указващ дали трябва да се извърши изчисление на прекъсвача.
-    Private calcBreaker As Boolean = True
+    Public calcBreaker As Boolean = True
     'Private isUpdatingGrid As Boolean = False
     ' ============================================================
     ' КАТАЛОЖНИ СТРУКТУРИ

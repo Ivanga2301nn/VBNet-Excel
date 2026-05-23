@@ -1,6 +1,4 @@
-﻿' -------------------------------------------------------------------------
-#Region "КЛАС: CableCatalog (Кабели)"
-' -------------------------------------------------------------------------
+﻿#Region "КЛАС: CableCatalog (Кабели)"
 Public Class CableCatalog
     Public Class CableInfo
         Public PhaseSize As String         ' "2,5", "4", и т.н.
@@ -344,6 +342,194 @@ Public Class CableCatalog
         Else
             Return 0 ' Мед
         End If
+    End Function
+End Class
+#End Region
+
+#Region "КЛАС: BreakerCatalog (Прекъсвачи)"
+Public Class BreakerCatalog
+    ''' <summary>
+    ''' КАТАЛОГ автоматичен прекъсвач – MCB, MCCB или ACB.
+    ''' Може да се използва за избор на прекъсвач за генераторни табла,
+    ''' както и за по-сложни сценарии с селективност и късо съединение.
+    ''' </summary>
+    Public Class BreakerInfo
+        Public Brand As String                      ' Производител на прекъсвача (например "Schneider").
+        Public Series As String                     ' Серия или модел на прекъсвача (например "EZ9", "C120").
+        Public Category As String                   ' "MCB", "MCCB" или "ACB"
+        Public NominalCurrent As Integer            ' Номинален ток в ампери.
+        Public Poles As Integer                     ' Брой полюси (1, 2, 3, 4).
+        Public Ics_kA As Decimal                    ' Прекъсвателна способност.
+        Public Curve As String                      ' Крива (B, C, D...).
+        Public TripUnit As String                   ' Защитен блок (TM-D, Micrologic...).
+    End Class
+    ''' <summary>
+    ''' Списъкът, който държи филтрирания каталог за ИЗБРАНИЯ производител.
+    ''' </summary>
+    Public Property Breakers As New List(Of BreakerInfo)()
+
+    ' ✅ Списъци, подготвени специално за ComboBox-овете във формата
+    Public Property Brand_For_combo As New List(Of String)()
+    Public Property Breakers_For_combo As New List(Of String)()
+    Public Property TripUnit_For_combo As New List(Of String)()
+    Public Property Curve_For_combo As New List(Of String)()
+    Public Sub New()
+        ' ✅ Твърдо дефинираме поддържаните марки, за да заредим първия ComboBox на формата
+        Brand_For_combo = New List(Of String) From {"Schneider Electric", "Siemens", "ABB"}
+    End Sub
+    ''' <summary>
+    ''' Зарежда каталога само за избрания производител.
+    ''' </summary>
+    ''' <param name="selectedBrand">Името на марката от ComboBox-а на формата (напр. "Schneider Electric")</param>
+    Public Sub LoadCatalog(selectedBrand As String)
+        Breakers.Clear()
+        ' В момента генерираме кода софтуерно в зависимост от избора
+        Select Case selectedBrand
+            Case "Schneider Electric", "Schneider"
+                ' MCB
+                AddBreakerSeries("Schneider", "EZ9 MCB", "MCB", {6, 10, 16, 20, 25, 32, 40, 50, 63}, {"C", "B", "D"}, {1, 3}, {6}, Nothing)
+                AddBreakerSeries("Schneider", "iC60N", "MCB", {2, 3, 4, 6, 10, 16, 20, 25, 32, 40, 50, 63}, {"C", "B", "D"}, {1, 3}, {6}, Nothing)
+                AddBreakerSeries("Schneider", "C120", "MCB", {80, 100, 125}, {"C", "D"}, {1, 3}, {10}, Nothing)
+                ' MCCB
+                AddBreakerSeries("Schneider", "NSXm", "MCCB", {16, 25, 32, 40, 50, 63, 80, 100, 125, 160}, {"E", "B", "F", "N", "H"}, {3}, {25}, {"TM-D", "TM-DC"})
+                AddBreakerSeries("Schneider", "NSX100", "MCCB", {16, 25, 32, 40, 63, 80, 100}, {"B", "F", "N", "H", "S", "L"}, {3}, {25}, {"TM-D", "TM-DC"})
+                AddBreakerSeries("Schneider", "NSX160", "MCCB", {80, 100, 125, 160}, {"B", "F", "N", "H", "S", "L"}, {3}, {36}, {"TM-D"})
+                AddBreakerSeries("Schneider", "NSX250", "MCCB", {125, 160, 200, 250}, {"B", "F", "N", "H", "S", "L"}, {3}, {50}, {"TM-D", "Micrologic 2.0", "Micrologic 5.0"})
+                AddBreakerSeries("Schneider", "NSX400", "MCCB", {250, 320, 400}, {"F", "N", "H", "S", "L"}, {3}, {70}, {"Micrologic 2.3"})
+                AddBreakerSeries("Schneider", "NSX630", "MCCB", {400, 500, 630}, {"F", "N", "H", "S", "L"}, {3}, {100}, {"Micrologic 2.3"})
+                ' ACB
+                AddBreakerSeries("Schneider", "MTZ", "ACB", {800, 1000, 1250, 1600, 2000, 2500, 3200, 4000, 5000, 6300}, {"MTZ"}, {3, 4}, {42, 65, 100}, {"Micrologic 6.0"})
+            Case "Siemens"
+                ' TODO: Тук утре по същия начин се добавят редове за Siemens без промяна на друга логика
+                ' AddBreakerSeries("Siemens", "5SY", "MCB", {6, 10, 16...}, ...)
+            Case "ABB"
+                ' TODO: Тук се добавят редове за ABB утре
+        End Select
+        ' ✅ Автоматично пълним масивите за останалите ComboBox-ове на база избраната марка
+        Breakers_For_combo = Breakers.Select(Function(b) b.Series).Distinct().ToList()
+        TripUnit_For_combo = Breakers.Select(Function(b) b.TripUnit).Distinct().ToList()
+        Curve_For_combo = Breakers.Select(Function(b) b.Curve).Distinct().ToList()
+    End Sub
+    ''' <summary>
+    ''' Универсален метод за вътрешно генериране на комбинациите.
+    ''' </summary>
+    Private Sub AddBreakerSeries(brand As String, series As String, category As String,
+                                 currents As Integer(), curves As String(), polesList As Integer(),
+                                 icsValues As Decimal(), tripUnits As String())
+
+        Dim localCurves As String() = If(curves, New String() {"-"})
+        Dim localPoles As Integer() = If(polesList, New Integer() {0})
+        Dim localIcs As Decimal() = If(icsValues, New Decimal() {0})
+        Dim localTrips As String() = If(tripUnits, New String() {Nothing})
+        For Each Inom In currents
+            For Each curve In localCurves
+                For Each poles In localPoles
+                    For Each ics In localIcs
+                        For Each trip In localTrips
+                            Breakers.Add(New BreakerInfo With {
+                                .Brand = brand,
+                                .Series = series,
+                                .Category = category,
+                                .NominalCurrent = Inom,
+                                .Poles = poles,
+                                .Curve = curve,
+                                .Ics_kA = ics,
+                                .TripUnit = trip
+                            })
+                        Next
+                    Next
+                Next
+            Next
+        Next
+    End Sub
+    ''' <summary>
+    ''' Определя и задава подходящ прекъсвач за даден токов кръг.
+    ''' </summary>
+    Private Sub CalculateBreaker(ByRef tokow As Form_Tablo_new.strTokow)
+        ' Деклариране на променлива за намерения прекъсвач от новия клас
+        Dim breaker As BreakerCatalog.BreakerInfo = Nothing
+        ' ------------------------------------------------------------
+        ' Избор на серия прекъсвач според изчисления ток и тип устройство
+        ' ------------------------------------------------------------
+        Select Case tokow.Device
+            Case "Разединител"
+                ' Пропускаме или добавяш специфична логика, ако е нужно
+            Case "Бойлер"
+                ' За бойлери използваме по-строги критерии (крива C) и минимум 17A
+                Dim searchCurrent As Double = If(tokow.Ток > 17, tokow.Ток, 17)
+                breaker = SelectBreaker(searchCurrent, tokow.Брой_Полюси, "C")
+            Case "Контакт"
+                ' За контакти също използваме крива C и минимум 17A
+                Dim searchCurrent As Double = If(tokow.Ток > 17, tokow.Ток, 17)
+                breaker = SelectBreaker(searchCurrent, tokow.Брой_Полюси, "C")
+            Case "Лампа"
+                ' За лампи – минимум 8.5А и крива C
+                breaker = SelectBreaker(8.5, tokow.Брой_Полюси, "C")
+            Case Else
+                ' За други устройства – селекция по диапазон на тока според твоята скала
+                Select Case tokow.Ток
+                    Case Is <= 63
+                        ' Модулни прекъсвачи (EZ9, iC60N) -> Крива С
+                        breaker = SelectBreaker(tokow.Ток, tokow.Брой_Полюси, "C")
+                    Case Is <= 125
+                        ' Модулни прекъсвачи с по-висок номинал (C120) -> Крива С
+                        breaker = SelectBreaker(tokow.Ток, tokow.Брой_Полюси, "C")
+                    Case Is <= 160
+                        ' Компактни MCCB прекъсвачи (NSXm) -> Крива N
+                        breaker = SelectBreaker(tokow.Ток, tokow.Брой_Полюси, "N")
+                    Case Is <= 630
+                        ' MCCB прекъсвачи за по-големи товари (NSX100-630) -> Крива N
+                        breaker = SelectBreaker(tokow.Ток, tokow.Брой_Полюси, "N")
+                    Case Else
+                        ' Въздушни прекъсвачи (ACB) -> Търсим по серия "MTZ"
+                        breaker = SelectBreaker(tokow.Ток, tokow.Брой_Полюси, "MTZ")
+                End Select
+        End Select
+        ' ------------------------------------------------------------
+        ' Проверка дали е намерен подходящ прекъсвач и запис чрез референцията
+        ' ------------------------------------------------------------
+        If breaker Is Nothing Then
+            Dim info As String =
+                    $"Внимание: Не е намерен прекъсвач в {tokow.Tablo}!" & vbCrLf &
+                    "Детайли:" & vbCrLf &
+                    $"- Табло: {tokow.Tablo}" & vbCrLf &
+                    $"- Кръг: {tokow.ТоковКръг}" & vbCrLf &
+                    $"- Мощност: {tokow.Мощност} kW" & vbCrLf &
+                    $"- Ток: {tokow.Ток} A"
+            MsgBox(info, MsgBoxStyle.Exclamation, "Инфо за LayerPair")
+        Else
+            ' Обновяваме директно стойностите в оригиналния обект в паметта
+            tokow.Breaker_Номинален_Ток = breaker.NominalCurrent.ToString()
+            tokow.Breaker_Тип_Апарат = breaker.Series
+            tokow.Breaker_Крива = breaker.Curve
+            tokow.Breaker_Изкл_Възможност = breaker.Ics_kA & "kA"
+            tokow.Брой_Полюси = breaker.Poles
+            tokow.Breaker_Защитен_блок = If(breaker.TripUnit, "-")
+        End If
+    End Sub
+    ''' <summary>
+    ''' Автоматично избира прекъсвач от каталога според тока и броя полюси.
+    ''' </summary>
+    Public Function SelectBreaker(calculatedCurrent As Double, poles As Integer, Optional curveOrSeries As String = "C") As BreakerInfo
+        ' 1. Първо прилагаме коефициента за сигурност директно върху изчисления ток
+        Const SAFETY_FACTOR As Double = 1.15 ' Прекъсвачът трябва да е по-голям от (Тока * 1.15)
+        Dim minimumRequiredCurrent As Double = calculatedCurrent * SAFETY_FACTOR
+        ' 2. Търсим най-близкия стандартен апарат, който покрива това изискване
+        ' Търсим по Полюси И (Крива ИЛИ Серия)
+        Dim selectedBreaker = Breakers.
+            Where(Function(b) b.Poles = poles AndAlso
+                              (b.Curve.Equals(curveOrSeries, StringComparison.OrdinalIgnoreCase) OrElse
+                               b.Series.Equals(curveOrSeries, StringComparison.OrdinalIgnoreCase))).
+            OrderBy(Function(b) b.NominalCurrent).
+            FirstOrDefault(Function(b) b.NominalCurrent >= minimumRequiredCurrent)
+        ' 3. План Б (Fallback): Ако изчисленият ток е твърде голям за тази крива/серия и няма намерено нищо
+        If selectedBreaker Is Nothing Then
+            selectedBreaker = Breakers.
+                Where(Function(b) b.Poles = poles AndAlso b.NominalCurrent >= calculatedCurrent).
+                OrderBy(Function(b) b.NominalCurrent).
+                FirstOrDefault()
+        End If
+        Return selectedBreaker
     End Function
 End Class
 #End Region

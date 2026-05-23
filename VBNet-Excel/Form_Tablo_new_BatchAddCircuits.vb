@@ -173,7 +173,7 @@ Public Class Form_BatchAddCircuits
         End If
         ' 1. Генериране на "съществуващи" кръгове
         For i As Integer = 1 To CInt(numExist.Value)
-            _targetList.Add(New Form_Tablo_new.strTokow With {
+            _targetList.Add(New strTokow With {
                 .Tablo = _tabloName, .Device = "Съществуващ", .ТоковКръг = "същ.",
                 .Консуматор = "Съществуващ", .предназначение = "не се променя",
                 .Breaker_Номинален_Ток = "Същ.", .Мощност = 0, .Ток = 0,
@@ -182,12 +182,23 @@ Public Class Form_BatchAddCircuits
         Next
         ' 2. Генериране на резервни кръгове
         For i As Integer = 1 To CInt(numReserve.Value)
-            _targetList.Add(New Form_Tablo_new.strTokow With {
+            _targetList.Add(New strTokow With {
                 .Tablo = _tabloName, .Device = "Резерва", .ТоковКръг = "рез.",
                 .Консуматор = "Резерв", .предназначение = "",
                 .Breaker_Номинален_Ток = "Същ.", .Breaker_Тип_Апарат = "EZ9 MCB",
                 .Брой_Полюси = 1, .Фаза = "---", .Мощност = 0, .Ток = 0
             })
         Next
+    End Sub
+
+    Private Sub InitializeComponent()
+        Me.SuspendLayout()
+        '
+        'Form_BatchAddCircuits
+        '
+        Me.ClientSize = New System.Drawing.Size(284, 261)
+        Me.Name = "Form_BatchAddCircuits"
+        Me.ResumeLayout(False)
+
     End Sub
 End Class

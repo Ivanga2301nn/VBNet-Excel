@@ -122,7 +122,7 @@ Public Class Form_Tablo_new_ProjectPathResolver
     ''' 5. Подготвя и поправя заредените записи
     ''' 6. При грешка запазва текущите данни без промяна
     ''' </summary>
-    Public Sub LoadProject(ByRef targetList As List(Of Form_Tablo_new.strTokow),
+    Public Sub LoadProject(ByRef targetList As List(Of strTokow),
                        dwgFullPath As String,
                        acDb As Database)
         Try
@@ -144,8 +144,8 @@ Public Class Form_Tablo_new_ProjectPathResolver
                 Return
             End If
             ' Десериализираме JSON данните към списък от strTokow
-            Dim loadedData As List(Of Form_Tablo_new.strTokow) =
-            JsonConvert.DeserializeObject(Of List(Of Form_Tablo_new.strTokow))(json)
+            Dim loadedData As List(Of strTokow) =
+            JsonConvert.DeserializeObject(Of List(Of strTokow))(json)
             ' Обработваме и поправяме заредените данни
             ProcessAndRepairList(targetList, loadedData, acDb)
         Catch ex As Exception
@@ -159,8 +159,8 @@ Public Class Form_Tablo_new_ProjectPathResolver
     ''' Обработва заредените данни: изчиства старите, добавя новите и оправя ID-тата.
     ''' ТОВА Е МЯСТОТО ЗА БЪДЕЩИ ПРОВЕРКИ (версии, статуси, merge логика).
     ''' </summary>
-    Private Sub ProcessAndRepairList(ByRef targetList As List(Of Form_Tablo_new.strTokow),
-                                     sourceList As List(Of Form_Tablo_new.strTokow),
+    Private Sub ProcessAndRepairList(ByRef targetList As List(Of strTokow),
+                                     sourceList As List(Of strTokow),
                                      acDb As Database)
         Try
             ' 1. Изчистване на текущия списък (или бъдещ Merge логика тук)

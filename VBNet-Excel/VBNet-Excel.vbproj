@@ -124,6 +124,7 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Form_Tablo_new_ProjectPathResolver.vb" />
+    <Compile Include="Form_Tablo_new_strTokow.vb" />
     <Compile Include="Form_Tablo_new_TreeViewManager.vb" />
     <Compile Include="SheetSet_Monika.vb" />
     <Compile Include="SheetSet_new.vb" />
@@ -228,6 +229,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Form_Tablo_new.resx">
       <DependentUpon>Form_Tablo_new.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Form_Tablo_new_BatchAddCircuits.resx">
+      <DependentUpon>Form_Tablo_new_BatchAddCircuits.vb</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Form_Tran6eq.resx">
       <DependentUpon>Form_Tran6eq.vb</DependentUpon>

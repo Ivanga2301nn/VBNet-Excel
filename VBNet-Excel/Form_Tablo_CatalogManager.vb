@@ -152,7 +152,7 @@ Public Class CableCatalog
     ''' Изчислява необходимото сечение на кабел според тока и условията на полагане
     ''' Оптимизиран за сградни инсталации
     ''' </summary>
-    Public Sub CalculateCable(ByRef tokow As Form_Tablo_new.strTokow,
+    Public Sub CalculateCable(ByRef tokow As strTokow,
                                  Optional Type As String = "СВТ",        ' Тип кабел (СВТ, САВТ, NYY...)
                                 Optional layMethod As Integer = 0,      ' 0=въздух (35°C), 1=земя (15°C)
                                 Optional mountMethod As String = "B1",  ' "A1"=гипсокартон, "B2"=под мазилка, "C"=над таван
@@ -500,7 +500,7 @@ Public Class BreakerCatalog
     ''' <summary>
     ''' Определя и задава подходящ прекъсвач за даден токов кръг.
     ''' </summary>
-    Public Sub CalculateBreaker(ByRef tokow As Form_Tablo_new.strTokow)
+    Public Sub CalculateBreaker(ByRef tokow As strTokow)
         ' Деклариране на променлива за намерения прекъсвач от новия клас
         Dim breaker As BreakerCatalog.BreakerInfo = Nothing
         ' ------------------------------------------------------------
@@ -655,7 +655,7 @@ Public Class BreakerCatalog
     ''' <summary>
     ''' Изчиства данните за прекъсвач (MCB)
     ''' </summary>
-    Public Sub ClearBreaker(ByRef tokow As Form_Tablo_new.strTokow)
+    Public Sub ClearBreaker(ByRef tokow As strTokow)
         tokow.Breaker_Тип_Апарат = ""           ' Серия апарат (EZ9, C120, NSX, MTZ)
         tokow.Breaker_Крива = ""                ' Характеристика (B, C, D)
         tokow.Breaker_Номинален_Ток = ""        ' Номинален ток (пример: "16A")

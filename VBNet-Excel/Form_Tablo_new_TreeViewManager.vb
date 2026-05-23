@@ -8,18 +8,21 @@ Public Class Form_Tablo_new_TreeViewManager
     ' TreeView контролът, който се управлява от класа
     Private ReadOnly _tv As TreeView
     ' Основният списък с данни за табла и токови кръгове
-    Private ReadOnly _listTokow As List(Of Form_Tablo_new.strTokow)
+    Private ReadOnly _listTokow As List(Of strTokow)
     ''' <summary>
     ''' Събитие при избор на обект от TreeView.
     ''' Изпраща избрания запис към основната форма.
     ''' </summary>
-    Public Event ObjectSelected(ByVal selectedItem As Form_Tablo_new.strTokow)
+    Public Event ObjectSelected(ByVal selectedItem As strTokow)
     ''' <summary>
     ''' Събитие при заявка за преместване чрез Drag & Drop.
     ''' Изпраща източника и целевия обект към бизнес логиката.
     ''' </summary>
-    Public Event RequestMoveObject(ByVal source As Form_Tablo_new.strTokow,
-                                   ByVal target As Form_Tablo_new.strTokow)
+    Public Event RequestMoveObject(ByVal source As strTokow,
+                                   ByVal target As strTokow)
+
+    ' Friend, за да може TreeViewManager-ът да я чете
+    Friend Shared ROOT_NODE_TEXT As String = "Гл.Р.Т."
     ' ========================================================================
     ' 🎨 UI КОНСТАНТИ И ВИЗУАЛНИ ШАБЛОНИ
     ' ========================================================================
@@ -42,7 +45,7 @@ Public Class Form_Tablo_new_TreeViewManager
     ''' Форматира текста на възел за табло.
     ''' Добавя иконка и обща мощност.
     ''' </summary>
-    Private Function FormatPanelText(item As Form_Tablo_new.strTokow) As String
+    Private Function FormatPanelText(item As strTokow) As String
         ' Създава формат според зададения брой десетични знаци
         Dim formatSpecifier As String = "F" & DECIMAL_PLACES
         ' Форматира мощността
@@ -53,7 +56,7 @@ Public Class Form_Tablo_new_TreeViewManager
     ''' <summary>
     ''' Форматира текста на възел за токов кръг.
     ''' </summary>
-    Private Function FormatCircuitText(item As Form_Tablo_new.strTokow) As String
+    Private Function FormatCircuitText(item As strTokow) As String
         ' Връща готов текст за визуализация
         Return $"{ICON_CIRCUITS} {LABEL_CIRCUITS} {item.ТоковКръг} - {item.Device}"
     End Function
@@ -76,7 +79,7 @@ Public Class Form_Tablo_new_TreeViewManager
     '''    - DragOver
     '''    - DragDrop
     ''' </summary>
-    Public Sub New(ByVal targetTreeView As TreeView, ByRef data As List(Of Form_Tablo_new.strTokow))
+    Public Sub New(ByVal targetTreeView As TreeView, ByRef data As List(Of strTokow))
         _tv = targetTreeView
         _listTokow = data
         ' Събитие при избор на възел
@@ -165,7 +168,7 @@ Public Class Form_Tablo_new_TreeViewManager
             _tv.SelectedNode = e.Node
 
             ' Проверка дали маркираният възел е реално Табло (чрез Tag структурата ти)
-            Dim currentItem As Form_Tablo_new.strTokow = TryCast(e.Node.Tag, Form_Tablo_new.strTokow)
+            Dim currentItem As strTokow = TryCast(e.Node.Tag, strTokow)
             Dim isPanel As Boolean = (currentItem IsNot Nothing AndAlso currentItem.Device = "Табло")
 
             ' Защита: Бутонът "Добави под-табло" е активен САМО ако сме кликнали върху Табло
@@ -240,7 +243,7 @@ Public Class Form_Tablo_new_TreeViewManager
                 ' Ако липсва име:
                 ' използва се ROOT_NODE_TEXT като fallback root.
                 Dim bName = If(String.IsNullOrWhiteSpace(item.BuildingName),
-                           Form_Tablo_new.ROOT_NODE_TEXT,
+                           ROOT_NODE_TEXT,
                            item.BuildingName.Trim())
                 ' Проверка дали сградата вече е създадена.
                 If Not buildingNodes.ContainsKey(bName) Then
@@ -258,7 +261,7 @@ Public Class Form_Tablo_new_TreeViewManager
                 If item.Device IsNot Nothing AndAlso
                         item.Device.Trim().Equals("Табло", StringComparison.OrdinalIgnoreCase) Then
                     Dim bName = If(String.IsNullOrWhiteSpace(item.BuildingName),
-                               Form_Tablo_new.ROOT_NODE_TEXT,
+                               ROOT_NODE_TEXT,
                                item.BuildingName.Trim())
                     ' нормализирано име на табло.
                     Dim tName = If(item.Tablo Is Nothing, "", item.Tablo.Trim())
@@ -286,7 +289,7 @@ Public Class Form_Tablo_new_TreeViewManager
                     ' Ако е зададен родител:
                     ' записва се ключ към родителското табло.
                     If Not String.IsNullOrWhiteSpace(item.Табло_Родител) AndAlso
-                   item.Табло_Родител.Trim() <> Form_Tablo_new.ROOT_NODE_TEXT Then
+                   item.Табло_Родител.Trim() <> ROOT_NODE_TEXT Then
                         tabloToParent(tabloKey) =
                         bName & "_" & item.Табло_Родител.Trim()
                     End If
@@ -342,7 +345,7 @@ Public Class Form_Tablo_new_TreeViewManager
                 If item.Device Is Nothing OrElse
                Not item.Device.Trim().Equals("Табло", StringComparison.OrdinalIgnoreCase) Then
                     Dim bName = If(String.IsNullOrWhiteSpace(item.BuildingName),
-                               Form_Tablo_new.ROOT_NODE_TEXT,
+                               ROOT_NODE_TEXT,
                                item.BuildingName.Trim())
                     Dim tName = If(item.Tablo Is Nothing, "", item.Tablo.Trim())
                     Dim tabloKey = bName & "_" & tName
@@ -438,8 +441,8 @@ Public Class Form_Tablo_new_TreeViewManager
     ''' Данни за избрания възел.
     ''' </param>
     Private Sub HandleAfterSelect(sender As Object, e As TreeViewEventArgs)
-        If e.Node.Tag IsNot Nothing AndAlso TypeOf e.Node.Tag Is Form_Tablo_new.strTokow Then
-            RaiseEvent ObjectSelected(DirectCast(e.Node.Tag, Form_Tablo_new.strTokow))
+        If e.Node.Tag IsNot Nothing AndAlso TypeOf e.Node.Tag Is strTokow Then
+            RaiseEvent ObjectSelected(DirectCast(e.Node.Tag, strTokow))
         End If
     End Sub
     ''' <summary>
@@ -538,10 +541,10 @@ Public Class Form_Tablo_new_TreeViewManager
        targetNode IsNot Nothing AndAlso
        Not draggedNode.Equals(targetNode) Then
             ' Вземаме обектите от Tag-а
-            Dim sourceObj As Form_Tablo_new.strTokow =
-            DirectCast(draggedNode.Tag, Form_Tablo_new.strTokow)
-            Dim targetObj As Form_Tablo_new.strTokow =
-            DirectCast(targetNode.Tag, Form_Tablo_new.strTokow)
+            Dim sourceObj As strTokow =
+            DirectCast(draggedNode.Tag, strTokow)
+            Dim targetObj As strTokow =
+            DirectCast(targetNode.Tag, strTokow)
             ' Разрешаваме местене само:
             ' • в друго табло
             ' • или в корен/сграда

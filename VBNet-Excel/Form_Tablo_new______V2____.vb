@@ -28,7 +28,8 @@ Imports Font = System.Drawing.Font
 
 #Region "📂 ИНДЕКС: Отделени класове и файлове"
 ' 1. Form_Tablo_new_BatchAddCircuits | Form_Tablo_new_BatchAddCircuits.vb
-'    → Отговорност: Обработка на масово добавяне на кръгове (strTokow)
+'    → Отговорност: Обработка на добавяне на кръгове (strTokow) съществуващи и резерва.
+'    Създава се като отделна форма с фокус върху UX за тази конкретна задача.
 '
 ' 2. Form_Tablo_new_AutoCadInserter | Form_Tablo_new_AutoCadInserter.vb
 '    → Отговорност: AutoCAD чертане на табла, шини, кръгове и анотации

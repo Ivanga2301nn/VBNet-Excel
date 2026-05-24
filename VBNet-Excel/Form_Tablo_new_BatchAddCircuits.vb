@@ -6,7 +6,7 @@ Imports Font = System.Drawing.Font
 Public Class Form_BatchAddCircuits
     Inherits Form
     ' Данни, подадени от основната форма
-    Private _targetList As List(Of Form_Tablo_new.strTokow)
+    Private _targetList As List(Of strTokow)
     Private _tabloName As String
     ' Контроли, до които ще имаме достъп по-късно
     Private numExist As NumericUpDown
@@ -17,7 +17,7 @@ Public Class Form_BatchAddCircuits
     ''' <summary>
     ''' Инициализира формата, приема входните данни и извиква процедурите за изграждане.
     ''' </summary>
-    Public Sub New(targetList As List(Of Form_Tablo_new.strTokow), tabloName As String)
+    Public Sub New(targetList As List(Of strTokow), tabloName As String)
         ' 1. Записваме подадените данни в локални полета
         _targetList = targetList
         _tabloName = tabloName

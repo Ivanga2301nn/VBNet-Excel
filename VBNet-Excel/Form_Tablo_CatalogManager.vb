@@ -1,4 +1,6 @@
-﻿#Region "КЛАС: CableCatalog (Кабели)"
+﻿Imports Autodesk.AutoCAD.DatabaseServices
+
+#Region "КЛАС: CableCatalog (Кабели)"
 Public Class CableCatalog
     Public Class CableInfo
         Public PhaseSize As String         ' "2,5", "4", и т.н.
@@ -630,7 +632,8 @@ Public Class BreakerCatalog
             .Where(Function(b) b.Curve.Equals(curveOrSeries, StringComparison.OrdinalIgnoreCase) OrElse
             b.Series.Equals(curveOrSeries, StringComparison.OrdinalIgnoreCase)) _
             .OrderBy(Function(b) b.NominalCurrent) _
-            .FirstOrDefault(Function(b) b.NominalCurrent >= minimumRequiredCurrent)        ' 1. Филтър по полюси
+            .FirstOrDefault(Function(b) b.NominalCurrent >= minimumRequiredCurrent)
+        ' 1. Филтър по полюси
         ' 2. Филтър по Крива или Серия (игнорирайки регистъра на буквите)
         ' 3. Сортиране по номинален ток (от най-малък към най-голям)
         ' 4. Вземане на първия прекъсвач, чийто ток е по-голям или равен на минимално изисквания
@@ -662,5 +665,123 @@ Public Class BreakerCatalog
         tokow.Breaker_Изкл_Възможност = ""      ' Изключвателна способност ("6000A", "10000A")
         tokow.Breaker_Защитен_блок = ""         ' Изключвателна способност ("6000A", "10000A")
     End Sub
+End Class
+#End Region
+
+#Region "КЛАС: MotorProtectionCatalog (Моторни защити - GV)"
+''' <summary>
+''' Централен клас за управление на моторни защити.
+''' Съдържа продуктовата база данни и алгоритъма за автоматичен избор.
+''' Подготвен за централизирано зареждане от външни процедури.
+''' </summary>
+Public Class MotorProtectionCatalog
+    Public Class MotorProtect
+        Public Brand As String = ""
+        Public MinCurrent As Double = 0.0
+        Public MaxCurrent As Double = 0.0
+        Public Type As String = ""
+        Public MotorPower As String = ""
+        Public SettingRange As String = ""
+    End Class
+    Public Property ProtectMotor As New List(Of MotorProtect)()
+    Public Sub LoadCatalog(selectedBrand As String)
+        ProtectMotor.Clear()
+        Select Case selectedBrand
+            Case "Schneider Electric", "Schneider"
+                AddProtectMotorSeries("Schneider",
+                 {"GV2ME01", "GV2ME02", "GV2ME03", "GV2ME04", "GV2ME05", "GV2ME06", "GV2ME07", "GV2ME08", "GV2ME10", "GV2ME14", "GV2ME16", "GV2ME20", "GV2ME21", "GV2ME32"},
+                 {0.1, 0.16, 0.25, 0.63, 1, 1.6, 2.5, 4, 6.3, 9, 13, 17, 24},
+                 {0.16, 0.4, 0.63, 1.0, 1.6, 2.5, 4.0, 6.3, 10.0, 14.0, 18.0, 23.0, 32.0},
+                 {0.04, 0.06, 0.09, 0.12, 0.25, 0.37, 0.75, 1.5, 2.2, 4.0, 5.5, 7.5, 11.0, 15.0},
+                 {"0.1-0.16A", "0.16-0.25A", "0.25-0.40A", "0.40-0.63A", "0.63-1.0A", "1.0-1.6A", "1.6-2.5A", "2.5-4.0A", "4.0-6.3A", "6.3-10A", "9.0-14A", "13-18A", "17-23A", "24-32A"}
+                 )
+            Case "Siemens"
+            Case "ABB"
+            Case "Schrack Technik", "Schrack"
+        End Select
+    End Sub
+    ''' <summary>
+    ''' Универсален метод за вътрешно генериране на комбинациите.
+    ''' </summary>
+    Private Sub AddProtectMotorSeries(brand As String, series As String(),
+                                      minCurrent As Double(), maxCurrent As Double(),
+                                      motorPower As String(), settingRange As String())
+
+        ' 1. Взимаме очакваната дължина от първия масив
+        Dim expectedLength As Integer = series.Length
+        ' 3. Обхождане и генериране на обектите в списъка
+        For i As Integer = 0 To expectedLength - 1
+            Dim item As New MotorProtect()
+            item.Brand = brand
+            item.Type = series(i)
+            item.MinCurrent = minCurrent(i)
+            item.MaxCurrent = maxCurrent(i)
+            item.MotorPower = motorPower(i)
+            item.SettingRange = settingRange(i)
+            ' Добавяме готовия обект към колекцията на каталога
+            ProtectMotor.Add(item)
+        Next
+    End Sub
+    ''' <summary>
+    ''' Функцията Calculate_GV2 избира подходящ моторен прекъсвач (тип GV2)
+    ''' на база вече изчислен ток.
+    ''' 
+    ''' Логиката включва:
+    ''' 1. Преобразуване на входния ток от текст към число
+    ''' 2. Търсене на съвпадение в база данни (GV_Database)
+    ''' 3. Връщане на конкретна информация според параметъра "Връща"
+    ''' 
+    ''' Функцията НЕ изчислява ток – очаква той да е подаден отвън.
+    ''' Това я прави по-гъвкава и независима от начина на изчисление.
+    ''' </summary>
+    ''' <param name="Ток">
+    ''' Ток като текст (например "10", "10.5", "10,5").
+    ''' Допуска се използване на запетая или точка като десетичен разделител.
+    ''' </param>
+    ''' <param name="Връща">
+    ''' Определя какъв резултат да бъде върнат:
+    ''' 1 → Тип на защитата (например GV2-ME)
+    ''' 2 → Мощност по каталог (при 400V)
+    ''' 3 → Диапазон на настройка
+    ''' </param>
+    ''' <returns>
+    ''' Връща String със съответния резултат или съобщение:
+    ''' - "N/A" при невалиден ток
+    ''' - "Out of range (...A)" ако няма подходящ апарат
+    ''' - "Грешен параметър" при невалиден вход за "Връща"
+    ''' </returns>
+    Public Function Calculate_GV2(Ток As String, Връща As Integer) As String
+        ' =====================================================
+        ' 1️ ПРЕОБРАЗУВАНЕ НА ВХОДНИЯ ТОК
+        ' =====================================================
+        ' Замяна на запетая с точка, за да се осигури коректно
+        ' преобразуване към числов тип.
+        Dim I_val As String = Ток.Replace(",", ".")
+        ' Преобразуване на текстовата стойност към Double.
+        ' Val извлича числото от началото на низа.
+        Dim I_double As Double = Val(I_val)
+        ' Проверка за невалиден или нулев ток.
+        If I_double <= 0 Then Return "N/A"
+        ' =====================================================
+        ' 2️ ТЪРСЕНЕ В БАЗАТА ДАННИ
+        ' =====================================================
+        ' Търсене на първия запис в GV_Database,
+        ' при който токът попада в диапазона:
+        ' MinCurrent ≤ I_double ≤ MaxCurrent
+        Dim match = ProtectMotor.FirstOrDefault(Function(x) I_double >= x.MinCurrent And I_double <= x.MaxCurrent)
+        ' Ако няма намерен подходящ апарат,
+        ' връщаме информация за тока.
+        If match Is Nothing Then Return "Out of range (" & I_double.ToString("F2") & "A)"
+        ' =====================================================
+        ' 3️ ВРЪЩАНЕ НА РЕЗУЛТАТ
+        ' =====================================================
+        ' В зависимост от параметъра "Връща",
+        Select Case Връща
+            Case 1 : Return match.Type               ' Връща типа на апарата (например GV2-ME).
+            Case 2 : Return match.MotorPower         ' Връща мощността по каталог (при 400V).
+            Case 3 : Return match.SettingRange       ' Връща диапазона на настройка на тока.
+            Case Else : Return "Грешен параметър"    ' Невалиден параметър "Връща".
+        End Select
+    End Function
 End Class
 #End Region

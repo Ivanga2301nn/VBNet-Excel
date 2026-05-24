@@ -11,24 +11,6 @@ Public Class Form_Tablo_new_AutoCadInserter
     Dim cu As CommonUtil = New CommonUtil()
     Dim twoBus As Boolean
     Dim hasDisconnector As Boolean
-    '===============================================================================
-    ' КОНСТРУКТОР – Инициализация на зависимостите
-    '===============================================================================
-    ' Приема списъка с моторни защити (GV_Database) при създаване на обекта.
-    ' Предимства:
-    ' • Данните са достъпни за всички методи в класа без да се препращат като аргументи
-    ' • Класът не зависи от главната форма, а само от подадените му данни
-    ' • По-лесна поддръжка, четимост и бъдещо тестване
-    '===============================================================================
-    Private ReadOnly gvDatabase As List(Of GV_Entry)
-    Public Sub New(gvDb As List(Of GV_Entry))
-        ' Защита срещу грешка при подаден празен/нищолен списък
-        If gvDb Is Nothing Then
-            Throw New ArgumentNullException(NameOf(gvDb), "GV_Database не може да бъде Nothing.")
-        End If
-        ' Запазваме референцията – ще остане непроменена през целия живот на обекта
-        Me.gvDatabase = gvDb
-    End Sub
     ''' <summary>
     ''' Глобални променливи за таблата
     ''' </summary>
@@ -42,6 +24,9 @@ Public Class Form_Tablo_new_AutoCadInserter
     Public widthTablo As Double = 410      ' Ширина на цялото табло (за блокове и линии)
     Public heightText As Double = 12       ' Височина на текста, използван в блоковете
     Public Y_Шина As Double = 620          ' Вертикална позиция на шината (Y координата)
+    ' Инстанция на новия каталог
+    Private MotorProtection As New MotorProtectionCatalog()
+
     ''' <summary>
     ''' Структура за дефиниция на линия за чертане
     ''' </summary>
@@ -157,7 +142,7 @@ Public Class Form_Tablo_new_AutoCadInserter
     ''' <param name="acCurDb">AutoCAD база данни (не се използва директно тук).</param>
     ''' <param name="basePoint">Базова точка за позициониране на всички елементи.</param>
     ''' <param name="circuits">Списък от токови кръгове, използван за изчисления и логика.</param>
-    Private Sub DrawBusbars(acDoc As Document, acCurDb As Database, basePoint As Point3d, circuits As List(Of Form_Tablo_new.strTokow))
+    Private Sub DrawBusbars(acDoc As Document, acCurDb As Database, basePoint As Point3d, circuits As List(Of strTokow))
         Try
             ' 1️ ИЗЧИСЛЯВАНЕ НА ОСНОВНИТЕ РАЗМЕРИ
             Dim brColums As Integer = circuits.Count - 1
@@ -502,7 +487,7 @@ Public Class Form_Tablo_new_AutoCadInserter
     ''' 4. Вмъква прекъсвач и управляващи елементи
     ''' 5. Чертaе свързващите линии
     ''' </summary>
-    Private Sub DrawCircuits(acDoc As Document, acCurDb As Database, basePoint As Point3d, circuits As List(Of Form_Tablo_new.strTokow))
+    Private Sub DrawCircuits(acDoc As Document, acCurDb As Database, basePoint As Point3d, circuits As List(Of strTokow))
         ' Изчислява общия брой колони.
         ' Ако има двойна шина (twoBus=True), една колона се резервира и не участва.
         Dim brColums As Integer = circuits.Count - If(twoBus, 1, 0)
@@ -697,12 +682,12 @@ Public Class Form_Tablo_new_AutoCadInserter
                                 End Select
                             Case "Моторна защита"
                                 Select Case acAttRef.Tag
-                                    Case "1" : acAttRef.TextString = Calculate_GV2(circuit.Ток, 3)
+                                    Case "1" : acAttRef.TextString = MotorProtection.Calculate_GV2(circuit.Ток, 3)
                                     Case "2" : acAttRef.TextString = "3P"
-                                    Case "3" : acAttRef.TextString = Calculate_GV2(circuit.Ток, 2)
+                                    Case "3" : acAttRef.TextString = MotorProtection.Calculate_GV2(circuit.Ток, 2)
                                     Case "4" : acAttRef.TextString = ""
                                     Case "5" : acAttRef.TextString = ""
-                                    Case "SHORTNAME" : acAttRef.TextString = Calculate_GV2(circuit.Ток, 1)
+                                    Case "SHORTNAME" : acAttRef.TextString = MotorProtection.Calculate_GV2(circuit.Ток, 1)
                                 End Select
                             Case "RCD"
                                 ' Атрибути за RCD
@@ -732,67 +717,6 @@ Public Class Form_Tablo_new_AutoCadInserter
             End Try
         End If
     End Sub
-    ''' <summary>
-    ''' Функцията Calculate_GV2 избира подходящ моторен прекъсвач (тип GV2)
-    ''' на база вече изчислен ток.
-    ''' 
-    ''' Логиката включва:
-    ''' 1. Преобразуване на входния ток от текст към число
-    ''' 2. Търсене на съвпадение в база данни (GV_Database)
-    ''' 3. Връщане на конкретна информация според параметъра "Връща"
-    ''' 
-    ''' Функцията НЕ изчислява ток – очаква той да е подаден отвън.
-    ''' Това я прави по-гъвкава и независима от начина на изчисление.
-    ''' </summary>
-    ''' <param name="Ток">
-    ''' Ток като текст (например "10", "10.5", "10,5").
-    ''' Допуска се използване на запетая или точка като десетичен разделител.
-    ''' </param>
-    ''' <param name="Връща">
-    ''' Определя какъв резултат да бъде върнат:
-    ''' 1 → Тип на защитата (например GV2-ME)
-    ''' 2 → Мощност по каталог (при 400V)
-    ''' 3 → Диапазон на настройка
-    ''' </param>
-    ''' <returns>
-    ''' Връща String със съответния резултат или съобщение:
-    ''' - "N/A" при невалиден ток
-    ''' - "Out of range (...A)" ако няма подходящ апарат
-    ''' - "Грешен параметър" при невалиден вход за "Връща"
-    ''' </returns>
-    Private Function Calculate_GV2(Ток As String, Връща As Integer) As String
-        ' =====================================================
-        ' 1️ ПРЕОБРАЗУВАНЕ НА ВХОДНИЯ ТОК
-        ' =====================================================
-        ' Замяна на запетая с точка, за да се осигури коректно
-        ' преобразуване към числов тип.
-        Dim I_val As String = Ток.Replace(",", ".")
-        ' Преобразуване на текстовата стойност към Double.
-        ' Val извлича числото от началото на низа.
-        Dim I_double As Double = Val(I_val)
-        ' Проверка за невалиден или нулев ток.
-        If I_double <= 0 Then Return "N/A"
-        ' =====================================================
-        ' 2️ ТЪРСЕНЕ В БАЗАТА ДАННИ
-        ' =====================================================
-        ' Търсене на първия запис в GV_Database,
-        ' при който токът попада в диапазона:
-        ' MinCurrent ≤ I_double ≤ MaxCurrent
-        Dim match = gvDatabase.FirstOrDefault(Function(x) I_double >= x.MinCurrent And I_double <= x.MaxCurrent)
-        ' Ако няма намерен подходящ апарат,
-        ' връщаме информация за тока.
-        If match Is Nothing Then Return "Out of range (" & I_double.ToString("F2") & "A)"
-        ' =====================================================
-        ' 3️ ВРЪЩАНЕ НА РЕЗУЛТАТ
-        ' =====================================================
-        ' В зависимост от параметъра "Връща",
-        Select Case Връща
-            Case 1 : Return match.Type               ' Връща типа на апарата (например GV2-ME).
-            Case 2 : Return match.MotorPower         ' Връща мощността по каталог (при 400V).
-            Case 3 : Return match.SettingRange       ' Връща диапазона на настройка на тока.
-            Case Else : Return "Грешен параметър"    ' Невалиден параметър "Връща".
-        End Select
-    End Function
     ''' <summary>
     ''' Връща конфигурацията за даден тип управление
     ''' </summary>

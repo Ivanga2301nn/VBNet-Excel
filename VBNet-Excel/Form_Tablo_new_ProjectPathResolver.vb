@@ -88,7 +88,7 @@ Public Class Form_Tablo_new_ProjectPathResolver
     ''' 5. Връща True при успешен запис
     ''' 6. Връща False при грешка
     ''' </summary>
-    Public Function SaveProject(data As List(Of Form_Tablo_new.strTokow),
+    Public Function SaveProject(data As List(Of strTokow),
                             dwgFullPath As String) As Boolean
 
         Try

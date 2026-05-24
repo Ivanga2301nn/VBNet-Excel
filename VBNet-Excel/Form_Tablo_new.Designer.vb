@@ -91,12 +91,12 @@ Partial Class Form_Tablo_new
         '
         'NewToolStripButton
         '
-        Me.NewToolStripButton.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image
         Me.NewToolStripButton.Image = CType(resources.GetObject("NewToolStripButton.Image"), System.Drawing.Image)
         Me.NewToolStripButton.ImageTransparentColor = System.Drawing.Color.Magenta
         Me.NewToolStripButton.Name = "NewToolStripButton"
-        Me.NewToolStripButton.Size = New System.Drawing.Size(23, 22)
-        Me.NewToolStripButton.Text = "&New"
+        Me.NewToolStripButton.Size = New System.Drawing.Size(68, 22)
+        Me.NewToolStripButton.Text = "&Избери"
+        Me.NewToolStripButton.ToolTipText = "Покажи ми кои блокове си хареса днес – избери ги от чертежа." & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10)
         '
         'OpenToolStripButton
         '
@@ -105,6 +105,7 @@ Partial Class Form_Tablo_new
         Me.OpenToolStripButton.Name = "OpenToolStripButton"
         Me.OpenToolStripButton.Size = New System.Drawing.Size(68, 22)
         Me.OpenToolStripButton.Text = "&Отвори"
+        Me.OpenToolStripButton.ToolTipText = "Да видим какво има вътре!" & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10) & "Отвори файла с един клик."
         '
         'SaveToolStripButton
         '
@@ -113,6 +114,7 @@ Partial Class Form_Tablo_new
         Me.SaveToolStripButton.Name = "SaveToolStripButton"
         Me.SaveToolStripButton.Size = New System.Drawing.Size(72, 22)
         Me.SaveToolStripButton.Text = "&Запиши"
+        Me.SaveToolStripButton.ToolTipText = "Спаси труда си, преди да е дошъл багеристът извън офиса!" & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10) & "Запиши промените."
         '
         'PrintToolStripButton
         '
@@ -179,6 +181,7 @@ Partial Class Form_Tablo_new
         Me.TscboManufacturer.Name = "TscboManufacturer"
         Me.TscboManufacturer.Size = New System.Drawing.Size(121, 25)
         Me.TscboManufacturer.Text = "Schneider Electric"
+        Me.TscboManufacturer.ToolTipText = "Кой ще плаща сметката?" & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10) & "Избери производителя на оборудването."
         '
         'ToolStripSeparator4
         '
@@ -192,8 +195,8 @@ Partial Class Form_Tablo_new
         Me.ToolStripButton_Балансирай_фазите.Name = "ToolStripButton_Балансирай_фазите"
         Me.ToolStripButton_Балансирай_фазите.Size = New System.Drawing.Size(134, 22)
         Me.ToolStripButton_Балансирай_фазите.Text = "Балансирай фазите"
-        Me.ToolStripButton_Балансирай_фазите.ToolTipText = "Фазите са по-разбалансирани от бюджета ми след покупка на нови инструменти. Попра" &
-    "ви ги!"
+        Me.ToolStripButton_Балансирай_фазите.ToolTipText = "Фазите са по-разбалансирани от бюджета ми след покупка на нови инструменти." & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10) & "Попр" &
+    "ави ги!"
         '
         'ToolStripSeparator3
         '
@@ -236,9 +239,9 @@ Partial Class Form_Tablo_new
         Me.ToolStripButton_ШИНА.Name = "ToolStripButton_ШИНА"
         Me.ToolStripButton_ШИНА.Size = New System.Drawing.Size(105, 22)
         Me.ToolStripButton_ШИНА.Text = "Раздели шина"
-        Me.ToolStripButton_ШИНА.ToolTipText = "Секциониране: Защото една шина е просто твърде скучна за такъв сложен проект. Раз" &
-    "дели ги сега, преди AutoCAD да ги е слял завинаги в един вечен и неразделим блок" &
-    "!" & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10)
+        Me.ToolStripButton_ШИНА.ToolTipText = "Секциониране:" & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10) & "Защото една шина е просто твърде скучна за такъв сложен проект." & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10) & "Р" &
+    "аздели ги сега, преди AutoCAD да ги е слял завинаги в един вечен и неразделим бл" &
+    "ок!" & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10)
         '
         'ToolStripButton_Добави_резерва
         '
@@ -247,7 +250,8 @@ Partial Class Form_Tablo_new
         Me.ToolStripButton_Добави_резерва.Name = "ToolStripButton_Добави_резерва"
         Me.ToolStripButton_Добави_резерва.Size = New System.Drawing.Size(153, 22)
         Me.ToolStripButton_Добави_резерва.Text = "Съществуващ/Резерва"
-        Me.ToolStripButton_Добави_резерва.ToolTipText = "Добавяне на съществуващи и резервни токови кръгове"
+        Me.ToolStripButton_Добави_резерва.ToolTipText = "Да захраним проекта!" & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10) & "Добави съществуващи кръгове + няколко резервни за 'всеки сл" &
+    "учай'."
         '
         'GroupBox2
         '
@@ -259,7 +263,7 @@ Partial Class Form_Tablo_new
         Me.GroupBox2.Size = New System.Drawing.Size(1169, 830)
         Me.GroupBox2.TabIndex = 1
         Me.GroupBox2.TabStop = False
-        Me.GroupBox2.Text = "GroupBox2"
+        Me.GroupBox2.Text = "Детайли за таблото"
         '
         'DataGridView1
         '

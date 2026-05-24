@@ -139,13 +139,17 @@ Public Class strKonsumator
     ' НАЗНАЧЕНИЕ / ОПИСАНИЯ
     ' ============================================================
     ''' <summary>
-    ''' Основно предназначение на консуматора (напр. Осветление, Контакти, Технологично).
+    ''' Основно предназначение на консуматора.
     ''' </summary>
-    Public Property Предназначение_Основно As String = ""
+    Public Property PEWDN As String = ""
     ''' <summary>
     ''' Допълнително предназначение за по-детайлно уточнение на товара.
     ''' </summary>
-    Public Property Предназначение_Допълнително As String = ""
+    Public Property PEWDN1 As String = ""
+    ''' <summary>
+    ''' Име на DWG файла, от който е извлечен блока (напр. "Osveshtenie_E1.dwg")
+    ''' </summary>
+    Public Property SourceDwg As String = ""
     ' ============================================================
     ' МЕТОДИ
     ' ============================================================
@@ -156,5 +160,4 @@ Public Class strKonsumator
     Public Function Clone() As strKonsumator
         Return DirectCast(Me.MemberwiseClone(), strKonsumator)
     End Function
-
 End Class

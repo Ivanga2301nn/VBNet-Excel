@@ -26,7 +26,6 @@ Public Class Form_Tablo_new_AutoCadInserter
     Public Y_Шина As Double = 620          ' Вертикална позиция на шината (Y координата)
     ' Инстанция на новия каталог
     Private MotorProtection As New MotorProtectionCatalog()
-
     ''' <summary>
     ''' Структура за дефиниция на линия за чертане
     ''' </summary>

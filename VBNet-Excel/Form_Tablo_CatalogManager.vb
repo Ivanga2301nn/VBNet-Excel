@@ -1,6 +1,4 @@
-﻿Imports Autodesk.AutoCAD.DatabaseServices
-
-#Region "КЛАС: CableCatalog (Кабели)"
+﻿#Region "КЛАС: CableCatalog (Кабели)"
 Public Class CableCatalog
     Public Class CableInfo
         Public PhaseSize As String         ' "2,5", "4", и т.н.
@@ -12,8 +10,23 @@ Public Class CableCatalog
         Public MaxWorkingTemp As Double    ' (65, 70, 90°C)
         Public InsulationType As String    ' ("ПВЦ", "XLPE", "GUM")
     End Class
+    ''' <summary>
+    ''' КОНСТРУКТОР: Извиква се автоматично при New CableCatalog()
+    ''' </summary>
+    Public Sub New()
+        ' Веднага напълва каталога с данни в паметта, за да е готов за DataGridView
+        LoadCatalog()
+    End Sub
+    ' Стандартните сечения, подредени по големина
+    Public ReadOnly StandardPhaseSizes As String() = {
+                           "1,5", "2,5", "4", "6", "10", "16", "25", "35", "50", "70", "95", "120", "150", "185", "240"
+                            }
+    ' Стандартните сечения на неутралното жило, подредени по големина
+    Public ReadOnly StandardNeutralSizes As String() = {
+                          "1,5", "2,5", "4", "6", "10", "16", "16", "16", "25", "35", "50", "70", "70", "95", "120"
+}
     ' Складът за всички кабели (замества DataList)
-    Public Property DataList As New List(Of CableInfo)()
+    Public Property CableList As New List(Of CableInfo)()
     ' Списъкът с методи за монтаж
     Public Property LiMountMethod As New List(Of strMountMethod)()
     Public Structure strMountMethod
@@ -25,130 +38,78 @@ Public Class CableCatalog
     ''' <summary>
     ''' Зарежда каталожните данни за кабелите.
     ''' </summary>
+
     Public Sub LoadCatalog()
-        DataList.Clear()
-        DataList.Add(New CableInfo With {.CableType = "СВТ", .Material = "Cu", .PhaseSize = "1,5", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 19, .MaxCurrent_Ground = 25, .NeutralSize = "1,5"})
-        DataList.Add(New CableInfo With {.CableType = "СВТ", .Material = "Cu", .PhaseSize = "2,5", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 25, .MaxCurrent_Ground = 34, .NeutralSize = "2,5"})
-        DataList.Add(New CableInfo With {.CableType = "СВТ", .Material = "Cu", .PhaseSize = "4", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 34, .MaxCurrent_Ground = 45, .NeutralSize = "4"})
-        DataList.Add(New CableInfo With {.CableType = "СВТ", .Material = "Cu", .PhaseSize = "6", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 43, .MaxCurrent_Ground = 55, .NeutralSize = "6"})
-        DataList.Add(New CableInfo With {.CableType = "СВТ", .Material = "Cu", .PhaseSize = "10", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 59, .MaxCurrent_Ground = 76, .NeutralSize = "10"})
-        DataList.Add(New CableInfo With {.CableType = "СВТ", .Material = "Cu", .PhaseSize = "16", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 79, .MaxCurrent_Ground = 96, .NeutralSize = "16"})
-        DataList.Add(New CableInfo With {.CableType = "СВТ", .Material = "Cu", .PhaseSize = "25", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 105, .MaxCurrent_Ground = 126, .NeutralSize = "16"})
-        DataList.Add(New CableInfo With {.CableType = "СВТ", .Material = "Cu", .PhaseSize = "35", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 126, .MaxCurrent_Ground = 151, .NeutralSize = "16"})
-        DataList.Add(New CableInfo With {.CableType = "СВТ", .Material = "Cu", .PhaseSize = "50", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 157, .MaxCurrent_Ground = 178, .NeutralSize = "25"})
-        DataList.Add(New CableInfo With {.CableType = "СВТ", .Material = "Cu", .PhaseSize = "70", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 199, .MaxCurrent_Ground = 225, .NeutralSize = "35"})
-        DataList.Add(New CableInfo With {.CableType = "СВТ", .Material = "Cu", .PhaseSize = "95", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 246, .MaxCurrent_Ground = 270, .NeutralSize = "50"})
-        DataList.Add(New CableInfo With {.CableType = "СВТ", .Material = "Cu", .PhaseSize = "120", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 285, .MaxCurrent_Ground = 306, .NeutralSize = "70"})
-        DataList.Add(New CableInfo With {.CableType = "СВТ", .Material = "Cu", .PhaseSize = "150", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 326, .MaxCurrent_Ground = 346, .NeutralSize = "70"})
-        DataList.Add(New CableInfo With {.CableType = "СВТ", .Material = "Cu", .PhaseSize = "185", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 374, .MaxCurrent_Ground = 390, .NeutralSize = "95"})
-        DataList.Add(New CableInfo With {.CableType = "СВТ", .Material = "Cu", .PhaseSize = "240", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 445, .MaxCurrent_Ground = 458, .NeutralSize = "120"})
+        CableList.Clear()
+        ' 1. СВТ (Cu, 70°C, PVC)
+        AddCableSeries("СВТ", "Cu", 70, "PVC",
+                   {19, 25, 34, 43, 59, 79, 105, 126, 157, 199, 246, 285, 326, 374, 445},
+                   {25, 34, 45, 55, 76, 96, 126, 151, 178, 225, 270, 306, 346, 390, 458})
+        ' 2. САВТ (Al, 70°C, PVC)
+        AddCableSeries("САВТ", "Al", 70, "PVC",
+                   {0, 20, 26, 34, 43, 64, 82, 100, 119, 152, 185, 215, 245, 285, 338},
+                   {0, 25, 32, 42, 53, 75, 92, 110, 134, 170, 210, 245, 274, 310, 360})
+        ' 3. NYY (Cu, 70°C, PVC)
+        AddCableSeries("NYY", "Cu", 70, "PVC",
+                   {19.5, 25, 34, 43, 59, 79, 106, 129, 157, 199, 246, 285, 326, 374, 445},
+                   {27, 36, 47, 59, 79, 102, 133, 159, 188, 232, 280, 318, 359, 406, 473})
+        ' 4. NAYY (Al, 70°C, PVC)
+        AddCableSeries("NAYY", "Al", 70, "PVC",
+                   {0, 0, 0, 0, 0, 0, 82, 100, 119, 152, 186, 216, 246, 285, 338},
+                   {0, 0, 0, 0, 0, 0, 102, 123, 144, 179, 215, 245, 275, 313, 364})
+        ' 5. N2XY (Cu, 90°C, XLPE)
+        AddCableSeries("N2XY", "Cu", 90, "XLPE",
+                   {24, 32, 42, 53, 74, 98, 133, 162, 197, 250, 308, 359, 412, 475, 564},
+                   {31, 40, 52, 64, 86, 112, 145, 174, 206, 254, 305, 348, 392, 444, 517})
+        ' 6. NA2XY (Al, 90°C, XLPE)
+        AddCableSeries("NA2XY", "Al", 90, "XLPE",
+                   {0, 0, 0, 0, 0, 0, 102, 126, 149, 191, 234, 273, 311, 360, 427},
+                   {0, 0, 0, 0, 0, 0, 112, 135, 158, 196, 234, 268, 300, 342, 398})
+        ' --- Специални кабели (Остават ръчно или с единично добавяне) ---
+        ' Al/R (Al, 90°C, XLPE) - Поради специфичните му неутрални жила (35+54, 50+54, 70+54...)
+        CableList.Add(New CableInfo With {.CableType = "Al/R", .Material = "Al", .PhaseSize = "16", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 83, .MaxCurrent_Ground = 0, .NeutralSize = "16"})
+        CableList.Add(New CableInfo With {.CableType = "Al/R", .Material = "Al", .PhaseSize = "25", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 111, .MaxCurrent_Ground = 0, .NeutralSize = "25"})
+        CableList.Add(New CableInfo With {.CableType = "Al/R", .Material = "Al", .PhaseSize = "35", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 138, .MaxCurrent_Ground = 0, .NeutralSize = "35"})
+        CableList.Add(New CableInfo With {.CableType = "Al/R", .Material = "Al", .PhaseSize = "35", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 138, .MaxCurrent_Ground = 0, .NeutralSize = "54"})
+        CableList.Add(New CableInfo With {.CableType = "Al/R", .Material = "Al", .PhaseSize = "50", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 164, .MaxCurrent_Ground = 0, .NeutralSize = "54"})
+        CableList.Add(New CableInfo With {.CableType = "Al/R", .Material = "Al", .PhaseSize = "70", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 213, .MaxCurrent_Ground = 0, .NeutralSize = "54"})
+        CableList.Add(New CableInfo With {.CableType = "Al/R", .Material = "Al", .PhaseSize = "95", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 258, .MaxCurrent_Ground = 0, .NeutralSize = "70"})
+        CableList.Add(New CableInfo With {.CableType = "Al/R", .Material = "Al", .PhaseSize = "150", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 344, .MaxCurrent_Ground = 0, .NeutralSize = "70"})
 
-        DataList.Add(New CableInfo With {.CableType = "САВТ", .Material = "Al", .PhaseSize = "1,5", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 0, .MaxCurrent_Ground = 0, .NeutralSize = "1,5"})
-        DataList.Add(New CableInfo With {.CableType = "САВТ", .Material = "Al", .PhaseSize = "2,5", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 20, .MaxCurrent_Ground = 25, .NeutralSize = "2,5"})
-        DataList.Add(New CableInfo With {.CableType = "САВТ", .Material = "Al", .PhaseSize = "4", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 26, .MaxCurrent_Ground = 32, .NeutralSize = "4"})
-        DataList.Add(New CableInfo With {.CableType = "САВТ", .Material = "Al", .PhaseSize = "6", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 34, .MaxCurrent_Ground = 42, .NeutralSize = "6"})
-        DataList.Add(New CableInfo With {.CableType = "САВТ", .Material = "Al", .PhaseSize = "10", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 43, .MaxCurrent_Ground = 53, .NeutralSize = "10"})
-        DataList.Add(New CableInfo With {.CableType = "САВТ", .Material = "Al", .PhaseSize = "16", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 64, .MaxCurrent_Ground = 75, .NeutralSize = "16"})
-        DataList.Add(New CableInfo With {.CableType = "САВТ", .Material = "Al", .PhaseSize = "25", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 82, .MaxCurrent_Ground = 92, .NeutralSize = "16"})
-        DataList.Add(New CableInfo With {.CableType = "САВТ", .Material = "Al", .PhaseSize = "35", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 100, .MaxCurrent_Ground = 110, .NeutralSize = "16"})
-        DataList.Add(New CableInfo With {.CableType = "САВТ", .Material = "Al", .PhaseSize = "50", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 119, .MaxCurrent_Ground = 134, .NeutralSize = "25"})
-        DataList.Add(New CableInfo With {.CableType = "САВТ", .Material = "Al", .PhaseSize = "70", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 152, .MaxCurrent_Ground = 170, .NeutralSize = "35"})
-        DataList.Add(New CableInfo With {.CableType = "САВТ", .Material = "Al", .PhaseSize = "95", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 185, .MaxCurrent_Ground = 210, .NeutralSize = "50"})
-        DataList.Add(New CableInfo With {.CableType = "САВТ", .Material = "Al", .PhaseSize = "120", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 215, .MaxCurrent_Ground = 245, .NeutralSize = "70"})
-        DataList.Add(New CableInfo With {.CableType = "САВТ", .Material = "Al", .PhaseSize = "150", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 245, .MaxCurrent_Ground = 274, .NeutralSize = "70"})
-        DataList.Add(New CableInfo With {.CableType = "САВТ", .Material = "Al", .PhaseSize = "185", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 285, .MaxCurrent_Ground = 310, .NeutralSize = "95"})
-        DataList.Add(New CableInfo With {.CableType = "САВТ", .Material = "Al", .PhaseSize = "240", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 338, .MaxCurrent_Ground = 360, .NeutralSize = "120"})
+        ' ПВ-А1 (Cu, 70°C, PVC) - Тъй като всички нули са "0"
+        Dim pvCurrentAir() As Double = {20, 27, 36, 45, 63, 82, 113, 138, 168, 210, 262, 307, 352, 405, 482}
+        Dim pvCurrentGround() As Double = {29, 38, 49, 62, 83, 104, 136, 162, 192, 236, 285, 322, 363, 410, 475}
+        For i As Integer = 0 To StandardPhaseSizes.Length - 1
+            CableList.Add(New CableInfo With {
+                         .CableType = "ПВ-А1",
+                         .Material = "Cu",
+                         .PhaseSize = StandardPhaseSizes(i),
+                         .MaxWorkingTemp = 70,
+                         .InsulationType = "PVC",
+                         .MaxCurrent_Air = pvCurrentAir(i),
+                         .MaxCurrent_Ground = pvCurrentGround(i),
+                         .NeutralSize = "0"
+                         })
+        Next
+        CableTypesForCombo = CableList.Select(Function(b) b.CableType).Distinct().ToList()
+    End Sub
 
-        DataList.Add(New CableInfo With {.CableType = "Al/R", .Material = "Al", .PhaseSize = "16", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 83, .MaxCurrent_Ground = 0, .NeutralSize = "16"})
-        DataList.Add(New CableInfo With {.CableType = "Al/R", .Material = "Al", .PhaseSize = "25", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 111, .MaxCurrent_Ground = 0, .NeutralSize = "25"})
-        DataList.Add(New CableInfo With {.CableType = "Al/R", .Material = "Al", .PhaseSize = "35", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 138, .MaxCurrent_Ground = 0, .NeutralSize = "35"})
-        DataList.Add(New CableInfo With {.CableType = "Al/R", .Material = "Al", .PhaseSize = "35", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 138, .MaxCurrent_Ground = 0, .NeutralSize = "54"})
-        DataList.Add(New CableInfo With {.CableType = "Al/R", .Material = "Al", .PhaseSize = "50", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 164, .MaxCurrent_Ground = 0, .NeutralSize = "54"})
-        DataList.Add(New CableInfo With {.CableType = "Al/R", .Material = "Al", .PhaseSize = "70", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 213, .MaxCurrent_Ground = 0, .NeutralSize = "54"})
-        DataList.Add(New CableInfo With {.CableType = "Al/R", .Material = "Al", .PhaseSize = "95", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 258, .MaxCurrent_Ground = 0, .NeutralSize = "70"})
-        DataList.Add(New CableInfo With {.CableType = "Al/R", .Material = "Al", .PhaseSize = "150", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 344, .MaxCurrent_Ground = 0, .NeutralSize = "70"})
-
-        DataList.Add(New CableInfo With {.CableType = "ПВ-А1", .Material = "Cu", .PhaseSize = "1,5", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 20, .MaxCurrent_Ground = 29, .NeutralSize = "0"})
-        DataList.Add(New CableInfo With {.CableType = "ПВ-А1", .Material = "Cu", .PhaseSize = "2,5", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 27, .MaxCurrent_Ground = 38, .NeutralSize = "0"})
-        DataList.Add(New CableInfo With {.CableType = "ПВ-А1", .Material = "Cu", .PhaseSize = "4", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 36, .MaxCurrent_Ground = 49, .NeutralSize = "0"})
-        DataList.Add(New CableInfo With {.CableType = "ПВ-А1", .Material = "Cu", .PhaseSize = "6", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 45, .MaxCurrent_Ground = 62, .NeutralSize = "0"})
-        DataList.Add(New CableInfo With {.CableType = "ПВ-А1", .Material = "Cu", .PhaseSize = "10", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 63, .MaxCurrent_Ground = 83, .NeutralSize = "0"})
-        DataList.Add(New CableInfo With {.CableType = "ПВ-А1", .Material = "Cu", .PhaseSize = "16", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 82, .MaxCurrent_Ground = 104, .NeutralSize = "0"})
-        DataList.Add(New CableInfo With {.CableType = "ПВ-А1", .Material = "Cu", .PhaseSize = "25", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 113, .MaxCurrent_Ground = 136, .NeutralSize = "0"})
-        DataList.Add(New CableInfo With {.CableType = "ПВ-А1", .Material = "Cu", .PhaseSize = "35", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 138, .MaxCurrent_Ground = 162, .NeutralSize = "0"})
-        DataList.Add(New CableInfo With {.CableType = "ПВ-А1", .Material = "Cu", .PhaseSize = "50", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 168, .MaxCurrent_Ground = 192, .NeutralSize = "0"})
-        DataList.Add(New CableInfo With {.CableType = "ПВ-А1", .Material = "Cu", .PhaseSize = "70", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 210, .MaxCurrent_Ground = 236, .NeutralSize = "0"})
-        DataList.Add(New CableInfo With {.CableType = "ПВ-А1", .Material = "Cu", .PhaseSize = "95", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 262, .MaxCurrent_Ground = 285, .NeutralSize = "0"})
-        DataList.Add(New CableInfo With {.CableType = "ПВ-А1", .Material = "Cu", .PhaseSize = "120", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 307, .MaxCurrent_Ground = 322, .NeutralSize = "0"})
-        DataList.Add(New CableInfo With {.CableType = "ПВ-А1", .Material = "Cu", .PhaseSize = "150", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 352, .MaxCurrent_Ground = 363, .NeutralSize = "0"})
-        DataList.Add(New CableInfo With {.CableType = "ПВ-А1", .Material = "Cu", .PhaseSize = "185", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 405, .MaxCurrent_Ground = 410, .NeutralSize = "0"})
-        DataList.Add(New CableInfo With {.CableType = "ПВ-А1", .Material = "Cu", .PhaseSize = "240", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 482, .MaxCurrent_Ground = 475, .NeutralSize = "0"})
-
-        DataList.Add(New CableInfo With {.CableType = "NYY", .Material = "Cu", .PhaseSize = "1,5", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 19.5, .MaxCurrent_Ground = 27, .NeutralSize = "1,5"})
-        DataList.Add(New CableInfo With {.CableType = "NYY", .Material = "Cu", .PhaseSize = "2,5", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 25, .MaxCurrent_Ground = 36, .NeutralSize = "2,5"})
-        DataList.Add(New CableInfo With {.CableType = "NYY", .Material = "Cu", .PhaseSize = "4", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 34, .MaxCurrent_Ground = 47, .NeutralSize = "4"})
-        DataList.Add(New CableInfo With {.CableType = "NYY", .Material = "Cu", .PhaseSize = "6", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 43, .MaxCurrent_Ground = 59, .NeutralSize = "6"})
-        DataList.Add(New CableInfo With {.CableType = "NYY", .Material = "Cu", .PhaseSize = "10", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 59, .MaxCurrent_Ground = 79, .NeutralSize = "10"})
-        DataList.Add(New CableInfo With {.CableType = "NYY", .Material = "Cu", .PhaseSize = "16", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 79, .MaxCurrent_Ground = 102, .NeutralSize = "16"})
-        DataList.Add(New CableInfo With {.CableType = "NYY", .Material = "Cu", .PhaseSize = "25", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 106, .MaxCurrent_Ground = 133, .NeutralSize = "16"})
-        DataList.Add(New CableInfo With {.CableType = "NYY", .Material = "Cu", .PhaseSize = "35", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 129, .MaxCurrent_Ground = 159, .NeutralSize = "16"})
-        DataList.Add(New CableInfo With {.CableType = "NYY", .Material = "Cu", .PhaseSize = "50", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 157, .MaxCurrent_Ground = 188, .NeutralSize = "25"})
-        DataList.Add(New CableInfo With {.CableType = "NYY", .Material = "Cu", .PhaseSize = "70", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 199, .MaxCurrent_Ground = 232, .NeutralSize = "35"})
-        DataList.Add(New CableInfo With {.CableType = "NYY", .Material = "Cu", .PhaseSize = "95", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 246, .MaxCurrent_Ground = 280, .NeutralSize = "50"})
-        DataList.Add(New CableInfo With {.CableType = "NYY", .Material = "Cu", .PhaseSize = "120", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 285, .MaxCurrent_Ground = 318, .NeutralSize = "70"})
-        DataList.Add(New CableInfo With {.CableType = "NYY", .Material = "Cu", .PhaseSize = "150", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 326, .MaxCurrent_Ground = 359, .NeutralSize = "70"})
-        DataList.Add(New CableInfo With {.CableType = "NYY", .Material = "Cu", .PhaseSize = "185", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 374, .MaxCurrent_Ground = 406, .NeutralSize = "95"})
-        DataList.Add(New CableInfo With {.CableType = "NYY", .Material = "Cu", .PhaseSize = "240", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 445, .MaxCurrent_Ground = 473, .NeutralSize = "120"})
-
-        DataList.Add(New CableInfo With {.CableType = "NAYY", .Material = "Al", .PhaseSize = "1,5", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 0, .MaxCurrent_Ground = 0, .NeutralSize = "1,5"})
-        DataList.Add(New CableInfo With {.CableType = "NAYY", .Material = "Al", .PhaseSize = "2,5", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 0, .MaxCurrent_Ground = 0, .NeutralSize = "2,5"})
-        DataList.Add(New CableInfo With {.CableType = "NAYY", .Material = "Al", .PhaseSize = "4", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 0, .MaxCurrent_Ground = 0, .NeutralSize = "4"})
-        DataList.Add(New CableInfo With {.CableType = "NAYY", .Material = "Al", .PhaseSize = "6", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 0, .MaxCurrent_Ground = 0, .NeutralSize = "6"})
-        DataList.Add(New CableInfo With {.CableType = "NAYY", .Material = "Al", .PhaseSize = "10", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 0, .MaxCurrent_Ground = 0, .NeutralSize = "10"})
-        DataList.Add(New CableInfo With {.CableType = "NAYY", .Material = "Al", .PhaseSize = "16", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 0, .MaxCurrent_Ground = 0, .NeutralSize = "16"})
-        DataList.Add(New CableInfo With {.CableType = "NAYY", .Material = "Al", .PhaseSize = "25", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 82, .MaxCurrent_Ground = 102, .NeutralSize = "16"})
-        DataList.Add(New CableInfo With {.CableType = "NAYY", .Material = "Al", .PhaseSize = "35", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 100, .MaxCurrent_Ground = 123, .NeutralSize = "16"})
-        DataList.Add(New CableInfo With {.CableType = "NAYY", .Material = "Al", .PhaseSize = "50", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 119, .MaxCurrent_Ground = 144, .NeutralSize = "25"})
-        DataList.Add(New CableInfo With {.CableType = "NAYY", .Material = "Al", .PhaseSize = "70", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 152, .MaxCurrent_Ground = 179, .NeutralSize = "35"})
-        DataList.Add(New CableInfo With {.CableType = "NAYY", .Material = "Al", .PhaseSize = "95", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 186, .MaxCurrent_Ground = 215, .NeutralSize = "50"})
-        DataList.Add(New CableInfo With {.CableType = "NAYY", .Material = "Al", .PhaseSize = "120", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 216, .MaxCurrent_Ground = 245, .NeutralSize = "70"})
-        DataList.Add(New CableInfo With {.CableType = "NAYY", .Material = "Al", .PhaseSize = "150", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 246, .MaxCurrent_Ground = 275, .NeutralSize = "70"})
-        DataList.Add(New CableInfo With {.CableType = "NAYY", .Material = "Al", .PhaseSize = "185", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 285, .MaxCurrent_Ground = 313, .NeutralSize = "95"})
-        DataList.Add(New CableInfo With {.CableType = "NAYY", .Material = "Al", .PhaseSize = "240", .MaxWorkingTemp = 70, .InsulationType = "PVC", .MaxCurrent_Air = 338, .MaxCurrent_Ground = 364, .NeutralSize = "120"})
-
-        DataList.Add(New CableInfo With {.CableType = "N2XY", .Material = "Cu", .PhaseSize = "1,5", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 24, .MaxCurrent_Ground = 31, .NeutralSize = "1,5"})
-        DataList.Add(New CableInfo With {.CableType = "N2XY", .Material = "Cu", .PhaseSize = "2,5", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 32, .MaxCurrent_Ground = 40, .NeutralSize = "2,5"})
-        DataList.Add(New CableInfo With {.CableType = "N2XY", .Material = "Cu", .PhaseSize = "4", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 42, .MaxCurrent_Ground = 52, .NeutralSize = "4"})
-        DataList.Add(New CableInfo With {.CableType = "N2XY", .Material = "Cu", .PhaseSize = "6", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 53, .MaxCurrent_Ground = 64, .NeutralSize = "6"})
-        DataList.Add(New CableInfo With {.CableType = "N2XY", .Material = "Cu", .PhaseSize = "10", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 74, .MaxCurrent_Ground = 86, .NeutralSize = "10"})
-        DataList.Add(New CableInfo With {.CableType = "N2XY", .Material = "Cu", .PhaseSize = "16", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 98, .MaxCurrent_Ground = 112, .NeutralSize = "16"})
-        DataList.Add(New CableInfo With {.CableType = "N2XY", .Material = "Cu", .PhaseSize = "25", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 133, .MaxCurrent_Ground = 145, .NeutralSize = "16"})
-        DataList.Add(New CableInfo With {.CableType = "N2XY", .Material = "Cu", .PhaseSize = "35", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 162, .MaxCurrent_Ground = 174, .NeutralSize = "16"})
-        DataList.Add(New CableInfo With {.CableType = "N2XY", .Material = "Cu", .PhaseSize = "50", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 197, .MaxCurrent_Ground = 206, .NeutralSize = "25"})
-        DataList.Add(New CableInfo With {.CableType = "N2XY", .Material = "Cu", .PhaseSize = "70", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 250, .MaxCurrent_Ground = 254, .NeutralSize = "35"})
-        DataList.Add(New CableInfo With {.CableType = "N2XY", .Material = "Cu", .PhaseSize = "95", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 308, .MaxCurrent_Ground = 305, .NeutralSize = "50"})
-        DataList.Add(New CableInfo With {.CableType = "N2XY", .Material = "Cu", .PhaseSize = "120", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 359, .MaxCurrent_Ground = 348, .NeutralSize = "70"})
-        DataList.Add(New CableInfo With {.CableType = "N2XY", .Material = "Cu", .PhaseSize = "150", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 412, .MaxCurrent_Ground = 392, .NeutralSize = "70"})
-        DataList.Add(New CableInfo With {.CableType = "N2XY", .Material = "Cu", .PhaseSize = "185", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 475, .MaxCurrent_Ground = 444, .NeutralSize = "95"})
-        DataList.Add(New CableInfo With {.CableType = "N2XY", .Material = "Cu", .PhaseSize = "240", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 564, .MaxCurrent_Ground = 517, .NeutralSize = "120"})
-
-        DataList.Add(New CableInfo With {.CableType = "NA2XY", .Material = "Al", .PhaseSize = "1,5", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 0, .MaxCurrent_Ground = 0, .NeutralSize = "1,5"})
-        DataList.Add(New CableInfo With {.CableType = "NA2XY", .Material = "Al", .PhaseSize = "2,5", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 0, .MaxCurrent_Ground = 0, .NeutralSize = "2,5"})
-        DataList.Add(New CableInfo With {.CableType = "NA2XY", .Material = "Al", .PhaseSize = "4", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 0, .MaxCurrent_Ground = 0, .NeutralSize = "4"})
-        DataList.Add(New CableInfo With {.CableType = "NA2XY", .Material = "Al", .PhaseSize = "6", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 0, .MaxCurrent_Ground = 0, .NeutralSize = "6"})
-        DataList.Add(New CableInfo With {.CableType = "NA2XY", .Material = "Al", .PhaseSize = "10", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 0, .MaxCurrent_Ground = 0, .NeutralSize = "10"})
-        DataList.Add(New CableInfo With {.CableType = "NA2XY", .Material = "Al", .PhaseSize = "16", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 0, .MaxCurrent_Ground = 0, .NeutralSize = "16"})
-        DataList.Add(New CableInfo With {.CableType = "NA2XY", .Material = "Al", .PhaseSize = "25", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 102, .MaxCurrent_Ground = 112, .NeutralSize = "16"})
-        DataList.Add(New CableInfo With {.CableType = "NA2XY", .Material = "Al", .PhaseSize = "35", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 126, .MaxCurrent_Ground = 135, .NeutralSize = "16"})
-        DataList.Add(New CableInfo With {.CableType = "NA2XY", .Material = "Al", .PhaseSize = "50", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 149, .MaxCurrent_Ground = 158, .NeutralSize = "25"})
-        DataList.Add(New CableInfo With {.CableType = "NA2XY", .Material = "Al", .PhaseSize = "70", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 191, .MaxCurrent_Ground = 196, .NeutralSize = "35"})
-        DataList.Add(New CableInfo With {.CableType = "NA2XY", .Material = "Al", .PhaseSize = "95", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 234, .MaxCurrent_Ground = 234, .NeutralSize = "50"})
-        DataList.Add(New CableInfo With {.CableType = "NA2XY", .Material = "Al", .PhaseSize = "120", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 273, .MaxCurrent_Ground = 268, .NeutralSize = "70"})
-        DataList.Add(New CableInfo With {.CableType = "NA2XY", .Material = "Al", .PhaseSize = "150", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 311, .MaxCurrent_Ground = 300, .NeutralSize = "70"})
-        DataList.Add(New CableInfo With {.CableType = "NA2XY", .Material = "Al", .PhaseSize = "185", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 360, .MaxCurrent_Ground = 342, .NeutralSize = "95"})
-        DataList.Add(New CableInfo With {.CableType = "NA2XY", .Material = "Al", .PhaseSize = "240", .MaxWorkingTemp = 90, .InsulationType = "XLPE", .MaxCurrent_Air = 427, .MaxCurrent_Ground = 398, .NeutralSize = "120"})
-
-        CableTypesForCombo = DataList.Select(Function(b) b.CableType).Distinct().ToList()
+    ''' <summary>
+    ''' Автоматично генерира и добавя пълна серия кабели на базата на синхронизираните масиви за сечения.
+    ''' </summary>
+    Private Sub AddCableSeries(cableType As String, material As String, maxTemp As Integer, insType As String, currentAir() As Double, currentGround() As Double)
+        For i As Integer = 0 To StandardPhaseSizes.Length - 1
+            CableList.Add(New CableInfo With {
+            .CableType = cableType,
+            .Material = material,
+            .PhaseSize = StandardPhaseSizes(i),
+            .MaxWorkingTemp = maxTemp,
+            .InsulationType = insType,
+            .MaxCurrent_Air = currentAir(i),
+            .MaxCurrent_Ground = currentGround(i),
+            .NeutralSize = StandardNeutralSizes(i)
+        })
+        Next
     End Sub
     ''' <summary>
     ''' Изчислява необходимото сечение на кабел според тока и условията на полагане
@@ -173,7 +134,7 @@ Public Class CableCatalog
 
         ' 1. МАТЕРИАЛ И ФИЛТРИРАНЕ НА КАТАЛОГА (използваме DataList вместо Catalog_Cables)
         Dim material As String = If(matType = 1, "Al", "Cu")
-        Dim filteredCables = DataList.Where(
+        Dim filteredCables = CableList.Where(
                                 Function(c) c.CableType = Type AndAlso c.Material = material
                              ).OrderBy(
                                 Function(c) CDbl(c.PhaseSize.Replace(",", "."))
@@ -363,13 +324,12 @@ Public Class BreakerCatalog
         Public Poles As Integer                     ' Брой полюси (1, 2, 3, 4).
         Public Ics_kA As Decimal                    ' Прекъсвателна способност.
         Public Curve As String                      ' Крива (B, C, D...).
-        Public TripUnit As String                   ' Защитен блок (TM-D, Micrologic...).
+        Public TripUnit As String                   ' Защитен блок (TM-D, Micrologic...).        Public Sub New(brand As String, type As String, Inom As Double, curve As String, kA As Double, poles As Integer, trip As String)
     End Class
     ''' <summary>
     ''' Списъкът, който държи филтрирания каталог за ИЗБРАНИЯ производител.
     ''' </summary>
     Public Property Breakers As New List(Of BreakerInfo)()
-
     ' ✅ Списъци, подготвени специално за ComboBox-овете във формата
     Public Property Brand_For_combo As New List(Of String)()
     Public Property Breakers_For_combo As New List(Of String)()
@@ -377,95 +337,91 @@ Public Class BreakerCatalog
     Public Property Curve_For_combo As New List(Of String)()
     Public Sub New()
         ' ✅ Твърдо дефинираме поддържаните марки, за да заредим първия ComboBox на формата
-        Brand_For_combo = New List(Of String) From {"Schneider Electric", "Schrack Technik", "Siemens", "ABB"}
+        Brand_For_combo = New List(Of String) From {"Schneider Electric", "Schrack Technik", "Siemens", "ABB", "Бат Генчо"}
     End Sub
     ''' <summary>
-    ''' Генерира декартово произведение от всички възможни комбинации на параметрите 
+    ''' Генерира всички възможни комбинации на параметрите 
     ''' и ги добавя в списъка 'Breakers'.
     ''' </summary>
-    ''' <param name="brand">Марка на апаратурата (напр. "Schneider", "Schrack")</param>
-    ''' <param name="series">Серия на модела (напр. "EZ9 MCB", "Amparo 6kA")</param>
-    ''' <param name="category">Категория на уреда (напр. "MCB", "RCCB", "RCBO", "MCCB")</param>
-    ''' <param name="currents">Номинални токове Inom в Ампери - Integer() {6, 10, 16...}</param>
-    ''' <param name="curves">Криви на изключване (B, C, D) - String(). Ако е излишно (напр. за ДТЗ), подай: Nothing (автоматично става "-")</param>
-    ''' <param name="polesList">Брой полюси (1, 2, 3, 4) - Integer(). Ако е Nothing, автоматично става: 0</param>
-    ''' <param name="icsValues">Изключвателна способност в kA - Decimal(). Ако е Nothing, автоматично става: 0</param>
-    ''' <param name="tripUnits">Тип защита/утечка (напр. "30mA", "TM", "Electronic") - String(). Ако е Nothing, остава: Nothing</param>
-    ''' <remarks>
-    ''' ПОДРЕДБА НА ПАРАМЕТРИТЕ ПРИ ИЗВИКВАНЕ:
-    ''' 1. Brand (String)      -> "Schrack"
-    ''' 2. Series (String)     -> "Amparo"
-    ''' 3. Category (String)   -> "MCB"
-    ''' 4. Currents (Integer()) -> {6, 10, 16, 20}
-    ''' 5. Curves (String())   -> {"B", "C"}       <-- (Подай Nothing за уреди без крива)
-    ''' 6. Poles (Integer())   -> {1, 3}
-    ''' 7. Ics kA (Decimal())  -> {6}
-    ''' 8. TripUnit (String()) -> Nothing          <-- (За ДТЗ/електронни защити, напр. {"30mA"})
-    ''' 
-    ''' КАК РАБОТИ ВГРАДЕНАТА ЗАЩИТА С If(..., New ...):
-    ''' Ако подадеш 'Nothing' за масив, циклите няма да гръмнат, а ще се завъртят точно веднъж със следните служебни стойности:
-    ''' - Curves    -> "-"
-    ''' - Poles     -> 0
-    ''' - Ics_kA    -> 0
-    ''' - TripUnit  -> Nothing
-    ''' </remarks>
-    Public Sub LoadCatalog(selectedBrand As String)
+    Public Sub LoadCatalog()
         Breakers.Clear()
-        ' В момента генерираме кода софтуерно в зависимост от избора
-        Select Case selectedBrand
-            Case "Schneider Electric", "Schneider"
-                ' MCB
-                AddBreakerSeries("Schneider", "EZ9 MCB", "MCB",
-                                 {6, 10, 16, 20, 25, 32, 40, 50, 63},
-                                 {"C", "B", "D"}, {1, 3}, {6}, Nothing)
-                AddBreakerSeries("Schneider", "iC60N", "MCB",
-                                 {2, 3, 4, 6, 10, 16, 20, 25, 32, 40, 50, 63},
-                                 {"C", "B", "D"}, {1, 3}, {6}, Nothing)
-                AddBreakerSeries("Schneider", "C120", "MCB",
-                                 {80, 100, 125}, {"C", "D"},
-                                 {1, 3}, {10}, Nothing)
-                ' MCCB
-                AddBreakerSeries("Schneider", "NSXm", "MCCB",
-                                 {16, 25, 32, 40, 50, 63, 80, 100, 125, 160},
-                                 {"E", "B", "F", "N", "H"}, {3}, {25}, {"TM-D", "TM-DC"})
-                AddBreakerSeries("Schneider", "NSX100", "MCCB", {16, 25, 32, 40, 63, 80, 100}, {"B", "F", "N", "H", "S", "L"}, {3}, {25}, {"TM-D", "TM-DC"})
-                AddBreakerSeries("Schneider", "NSX160", "MCCB", {80, 100, 125, 160}, {"B", "F", "N", "H", "S", "L"}, {3}, {36}, {"TM-D"})
-                AddBreakerSeries("Schneider", "NSX250", "MCCB", {125, 160, 200, 250}, {"B", "F", "N", "H", "S", "L"}, {3}, {50}, {"TM-D", "Micrologic 2.0", "Micrologic 5.0"})
-                AddBreakerSeries("Schneider", "NSX400", "MCCB", {250, 320, 400}, {"F", "N", "H", "S", "L"}, {3}, {70}, {"Micrologic 2.3"})
-                AddBreakerSeries("Schneider", "NSX630", "MCCB", {400, 500, 630}, {"F", "N", "H", "S", "L"}, {3}, {100}, {"Micrologic 2.3"})
-                ' ACB
-                AddBreakerSeries("Schneider", "MTZ", "ACB", {800, 1000, 1250, 1600, 2000, 2500, 3200, 4000, 5000, 6300}, {"MTZ"}, {3, 4}, {42, 65, 100}, {"Micrologic 6.0"})
-            Case "Siemens"
-                ' TODO: Тук утре по същия начин се добавят редове за Siemens без промяна на друга логика
-                ' AddBreakerSeries("Siemens", "5SY", "MCB", {6, 10, 16...}, ...)
-            Case "ABB"
-                ' TODO: Тук се добавят редове за ABB утре
-            Case "Schrack Technik", "Schrack"
-                ' Amparo 6kA (Битови серии) - обикновено B и C крива, 1-полюсни и 3-полюсни
-                AddBreakerSeries("Schrack", "Amparo 6kA", "MCB",
+        ' MCB
+        AddBreakerSeries("Schneider", "EZ9 MCB", "MCB",
+                         {6, 10, 16, 20, 25, 32, 40, 50, 63},
+                         {"C"}, {1, 2, 3, 4}, {6}, Nothing)
+        AddBreakerSeries("Schneider", "iC60N", "MCB",
+                         {2, 3, 4, 6, 10, 16, 20, 25, 32, 40, 50, 63},
+                         {"C", "B", "D"}, {1, 2, 3, 4}, {6}, Nothing)
+        AddBreakerSeries("Schneider", "C120", "MCB",
+                         {63, 80, 100, 125}, {"C", "B", "D"},
+                         {1, 2, 3, 4}, {10}, Nothing)
+        ' MCCB
+        AddBreakerSeries("Schneider", "NSXm", "MCCB",
+                         {16, 25, 32, 40, 50, 63, 80, 100},
+                         {"E", "B", "F", "N", "H"}, {3, 4}, {25}, {"TM-D", "TM-DC"})
+        AddBreakerSeries("Schneider", "NSX100", "MCCB",
+                         {16, 25, 32, 40, 63, 80, 100},
+                         {"B", "F", "N", "H", "S", "L"}, {3}, {25}, {"TM-D", "TM-DC"})
+        AddBreakerSeries("Schneider", "NSX160", "MCCB",
+                         {80, 100, 125, 160},
+                         {"B", "F", "N", "H", "S", "L"}, {3}, {36}, {"TM-D"})
+        AddBreakerSeries("Schneider", "NSX250", "MCCB",
+                         {125, 160, 200, 250},
+                         {"B", "F", "N", "H", "S", "L"}, {3}, {50},
+                         {"TM-D", "Micrologic 2.0", "Micrologic 5.0"})
+        AddBreakerSeries("Schneider", "NSX400", "MCCB",
+                         {250, 320, 400},
+                         {"F", "N", "H", "S", "L"}, {3}, {70}, {"Micrologic 2.3"})
+        AddBreakerSeries("Schneider", "NSX630", "MCCB",
+                         {400, 500, 630},
+                         {"F", "N", "H", "S", "L"}, {3}, {100}, {"Micrologic 2.3"})
+        ' ACB
+        AddBreakerSeries("Schneider", "MTZ1", "ACB",
+                         {630, 800, 1000, 1250, 1600},
+                         {"H1", "H2"},
+                         {3, 4}, {42, 65, 100}, {"Micrologic 6.0"})
+        AddBreakerSeries("Schneider", "MTZ2", "ACB",
+                         {800, 1000, 1250, 1600, 2000, 2500, 3200, 4000, 5000, 6300},
+                         {"N1", "H1", "H2"},
+                         {3, 4}, {42, 65, 100}, {"Micrologic 6.0"})
+        ' TODO: Тук утре по същия начин се добавят редове за Siemens без промяна на друга логика
+        ' AddBreakerSeries("Siemens", "5SY", "MCB", {6, 10, 16...}, ...)
+        ' TODO: Тук се добавят редове за ABB утре
+        ' Amparo 6kA (Битови серии) - обикновено B и C крива, 1-полюсни и 3-полюсни
+        AddBreakerSeries("Schrack", "Amparo 6kA", "MCB",
                                  {6, 10, 13, 16, 20, 25, 32, 40, 50, 63},
                                  {"B", "C"}, {1, 3}, {6}, Nothing)
-                ' BMS-6 (Индустриална / стандартна серия 6kA) - B, C и D крива, включва и 2p / 4p
-                AddBreakerSeries("Schrack", "BMS-6", "MCB",
-                                 {1, 2, 4, 6, 10, 13, 16, 20, 25, 32, 40, 50, 63},
-                                 {"B", "C", "D"}, {1, 2, 3, 4}, {6}, Nothing)
-                ' BMS-10 (Усилена серия 10kA)
-                AddBreakerSeries("Schrack", "BMS-10", "MCB",
-                                 {0.5, 1, 2, 4, 6, 10, 16, 20, 25, 32, 40, 50, 63},
-                                 {"B", "C", "D"}, {1, 2, 3, 4}, {10}, Nothing)
-                ' MC1 - по-малките ляти корпуси (до 160A)
-                AddBreakerSeries("Schrack", "MC1", "MCCB",
-                                 {20, 25, 32, 40, 50, 63, 80, 100, 125, 160},
-                                 Nothing, {3, 4}, {25, 50}, {"TM (Thermal-Magnetic)"})
-                ' MC2 - среден размер (до 300A)
-                AddBreakerSeries("Schrack", "MC2", "MCCB",
-                                 {160, 200, 250, 300},
-                                 Nothing, {3, 4}, {50}, {"TM", "Electronic"})
-        End Select
+        ' BMS-6 (Индустриална / стандартна серия 6kA) - B, C и D крива, включва и 2p / 4p
+        AddBreakerSeries("Schrack", "BMS-6", "MCB",
+                         {1, 2, 4, 6, 10, 13, 16, 20, 25, 32, 40, 50, 63},
+                         {"B", "C", "D"}, {1, 2, 3, 4}, {6}, Nothing)
+        ' BMS-10 (Усилена серия 10kA)
+        AddBreakerSeries("Schrack", "BMS-10", "MCB",
+                         {0.5, 1, 2, 4, 6, 10, 16, 20, 25, 32, 40, 50, 63},
+                         {"B", "C", "D"}, {1, 2, 3, 4}, {10}, Nothing)
+        ' MC1 - по-малките ляти корпуси (до 160A)
+        AddBreakerSeries("Schrack", "MC1", "MCCB",
+                         {20, 25, 32, 40, 50, 63, 80, 100, 125, 160},
+                         Nothing, {3, 4}, {25, 50}, {"TM (Thermal-Magnetic)"})
+        ' MC2 - среден размер (до 300A)
+        AddBreakerSeries("Schrack", "MC2", "MCCB",
+                         {160, 200, 250, 300},
+                         Nothing, {3, 4}, {50}, {"TM", "Electronic"})
         ' ✅ Автоматично пълним масивите за останалите ComboBox-ове на база избраната марка
         Breakers_For_combo = Breakers.Select(Function(b) b.Series).Distinct().ToList()
         TripUnit_For_combo = Breakers.Select(Function(b) b.TripUnit).Distinct().ToList()
         Curve_For_combo = Breakers.Select(Function(b) b.Curve).Distinct().ToList()
+    End Sub
+    ''' <summary>
+    ''' МЕГА ВАЖНО: Филтрира помощните списъци САМО за избраната в момента марка!
+    ''' </summary>
+    Public Sub FilterComboLists(brandName As String)
+        ' Вземаме само прекъсвачите на избрания производител
+        Dim filtered = Breakers.Where(Function(b) b.Brand = brandName).ToList()
+        ' Сега вече списъците за комбо кутиите съдържат само вярната апаратура!
+        Breakers_For_combo = filtered.Select(Function(b) b.Series).Distinct().ToList()
+        TripUnit_For_combo = filtered.Select(Function(b) b.TripUnit).Distinct().ToList()
+        Curve_For_combo = filtered.Select(Function(b) b.Curve).Distinct().ToList()
     End Sub
     ''' <summary>
     ''' Универсален метод за вътрешно генериране на комбинациите.
@@ -504,7 +460,7 @@ Public Class BreakerCatalog
     ''' </summary>
     Public Sub CalculateBreaker(ByRef tokow As strTokow)
         ' Деклариране на променлива за намерения прекъсвач от новия клас
-        Dim breaker As BreakerCatalog.BreakerInfo = Nothing
+        Dim breaker As BreakerInfo = Nothing
         ' ------------------------------------------------------------
         ' Избор на серия прекъсвач според изчисления ток и тип устройство
         ' ------------------------------------------------------------
@@ -567,97 +523,49 @@ Public Class BreakerCatalog
     ' =============================================================
     ' Функция: SelectBreaker
     ' =============================================================
-    ' <summary>
-    ' Избира подходящ прекъсвач (BreakerInfo) от колекцията Breakers
-    ' според:
-    '
-    ' - изчислен ток
-    ' - брой полюси
-    ' - крива или серия
-    '
-    ' Логиката работи на два етапа:
-    '
-    ' 1. Основен избор:
-    '    търси най-близкия стандартен прекъсвач,
-    '    който покрива тока с резерв.
-    '
-    ' 2. Fallback избор:
-    '    ако няма намерен прекъсвач за зададената
-    '    крива/серия → търси произволен подходящ прекъсвач.
-    '
-    ' Цел:
-    ' - автоматичен подбор на защитен апарат
-    ' - избягване на undersized прекъсвач
-    ' - използване на стандартни номинали
-    ' </summary>
-    '
-    ' <param name="calculatedCurrent">
-    ' Изчислен работен ток.
-    ' </param>
-    '
-    ' <param name="poles">
-    ' Необходим брой полюси.
-    ' </param>
-    '
-    ' <param name="curveOrSeries">
-    ' Крива или серия на прекъсвача.
-    '
-    ' По подразбиране:
-    ' "C"
-    ' </param>
-    '
-    ' <returns>
-    ' BreakerInfo:
-    ' избраният прекъсвач,
-    ' или Nothing при липса на подходящ.
-    ' </returns>
+    ''' <summary>
+    ''' Избира подходящ прекъсвач (BreakerInfo) от колекцията Breakers
+    ''' според изчислен ток, брой полюси и крива/серия. Марката се взема автоматично от текущото състояние.
+    ''' </summary>
+    ''' <param name="calculatedCurrent">Изчислен работен ток.</param>
+    ''' <param name="poles">Необходим брой полюси.</param>
+    ''' <param name="curveOrSeries">Крива или серия на прекъсвача. По подразбиране: "C"</param>
+    ''' <returns>BreakerInfo: избраният прекъсвач, или Nothing при липса на подходящ.</returns>
     Public Function SelectBreaker(calculatedCurrent As Double,
-                              poles As Integer,
-                              Optional curveOrSeries As String = "C") As BreakerInfo
-        ' <summary>
-        ' резерв при подбора на прекъсвача.        '
-        ' Прекъсвачът трябва да бъде
-        ' по-голям от изчисления ток.
-        ' </summary>
+                                  poles As Integer,
+                                  Optional curveOrSeries As String = "C") As BreakerInfo
         Const SAFETY_FACTOR As Double = 1.15
-        ' <summary>
-        ' minimumRequiredCurrent:
-        ' минимален необходим номинален ток
-        ' след прилагане на резерва.
-        ' </summary>
         Dim minimumRequiredCurrent As Double = calculatedCurrent * SAFETY_FACTOR
-        ' СТЪПКА 1: Опит за намиране на прекъсвач по точни критерии (Полюси + Крива/Серия + Ток)
+        ' ✅ ПРОМЕНЕНО: Прочиташ го директно чрез Глобалния модул AppSettings
+        Dim _activeBrand As String = AppSettings.CurrentManufacturer
+        ' ====================================================================================
+        ' ПОДРОБНО ОБЯСНЕНИЕ НА ТЪРСЕНЕТО (LINQ):
+        ' ====================================================================================
+        ' 1. b.Poles = poles -> Филтрира по точния брой полюси.
+        ' 2. b.Brand.Equals(manufacturer...) -> Филтрира по марката, която каталогът ВЕЧЕ Е ЗАПОМНИЛ!
+        ' 3. Търси по крива ИЛИ по серия.
+        ' 4. Сортира по номинален ток във възходящ ред.
+        ' 5. Взема първия, който покрива минималния ток с коефициента за сигурност.
+        ' ====================================================================================
         Dim selectedBreaker = Breakers _
             .Where(Function(b) b.Poles = poles) _
+            .Where(Function(b) b.Brand.Equals(_activeBrand, StringComparison.OrdinalIgnoreCase)) _
             .Where(Function(b) b.Curve.Equals(curveOrSeries, StringComparison.OrdinalIgnoreCase) OrElse
-            b.Series.Equals(curveOrSeries, StringComparison.OrdinalIgnoreCase)) _
+                               b.Series.Equals(curveOrSeries, StringComparison.OrdinalIgnoreCase)) _
             .OrderBy(Function(b) b.NominalCurrent) _
             .FirstOrDefault(Function(b) b.NominalCurrent >= minimumRequiredCurrent)
-        ' 1. Филтър по полюси
-        ' 2. Филтър по Крива или Серия (игнорирайки регистъра на буквите)
-        ' 3. Сортиране по номинален ток (от най-малък към най-голям)
-        ' 4. Вземане на първия прекъсвач, чийто ток е по-голям или равен на минимално изисквания
-        ' СТЪПКА 2: Резервен вариант (Fallback), ако първото търсене не е върнало резултат
+
+        ' Fallback избор (ако няма намерен апарат за конкретната крива, търсим по-друг параметър)
         If selectedBreaker Is Nothing Then
-            ' Ако не е намерен съвпадащ прекъсвач, търсим алтернативен само по полюси и изчислен ток
             selectedBreaker = Breakers _
                 .Where(Function(b) b.Poles = poles) _
-                .Where(Function(b) b.NominalCurrent >= calculatedCurrent) _
+                .Where(Function(b) b.Brand.Equals(_activeBrand, StringComparison.OrdinalIgnoreCase)) _
                 .OrderBy(Function(b) b.NominalCurrent) _
-                .FirstOrDefault()
-            ' 1. Филтрираме по същия брой полюси
-            ' 2. Филтрираме прекъсвачите с ток, по-голям или равен на изчисления (calculatedCurrent)
-            ' 3. Сортираме ги по ток възходящо
-            ' 4. Вземаме първия (най-икономичния/близкия по стойност) прекъсвач
+                .FirstOrDefault(Function(b) b.NominalCurrent >= minimumRequiredCurrent)
         End If
-        ' =============================================================
-        ' ВРЪЩАНЕ НА РЕЗУЛТАТ
-        ' =============================================================
         Return selectedBreaker
     End Function
-    ''' <summary>
-    ''' Изчиства данните за прекъсвач (MCB)
-    ''' </summary>
+    ' Изчиства данните за прекъсвач (MCB)
     Public Sub ClearBreaker(ByRef tokow As strTokow)
         tokow.Breaker_Тип_Апарат = ""           ' Серия апарат (EZ9, C120, NSX, MTZ)
         tokow.Breaker_Крива = ""                ' Характеристика (B, C, D)
@@ -751,6 +659,237 @@ Public Class MotorProtectionCatalog
             Case 3 : Return match.SettingRange       ' Напр. 2.5-4.0A
             Case Else : Return "Грешен параметър"
         End Select
+    End Function
+End Class
+#End Region
+
+#Region "КЛАС: DisconnectorCatalog (Товариви прекъсвачи)"
+Public Class DisconnectorCatalog
+    ' Тази структура съдържа информация за прекъсвач (изключвател/разединител),
+    Public Class DisconnectorInfo
+        Public Brand As String           ' Производител на прекъсвача (например "Schneider").
+        Public NominalCurrent As Integer ' Номинален ток на прекъсвача в ампери.
+        Public Type As String             ' Тип на прекъсвача.
+        Public Poles As Integer           ' Брой полюси на прекъсвача.
+    End Class
+    ''' <summary>
+    ''' Списъкът, който държи каталога за разединителите.
+    ''' </summary>
+    Public Property Disconnectors As New List(Of DisconnectorInfo)()
+    Public Property Disconnectors_For_combo As New List(Of String)()
+    Public Property Discon_Tok_For_combo As New List(Of String)()
+    Public Sub New()
+        LoadCatalog()
+        ' Генериране на списъците за ComboBox
+        Disconnectors_For_combo = Disconnectors.Select(Function(b) b.Type).Distinct().ToList()
+        Discon_Tok_For_combo = Disconnectors.
+                               Select(Function(d) d.NominalCurrent).
+                               Distinct().
+                               OrderBy(Function(n) n).
+                               Select(Function(n) n.ToString()).
+                               ToList()
+    End Sub
+    ''' <summary>
+    ''' Процедура за автоматично запълване на каталога чрез серии
+    ''' </summary>
+    Private Sub LoadCatalog()
+        ' Schneider iSW (1, 2, 3, 4 полюса, от 20 до 125А)
+        AddDisconnectorSeries("Schneider", "iSW", {20, 32, 40, 63, 100, 125}, {1, 2, 3, 4})
+        ' Schneider INS (3 и 4 полюса, от 100 до 1600А)
+        AddDisconnectorSeries("Schneider", "INS", {40, 63, 80, 100, 125, 160, 200, 250, 320, 400, 500, 630, 800, 1000, 1250, 1600}, {3, 4})
+        ' Schneider IN (3 и 4 полюса, от 1600 до 2500А)
+        AddDisconnectorSeries("Schneider", "IN", {1600, 1600, 2500}, {3, 4})
+    End Sub
+    ''' <summary>
+    ''' Помощен метод за добавяне на цяла серия разединители по твоя модел.
+    ''' </summary>
+    Private Sub AddDisconnectorSeries(brand As String, type As String, currents As Integer(), poles As Integer())
+        Disconnectors.Clear()
+        For Each p As Integer In poles
+            For Each current As Integer In currents
+                Dim discon As New DisconnectorInfo With {
+                    .Brand = brand,
+                    .Type = type,
+                    .NominalCurrent = current,
+                    .Poles = p
+                }
+                Disconnectors.Add(discon)
+            Next
+        Next
+    End Sub
+    ''' <summary>
+    ''' Избира подходящ разединител (прекъсвач) според тока на токовия кръг и подадената марка.
+    ''' </summary>
+    ''' <param name="tokow">Токов кръг</param>
+    ''' <param name="brand">Марка на апарата (по подразбиране "Schneider")</param>
+    Public Sub CalculateDisconnector(tokow As strTokow,
+                                     Optional brand As String = "Schneider")
+        ' 1️⃣ КОНСТАНТИ (КОЕФИЦИЕНТИ)
+        Const MIN_FACTOR As Double = 1.15
+        Const MAX_FACTOR As Double = 1.25
+        ' 2️⃣ ИЗЧИСЛЯВАНЕ НА ДИАПАЗОН
+        Dim minRange As Double = tokow.Ток * MIN_FACTOR
+        Dim maxRange As Double = tokow.Ток * MAX_FACTOR
+        ' ====================================================================================
+        ' 3️⃣ ПОДРОБНО ОБЯСНЕНИЕ НА ТЪРСЕНЕТО (LINQ):
+        ' ====================================================================================
+        ' Използваме LINQ филтриране върху списъка "Disconnectors". Тъй като "DisconnectorInfo" 
+        ' е Клас (Референтен тип), променливата "suitable" ще съдържа конкретния намерен апарат 
+        ' или ще бъде "Nothing", ако няма съвпадение.
+        '
+        ' ЛОГИКА НА ФИЛТРИРАНЕТО (СТЪПКА ПО СТЪПКА):
+        ' 1. .Where() -> Филтрира списъка по 3 критерия едновременно:
+        '    - СЪВПАДЕНИЕ НА ПОЛЮСИ: d.Poles трябва да е равно на tokow.Брой_Полюси.
+        '    - СЪВПАДЕНИЕ НА МАРКА: d.Brand трябва да отговаря на подадения аргумент 'brand'.
+        '      Използваме "OrdinalIgnoreCase", за да игнорираме главни/малки букви при сравнение.
+        '    - ДОПУСТИМ ТОК: Номиналният ток d.NominalCurrent трябва да е >= изчисления minRange.
+        '
+        ' 2. .OrderBy() -> Сортира останалите след филтъра апарати във възходящ ред по техния ток.
+        '    Така най-малкият възможен номинал (който все пак ни върши работа) застава първи.
+        '
+        ' 3. .FirstOrDefault() -> Взема първия елемент от сортирания списък (най-оптималния ток).
+        '    Ако никой апарат не е отговорил на филтъра, методът автоматично ни връща "Nothing".
+        ' ====================================================================================
+        Dim suitable As DisconnectorInfo = Disconnectors.
+            Where(Function(d) d.Poles = tokow.Брой_Полюси AndAlso
+                               d.Brand.Equals(brand, StringComparison.OrdinalIgnoreCase) AndAlso
+                               d.NominalCurrent >= minRange).
+            OrderBy(Function(d) d.NominalCurrent).
+            FirstOrDefault()
+        ' 4️⃣ ПРОВЕРКА И ЗАПИС
+        If suitable IsNot Nothing Then
+            tokow.Breaker_Номинален_Ток = suitable.NominalCurrent
+            tokow.Breaker_Тип_Апарат = suitable.Brand & " " & suitable.Type
+            tokow.Breaker_Крива = "-"
+        Else
+            ' Съобщение за грешка с конкретно търсената марка
+            MsgBox(String.Format("Грешка: Не е намерен разединител от марка '{0}' за {1}А с {2} полюса.", brand, tokow.Ток, tokow.Брой_Полюси))
+        End If
+    End Sub
+End Class
+#End Region
+
+#Region "КЛАС: RCDCatalog (Дефектнотокови защити - RCD)"
+Public Class RCDCatalog
+    ''' <summary>
+    ''' Клас: RCDInfo
+    ''' </summary>
+    ''' <remarks>
+    ''' Този клас съхранява информация за защитно устройство от тип диференциална токова защита (ДТЗ/RCD).
+    ''' Променен на Клас за надеждна проверка за "Nothing", ако апаратът не бъде намерен в каталога.
+    ''' </remarks>
+    Public Class RCDInfo
+        Public Brand As String 'Производител на RCD устройството
+        Public NominalCurrent As Integer 'Номинален ток на RCD в ампери
+        Public Type As String ' Тип на чувствителността на RCD спрямо диференциален ток.
+        ' - "AC" – реагира на синусоидален променлив ток
+        ' - "A" – реагира на променлив и пулсиращ постоянен ток
+        ' - "F" – висока чувствителност, бърза реакция на различни видове ток
+        Public Poles As String ' Брой полюси на устройството ("2p", "4p")
+        Public Sensitivity As Integer ' Чувствителност на RCD в милиампери
+        Public DeviceType As String 'Вид на устройството ("RCCB", "RCBO", "iID")
+        Public Breaker As Boolean ' True – устройството е RCBO (комбиниран прекъсвач + ДТЗ);
+        ' False – устройството е RCCB (само диференциална защита).
+    End Class
+    ''' <summary>
+    ''' Списъкът, който държи каталога за дефектнотоковите защити.
+    ''' </summary>
+    Public Rcds As New List(Of RCDInfo)()
+    ' Списъци за ComboBox-овете във формата
+    Public Rcds_For_combo As New List(Of String)()
+    Public Rcd_Tok_For_combo As New List(Of String)()
+    Public Sub New()
+        ' ✅ ИЗВИКВАНЕ НА ПРОЦЕДУРАТА ЗА ЗАПЪЛВАНЕ
+        LoadCatalog()
+        ' Автоматично генериране на списъците за ComboBox от заредената база
+        Rcds_For_combo = Rcds.Select(Function(r) r.DeviceType).Distinct().ToList()
+        Rcd_Tok_For_combo = Rcds.
+                            Select(Function(r) r.NominalCurrent).
+                            Distinct().
+                            OrderBy(Function(n) n).
+                            Select(Function(n) n.ToString()).
+                            ToList()
+    End Sub
+    ''' <summary>
+    ''' Процедура за автоматично запълване на каталога чрез серии
+    ''' </summary>
+    Private Sub LoadCatalog()
+        ' 1. Серия EZ9 RCCB (Чисто RCCB, Тип AC, 30mA, 2p и 4p -> Breaker = False)
+        AddRcdSeries("Schneider", {25, 40, 63}, {"AC"}, {"2p", "4p"}, {30, 300}, "EZ9 RCCB", False)
+        ' 2. Серия EZ9 RCBO (Комбиниран прекъсвач, Тип AC, 30mA, само 2p -> Breaker = True)
+        AddRcdSeries("Schneider", {6, 10, 16, 20, 25, 32, 40}, {"AC"}, {"2p"}, {30}, "EZ9 RCBO", True)
+        ' 3. Серия iID - тип "si" (Специална защита, 300mA, 2p и 4p -> Breaker = False)
+        AddRcdSeries("Schneider", {25, 40, 63}, {"AC", "si"}, {"2p", "4p"}, {300}, "iID", False)
+        ' 4. Серия iID - тип "AC" (Стандартна защита, 30mA, само 4p -> Breaker = False)
+        ' Тъй като токовете са специфични (добавен е 80А и 100А), ги подаваме отделно
+        AddRcdSeries("Schneider", {25, 40, 80, 100}, {"AC"}, {"4p"}, {30}, "iID", False)
+        ' 5. Серия Vigi iC60 (Блок/Модул с прекъсвач, Тип AC, 30mA, 2p и 4p -> Breaker = True)
+        AddRcdSeries("Schneider", {25, 40, 63}, {"AC"}, {"2p", "4p"}, {30}, "Vigi iC60", True)
+        ' Пример 3: ABB Серия (Комбиниран прекъсвач + ДТЗ -> Breaker = True)
+        AddRcdSeries("ABB", {10, 16, 25, 32, 40}, {"A"}, {"2p"}, {30}, "RCBO", True)
+    End Sub
+    ''' <summary>
+    ''' Помощен метод за автоматизирано добавяне на серии ДТЗ по класа RCDInfo.
+    ''' </summary>
+    Private Sub AddRcdSeries(brand As String, currents As Integer(), types As String(), poles As Integer(), sensitivities As Integer(), deviceType As String, hasBreaker As Boolean)
+        For Each p As Integer In poles
+            For Each sensitivity As Integer In sensitivities
+                For Each current As Integer In currents
+                    For Each type As String In types
+                        Dim rcd As New RCDInfo With {
+                            .Brand = brand,
+                            .NominalCurrent = current,
+                            .Type = type,
+                            .Poles = p.ToString(),
+                            .Sensitivity = sensitivity,
+                            .DeviceType = deviceType,
+                            .Breaker = hasBreaker
+                        }
+                        Rcds.Add(rcd)
+                    Next
+                Next
+            Next
+        Next
+    End Sub
+    ''' <summary>
+    ''' Избира подходяща дефектнотокова защита (RCD) от каталога.
+    ''' </summary>
+    ''' <param name="calculatedCurrent">Изчисления или изискуем минимален ток на кръга</param>
+    ''' <param name="poles">Брой полюси, подадени като String (напр. "2p" или "4p")</param>
+    ''' <param name="sensitivity">Търсена чувствителност в mA (по подразбиране 30 mA)</param>
+    ''' <param name="brand">Търсена марка апарат (по подразбиране "Schneider")</param>
+    Public Function SelectRcd(calculatedCurrent As Double,
+                              poles As String,
+                              Optional sensitivity As Integer = 30,
+                              Optional brand As String = "Schneider") As RCDInfo
+
+        Dim minimumRequiredCurrent As Double = calculatedCurrent
+        ' ====================================================================================
+        ' ПОДРОБНО ОБЯСНЕНИЕ НА ТЪРСЕНЕТО (LINQ):
+        ' ====================================================================================
+        ' Тъй като RCDInfo вече е КЛАС (Референтен тип), променливата "selectedRcd" ще съдържа
+        ' конкретната намерена инстанция или ще бъде равен на "Nothing", ако няма съвпадение.
+        '
+        ' ЛОГИКА НА ФИЛТРИРАНЕТО (СТЪПКА ПО СТЪПКА):
+        ' 1. Първи .Where -> Сравнява полюсите като текст (r.Poles съвпада с poles, напр. "2p").
+        '                    Използва се StringComparison за пълна сигурност.
+        '
+        ' 2. Втори .Where -> Филтрира по марка (r.Brand), като изрично игнорира главни/малки букви.
+        '
+        ' 3. Трети .Where -> Филтрира по точно съвпадение на чувствителността на утечката (mA).
+        '
+        ' 4. .OrderBy -> Сортира останалите ДТЗ във възходящ ред по техния номинален ток.
+        '
+        ' 5. .FirstOrDefault(...) -> Търси първия апарат от сортирания списък, чийто номинален
+        '    ток е по-голям или равен на изчисления "minimumRequiredCurrent".
+        ' ====================================================================================
+        Dim selectedRcd = Rcds _
+            .Where(Function(r) r.Poles.Equals(poles, StringComparison.OrdinalIgnoreCase)) _
+            .Where(Function(r) r.Brand.Equals(brand, StringComparison.OrdinalIgnoreCase)) _
+            .Where(Function(r) r.Sensitivity = sensitivity) _
+            .OrderBy(Function(r) r.NominalCurrent) _
+            .FirstOrDefault(Function(r) r.NominalCurrent >= minimumRequiredCurrent)
+        Return selectedRcd
     End Function
 End Class
 #End Region

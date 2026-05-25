@@ -77,45 +77,158 @@ Public Module AcadCommands
         frm.ShowDialog()
     End Sub
 End Module
+Public Module AppSettings
+    Public Property CurrentManufacturer As String = "Schneider Electric"
+End Module
 Public Class Form_Tablo_new
-#Region "КЛАС: MotorProtectionCatalog (Моторни защити - GV)"
-    'Тази структура описва един електрически консуматор (товар),
-    ' извлечен от блок в AutoCAD чертеж.
+
+    ' --- Данни за извлечените от AutoCAD консуматори и токови кръгове ---
     Private ListKonsumator As New List(Of strKonsumator)
-    ' Списък за токовите кръгове
-    Dim ListTokow As New List(Of strTokow)
-#End Region
+    Private ListTokow As New List(Of strTokow)
+
+    ' --- КАТАЛОЗИ (Глобални за формата, за да живеят през цялото време) ---
+    Private _motorCatalog As MotorProtectionCatalog
+    Private _cableCatalog As CableCatalog
+    Private _breakerCatalog As BreakerCatalog
+    Private _disconnectorCatalog As DisconnectorCatalog
+
+
+    ' --- ГЛОБАЛНОТО СЪСТОЯНИЕ ЗА МАРКАТА ---
+    ' Полето е Shared
+    Private _currentManufacturer As String = "Schneider Electric"
+
+    ' СВОЙСТВОТО СЪЩО ТРЯБВА ДА Е SHARED:
+    Public Property CurrentManufacturer As String
+        Get
+            Return _currentManufacturer
+        End Get
+        Set(value As String)
+            If _currentManufacturer <> value Then
+                _currentManufacturer = value
+                ' Внимание: Методът OnManufacturerChanged също ще трябва да стане Shared!
+                OnManufacturerChanged()
+            End If
+        End Set
+    End Property
+
+    ' --- МЕНИДЖЪРИ НА ИНТЕРФЕЙСА ---
+    Private _treeViewManager As Form_Tablo_new_TreeViewManager
+
+
+    ''' <summary>
+    ''' Конструктор на формата - приема данните от AutoCAD
+    ''' </summary>
     Public Sub New(ByVal consumersList As List(Of strKonsumator), ByVal extractedTokowList As List(Of strTokow))
         ' Този ред е задължителен за инициализиране на контролите по формата (дизайнера)
         InitializeComponent()
-        ' Записваме подадения списък в нашата променлива, за да го ползваме навсякъде във формата
+
+        ' Записваме подадените списъци в нашите променливи
         ListKonsumator = consumersList
         ListTokow = extractedTokowList
     End Sub
+
     Private Sub Form_Tablo_new_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         Me.Height = 950
         Me.Width = 1600
+
         ' Извикваме фабриката за класове
         InitializeProjectComponents()
     End Sub
+
+    ''' <summary>
+    ''' Инициализация на компонентите на проекта
+    ''' </summary>
     Private Sub InitializeProjectComponents()
-        ' Инициализация на компонентите на проекта
-        ' Каталози (техническа библиотека)
-        ' КЛАС: MotorProtectionCatalog (Моторни защити - GV)
-        Dim catalogManager As New MotorProtectionCatalog()
-        ' КЛАС: CableCatalog (Кабели)
-        Dim catalogCable As New CableCatalog()
-        ' КЛАС: BreakerCatalog (Прекъсвачи)
-        Dim catalogBreaker As New BreakerCatalog()
+        ' Инициализираме обектите на ниво клас.
+        ' Когато се изпълни "New()", в самите каталози автоматично ще се извика техния LoadCatalog()
+
+        _motorCatalog = New MotorProtectionCatalog()
+        _cableCatalog = New CableCatalog()
+        _breakerCatalog = New BreakerCatalog()
+        _disconnectorCatalog = New DisconnectorCatalog()
+        ' 2. Извикваме отделната процедура за пълнене на комбото
+        FillManufacturerCombo()
+
         ' Йерархия и дървовидна структура (TreeView)
-        Dim treeViewManager As New Form_Tablo_new_TreeViewManager(TreeView_Табло, ListTokow)
+        _treeViewManager = New Form_Tablo_new_TreeViewManager(TreeView_Табло, ListTokow)
+
         ' Масово добавяне на кръгове (Batch Add Circuits)
         'Dim batchAddCircuits As New Form_BatchAddCircuits(ListTokow)
+
         ' Автоматично генериране в AutoCAD (AutoCAD Inserter)
         'Dim autoCadInserter As New Form_Tablo_new_AutoCadInserter(ListTokow)
+
         ' Файлова логика и управление на проекти (Project Path Resolver)
         'Dim projectPathResolver As New Form_Tablo_new_ProjectPathResolver()
     End Sub
-End Class
+    ' --- СВОЙСТВА (Properties) за достъп от външни изчислителни класове ---
+    ' Ако утре направиш друг клас, който ще смята, той ще иска достъп до тези каталози през формата:
+    Public ReadOnly Property CableCatalog As CableCatalog
+        Get
+            Return _cableCatalog
+        End Get
+    End Property
+    Public ReadOnly Property BreakerCatalog As BreakerCatalog
+        Get
+            Return _breakerCatalog
+        End Get
+    End Property
+    Public ReadOnly Property MotorCatalog As MotorProtectionCatalog
+        Get
+            Return _motorCatalog
+        End Get
+    End Property
+    Public ReadOnly Property DisconnectorCatalog As DisconnectorCatalog
+        Get
+            Return _disconnectorCatalog
+        End Get
+    End Property
+    ''' <summary>
+    ''' Пълни ToolStripComboBox-а за производител с данните от каталога за прекъсвачи.
+    ''' </summary>
+    Private Sub FillManufacturerCombo()
+        ' Достъпваме директно вътрешния ComboBox чрез .ComboBox
+        TscboManufacturer.ComboBox.Items.Clear()
+        ' Вземаме марките от каталога на прекъсвачите
+        For Each brand As String In _breakerCatalog.Brand_For_combo
+            TscboManufacturer.ComboBox.Items.Add(brand)
+        Next
+        ' Избираме първата марка по подразбиране
+        If TscboManufacturer.ComboBox.Items.Count > 0 Then
+            TscboManufacturer.ComboBox.SelectedIndex = 0
+        End If
+    End Sub
+    ''' <summary>
+    ''' Метод, който се извиква при смяна на марката. 
+    ''' Тук ще добавим логика за обновяване на UI и данни.
+    '''
+    ''' Този метод се грижи за всичко, когато марката се смени глобално
+    ''' </summary>
+    Private Sub OnManufacturerChanged()
+        ' 1. Казваме на DataGridView1 да си пренареди Combo клетките за прекъсвачи
+        ' 2. Казваме на ДТЗ (RCD) частта да се филтрира по новата марка
+        ' 3. Казваме на Товаровите прекъсвачи (Разединителите) да превключат
 
+        UpdateGridCombosForNewManufacturer(_currentManufacturer)
+    End Sub
+    ' --- СЪБИТИЕТО НА TOOLSTRIPCOMBOBOX-А СТАВА СУПЕР КРАТКО ---
+    Private Sub TscboManufacturer_SelectedIndexChanged(sender As Object, e As EventArgs) Handles TscboManufacturer.SelectedIndexChanged
+        Dim selectedBrand As String = TscboManufacturer.ComboBox.SelectedItem?.ToString()
+        If Not String.IsNullOrEmpty(selectedBrand) Then
+            ' Просто променяме глобалното свойство! То само ще свърши останалото.
+            CurrentManufacturer = selectedBrand
+        End If
+    End Sub
+    ''' <summary>
+    ''' Метод за обновяване на Combo клетките в DataGridView1 при смяна на марката.
+    ''' Тук ще се филтрират прекъсвачите от каталога.
+    ''' </summary>  
+    Private Sub UpdateGridCombosForNewManufacturer(brandName As String)
+        ' Филтрираме списъците за комбо кутиите според избраната марка
+        _breakerCatalog.FilterComboLists(brandName)
+
+
+    End Sub
+
+End Class
 

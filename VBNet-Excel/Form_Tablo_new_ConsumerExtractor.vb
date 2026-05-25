@@ -22,7 +22,7 @@ Public Class Form_Tablo_new_ConsumerExtractor
         Return FilterAndProcessSelection(selRes.Value, acCurDb)
     End Function
     ''' <summary>
-    ''' Стъпка 3: Отделна процедура за филтриране по тип (INSERT), пространство (ModelSpace) и слой (EL*).
+    ''' Процедура за филтриране по тип (INSERT), пространство (ModelSpace) и слой (EL*).
     ''' </summary>
     Private Shared Function FilterAndProcessSelection(ByVal selectedSet As SelectionSet, ByVal acCurDb As Database) As List(Of strKonsumator)
         Dim consumersList As New List(Of strKonsumator)()

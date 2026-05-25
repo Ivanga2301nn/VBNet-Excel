@@ -100,16 +100,21 @@ Public Class Form_Tablo_new
     End Sub
     Private Sub InitializeProjectComponents()
         ' Инициализация на компонентите на проекта
-        ' 1. Каталози (техническа библиотека)
-        Dim catalogManager As New Form_Tablo_CatalogManager()
-        ' 2. Йерархия и дървовидна структура (TreeView)
-        Dim treeViewManager As New Form_Tablo_new_TreeViewManager(TreeView1, ListKonsumator, ListTokow)
-        ' 3. Масово добавяне на кръгове (Batch Add Circuits)
-        Dim batchAddCircuits As New Form_Tablo_new_BatchAddCircuits(ListTokow, treeViewManager)
-        ' 4. Автоматично генериране в AutoCAD (AutoCAD Inserter)
-        Dim autoCadInserter As New Form_Tablo_new_AutoCadInserter(ListTokow)
-        ' 5. Файлова логика и управление на проекти (Project Path Resolver)
-        Dim projectPathResolver As New Form_Tablo_new_ProjectPathResolver()
+        ' Каталози (техническа библиотека)
+        ' КЛАС: MotorProtectionCatalog (Моторни защити - GV)
+        Dim catalogManager As New MotorProtectionCatalog()
+        ' КЛАС: CableCatalog (Кабели)
+        Dim catalogCable As New CableCatalog()
+        ' КЛАС: BreakerCatalog (Прекъсвачи)
+        Dim catalogBreaker As New BreakerCatalog()
+        ' Йерархия и дървовидна структура (TreeView)
+        Dim treeViewManager As New Form_Tablo_new_TreeViewManager(TreeView_Табло, ListTokow)
+        ' Масово добавяне на кръгове (Batch Add Circuits)
+        'Dim batchAddCircuits As New Form_BatchAddCircuits(ListTokow)
+        ' Автоматично генериране в AutoCAD (AutoCAD Inserter)
+        'Dim autoCadInserter As New Form_Tablo_new_AutoCadInserter(ListTokow)
+        ' Файлова логика и управление на проекти (Project Path Resolver)
+        'Dim projectPathResolver As New Form_Tablo_new_ProjectPathResolver()
     End Sub
 End Class
 

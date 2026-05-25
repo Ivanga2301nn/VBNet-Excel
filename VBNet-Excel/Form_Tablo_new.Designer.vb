@@ -289,6 +289,7 @@ Partial Class Form_Tablo_new
         'TreeView_Табло
         '
         Me.TreeView_Табло.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.TreeView_Табло.ForeColor = System.Drawing.Color.Yellow
         Me.TreeView_Табло.Location = New System.Drawing.Point(3, 22)
         Me.TreeView_Табло.Name = "TreeView_Табло"
         Me.TreeView_Табло.Size = New System.Drawing.Size(194, 805)

@@ -1,12 +1,48 @@
 ﻿Public Class BoardStructureManager
-    ' Пазим локални референции към каталозите, които формата вече е създала
+    ' 1. Пазим локални референции на ниво клас
     Private _rcdCatalog As RCDCatalog
+    Private _listTokow As List(Of strTokow) ' 👈 Новата променлива, достъпна за целия клас
+
     ''' <summary>
-    ''' КОНСТРУКТОР: Приема създадените каталози от формата, за да работи с техните актуални данни
+    ''' КОНСТРУКТОР: Приема създадените каталози и списъка с токови кръгове от формата
     ''' </summary>
-    Public Sub New(rcdCat As RCDCatalog)
+    Public Sub New(rcdCat As RCDCatalog, tokowList As List(Of strTokow))
         Me._rcdCatalog = rcdCat
+        Me._listTokow = tokowList ' 👈 Запаметяваме списъка в класа при създаването му   
     End Sub
+
+    ''' <summary>
+    ''' Клас за групиране на токови кръгове за балансиране на фазите
+    ''' </summary>
+    Public Class BalanceGroup
+        Public Circuits As List(Of strTokow) ' Списък с токови кръгове в групата
+        Public GroupType As String ' Тип на групата: "ThreePhase", "RCD", "SmallBus", "LargeBus", "Normal"
+        Public GroupKey As String ' Ключ на групата: RCD_Нула (N1, N2...), "Bus" или Nothing
+        Public TotalCurrent As Double ' Сумарен ток на групата (сума от токовете на всички ТК)
+        Public AssignedPhase As String ' Зададена фаза след балансиране (L1, L2, L3 или "L1,L2,L3")
+        ''' <summary>
+        ''' Конструктор - инициализира списъка с ТК
+        ''' </summary>
+        Public Sub New()
+            Circuits = New List(Of strTokow)
+        End Sub
+        ''' <summary>
+        ''' Брой токови кръгове в групата
+        ''' </summary>
+        Public ReadOnly Property CircuitCount As Integer
+            Get
+                Return Circuits.Count
+            End Get
+        End Property
+        ''' <summary>
+        ''' Сумарна мощност на групата
+        ''' </summary>
+        Public ReadOnly Property TotalPower As Double
+            Get
+                Return Circuits.Sum(Function(t) t.Мощност)
+            End Get
+        End Property
+    End Class
 #Region "Сортиране на списък с токови кръгове (List(Of strTokow))"
     ''' <summary>
     ''' Извършва йерархично сортиране на списъка с токови кръгове (Natural Sort).
@@ -38,10 +74,10 @@
     ''' Материализира LINQ заявката и я превръща обратно в нов, чист и подреден List(Of strTokow).
     ''' -----------------------------------------------------------------------------------------
     ''' </remarks>
-    Public Sub SortListTokow(ByRef tokowList As List(Of strTokow))
+    Public Sub SortListTokow()
         ' Изпълняваме тристепенна LINQ щафета, за да подредим оригиналния списък.
         ' Тъй като променливата е предадена с ByRef, промените ще се отразят веднага.
-        tokowList = tokowList.
+        _listTokow = _listTokow.
                     OrderBy(Function(t) If(String.IsNullOrEmpty(t.BuildingName), "БЕЗ СГРАДА", t.BuildingName)). ' ПЪРВО НИВО: Групиране по Сграда.
                     ThenBy(Function(t) t.Tablo). ' ВТОРО НИВО: Подреждане по име на Електрическото Табло.
                     ThenBy(Function(t) GetCircuitSortKey(t.ТоковКръг)). 'ТРЕТО НИВО: Естествено сортиране на самите токови кръгове.
@@ -173,14 +209,14 @@
     ''' Групира контактните токови кръгове в ДЗТ (RCD) групи, 
     ''' като разделя таблата с еднакви имена в различните сгради.
     ''' </summary>
-    Public Sub GroupContactsForRCD(ByRef ListTokow As List(Of strTokow))
+    Public Sub GroupContactsForRCD()
         ' Проверка за празен списък (защита от грешки)
-        If ListTokow Is Nothing OrElse ListTokow.Count = 0 Then Exit Sub
+        If _listTokow Is Nothing OrElse _listTokow.Count = 0 Then Exit Sub
         ' =========================================================================================
         ' КРИТИЧНА ПРОМЯНА: Групираме по анонимен тип (двоен ключ - Сграда и Табло едновременно).
         ' Това гарантира, че "Табло 1" в "Сграда А" и "Табло 1" в "Сграда Б" ще бъдат две отделни групи.
         ' =========================================================================================
-        Dim panels = ListTokow.GroupBy(Function(t) New With {Key t.BuildingName, Key t.Tablo})
+        Dim panels = _listTokow.GroupBy(Function(t) New With {Key t.BuildingName, Key t.Tablo})
         For Each panelGroup In panels
             ' Избор само на кръговете, които съдържат контакти и не са самото главно табло
             ' panelGroup вече съдържа само кръгове от конкретното табло в конкретната сграда
@@ -309,7 +345,7 @@
         ' Временно задаване на сумарния ток
         lastCircuit.Ток = totalCurrent
         ' Избор на подходяща ДТЗ
-        'Dim matchingRCD = _rcdCatalog.SelectRcd(requiredCurrent, poles, tokow.RCD_Автомат)
+        Dim matchingRCD = _rcdCatalog.SelectRcd(totalCurrent, hasThreePhase, False)
         ' Задаване на обща нула за всички кръгове в групата
         For Each circuit In circuits
             circuit.RCD_Нула = "N" & rcdNumber.ToString()
@@ -317,6 +353,60 @@
         ' Възстановяване на оригиналните стойности
         lastCircuit.Ток = originalTok
         lastCircuit.Брой_Полюси = originalPoles
+    End Sub
+
+    ''' <summary>
+    ''' Структурира данните в списъка, като гарантира, че съществуват 
+    ''' коренните записи за всяка сграда и сумарните ("ОБЩО") записи за всяко табло.
+    ''' </summary>
+    Public Sub EnsureAllStructureRecords()
+        ' Бърза защита: ако няма прочетени данни от AutoCAD, няма какво да структурираме
+        If _listTokow Is Nothing OrElse _listTokow.Count = 0 Then Exit Sub
+        ' 1. Взимаме всички уникални сгради, които съществуват в списъка на един ход
+        Dim allBuildings As List(Of String) = _listTokow.Select(Function(x) x.BuildingName).Distinct().ToList()
+        ' 2. Започваме обхождането на всяка сграда
+        For Each bName As String In allBuildings
+            ' ==========================================
+            ' ЧАСТ 1: ГАРАНТИРАНЕ НА КОРЕНЕН ЗАПИС (Root Node) ЗА СГРАДАТА
+            ' ==========================================
+            Dim rootExists As Boolean = _listTokow.Any(Function(x) x.Tablo = ROOT_NODE_TEXT AndAlso
+                                                              x.BuildingName = bName)
+            If Not rootExists Then
+                Dim rootPanel As New strTokow With {
+                .BuildingName = bName,
+                .Tablo = ROOT_NODE_TEXT,
+                .Device = "Табло",
+                .Табло_Родител = "",
+                .ТоковКръг = "ОБЩО"
+            }
+                _listTokow.Add(rootPanel)
+            End If
+            ' ==========================================
+            ' ЧАСТ 2: ГАРАНТИРАНЕ НА ЗАПИС "ОБЩО" ЗА ВСЯКО ТАБЛО В СГРАДАТА
+            ' ==========================================
+            ' Намираме уникалните имена на табла в текущата сграда (като изключваме корена)
+            Dim panelsInCurrentBuilding = _listTokow.Where(Function(t) t.BuildingName = bName AndAlso
+                                                                  t.Tablo <> ROOT_NODE_TEXT) _
+                                               .Select(Function(t) t.Tablo) _
+                                               .Distinct() _
+                                               .ToList()
+            ' Обхождаме реалните табла, за да им подсигурим сумарен ред "ОБЩО"
+            For Each tName As String In panelsInCurrentBuilding
+                Dim totalExists As Boolean = _listTokow.Any(Function(x) x.BuildingName = bName AndAlso
+                                                                   x.Tablo = tName AndAlso
+                                                                   x.ТоковКръг = "ОБЩО")
+                If Not totalExists Then
+                    Dim totalRecord As New strTokow With {
+                    .BuildingName = bName,
+                    .Tablo = tName,
+                    .ТоковКръг = "ОБЩО",
+                    .Device = "Табло",
+                    .Табло_Родител = ROOT_NODE_TEXT ' Всяко табло се закача за корена на сградата
+                }
+                    _listTokow.Add(totalRecord)
+                End If
+            Next
+        Next
     End Sub
 #End Region
 

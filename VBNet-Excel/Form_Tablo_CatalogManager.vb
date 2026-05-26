@@ -869,7 +869,6 @@ Public Class RCDCatalog
     ''' <param name="calculatedCurrent">Изчисления или изискуем минимален ток на кръга</param>
     ''' <param name="poles">Брой полюси, подадени като String (напр. "2p" или "4p")</param>
     ''' <param name="sensitivity">Търсена чувствителност в mA (по подразбиране 30 mA)</param>
-    ''' <param name="brand">Търсена марка апарат (по подразбиране "Schneider")</param>
     Public Function SelectRcd(calculatedCurrent As Double,
                               poles As String,
                               Breaker As Boolean,

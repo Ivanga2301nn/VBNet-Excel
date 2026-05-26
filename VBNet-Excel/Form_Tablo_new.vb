@@ -79,6 +79,7 @@ Public Module AcadCommands
 End Module
 Public Module AppSettings
     Public Property CurrentManufacturer As String = "Schneider"
+    Public Const ROOT_NODE_TEXT As String = "Гл.Р.Т."
 End Module
 Public Class Form_Tablo_new
     ' --- Данни за извлечените от AutoCAD консуматори и токови кръгове ---
@@ -115,7 +116,6 @@ Public Class Form_Tablo_new
     End Property
     ' --- МЕНИДЖЪРИ НА ИНТЕРФЕЙСА ---
     Private _treeViewManager As Form_Tablo_new_TreeViewManager
-
     ''' <summary>
     ''' Конструктор на формата - приема данните от AutoCAD
     ''' </summary>
@@ -137,9 +137,10 @@ Public Class Form_Tablo_new
         FillManufacturerCombo()
         ' Подаваме списъка за изчисление
         _calculationEngine.ExecuteCalculations(ListTokow)
-        _boardStructureManager.SortListTokow(ListTokow)
-        _boardStructureManager.GroupContactsForRCD(ListTokow)
-
+        _boardStructureManager.SortListTokow()
+        _boardStructureManager.GroupContactsForRCD()
+        _boardStructureManager.EnsureAllStructureRecords()
+        _boardStructureManager.AddFeederRecords()
     End Sub
     ''' <summary>
     ''' Инициализация на компонентите на проекта
@@ -153,26 +154,22 @@ Public Class Form_Tablo_new
         _breakerCatalog = New BreakerCatalog()
         _disconnectorCatalog = New DisconnectorCatalog()
         _rcdCatalog = New RCDCatalog()
-
         _calculationEngine = New ElectricalCalculationEngine(_breakerCatalog,
                                                              _motorCatalog,
                                                              _disconnectorCatalog,
                                                              _cableCatalog,
                                                              _rcdCatalog
                                                              )
-        _boardStructureManager = New BoardStructureManager(_rcdCatalog)
+        _boardStructureManager = New BoardStructureManager(_rcdCatalog, ListTokow)
+
+
+
+
 
         ' Йерархия и дървовидна структура (TreeView)
         _treeViewManager = New Form_Tablo_new_TreeViewManager(TreeView_Табло, ListTokow)
 
-        ' Масово добавяне на кръгове (Batch Add Circuits)
-        'Dim batchAddCircuits As New Form_BatchAddCircuits(ListTokow)
 
-        ' Автоматично генериране в AutoCAD (AutoCAD Inserter)
-        'Dim autoCadInserter As New Form_Tablo_new_AutoCadInserter(ListTokow)
-
-        ' Файлова логика и управление на проекти (Project Path Resolver)
-        'Dim projectPathResolver As New Form_Tablo_new_ProjectPathResolver()
     End Sub
     ' --- СВОЙСТВА (Properties) за достъп от външни изчислителни класове ---
     ' Ако утре направиш друг клас, който ще смята, той ще иска достъп до тези каталози през формата:

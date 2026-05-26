@@ -124,6 +124,7 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Form_Tablo_new_ConsumerExtractor.vb" />
+    <Compile Include="Form_Tablo_new_ElectricalCalculationEngine.vb" />
     <Compile Include="Form_Tablo_new_ProjectPathResolver.vb" />
     <Compile Include="Form_Tablo_new_strTokow.vb" />
     <Compile Include="Form_Tablo_new_TreeViewManager.vb" />

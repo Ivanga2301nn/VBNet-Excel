@@ -78,10 +78,9 @@ Public Module AcadCommands
     End Sub
 End Module
 Public Module AppSettings
-    Public Property CurrentManufacturer As String = "Schneider Electric"
+    Public Property CurrentManufacturer As String = "Schneider"
 End Module
 Public Class Form_Tablo_new
-
     ' --- Данни за извлечените от AutoCAD консуматори и токови кръгове ---
     Private ListKonsumator As New List(Of strKonsumator)
     Private ListTokow As New List(Of strTokow)
@@ -91,11 +90,14 @@ Public Class Form_Tablo_new
     Private _cableCatalog As CableCatalog
     Private _breakerCatalog As BreakerCatalog
     Private _disconnectorCatalog As DisconnectorCatalog
+    Private _rcdCatalog As RCDCatalog
 
+    ' Създаваме инстанция на изчислителния двигател
+    Private _calculationEngine As ElectricalCalculationEngine
 
     ' --- ГЛОБАЛНОТО СЪСТОЯНИЕ ЗА МАРКАТА ---
     ' Полето е Shared
-    Private _currentManufacturer As String = "Schneider Electric"
+    Private _currentManufacturer As String = AppSettings.CurrentManufacturer
 
     ' СВОЙСТВОТО СЪЩО ТРЯБВА ДА Е SHARED:
     Public Property CurrentManufacturer As String
@@ -110,19 +112,17 @@ Public Class Form_Tablo_new
             End If
         End Set
     End Property
-
     ' --- МЕНИДЖЪРИ НА ИНТЕРФЕЙСА ---
     Private _treeViewManager As Form_Tablo_new_TreeViewManager
-
 
     ''' <summary>
     ''' Конструктор на формата - приема данните от AutoCAD
     ''' </summary>
     Public Sub New(ByVal consumersList As List(Of strKonsumator), ByVal extractedTokowList As List(Of strTokow))
-        ' Този ред е задължителен за инициализиране на контролите по формата (дизайнера)
         InitializeComponent()
-
-        ' Записваме подадените списъци в нашите променливи
+        ' 1. ПЪРВО създаваме каталозите в паметта, за да са готови
+        InitializeProjectComponents()
+        ' Записваме подадените списъци
         ListKonsumator = consumersList
         ListTokow = extractedTokowList
     End Sub
@@ -130,11 +130,14 @@ Public Class Form_Tablo_new
     Private Sub Form_Tablo_new_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         Me.Height = 950
         Me.Width = 1600
-
         ' Извикваме фабриката за класове
         InitializeProjectComponents()
-    End Sub
+        ' каталозите вече ще съществуват в паметта и няма да има NullReference!)
+        FillManufacturerCombo()
+        ' Подаваме списъка за изчисление
+        _calculationEngine.ExecuteCalculations(ListTokow)
 
+    End Sub
     ''' <summary>
     ''' Инициализация на компонентите на проекта
     ''' </summary>
@@ -146,9 +149,14 @@ Public Class Form_Tablo_new
         _cableCatalog = New CableCatalog()
         _breakerCatalog = New BreakerCatalog()
         _disconnectorCatalog = New DisconnectorCatalog()
-        ' 2. Извикваме отделната процедура за пълнене на комбото
-        FillManufacturerCombo()
+        _rcdCatalog = New RCDCatalog()
 
+        _calculationEngine = New ElectricalCalculationEngine(_breakerCatalog,
+                                                             _motorCatalog,
+                                                             _disconnectorCatalog,
+                                                             _cableCatalog,
+                                                             _rcdCatalog
+                                                             )
         ' Йерархия и дървовидна структура (TreeView)
         _treeViewManager = New Form_Tablo_new_TreeViewManager(TreeView_Табло, ListTokow)
 
@@ -181,6 +189,11 @@ Public Class Form_Tablo_new
     Public ReadOnly Property DisconnectorCatalog As DisconnectorCatalog
         Get
             Return _disconnectorCatalog
+        End Get
+    End Property
+    Public ReadOnly Property RCDCatalog As RCDCatalog
+        Get
+            Return _rcdCatalog
         End Get
     End Property
     ''' <summary>
@@ -224,11 +237,10 @@ Public Class Form_Tablo_new
     ''' Тук ще се филтрират прекъсвачите от каталога.
     ''' </summary>  
     Private Sub UpdateGridCombosForNewManufacturer(brandName As String)
+        ' 🛡️ ЗАЩИТА: Ако каталозите още не са готови, излез кротко!
+        If _breakerCatalog Is Nothing Then Exit Sub
         ' Филтрираме списъците за комбо кутиите според избраната марка
         _breakerCatalog.FilterComboLists(brandName)
-
-
     End Sub
-
 End Class
 

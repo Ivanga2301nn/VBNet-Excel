@@ -843,8 +843,8 @@ Public Class RCDCatalog
     ''' <summary>
     ''' Помощен метод за автоматизирано добавяне на серии ДТЗ по класа RCDInfo.
     ''' </summary>
-    Private Sub AddRcdSeries(brand As String, currents As Integer(), types As String(), poles As Integer(), sensitivities As Integer(), deviceType As String, hasBreaker As Boolean)
-        For Each p As Integer In poles
+    Private Sub AddRcdSeries(brand As String, currents As Integer(), types As String(), poles As String(), sensitivities As Integer(), deviceType As String, hasBreaker As Boolean)
+        For Each p As String In poles
             For Each sensitivity As Integer In sensitivities
                 For Each current As Integer In currents
                     For Each type As String In types
@@ -872,6 +872,7 @@ Public Class RCDCatalog
     ''' <param name="brand">Търсена марка апарат (по подразбиране "Schneider")</param>
     Public Function SelectRcd(calculatedCurrent As Double,
                               poles As String,
+                              Breaker As Boolean,
                               Optional sensitivity As Integer = 30
                               ) As RCDInfo
 
@@ -900,6 +901,7 @@ Public Class RCDCatalog
             .Where(Function(r) r.Poles.Equals(poles, StringComparison.OrdinalIgnoreCase)) _
             .Where(Function(r) r.Brand.Equals(_activeBrand, StringComparison.OrdinalIgnoreCase)) _
             .Where(Function(r) r.Sensitivity = sensitivity) _
+            .Where(Function(r) r.Breaker = Breaker) _
             .OrderBy(Function(r) r.NominalCurrent) _
             .FirstOrDefault(Function(r) r.NominalCurrent >= minimumRequiredCurrent)
         Return selectedRcd

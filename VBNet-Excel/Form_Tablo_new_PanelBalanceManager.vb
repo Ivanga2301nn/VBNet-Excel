@@ -1,16 +1,49 @@
-﻿Public Class PanelBalanceManager
+﻿Imports System.Windows.Forms
+
+Public Class PanelBalanceManager
     ' 1. Пазим локални референции на ниво клас
     Private _rcdCatalog As RCDCatalog
-    Private _listTokow As List(Of strTokow) ' 👈 Новата променлива, достъпна за целия клас
-
+    Private _listTokow As List(Of strTokow)
+    Private _disconnectorCatalog As DisconnectorCatalog
+    Private _cableCatalog As CableCatalog
+    Private _electricalCalculationEngine As ElectricalCalculationEngine
     ''' <summary>
     ''' КОНСТРУКТОР: Приема създадените каталози и списъка с токови кръгове от формата
     ''' </summary>
-    Public Sub New(rcdCat As RCDCatalog, tokowList As List(Of strTokow))
-        Me._rcdCatalog = rcdCat
-        Me._listTokow = tokowList ' 👈 Запаметяваме списъка в класа при създаването му
+    Public Sub New(rcdCat As RCDCatalog,
+                   tokowList As List(Of strTokow),
+                   disconnectorCat As DisconnectorCatalog,
+                   cableCat As CableCatalog,
+                   electricalCalcEngine As ElectricalCalculationEngine)
+        Me._rcdCatalog = rcdCat                                 ' 👈 Запаметяваме каталога с RCD в класа при създаването му
+        Me._listTokow = tokowList                               ' 👈 Запаметяваме списъка в класа при създаването му
+        Me._disconnectorCatalog = disconnectorCat               ' 👈 Запаметяваме каталога с прекъсвачи в класа при създаването му
+        Me._cableCatalog = cableCat                             ' 👈 Запаметяваме каталога с кабели в класа при създаването му   
+        Me._electricalCalculationEngine = electricalCalcEngine  ' 👈 Запаметяваме електрическия калкулатор в класа при създаването му     
     End Sub
-
+    ''' <summary>
+    ''' Клас за групиране на токови кръгове за балансиране на фазите
+    ''' </summary>
+    Public Class BalanceGroup
+        Public Circuits As List(Of strTokow) ' Списък с токови кръгове в групата
+        Public GroupType As String ' Тип на групата: "ThreePhase", "RCD", "SmallBus", "LargeBus", "Normal"
+        Public GroupKey As String ' Ключ на групата: RCD_Нула (N1, N2...), "Bus" или Nothing
+        Public TotalCurrent As Double ' Сумарен ток на групата (сума от токовете на всички ТК)
+        Public AssignedPhase As String ' Зададена фаза след балансиране (L1, L2, L3 или "L1,L2,L3")
+        Public Sub New()
+            Circuits = New List(Of strTokow) ' Конструктор - инициализира списъка с ТК
+        End Sub
+        Public ReadOnly Property CircuitCount As Integer ' Брой токови кръгове в групата
+            Get
+                Return Circuits.Count
+            End Get
+        End Property
+        Public ReadOnly Property TotalPower As Double ' Сумарна мощност на групата (сума от мощностите на всички ТК)
+            Get
+                Return Circuits.Sum(Function(t) t.Мощност)
+            End Get
+        End Property
+    End Class
 #Region "📂 EnsureTotalRecordsExists"
     ' Това е "Архитектът на сградите" - неговата единствена задача е да намери сградите
     Public Sub AddFeederRecords()
@@ -112,11 +145,45 @@
             ' Изчисляване на максимален ток
             totalTokow.Ток = Math.Max(valL1, Math.Max(valL2, valL3))
         Else
-            totalTokow.Ток = calc_Inom(totalTokow.Мощност, totalTokow.Брой_Полюси)
+            totalTokow.Ток = _electricalCalculationEngine.calc_Inom(totalTokow.Мощност, totalTokow.Брой_Полюси)
         End If
-        CalculateDisconnector(totalTokow)
-        NewCables.CalculateCable(totalTokow)
+        _disconnectorCatalog.CalculateDisconnector(totalTokow)
+        _cableCatalog.CalculateCable(totalTokow)
     End Sub
+    ' =============================================================
+    ' Функция: GetParentForTablo
+    ' =============================================================
+    ' <summary>
+    ' Връща родителското табло
+    ' за подадено табло и сграда.
+    '
+    ' Използва се за:
+    ' - изграждане на йерархия
+    ' - TreeView структура
+    ' - проследяване на вложени табла
+    ' </summary>
+    Private Function GetParentForTablo(buildingName As String, tabloName As String) As String
+        ' Търси записа за текущото табло
+        ' само измежду записите от тип "Табло"
+        Dim currentTabloRecord = _listTokow.FirstOrDefault(Function(t)
+                                                               Return t.BuildingName = buildingName AndAlso
+                                                                  t.Tablo = tabloName AndAlso
+                                                                  t.Device = "Табло"
+                                                           End Function)
+
+        ' Ако е намерен запис:
+        ' връща стойността на Табло_Родител
+        ' Ако Табло_Родител е празно:
+        ' връща празен низ
+        If currentTabloRecord IsNot Nothing Then
+            Return If(String.IsNullOrEmpty(currentTabloRecord.Табло_Родител),
+                  "",
+                  currentTabloRecord.Табло_Родител)
+        End If
+        ' Ако няма намерен запис:
+        ' връща празен низ
+        Return ""
+    End Function
     ''' <summary>
     ''' Балансира фазите (L1, L2, L3) за дадено табло и изчислява резултатните токове.
     ''' </summary>
@@ -170,13 +237,13 @@
                                        )
         ' Ако няма → пита потребителя
         If Not hasThreePhase Then
-            Dim result As MsgBoxResult = MessageBox.Show(
-            "Няма трифазни консуматори в това табло." & vbCrLf & vbCrLf &
-            "Искате ли да балансирате таблото?",
-            "Балансиране на фазите",
-            MessageBoxButtons.YesNo,
-            MessageBoxIcon.Question
-        )
+            Dim result As DialogResult = MessageBox.Show(
+                "Няма трифазни консуматори в това табло." &
+                vbCrLf & vbCrLf & "Искате ли да балансирате таблото?",
+                "Балансиране на фазите",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question
+                )
             If result = MsgBoxResult.No Then Return
         End If
         ' 3. НАМИРАНЕ НА РЕД "ОБЩО"

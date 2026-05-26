@@ -1,8 +1,7 @@
 ﻿Public Class BoardStructureManager
     ' 1. Пазим локални референции на ниво клас
     Private _rcdCatalog As RCDCatalog
-    Private _listTokow As List(Of strTokow) ' 👈 Новата променлива, достъпна за целия клас
-
+    Private _listTokow As List(Of strTokow)
     ''' <summary>
     ''' КОНСТРУКТОР: Приема създадените каталози и списъка с токови кръгове от формата
     ''' </summary>

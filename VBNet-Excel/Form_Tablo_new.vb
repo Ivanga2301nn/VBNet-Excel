@@ -92,10 +92,12 @@ Public Class Form_Tablo_new
     Private _breakerCatalog As BreakerCatalog
     Private _disconnectorCatalog As DisconnectorCatalog
     Private _rcdCatalog As RCDCatalog
+    Private _panelBalanceManager As PanelBalanceManager
 
     ' Създаваме инстанция на изчислителния двигател
     Private _calculationEngine As ElectricalCalculationEngine
     Private _boardStructureManager As BoardStructureManager
+    Private _panelBalanceManager As PanelBalanceManager
 
     ' --- ГЛОБАЛНОТО СЪСТОЯНИЕ ЗА МАРКАТА ---
     ' Полето е Shared
@@ -140,7 +142,7 @@ Public Class Form_Tablo_new
         _boardStructureManager.SortListTokow()
         _boardStructureManager.GroupContactsForRCD()
         _boardStructureManager.EnsureAllStructureRecords()
-        _boardStructureManager.AddFeederRecords()
+        _panelBalanceManager.AddFeederRecords()
     End Sub
     ''' <summary>
     ''' Инициализация на компонентите на проекта
@@ -148,19 +150,21 @@ Public Class Form_Tablo_new
     Private Sub InitializeProjectComponents()
         ' Инициализираме обектите на ниво клас.
         ' Когато се изпълни "New()", в самите каталози автоматично ще се извика техния LoadCatalog()
-
         _motorCatalog = New MotorProtectionCatalog()
         _cableCatalog = New CableCatalog()
         _breakerCatalog = New BreakerCatalog()
         _disconnectorCatalog = New DisconnectorCatalog()
         _rcdCatalog = New RCDCatalog()
         _calculationEngine = New ElectricalCalculationEngine(_breakerCatalog,
-                                                             _motorCatalog,
-                                                             _disconnectorCatalog,
                                                              _cableCatalog,
                                                              _rcdCatalog
                                                              )
         _boardStructureManager = New BoardStructureManager(_rcdCatalog, ListTokow)
+        _panelBalanceManager = New PanelBalanceManager(_rcdCatalog,
+                                                       ListTokow,
+                                                       _disconnectorCatalog,
+                                                       _cableCatalog,
+                                                       _calculationEngine)
 
 
 
@@ -168,8 +172,6 @@ Public Class Form_Tablo_new
 
         ' Йерархия и дървовидна структура (TreeView)
         _treeViewManager = New Form_Tablo_new_TreeViewManager(TreeView_Табло, ListTokow)
-
-
     End Sub
     ' --- СВОЙСТВА (Properties) за достъп от външни изчислителни класове ---
     ' Ако утре направиш друг клас, който ще смята, той ще иска достъп до тези каталози през формата:
@@ -196,6 +198,21 @@ Public Class Form_Tablo_new
     Public ReadOnly Property RCDCatalog As RCDCatalog
         Get
             Return _rcdCatalog
+        End Get
+    End Property
+    Public ReadOnly Property CalculationEngine As ElectricalCalculationEngine
+        Get
+            Return _calculationEngine
+        End Get
+    End Property
+    Public ReadOnly Property BoardStructureManager As BoardStructureManager
+        Get
+            Return _boardStructureManager
+        End Get
+    End Property
+    Public ReadOnly Property PanelBalanceManager As PanelBalanceManager
+        Get
+            Return _panelBalanceManager
         End Get
     End Property
     ''' <summary>

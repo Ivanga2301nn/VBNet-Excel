@@ -12,24 +12,16 @@
 Public Class ElectricalCalculationEngine
     ' Пазим локални референции към каталозите, които формата вече е създала
     Private _breakerCatalog As BreakerCatalog
-    Private _motorCatalog As MotorProtectionCatalog
-    Private _disconnectorCatalog As DisconnectorCatalog
     Private _cableCatalog As CableCatalog
     Private _rcdCatalog As RCDCatalog
-
     ''' <summary>
     ''' КОНСТРУКТОР: Приема създадените каталози от формата, за да работи с техните актуални данни
     ''' </summary>
     Public Sub New(breakerCat As BreakerCatalog,
-                   motorCat As MotorProtectionCatalog,
-                   disconCat As DisconnectorCatalog,
                    cableCat As CableCatalog,
                    rcdCat As RCDCatalog
                    )
-
         Me._breakerCatalog = breakerCat
-        Me._motorCatalog = motorCat
-        Me._disconnectorCatalog = disconCat
         Me._cableCatalog = cableCat
         Me._rcdCatalog = rcdCat
     End Sub
@@ -385,7 +377,7 @@ Public Class ElectricalCalculationEngine
     ''' <param name="NumberPoles">Брой фази: "1P" или "3P"</param>
     ''' <param name="Motor">True за двигатели (cos φ = 0.85, КПД = 0.9)</param>
     ''' <returns>Номинален ток в Ampere</returns>
-    Private Function calc_Inom(Pkryg As Double,                     ' мощност
+    Public Function calc_Inom(Pkryg As Double,                     ' мощност
                        NumberPoles As String,                       ' брой фази
                        Optional Motor As Boolean = False            ' Ако е двигател True - КПД и cos FI да са по 0,83
                        ) As Double                                  ' Изчислява номинален ток за товар

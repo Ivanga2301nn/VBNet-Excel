@@ -157,7 +157,6 @@ Public Class ElectricalCalculationEngine
                     }
                 }
             }
-        'Двигател 1p Двигател 3p
     End Sub
     ''' <summary>
     ''' Главният метод, който задвижва изчисленията за всички токови кръгове.
@@ -184,50 +183,6 @@ Public Class ElectricalCalculationEngine
         '    Изпълнява се само ако списъкът е празен или не е създаден.
         ' ------------------------------------------------------------
         If BlockConfigs Is Nothing OrElse BlockConfigs.Count = 0 Then InitializeBlockConfigs()
-        ' Завъртаме цикъл през всеки токов кръг
-        For Each tokow As strTokow In tokowList
-            If tokow.Device = "Разединител" Then Continue For
-            ' Нулиране на броячи и стойности преди ново изчисление
-            tokow.brLamp = 0
-            tokow.brKontakt = 0
-            tokow.Мощност = 0
-            tokow.Брой_Полюси = 1
-            tokow.Device = ""
-            ' --------------------------------------------------------
-            ' 3) Обработка на всички консуматори в кръга
-            ' --------------------------------------------------------
-            For Each kons As strKonsumator In tokow.Konsumator
-                ProcessConsumerByConfig(kons, tokow)
-            Next
-            Dim I_Def As Double = 0
-            Double.TryParse(tokow.Breaker_Номинален_Ток, I_Def)
-            ' --------------------------------------------------------
-            ' 4) Изчисляване на номиналния ток на кръга
-            '    calc_Inom() изчислява тока според мощността и полюсите
-            ' --------------------------------------------------------
-            tokow.Ток = calc_Inom(tokow.Мощност, tokow.Брой_Полюси, If(tokow.Device = "Мotor", True, False))
-            ' --------------------------------------------------------
-            ' 5) Избор на прекъсвач
-            ' --------------------------------------------------------
-            _breakerCatalog.CalculateBreaker(tokow)
-            Dim I_Get As Double = 0
-            Double.TryParse(tokow.Breaker_Номинален_Ток, I_Get)
-            If I_Def > I_Get Then
-                tokow.Breaker_Номинален_Ток = I_Def.ToString()
-            Else
-                tokow.Breaker_Номинален_Ток = I_Get.ToString()
-            End If
-            ' ----------------------------------------------------
-            ' Избираме кабел според изчисления ток и брой полюси
-            ' ----------------------------------------------------
-            _cableCatalog.CalculateCable(tokow)
-            If tokow.ДТЗ_RCD Then SetRCD(tokow)
-            'tokow.BuildingName = fullBuildingName
-            ' Тук ще добавяме стъпките, които ще ми разкажете сега:
-            ' 1. Изчисляване на Ток (In)
-            ' 2. Избор на Кабел
-            ' 3. Избор на Прекъсвач и т.н.
-        Next
     End Sub
     ''' <summary>
     ''' Обработва един консуматор спрямо конфигурацията му (BlockConfigs)

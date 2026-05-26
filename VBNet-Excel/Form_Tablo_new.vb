@@ -8,6 +8,7 @@ Imports System.Windows.Forms
 Imports System.Windows.Forms.VisualStyles.VisualStyleElement
 Imports Autodesk.AutoCAD
 Imports Autodesk.AutoCAD.ApplicationServices
+Imports Autodesk.AutoCAD.ComponentModel
 Imports Autodesk.AutoCAD.DatabaseServices
 Imports Autodesk.AutoCAD.DatabaseServices.Filters
 Imports Autodesk.AutoCAD.EditorInput
@@ -92,9 +93,8 @@ Public Class Form_Tablo_new
     Private _breakerCatalog As BreakerCatalog
     Private _disconnectorCatalog As DisconnectorCatalog
     Private _rcdCatalog As RCDCatalog
-    Private _panelBalanceManager As PanelBalanceManager
 
-    ' Създаваме инстанция на изчислителния двигател
+    ' Създаваме инстанция на електрическите класове, която ще се грижи за всички изчисления в проекта
     Private _calculationEngine As ElectricalCalculationEngine
     Private _boardStructureManager As BoardStructureManager
     Private _panelBalanceManager As PanelBalanceManager
@@ -143,6 +143,9 @@ Public Class Form_Tablo_new
         _boardStructureManager.GroupContactsForRCD()
         _boardStructureManager.EnsureAllStructureRecords()
         _panelBalanceManager.AddFeederRecords()
+        _treeViewManager.RefreshTree()
+
+
     End Sub
     ''' <summary>
     ''' Инициализация на компонентите на проекта
@@ -165,10 +168,6 @@ Public Class Form_Tablo_new
                                                        _disconnectorCatalog,
                                                        _cableCatalog,
                                                        _calculationEngine)
-
-
-
-
 
         ' Йерархия и дървовидна структура (TreeView)
         _treeViewManager = New Form_Tablo_new_TreeViewManager(TreeView_Табло, ListTokow)

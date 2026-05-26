@@ -94,6 +94,7 @@ Public Class Form_Tablo_new
 
     ' Създаваме инстанция на изчислителния двигател
     Private _calculationEngine As ElectricalCalculationEngine
+    Private _boardStructureManager As BoardStructureManager
 
     ' --- ГЛОБАЛНОТО СЪСТОЯНИЕ ЗА МАРКАТА ---
     ' Полето е Shared
@@ -136,6 +137,7 @@ Public Class Form_Tablo_new
         FillManufacturerCombo()
         ' Подаваме списъка за изчисление
         _calculationEngine.ExecuteCalculations(ListTokow)
+        _boardStructureManager.SortListTokow(ListTokow)
 
     End Sub
     ''' <summary>
@@ -157,6 +159,8 @@ Public Class Form_Tablo_new
                                                              _cableCatalog,
                                                              _rcdCatalog
                                                              )
+        _boardStructureManager = New BoardStructureManager()
+
         ' Йерархия и дървовидна структура (TreeView)
         _treeViewManager = New Form_Tablo_new_TreeViewManager(TreeView_Табло, ListTokow)
 

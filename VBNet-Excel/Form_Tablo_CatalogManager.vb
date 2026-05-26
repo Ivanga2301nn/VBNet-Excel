@@ -337,7 +337,8 @@ Public Class BreakerCatalog
     Public Property Curve_For_combo As New List(Of String)()
     Public Sub New()
         ' ✅ Твърдо дефинираме поддържаните марки, за да заредим първия ComboBox на формата
-        Brand_For_combo = New List(Of String) From {"Schneider Electric", "Schrack Technik", "Siemens", "ABB", "Бат Генчо"}
+        Brand_For_combo = New List(Of String) From {"Schneider", "Schrack", "Siemens", "ABB", "Бат Генчо"}
+        LoadCatalog()
     End Sub
     ''' <summary>
     ''' Генерира всички възможни комбинации на параметрите 
@@ -591,23 +592,28 @@ Public Class MotorProtectionCatalog
         Public MotorPower As String = ""
         Public SettingRange As String = ""
     End Class
+    ''' <summary>
+    ''' КОНСТРУКТОР: Зарежда каталога веднага при създаване, гледайки AppSettings
+    ''' </summary>
+    Public Sub New()
+        LoadCatalog()
+    End Sub
     Public Property ProtectMotor As New List(Of MotorProtect)()
-    Public Sub LoadCatalog(selectedBrand As String)
+    Public Sub LoadCatalog()
         ProtectMotor.Clear()
-        Select Case selectedBrand
-            Case "Schneider Electric", "Schneider"
-                ' Коригирани и напълно подравнени масиви (точно 14 елемента всеки)
-                AddProtectMotorSeries("Schneider",
+        ' Case "Schneider Electric", "Schneider"
+        ' Коригирани и напълно подравнени масиви (точно 14 елемента всеки)
+        AddProtectMotorSeries("Schneider",
                      {"GV2ME01", "GV2ME02", "GV2ME03", "GV2ME04", "GV2ME05", "GV2ME06", "GV2ME07", "GV2ME08", "GV2ME10", "GV2ME14", "GV2ME16", "GV2ME20", "GV2ME22", "GV2ME32"},
                      {0.1, 0.16, 0.25, 0.4, 0.63, 1.0, 1.6, 2.5, 4.0, 6.0, 9.0, 13.0, 17.0, 24.0},
                      {0.16, 0.25, 0.4, 0.63, 1.0, 1.6, 2.5, 4.0, 6.3, 10.0, 14.0, 18.0, 25.0, 32.0},
                      {"<0.06", "0.06", "0.12", "0.18", "0.25", "0.55", "0.75", "1.5", "2.2", "4.0", "5.5", "7.5", "11.0", "15.0"},
                      {"0.1-0.16A", "0.16-0.25A", "0.25-0.40A", "0.40-0.63A", "0.63-1.0A", "1.0-1.6A", "1.6-2.5A", "2.5-4.0A", "4.0-6.3A", "6.0-10A", "9.0-14A", "13-18A", "17-25A", "24-32A"}
                 )
-            Case "Siemens"
-            Case "ABB"
-            Case "Schrack Technik", "Schrack"
-        End Select
+        ' Case "Siemens"
+        ' Case "ABB"
+        ' Case "Schrack Technik", "Schrack"
+        ''
     End Sub
     ''' <summary>
     ''' Универсален метод за вътрешно генериране на комбинациите.
@@ -648,7 +654,12 @@ Public Class MotorProtectionCatalog
         End If
         If I_double <= 0 Then Return "N/A"
         ' 2. Търсене в базата данни
-        Dim match = ProtectMotor.FirstOrDefault(Function(x) I_double >= x.MinCurrent And I_double <= x.MaxCurrent)
+        ' Използваме AndAlso и четем директно от AppSettings, за да сме в крак с промените!
+        Dim match = ProtectMotor.FirstOrDefault(Function(x) _
+                   x.Brand.Equals(AppSettings.CurrentManufacturer,
+                                  StringComparison.OrdinalIgnoreCase) AndAlso
+                   I_double >= x.MinCurrent AndAlso
+                   I_double <= x.MaxCurrent)
         If match Is Nothing Then
             Return "Out of range (" & I_double.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) & "A)"
         End If
@@ -751,11 +762,12 @@ Public Class DisconnectorCatalog
         '    Ако никой апарат не е отговорил на филтъра, методът автоматично ни връща "Nothing".
         ' ====================================================================================
         Dim suitable As DisconnectorInfo = Disconnectors.
-            Where(Function(d) d.Poles = tokow.Брой_Полюси AndAlso
-                               d.Brand.Equals(brand, StringComparison.OrdinalIgnoreCase) AndAlso
-                               d.NominalCurrent >= minRange).
-            OrderBy(Function(d) d.NominalCurrent).
-            FirstOrDefault()
+                        Where(Function(d) d.Poles = tokow.Брой_Полюси AndAlso
+                        d.Brand.Equals(AppSettings.CurrentManufacturer,
+                                       StringComparison.OrdinalIgnoreCase) AndAlso
+                        d.NominalCurrent >= minRange).
+                        OrderBy(Function(d) d.NominalCurrent).
+                        FirstOrDefault()
         ' 4️⃣ ПРОВЕРКА И ЗАПИС
         If suitable IsNot Nothing Then
             tokow.Breaker_Номинален_Ток = suitable.NominalCurrent
@@ -860,8 +872,8 @@ Public Class RCDCatalog
     ''' <param name="brand">Търсена марка апарат (по подразбиране "Schneider")</param>
     Public Function SelectRcd(calculatedCurrent As Double,
                               poles As String,
-                              Optional sensitivity As Integer = 30,
-                              Optional brand As String = "Schneider") As RCDInfo
+                              Optional sensitivity As Integer = 30
+                              ) As RCDInfo
 
         Dim minimumRequiredCurrent As Double = calculatedCurrent
         ' ====================================================================================
@@ -883,9 +895,10 @@ Public Class RCDCatalog
         ' 5. .FirstOrDefault(...) -> Търси първия апарат от сортирания списък, чийто номинален
         '    ток е по-голям или равен на изчисления "minimumRequiredCurrent".
         ' ====================================================================================
+        Dim _activeBrand As String = AppSettings.CurrentManufacturer
         Dim selectedRcd = Rcds _
             .Where(Function(r) r.Poles.Equals(poles, StringComparison.OrdinalIgnoreCase)) _
-            .Where(Function(r) r.Brand.Equals(brand, StringComparison.OrdinalIgnoreCase)) _
+            .Where(Function(r) r.Brand.Equals(_activeBrand, StringComparison.OrdinalIgnoreCase)) _
             .Where(Function(r) r.Sensitivity = sensitivity) _
             .OrderBy(Function(r) r.NominalCurrent) _
             .FirstOrDefault(Function(r) r.NominalCurrent >= minimumRequiredCurrent)

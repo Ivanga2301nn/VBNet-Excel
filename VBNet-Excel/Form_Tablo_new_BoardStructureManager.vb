@@ -1,4 +1,13 @@
 ﻿Public Class BoardStructureManager
+    ' Пазим локални референции към каталозите, които формата вече е създала
+    Private _rcdCatalog As RCDCatalog
+    ''' <summary>
+    ''' КОНСТРУКТОР: Приема създадените каталози от формата, за да работи с техните актуални данни
+    ''' </summary>
+    Public Sub New(rcdCat As RCDCatalog)
+        Me._rcdCatalog = rcdCat
+    End Sub
+#Region "Сортиране на списък с токови кръгове (List(Of strTokow))"
     ''' <summary>
     ''' Извършва йерархично сортиране на списъка с токови кръгове (Natural Sort).
     ''' </summary>
@@ -157,4 +166,172 @@
         Next
         Return text.Length > 0
     End Function
+#End Region
+
+#Region "Групиране на контактни кръгове с ДТЗ (RCD)"
+    ''' <summary>
+    ''' Групира токовите кръгове с контакти по табла и създава групи за защита с ДТЗ (RCD).
+    ''' </summary>
+    ''' <remarks>
+    ''' Процедурата анализира всички токови кръгове в колекцията ListTokow и:
+    ''' - Групира кръговете по електрическо табло (Tablo).
+    ''' - От всяко табло избира само кръговете, които съдържат контакти (brKontakt > 0).
+    ''' - Определя броя на тези кръгове и според него създава групи за защита с ДТЗ.
+    '''
+    ''' Логика на групиране:
+    ''' - 1 или 2 кръга → всички се поставят под една ДТЗ.
+    ''' - 3 или повече кръга → извиква се процедурата GroupByThrees(),
+    '''   която ги разделя на оптимални групи.
+    '''
+    ''' Целта е да се реализира стандартна практика при проектиране на табла,
+    ''' при която няколко контактни кръга се защитават от една ДТЗ.
+    '''
+    ''' Потенциални особености:
+    ''' - Ако няма контактни кръгове в таблото (n = 0), таблото се пропуска.
+    ''' - Променливата rcdCounter служи за номериране на ДТЗ в рамките на таблото.
+    ''' </remarks>
+    Public Sub GroupContactsForRCD(ByRef ListTokow As List(Of strTokow))
+        ' Групиране на всички токови кръгове по табло
+        Dim panels = ListTokow.GroupBy(Function(t) t.Tablo)
+        For Each panelGroup In panels
+            ' Избор само на кръговете, които съдържат контакти
+            Dim contactCircuits = panelGroup.Where(
+                            Function(t) t.brKontakt > 0 AndAlso t.Device <> "Табло"
+                            ).ToList()
+            ' Брой на контактните кръгове
+            Dim n As Integer = contactCircuits.Count
+            ' Ако няма такива кръгове – преминава към следващото табло
+            If n = 0 Then Continue For
+            ' Брояч за номера на ДТЗ в таблото
+            Dim rcdCounter As Integer = 0
+            Select Case n
+            ' Един контактен кръг → една ДТЗ
+                Case 1
+                    rcdCounter += 1
+                    CreateRCDGroup(contactCircuits, rcdCounter)
+            ' Два контактни кръга → една ДТЗ
+                Case 2
+                    rcdCounter += 1
+                    CreateRCDGroup(contactCircuits, rcdCounter)
+            ' Три или повече → групиране по специална логика
+                Case Is >= 3
+                    GroupByThrees(contactCircuits, n, rcdCounter)
+            End Select
+        Next
+    End Sub
+    ''' <summary>
+    ''' Разделя списък от токови кръгове на групи по 3 за защита с ДТЗ.
+    ''' </summary>
+    ''' <param name="circuits">Списък от токови кръгове.</param>
+    ''' <param name="n">Общият брой кръгове.</param>
+    ''' <param name="rcdCounter">Брояч на ДТЗ, предаван по референция.</param>
+    ''' <remarks>
+    ''' Основната цел е да се разпределят контактните кръгове в групи,
+    ''' които да бъдат защитени с една ДТЗ.
+    '''
+    ''' Алгоритъм:
+    ''' - Определя се броят на пълните групи по 3 (fullGroups).
+    ''' - Определя се остатъкът (remainder).
+    '''
+    ''' Възможни случаи:
+    ''' - remainder = 0 → всички групи са по 3 кръга.
+    ''' - remainder = 1 → последните 4 кръга се групират заедно.
+    ''' - remainder = 2 → последната група съдържа 2 кръга.
+    '''
+    ''' След създаване на групите:
+    ''' - за всяка група се увеличава броячът на ДТЗ
+    ''' - извиква се CreateRCDGroup() за създаване на защитата.
+    '''
+    ''' Потенциална особеност:
+    ''' - При малък брой групи (например 4 кръга) алгоритъмът създава една група от 4,
+    '''   вместо 3+1, което е по-практично при реални електрически табла.
+    ''' </remarks>
+    Private Sub GroupByThrees(circuits As List(Of strTokow), n As Integer, ByRef rcdCounter As Integer)
+        ' Брой пълни групи по 3
+        Dim fullGroups = n \ 3
+        ' Остатък след групиране
+        Dim remainder As Integer = n Mod 3
+        ' Списък със създадените групи
+        Dim groups As New List(Of List(Of strTokow))
+        Select Case remainder
+        ' Всички групи са по 3
+            Case 0
+                For i As Integer = 0 To fullGroups - 1
+                    groups.Add(circuits.Skip(i * 3).Take(3).ToList())
+                Next
+        ' Последната група става 4
+            Case 1
+                For i As Integer = 0 To fullGroups - 2
+                    groups.Add(circuits.Skip(i * 3).Take(3).ToList())
+                Next
+                groups.Add(circuits.Skip((fullGroups - 1) * 3).Take(4).ToList())
+        ' Последната група е 2
+            Case 2
+                For i As Integer = 0 To fullGroups - 1
+                    groups.Add(circuits.Skip(i * 3).Take(3).ToList())
+                Next
+                groups.Add(circuits.Skip(fullGroups * 3).Take(2).ToList())
+        End Select
+        ' Създаване на ДТЗ за всяка група
+        For Each group In groups
+            rcdCounter += 1
+            CreateRCDGroup(group, rcdCounter)
+        Next
+    End Sub
+    ''' <summary>
+    ''' Създава група от токови кръгове, защитени от една ДТЗ.
+    ''' </summary>
+    ''' <param name="circuits">Списък от кръгове, които ще бъдат защитени от една ДТЗ.</param>
+    ''' <param name="rcdNumber">Номер на ДТЗ в рамките на таблото.</param>
+    ''' <remarks>
+    ''' Процедурата извършва следните действия:
+    '''
+    ''' 1. Изчислява сумарния ток на всички кръгове в групата.
+    ''' 2. Избира последния кръг в списъка като представителен за изчисленията.
+    ''' 3. Проверява дали групата съдържа трифазен консуматор.
+    ''' 4. Ако има трифазен консуматор:
+    '''    - броят на полюсите се принудително задава на 3.
+    ''' 5. Временно се задава сумарният ток на избрания кръг.
+    ''' 6. Извиква се SetRCD(), която избира подходяща ДТЗ от каталога.
+    ''' 7. На всички кръгове в групата се задава обща нула:
+    '''    - "N1", "N2", "N3" и т.н.
+    ''' 8. След това се възстановяват оригиналните стойности
+    '''    на ток и брой полюси на последния кръг.
+    '''
+    ''' Потенциални особености:
+    ''' - Методът използва последния кръг като временен носител на сумарния ток.
+    ''' - Това е практично решение, но изисква внимателно възстановяване
+    '''   на оригиналните стойности след изчислението.
+    '''
+    ''' Важна забележка:
+    ''' - Ако структурата strTokow е Value Type (Structure),
+    '''   промените върху елементите може да не се отразят в оригиналния списък,
+    '''   ако не се използват по референция.
+    ''' </remarks>
+    Private Sub CreateRCDGroup(circuits As List(Of strTokow), rcdNumber As Integer)
+        ' Сумарен ток на групата
+        Dim totalCurrent As Double = circuits.Sum(Function(t) t.Ток)
+        ' Последният кръг се използва като представителен за изчисленията
+        Dim lastCircuit As strTokow = circuits.Last()
+        ' Запазване на оригиналните параметри
+        Dim originalTok As Double = lastCircuit.Ток
+        Dim originalPoles As Integer = lastCircuit.Брой_Полюси
+        ' Проверка дали има трифазен консуматор в групата
+        Dim hasThreePhase As Boolean = circuits.Any(Function(t) t.Брой_Полюси = 3)
+        ' Ако има трифазен консуматор → използва се 3-полюсна конфигурация
+        If hasThreePhase Then lastCircuit.Брой_Полюси = 3
+        ' Временно задаване на сумарния ток
+        lastCircuit.Ток = totalCurrent
+        ' Избор на подходяща ДТЗ
+        'Dim matchingRCD = _rcdCatalog.SelectRcd(requiredCurrent, poles, tokow.RCD_Автомат)
+        ' Задаване на обща нула за всички кръгове в групата
+        For Each circuit In circuits
+            circuit.RCD_Нула = "N" & rcdNumber.ToString()
+        Next
+        ' Възстановяване на оригиналните стойности
+        lastCircuit.Ток = originalTok
+        lastCircuit.Брой_Полюси = originalPoles
+    End Sub
+#End Region
+
 End Class

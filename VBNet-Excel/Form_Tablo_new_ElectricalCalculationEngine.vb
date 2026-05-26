@@ -403,7 +403,7 @@ Public Class ElectricalCalculationEngine
         Dim requiredCurrent As Double = If(tokow.Ток * 1.2 < 20, 20, tokow.Ток * 1.2)
         ' Проверка дали е необходим RCBO (RCD с прекъсвач)
         Dim needRCBO As Boolean = tokow.RCD_Автомат
-        Dim matchingRCD = _rcdCatalog.SelectRcd(requiredCurrent, poles, tokow.RCD_Автомат)
+        Dim matchingRCD = _rcdCatalog.SelectRcd(requiredCurrent, poles, needRCBO)
         ' ----------------------------------------------------
         ' Ако не е намерена подходяща ДЗТ
         ' ----------------------------------------------------
@@ -411,7 +411,7 @@ Public Class ElectricalCalculationEngine
             Dim info As String = $"ВНИМАНИЕ: Не е намерена подходяща ДЗТ!{vbCrLf}{vbCrLf}" &
                                  $"Търсени параметри:{vbCrLf}" &
                                  $"- Мин. номинален ток: {requiredCurrent} A{vbCrLf}" &
-                                 $"- Комбинирана (RCBO): {If(tokow.RCD_Автомат, "Да", "Не")}{vbCrLf}" &
+                                 $"- Комбинирана (RCBO): {If(needRCBO, "Да", "Не")}{vbCrLf}" &
                                  $"- Брой полюси: {poles}{vbCrLf}{vbCrLf}" &
                                  $"Местоположение:{vbCrLf}" &
                                  $"- Табло: {tokow.Tablo}{vbCrLf}" &

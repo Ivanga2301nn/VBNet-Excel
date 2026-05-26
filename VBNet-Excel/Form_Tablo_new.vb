@@ -138,6 +138,7 @@ Public Class Form_Tablo_new
         ' Подаваме списъка за изчисление
         _calculationEngine.ExecuteCalculations(ListTokow)
         _boardStructureManager.SortListTokow(ListTokow)
+        _boardStructureManager.GroupContactsForRCD(ListTokow)
 
     End Sub
     ''' <summary>
@@ -159,7 +160,7 @@ Public Class Form_Tablo_new
                                                              _cableCatalog,
                                                              _rcdCatalog
                                                              )
-        _boardStructureManager = New BoardStructureManager()
+        _boardStructureManager = New BoardStructureManager(_rcdCatalog)
 
         ' Йерархия и дървовидна структура (TreeView)
         _treeViewManager = New Form_Tablo_new_TreeViewManager(TreeView_Табло, ListTokow)

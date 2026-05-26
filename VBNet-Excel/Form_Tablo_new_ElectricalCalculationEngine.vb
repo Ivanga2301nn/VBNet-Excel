@@ -179,10 +179,52 @@ Public Class ElectricalCalculationEngine
         ' Проверка за празен списък (защита от грешки)
         If tokowList Is Nothing OrElse tokowList.Count = 0 Then Exit Sub
         ' ------------------------------------------------------------
-        ' 1) Проверка дали конфигурацията е инициализирана.
-        '    Изпълнява се само ако списъкът е празен или не е създаден.
+        ' 1) Проверка дали конфигурацията на блоковете е инициализирана
         ' ------------------------------------------------------------
         If BlockConfigs Is Nothing OrElse BlockConfigs.Count = 0 Then InitializeBlockConfigs()
+        ' Завъртаме цикъл през всеки токов кръг, извлечен от AutoCAD
+        For Each tokow As strTokow In tokowList
+            ' Ако апаратът е Главен разединител на таблото, прескачаме стандартните изчисления за товар
+            If tokow.Device = "Разединител" Then Continue For
+            ' Нулиране на броячи и стойности преди ново (преизчисляване)
+            tokow.brLamp = 0
+            tokow.brKontakt = 0
+            tokow.Мощност = 0
+            tokow.Брой_Полюси = 1
+            tokow.Device = ""
+            ' --------------------------------------------------------
+            ' 2) Обработка на всички консуматори, закачени към този кръг
+            ' --------------------------------------------------------
+            For Each kons As strKonsumator In tokow.Konsumator
+                ProcessConsumerByConfig(kons, tokow)
+            Next
+            ' Пазим първоначално зададения ток от потребителя (ако има такъв в Grid-а)
+            Dim I_Def As Double = 0
+            Double.TryParse(tokow.Breaker_Номинален_Ток, I_Def)
+            ' --------------------------------------------------------
+            ' 3) Изчисляване на номиналния ток на кръга (Inom)
+            '    Подаваме мощността, полюсите (вече като Integer) и дали е мотор
+            ' --------------------------------------------------------
+            Dim isMotor As Boolean = (tokow.Device = "Мotor" OrElse tokow.Device = "Motor")
+            tokow.Ток = calc_Inom(tokow.Мощност, tokow.Брой_Полюси, isMotor)
+            ' --------------------------------------------------------
+            ' 4) Автоматичен избор на прекъсвач от базата данни (Excel)
+            ' --------------------------------------------------------
+            _breakerCatalog.CalculateBreaker(tokow)
+            ' Проверка дали автоматично изчисленият ток не е по-малък от ръчно зададения
+            Dim I_Get As Double = 0
+            Double.TryParse(tokow.Breaker_Номинален_Ток, I_Get)
+            If I_Def > I_Get Then
+                tokow.Breaker_Номинален_Ток = I_Def.ToString()
+            Else
+                tokow.Breaker_Номинален_Ток = I_Get.ToString()
+            End If
+            ' ----------------------------------------------------
+            ' 5) Избор на сечение на кабела според тока и полюсите
+            ' ----------------------------------------------------
+            _cableCatalog.CalculateCable(tokow)
+            SetRCD(tokow)
+        Next
     End Sub
     ''' <summary>
     ''' Обработва един консуматор спрямо конфигурацията му (BlockConfigs)

@@ -99,6 +99,8 @@ Public Class Form_Tablo_new
     Private _boardStructureManager As BoardStructureManager
     Private _panelBalanceManager As PanelBalanceManager
 
+    Private _dataGridViewManager As DataGridViewManager
+
     ' --- ГЛОБАЛНОТО СЪСТОЯНИЕ ЗА МАРКАТА ---
     ' Полето е Shared
     Private _currentManufacturer As String = AppSettings.CurrentManufacturer
@@ -145,7 +147,8 @@ Public Class Form_Tablo_new
         _panelBalanceManager.AddFeederRecords()
         _treeViewManager.RefreshTree()
 
-
+        DataGridViewConfig.InitializeGridStructure(DataGridView1)
+        DataGridViewConfig.SetupDataGridView_Total(DataGridView1)
     End Sub
     ''' <summary>
     ''' Инициализация на компонентите на проекта
@@ -171,6 +174,16 @@ Public Class Form_Tablo_new
 
         ' Йерархия и дървовидна структура (TreeView)
         _treeViewManager = New Form_Tablo_new_TreeViewManager(TreeView_Табло, ListTokow)
+
+
+        _dataGridViewManager = New DataGridViewManager(ListTokow,
+                                                       _disconnectorCatalog,
+                                                       _breakerCatalog,
+                                                       _cableCatalog,
+                                                       _rcdCatalog
+                                                       )
+
+
     End Sub
     ' --- СВОЙСТВА (Properties) за достъп от външни изчислителни класове ---
     ' Ако утре направиш друг клас, който ще смята, той ще иска достъп до тези каталози през формата:

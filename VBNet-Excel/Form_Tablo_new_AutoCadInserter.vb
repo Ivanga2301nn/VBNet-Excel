@@ -80,7 +80,7 @@ Public Class Form_Tablo_new_AutoCadInserter
             {"Електромер", "s_Wh_meter"},
             {"Фото реле", "s_switch_light_sens"}
         }
-    Public Sub ExecuteInsert(panelCircuits As List(Of strTokow), selectedTablo As String)
+    Public Sub ExecuteInsert(panelCircuits As List(Of clsTokow), selectedTablo As String)
         ' Вземане на текущия AutoCAD документ, редактор и база
         Dim acDoc As Document = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument
         Dim edt As Editor = acDoc.Editor
@@ -141,7 +141,7 @@ Public Class Form_Tablo_new_AutoCadInserter
     ''' <param name="acCurDb">AutoCAD база данни (не се използва директно тук).</param>
     ''' <param name="basePoint">Базова точка за позициониране на всички елементи.</param>
     ''' <param name="circuits">Списък от токови кръгове, използван за изчисления и логика.</param>
-    Private Sub DrawBusbars(acDoc As Document, acCurDb As Database, basePoint As Point3d, circuits As List(Of strTokow))
+    Private Sub DrawBusbars(acDoc As Document, acCurDb As Database, basePoint As Point3d, circuits As List(Of clsTokow))
         Try
             ' 1️ ИЗЧИСЛЯВАНЕ НА ОСНОВНИТЕ РАЗМЕРИ
             Dim brColums As Integer = circuits.Count - 1
@@ -317,7 +317,7 @@ Public Class Form_Tablo_new_AutoCadInserter
     ''' Използва помощни функции за чертане на линии и текст.
     ''' </remarks>
     Private Sub DrawPanelFrame(acDoc As Document, acCurDb As Database, basePoint As Point3d,
-                               circuits As List(Of strTokow), selectedTablo As String)
+                               circuits As List(Of clsTokow), selectedTablo As String)
         Try
             ' =====================================================
             ' 1️ ИЗЧИСЛЯВАНЕ НА ОСНОВНИТЕ РАЗМЕРИ
@@ -486,7 +486,7 @@ Public Class Form_Tablo_new_AutoCadInserter
     ''' 4. Вмъква прекъсвач и управляващи елементи
     ''' 5. Чертaе свързващите линии
     ''' </summary>
-    Private Sub DrawCircuits(acDoc As Document, acCurDb As Database, basePoint As Point3d, circuits As List(Of strTokow))
+    Private Sub DrawCircuits(acDoc As Document, acCurDb As Database, basePoint As Point3d, circuits As List(Of clsTokow))
         ' Изчислява общия брой колони.
         ' Ако има двойна шина (twoBus=True), една колона се резервира и не участва.
         Dim brColums As Integer = circuits.Count - If(twoBus, 1, 0)
@@ -498,7 +498,7 @@ Public Class Form_Tablo_new_AutoCadInserter
             ' Индекс на текущата колона
             Dim colIndex As Integer = 0
             ' Обхождаме всички токови кръгове
-            For Each circuit As strTokow In circuits
+            For Each circuit As clsTokow In circuits
                 ' Пропускаме специалните кръгове тип "Разединител"
                 If circuit.Device = "Разединител" Then Continue For
                 ' Изчисляване на X позицията за текущия кръг
@@ -552,7 +552,7 @@ Public Class Form_Tablo_new_AutoCadInserter
     ''' - Унифициране на височината на текста (в момента има 12 и heightText)
     ''' </remarks>
     Private Sub DrawCircuitTexts(acDoc As Document, acCurDb As Database, basePoint As Point3d,
-                         circuit As strTokow, X As Double)
+                         circuit As clsTokow, X As Double)
         Dim Y_Base As Double = basePoint.Y
         Dim textLayer As String = "EL__DIM"
         ' Токов кръг (ред 1)
@@ -603,7 +603,7 @@ Public Class Form_Tablo_new_AutoCadInserter
     ''' <param name="X">X координата за позициониране на блока.</param>
     ''' <param name="Y_Shina">Y координата на шината, върху която се поставя блокът.</param>
     Private Sub DrawBreakerBlock(acDoc As Document, acCurDb As Database, basePoint As Point3d,
-                                circuit As strTokow, X As Double, Y_Shina As Double)
+                                circuit As clsTokow, X As Double, Y_Shina As Double)
         ' Име на блока по подразбиране – стандартен прекъсвач C60
         Dim blockName As String = "s_c60_circ_break"
         ' Масштаб на блока – зададен като 5х5х5.
@@ -719,7 +719,7 @@ Public Class Form_Tablo_new_AutoCadInserter
     ''' <summary>
     ''' Връща конфигурацията за даден тип управление
     ''' </summary>
-    Private Function GetControlDeviceConfig(circuit As strTokow) As ControlDeviceConfig
+    Private Function GetControlDeviceConfig(circuit As clsTokow) As ControlDeviceConfig
         ' New(str_1 , str_2 , str_3 , str_4 , str_5 , shortName)
         Select Case circuit.Управление
             Case "Импулсно реле"
@@ -755,7 +755,7 @@ Public Class Form_Tablo_new_AutoCadInserter
     ''' <param name="X">Х координата на линията</param>
     ''' <param name="circuit">Обект с данни за токовия кръг</param>
     ''' <param name="Y_Shina">Y координата на шината (референтна точка)</param>
-    Public Sub DrawCircuitLines(X As Double, circuit As strTokow, Y_Shina As Double)
+    Public Sub DrawCircuitLines(X As Double, circuit As clsTokow, Y_Shina As Double)
         ' Ако резерва не чертаем линия
         If circuit.Device = "Резерва" Then Return
         ' 1️ ДЕФИНИРАНЕ НА НАЧАЛНИ КООРДИНАТИ
@@ -795,7 +795,7 @@ Public Class Form_Tablo_new_AutoCadInserter
     ''' </summary>
     Private Sub DrawRCDBusbar(acDoc As Document, acCurDb As Database,
                           basePoint As Point3d,
-                          circuits As List(Of strTokow))
+                          circuits As List(Of clsTokow))
         ' Изчисляване на началната X координата
         Dim X_Start As Double =
         basePoint.X + widthText + widthTextDim
@@ -812,10 +812,10 @@ Public Class Form_Tablo_new_AutoCadInserter
         ' Текущ индекс на колоната
         Dim colIndex As Integer = 0
         ' Запазва последния токов кръг в активната група
-        Dim currentGroupCircuit As strTokow = Nothing
+        Dim currentGroupCircuit As clsTokow = Nothing
         Try
             ' Обхождаме всички токови кръгове
-            For Each circuit As strTokow In circuits
+            For Each circuit As clsTokow In circuits
                 ' Пропускаме специалните кръгове
                 If circuit.ТоковКръг = "Разединител" OrElse
                circuit.ТоковКръг = "ОБЩО" Then Continue For
@@ -913,7 +913,7 @@ Public Class Form_Tablo_new_AutoCadInserter
     Private Sub DrawRCDGroupLine(acDoc As Document, acCurDb As Database,
                          X_Start As Double, Y_RCD As Double, Y_Shina As Double,
                          groupStart As Integer, groupEnd As Integer,
-                         circuits As strTokow
+                         circuits As clsTokow
                          )
         Try
             ' 1 ИЗЧИСЛЯВАНЕ НА X ПОЗИЦИИТЕ
@@ -1099,7 +1099,7 @@ Public Class Form_Tablo_new_AutoCadInserter
     ''' <param name="circuits">
     ''' Списък от токови кръгове (strTokow), използван за изчисляване на общия брой полюси.
     ''' </param>
-    Private Sub DrawAnnotations(basePoint As Point3d, circuits As List(Of strTokow))
+    Private Sub DrawAnnotations(basePoint As Point3d, circuits As List(Of clsTokow))
         Dim Zabelevka As String = "1. Таблото да се изпълни в съответствие с изискванията на БДС EN 61439-1."
         ' Добавяне на нови редове с допълнителни изисквания към таблото
         Zabelevka += vbCrLf & "2. Aпаратурата и тоководящите части да бъдат монтирани зад защитни капаци. "
@@ -1117,7 +1117,7 @@ Public Class Form_Tablo_new_AutoCadInserter
                                    basePoint.Y - 20 - heightRow, 0),
                        "EL__DIM", 10)
         Dim pol As Integer = 0
-        For Each circuit As strTokow In circuits
+        For Each circuit As clsTokow In circuits
             pol += circuit.Брой_Полюси
             Select Case circuit.Управление
                 Case "Няма", "", "Електромер",
@@ -1152,7 +1152,7 @@ Public Class Form_Tablo_new_AutoCadInserter
     ''' <param name="X">X координата (център на колоната)</param>
     ''' <param name="breakerY">Y позиция на прекъсвача</param>
     Private Sub DrawControlDevice(acDoc As Document, acCurDb As Database,
-                                  circuit As strTokow, X As Double, breakerY As Double)
+                                  circuit As clsTokow, X As Double, breakerY As Double)
         Try
             ' =====================================================
             ' 1️ ПРОВЕРКА ДАЛИ ИМА УПРАВЛЕНИЕ

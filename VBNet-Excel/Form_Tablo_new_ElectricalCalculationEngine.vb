@@ -178,7 +178,7 @@ Public Class ElectricalCalculationEngine
         ' ------------------------------------------------------------
         If BlockConfigs Is Nothing OrElse BlockConfigs.Count = 0 Then InitializeBlockConfigs()
         ' Завъртаме цикъл през всеки токов кръг, извлечен от AutoCAD
-        For Each tokow As strTokow In AppSettings.ListTokow
+        For Each tokow As clsTokow In AppSettings.ListTokow
             ' Ако апаратът е Главен разединител на таблото, прескачаме стандартните изчисления за товар
             If tokow.Device = "Разединител" Then Continue For
             ' Нулиране на броячи и стойности преди ново (преизчисляване)
@@ -231,7 +231,7 @@ Public Class ElectricalCalculationEngine
     ''' 3) Попълва кабел, прекъсвач, полюси, фаза и предназначение.
     ''' 4) Натрупва мощност и броячи (лампи/контакти).
     ''' </summary>
-    Private Sub ProcessConsumerByConfig(kons As strKonsumator, ByRef tokow As strTokow)
+    Private Sub ProcessConsumerByConfig(kons As strKonsumator, ByRef tokow As clsTokow)
         ' ------------------------------------------------------------
         ' 0) Подготвяме данните (унифицираме текста в UpperCase)
         ' ------------------------------------------------------------
@@ -431,7 +431,7 @@ Public Class ElectricalCalculationEngine
     ''' - Изчислението на requiredCurrent включва коефициент 1.2; 
     ''' това е запас за безопасност според стандарти.
     ''' </remarks>
-    Private Sub SetRCD(tokow As strTokow)
+    Private Sub SetRCD(tokow As clsTokow)
         If tokow.ТоковКръг = "ОБЩО" Then Return
         If tokow.ТоковКръг = "Разединител" Then Return
         ' Определяне на броя полюси на RCD: 4p за трифазен, 2p за еднофазен

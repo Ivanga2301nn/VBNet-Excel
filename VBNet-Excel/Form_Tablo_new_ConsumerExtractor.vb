@@ -267,14 +267,14 @@ Public Class ConsumerExtractor
         ' --- 6. НЕУСПЕШНО РАЗПОЗНАВАНЕ ---
         Return 0.0
     End Function
-    Public Shared Function CreateTokowList(ListKonsumator As List(Of strKonsumator)) As List(Of strTokow)
+    Public Shared Function CreateTokowList(ListKonsumator As List(Of strKonsumator)) As List(Of clsTokow)
         If ListKonsumator Is Nothing Then Return Nothing
         Dim doc As Document = Application.DocumentManager.MdiActiveDocument
         Dim dwgFileName As String = System.IO.Path.GetFileNameWithoutExtension(doc.Name)
         Dim fullBuildingName As String = "Сграда_" & dwgFileName
         Dim ListTokow = ListKonsumator.Where(Function(k) Not String.IsNullOrWhiteSpace(k.ТоковКръг)) _
                 .GroupBy(Function(k) New With {Key k.ТАБЛО, Key k.ТоковКръг}) _
-                .Select(Function(g) New strTokow With {
+                .Select(Function(g) New clsTokow With {
                             .BuildingName = fullBuildingName, ' Присвояваме името тук
                             .Tablo = g.Key.ТАБЛО,
                             .ТоковКръг = g.Key.ТоковКръг,

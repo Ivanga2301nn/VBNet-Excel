@@ -7,7 +7,7 @@
 ''' Използва се като логическа структура за обработка
 ''' и визуализация (напр. в DataGridView).
 ''' </summary>
-Public Class strTokow
+Public Class clsTokow
     ''' <summary>
     ''' Име на сградата/обекта, към който принадлежи таблото.
     ''' Попълва се автоматично от името на DWG файла при зареждане.
@@ -75,8 +75,8 @@ Public Class strTokow
     ''' <summary>
     ''' Създава независимо копие на записа (идеално за Class типове)
     ''' </summary>
-    Public Function Clone() As strTokow
-        Return DirectCast(Me.MemberwiseClone(), strTokow)
+    Public Function Clone() As clsTokow
+        Return DirectCast(Me.MemberwiseClone(), clsTokow)
     End Function
 End Class
 ''' <summary>

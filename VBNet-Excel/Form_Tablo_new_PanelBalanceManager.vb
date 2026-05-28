@@ -22,13 +22,13 @@ Public Class PanelBalanceManager
     ''' Клас за групиране на токови кръгове за балансиране на фазите
     ''' </summary>
     Public Class BalanceGroup
-        Public Circuits As List(Of strTokow) ' Списък с токови кръгове в групата
+        Public Circuits As List(Of clsTokow) ' Списък с токови кръгове в групата
         Public GroupType As String ' Тип на групата: "ThreePhase", "RCD", "SmallBus", "LargeBus", "Normal"
         Public GroupKey As String ' Ключ на групата: RCD_Нула (N1, N2...), "Bus" или Nothing
         Public TotalCurrent As Double ' Сумарен ток на групата (сума от токовете на всички ТК)
         Public AssignedPhase As String ' Зададена фаза след балансиране (L1, L2, L3 или "L1,L2,L3")
         Public Sub New()
-            Circuits = New List(Of strTokow) ' Конструктор - инициализира списъка с ТК
+            Circuits = New List(Of clsTokow) ' Конструктор - инициализира списъка с ТК
         End Sub
         Public ReadOnly Property CircuitCount As Integer ' Брой токови кръгове в групата
             Get
@@ -98,7 +98,7 @@ Public Class PanelBalanceManager
         ' ВЗИМАМЕ САМО ДИРЕКТНИТЕ ДЕЦА
         ' 1. Преки консуматори в това табло
         ' 2. Преки "ОБЩО" записи на табла, чийто Табло_Родител Е ТОВА табло
-        Dim panelCircuits As List(Of strTokow) = AppSettings.ListTokow.Where(Function(t)
+        Dim panelCircuits As List(Of clsTokow) = AppSettings.ListTokow.Where(Function(t)
                                                                                  Dim isOwn = (t.BuildingName = buildingName AndAlso t.Tablo = tabloName AndAlso t.ТоковКръг <> "ОБЩО")
                                                                                  Dim isDirectChild = (t.BuildingName = buildingName AndAlso t.Табло_Родител = tabloName AndAlso t.ТоковКръг = "ОБЩО")
                                                                                  Return isOwn OrElse isDirectChild
@@ -220,7 +220,7 @@ Public Class PanelBalanceManager
     Private Sub BalancePhases(buildingName As String, tabloName As String)
         ' 1. ВЗЕМИ КРЪГОВЕТЕ (БЕЗ "ОБЩО")
         ' Вече филтрираме по сграда AND табло
-        Dim panelCircuits As List(Of strTokow) = AppSettings.ListTokow.Where(Function(t)
+        Dim panelCircuits As List(Of clsTokow) = AppSettings.ListTokow.Where(Function(t)
                                                                                  Return (t.BuildingName = buildingName AndAlso t.Tablo = tabloName AndAlso t.ТоковКръг <> "ОБЩО") OrElse
                (t.BuildingName = buildingName AndAlso t.Табло_Родител = tabloName AndAlso t.ТоковКръг = "ОБЩО")
                                                                              End Function).ToList()
@@ -372,7 +372,7 @@ Public Class PanelBalanceManager
     '''   но в този контекст няма странични ефекти.
     ''' - Debug.Print се използва за диагностика и проследяване на създадените групи.
     ''' </remarks>
-    Private Function CreateBalanceGroups(panelCircuits As List(Of strTokow)) As List(Of BalanceGroup)
+    Private Function CreateBalanceGroups(panelCircuits As List(Of clsTokow)) As List(Of BalanceGroup)
         ' Списък с резултатните групи
         Dim groups As New List(Of BalanceGroup)
         ' ----------------------------------------------------
@@ -431,7 +431,7 @@ Public Class PanelBalanceManager
             Dim normalGroup As New BalanceGroup With {
                         .GroupType = "Normal",
                         .GroupKey = Nothing,
-                        .Circuits = New List(Of strTokow) From {circuit},
+                        .Circuits = New List(Of clsTokow) From {circuit},
                         .TotalCurrent = circuit.Ток
                     }
             groups.Add(normalGroup)

@@ -12,7 +12,7 @@
     ''' Клас за групиране на токови кръгове за балансиране на фазите
     ''' </summary>
     Public Class BalanceGroup
-        Public Circuits As List(Of strTokow) ' Списък с токови кръгове в групата
+        Public Circuits As List(Of clsTokow) ' Списък с токови кръгове в групата
         Public GroupType As String ' Тип на групата: "ThreePhase", "RCD", "SmallBus", "LargeBus", "Normal"
         Public GroupKey As String ' Ключ на групата: RCD_Нула (N1, N2...), "Bus" или Nothing
         Public TotalCurrent As Double ' Сумарен ток на групата (сума от токовете на всички ТК)
@@ -21,7 +21,7 @@
         ''' Конструктор - инициализира списъка с ТК
         ''' </summary>
         Public Sub New()
-            Circuits = New List(Of strTokow)
+            Circuits = New List(Of clsTokow)
         End Sub
         ''' <summary>
         ''' Брой токови кръгове в групата
@@ -265,13 +265,13 @@
     ''' - При малък брой групи (например 4 кръга) алгоритъмът създава една група от 4,
     '''   вместо 3+1, което е по-практично при реални електрически табла.
     ''' </remarks>
-    Private Sub GroupByThrees(circuits As List(Of strTokow), n As Integer, ByRef rcdCounter As Integer)
+    Private Sub GroupByThrees(circuits As List(Of clsTokow), n As Integer, ByRef rcdCounter As Integer)
         ' Брой пълни групи по 3
         Dim fullGroups = n \ 3
         ' Остатък след групиране
         Dim remainder As Integer = n Mod 3
         ' Списък със създадените групи
-        Dim groups As New List(Of List(Of strTokow))
+        Dim groups As New List(Of List(Of clsTokow))
         Select Case remainder
         ' Всички групи са по 3
             Case 0
@@ -327,11 +327,11 @@
     '''   промените върху елементите може да не се отразят в оригиналния списък,
     '''   ако не се използват по референция.
     ''' </remarks>
-    Private Sub CreateRCDGroup(circuits As List(Of strTokow), rcdNumber As Integer)
+    Private Sub CreateRCDGroup(circuits As List(Of clsTokow), rcdNumber As Integer)
         ' Сумарен ток на групата
         Dim totalCurrent As Double = circuits.Sum(Function(t) t.Ток)
         ' Последният кръг се използва като представителен за изчисленията
-        Dim lastCircuit As strTokow = circuits.Last()
+        Dim lastCircuit As clsTokow = circuits.Last()
         ' Запазване на оригиналните параметри
         Dim originalTok As Double = lastCircuit.Ток
         Dim originalPoles As Integer = lastCircuit.Брой_Полюси
@@ -370,7 +370,7 @@
             Dim rootExists As Boolean = AppSettings.ListTokow.Any(Function(x) x.Tablo = ROOT_NODE_TEXT AndAlso
                                                               x.BuildingName = bName)
             If Not rootExists Then
-                Dim rootPanel As New strTokow With {
+                Dim rootPanel As New clsTokow With {
                 .BuildingName = bName,
                 .Tablo = ROOT_NODE_TEXT,
                 .Device = "Табло",
@@ -394,7 +394,7 @@
                                                                    x.Tablo = tName AndAlso
                                                                    x.ТоковКръг = "ОБЩО")
                 If Not totalExists Then
-                    Dim totalRecord As New strTokow With {
+                    Dim totalRecord As New clsTokow With {
                     .BuildingName = bName,
                     .Tablo = tName,
                     .ТоковКръг = "ОБЩО",

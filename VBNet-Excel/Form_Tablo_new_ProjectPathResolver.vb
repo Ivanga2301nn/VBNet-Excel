@@ -88,7 +88,7 @@ Public Class Form_Tablo_new_ProjectPathResolver
     ''' 5. Връща True при успешен запис
     ''' 6. Връща False при грешка
     ''' </summary>
-    Public Function SaveProject(data As List(Of strTokow),
+    Public Function SaveProject(data As List(Of clsTokow),
                             dwgFullPath As String) As Boolean
 
         Try
@@ -122,7 +122,7 @@ Public Class Form_Tablo_new_ProjectPathResolver
     ''' 5. Подготвя и поправя заредените записи
     ''' 6. При грешка запазва текущите данни без промяна
     ''' </summary>
-    Public Sub LoadProject(ByRef targetList As List(Of strTokow),
+    Public Sub LoadProject(ByRef targetList As List(Of clsTokow),
                        dwgFullPath As String,
                        acDb As Database)
         Try
@@ -143,9 +143,9 @@ Public Class Form_Tablo_new_ProjectPathResolver
                 ProcessAndRepairList(targetList, Nothing, acDb)
                 Return
             End If
-            ' Десериализираме JSON данните към списък от strTokow
-            Dim loadedData As List(Of strTokow) =
-            JsonConvert.DeserializeObject(Of List(Of strTokow))(json)
+            ' Десериализираме JSON данните към списък от clsTokow
+            Dim loadedData As List(Of clsTokow) =
+            JsonConvert.DeserializeObject(Of List(Of clsTokow))(json)
             ' Обработваме и поправяме заредените данни
             ProcessAndRepairList(targetList, loadedData, acDb)
         Catch ex As Exception
@@ -159,8 +159,8 @@ Public Class Form_Tablo_new_ProjectPathResolver
     ''' Обработва заредените данни: изчиства старите, добавя новите и оправя ID-тата.
     ''' ТОВА Е МЯСТОТО ЗА БЪДЕЩИ ПРОВЕРКИ (версии, статуси, merge логика).
     ''' </summary>
-    Private Sub ProcessAndRepairList(ByRef targetList As List(Of strTokow),
-                                     sourceList As List(Of strTokow),
+    Private Sub ProcessAndRepairList(ByRef targetList As List(Of clsTokow),
+                                     sourceList As List(Of clsTokow),
                                      acDb As Database)
         Try
             ' 1. Изчистване на текущия списък (или бъдещ Merge логика тук)

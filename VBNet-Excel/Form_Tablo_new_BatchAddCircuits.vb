@@ -6,7 +6,7 @@ Imports Font = System.Drawing.Font
 Public Class Form_BatchAddCircuits
     Inherits Form
     ' Данни, подадени от основната форма
-    Private _targetList As List(Of strTokow)
+    Private _targetList As List(Of clsTokow)
     Private _tabloName As String
     ' Контроли, до които ще имаме достъп по-късно
     Private numExist As NumericUpDown
@@ -17,7 +17,7 @@ Public Class Form_BatchAddCircuits
     ''' <summary>
     ''' Инициализира формата, приема входните данни и извиква процедурите за изграждане.
     ''' </summary>
-    Public Sub New(targetList As List(Of strTokow), tabloName As String)
+    Public Sub New(targetList As List(Of clsTokow), tabloName As String)
         ' 1. Записваме подадените данни в локални полета
         _targetList = targetList
         _tabloName = tabloName
@@ -173,7 +173,7 @@ Public Class Form_BatchAddCircuits
         End If
         ' 1. Генериране на "съществуващи" кръгове
         For i As Integer = 1 To CInt(numExist.Value)
-            _targetList.Add(New strTokow With {
+            _targetList.Add(New clsTokow With {
                 .Tablo = _tabloName, .Device = "Съществуващ", .ТоковКръг = "същ.",
                 .Консуматор = "Съществуващ", .предназначение = "не се променя",
                 .Breaker_Номинален_Ток = "Същ.", .Мощност = 0, .Ток = 0,
@@ -182,7 +182,7 @@ Public Class Form_BatchAddCircuits
         Next
         ' 2. Генериране на резервни кръгове
         For i As Integer = 1 To CInt(numReserve.Value)
-            _targetList.Add(New strTokow With {
+            _targetList.Add(New clsTokow With {
                 .Tablo = _tabloName, .Device = "Резерва", .ТоковКръг = "рез.",
                 .Консуматор = "Резерв", .предназначение = "",
                 .Breaker_Номинален_Ток = "Същ.", .Breaker_Тип_Апарат = "EZ9 MCB",

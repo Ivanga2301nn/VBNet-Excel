@@ -81,7 +81,7 @@ Public Module AppSettings
     Public Property CurrentManufacturer As String = "Schneider"
     Public Const ROOT_NODE_TEXT As String = "Гл.Р.Т."
     ' ЦЕНТРАЛНИЯТ ИЗТОЧНИК НА ИСТИНАТА ЗА ЦЕЛИЯ ПРОЕКТ:
-    Public Property ListTokow As New List(Of strTokow)
+    Public Property ListTokow As New List(Of clsTokow)
 End Module
 Public Class Form_Tablo_new
     ' --- Данни за извлечените от AutoCAD консуматори и токови кръгове ---
@@ -181,6 +181,7 @@ Public Class Form_Tablo_new
 
 
     End Sub
+#Region "⚙️ СВОЙСТВА ЗА ДОСТЪП ДО КАТАЛОЗИ И МЕНИДЖЪРИ"
     ' --- СВОЙСТВА (Properties) за достъп от външни изчислителни класове ---
     ' Ако утре направиш друг клас, който ще смята, той ще иска достъп до тези каталози през формата:
     Public ReadOnly Property CableCatalog As CableCatalog
@@ -223,51 +224,76 @@ Public Class Form_Tablo_new
             Return _panelBalanceManager
         End Get
     End Property
+#End Region
     ''' <summary>
-    ''' Пълни ToolStripComboBox-а за производител с данните от каталога за прекъсвачи.
+    ''' Пълни ToolStripComboBox-а за производител
     ''' </summary>
     Private Sub FillManufacturerCombo()
-        ' Достъпваме директно вътрешния ComboBox чрез .ComboBox
         TscboManufacturer.ComboBox.Items.Clear()
-        ' Вземаме марките от каталога на прекъсвачите
         For Each brand As String In _breakerCatalog.Brand_For_combo
             TscboManufacturer.ComboBox.Items.Add(brand)
         Next
-        ' Избираме първата марка по подразбиране
         If TscboManufacturer.ComboBox.Items.Count > 0 Then
             TscboManufacturer.ComboBox.SelectedIndex = 0
         End If
     End Sub
-    ''' <summary>
-    ''' Метод, който се извиква при смяна на марката. 
-    ''' Тук ще добавим логика за обновяване на UI и данни.
-    '''
-    ''' Този метод се грижи за всичко, когато марката се смени глобално
-    ''' </summary>
-    Private Sub OnManufacturerChanged()
-        ' 1. Казваме на DataGridView1 да си пренареди Combo клетките за прекъсвачи
-        ' 2. Казваме на ДТЗ (RCD) частта да се филтрира по новата марка
-        ' 3. Казваме на Товаровите прекъсвачи (Разединителите) да превключат
 
+    Private Sub OnManufacturerChanged()
         UpdateGridCombosForNewManufacturer(_currentManufacturer)
     End Sub
-    ' --- СЪБИТИЕТО НА TOOLSTRIPCOMBOBOX-А СТАВА СУПЕР КРАТКО ---
+
     Private Sub TscboManufacturer_SelectedIndexChanged(sender As Object, e As EventArgs) Handles TscboManufacturer.SelectedIndexChanged
         Dim selectedBrand As String = TscboManufacturer.ComboBox.SelectedItem?.ToString()
         If Not String.IsNullOrEmpty(selectedBrand) Then
-            ' Просто променяме глобалното свойство! То само ще свърши останалото.
             CurrentManufacturer = selectedBrand
         End If
     End Sub
-    ''' <summary>
-    ''' Метод за обновяване на Combo клетките в DataGridView1 при смяна на марката.
-    ''' Тук ще се филтрират прекъсвачите от каталога.
-    ''' </summary>  
+
     Private Sub UpdateGridCombosForNewManufacturer(brandName As String)
-        ' ЗАЩИТА: Ако каталозите още не са готови, излез кротко!
         If _breakerCatalog Is Nothing Then Exit Sub
-        ' Филтрираме списъците за комбо кутиите според избраната марка
         _breakerCatalog.FilterComboLists(brandName)
     End Sub
+
+    ' ============================================================
+    ' ОБРАБОТКА НА СЪБИТИЯ ОТ TREEVIEW (DRAG & DROP)
+    ' ============================================================
+    ''' <summary>
+    ''' Диригентски метод: Улавя преместването на обекти в дървото 
+    ''' и отразява промените в централния ListTokow.
+    ''' </summary>
+    Private Sub _treeViewManager_RequestMoveObject(ByVal source As clsTokow, ByVal target As clsTokow) Handles _treeViewManager.RequestMoveObject
+        If source Is Nothing OrElse target Is Nothing Then Exit Sub
+        If source.Device = "Табло" Then
+            ' Местим ЦЯЛО ТАБЛО (Промяна на захранващата структура)
+            If target.Device = "Tablo" OrElse target.Device = "Табло" Then
+                source.Табло_Родител = target.Tablo
+                source.BuildingName = target.BuildingName
+            ElseIf target.Device = "Сграда" Then
+                source.Табло_Родител = ""
+                source.BuildingName = target.BuildingName
+            End If
+
+        ElseIf source.Device = "Консуматор" Then
+            ' Местим ТОКОВ КРЪГ (Прекачване от едно табло в друго)
+            If target.Device = "Tablo" OrElse target.Device = "Табло" Then
+                source.Tablo = target.Tablo
+                source.BuildingName = target.BuildingName
+            ElseIf target.Device = "Сграда" Then
+                source.Tablo = ""
+                source.Табло_Родител = ""
+                source.BuildingName = target.BuildingName
+            End If
+        End If
+
+        ' Преизчисляваме баланса заради новите фидери
+        If _panelBalanceManager Is Not Nothing Then
+            _panelBalanceManager.AddFeederRecords()
+        End If
+        ' Преначертаваме дървото
+        _treeViewManager.RefreshTree()
+    End Sub
+
+
+
 End Class
 

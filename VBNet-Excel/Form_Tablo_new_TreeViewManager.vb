@@ -50,13 +50,13 @@ Public Class TreeViewManager
     ''' Събитие при избор на обект от TreeView.
     ''' Изпраща избрания запис към основната форма.
     ''' </summary>
-    Public Event ObjectSelected(ByVal selectedItem As strTokow)
+    Public Event ObjectSelected(ByVal selectedItem As clsTokow)
     ''' <summary>
     ''' Събитие при заявка за преместване чрез Drag & Drop.
     ''' Изпраща източника и целевия обект към бизнес логиката.
     ''' </summary>
-    Public Event RequestMoveObject(ByVal source As strTokow,
-                                   ByVal target As strTokow)
+    Public Event RequestMoveObject(ByVal source As clsTokow,
+                                   ByVal target As clsTokow)
 
     ' Friend, за да може TreeViewManager-ът да я чете
     Friend Shared ROOT_NODE_TEXT As String = "Гл.Р.Т."
@@ -82,7 +82,7 @@ Public Class TreeViewManager
     ''' Форматира текста на възел за табло.
     ''' Добавя иконка и обща мощност.
     ''' </summary>
-    Private Function FormatPanelText(item As strTokow) As String
+    Private Function FormatPanelText(item As clsTokow) As String
         ' Създава формат според зададения брой десетични знаци
         Dim formatSpecifier As String = "F" & DECIMAL_PLACES
         ' Форматира мощността
@@ -93,7 +93,7 @@ Public Class TreeViewManager
     ''' <summary>
     ''' Форматира текста на възел за токов кръг.
     ''' </summary>
-    Private Function FormatCircuitText(item As strTokow) As String
+    Private Function FormatCircuitText(item As clsTokow) As String
         ' Връща готов текст за визуализация
         Return $"{ICON_CIRCUITS} {LABEL_CIRCUITS} {item.ТоковКръг} - {item.Device}"
     End Function
@@ -171,7 +171,7 @@ Public Class TreeViewManager
             _tv.SelectedNode = e.Node
 
             ' Проверка дали маркираният възел е реално Табло (чрез Tag структурата ти)
-            Dim currentItem As strTokow = TryCast(e.Node.Tag, strTokow)
+            Dim currentItem As clsTokow = TryCast(e.Node.Tag, clsTokow)
             Dim isPanel As Boolean = (currentItem IsNot Nothing AndAlso currentItem.Device = "Табло")
 
             ' Защита: Бутонът "Добави под-табло" е активен САМО ако сме кликнали върху Табло
@@ -448,8 +448,8 @@ Public Class TreeViewManager
     ''' Данни за избрания възел.
     ''' </param>
     Private Sub HandleAfterSelect(sender As Object, e As TreeViewEventArgs)
-        If e.Node.Tag IsNot Nothing AndAlso TypeOf e.Node.Tag Is strTokow Then
-            RaiseEvent ObjectSelected(DirectCast(e.Node.Tag, strTokow))
+        If e.Node.Tag IsNot Nothing AndAlso TypeOf e.Node.Tag Is clsTokow Then
+            RaiseEvent ObjectSelected(DirectCast(e.Node.Tag, clsTokow))
         End If
     End Sub
     ''' <summary>
@@ -548,10 +548,10 @@ Public Class TreeViewManager
        targetNode IsNot Nothing AndAlso
        Not draggedNode.Equals(targetNode) Then
             ' Вземаме обектите от Tag-а
-            Dim sourceObj As strTokow =
-            DirectCast(draggedNode.Tag, strTokow)
-            Dim targetObj As strTokow =
-            DirectCast(targetNode.Tag, strTokow)
+            Dim sourceObj As clsTokow =
+            DirectCast(draggedNode.Tag, clsTokow)
+            Dim targetObj As clsTokow =
+            DirectCast(targetNode.Tag, clsTokow)
             ' Разрешаваме местене само:
             ' • в друго табло
             ' • или в корен/сграда

@@ -115,7 +115,7 @@ Public Class CableCatalog
     ''' Изчислява необходимото сечение на кабел според тока и условията на полагане
     ''' Оптимизиран за сградни инсталации
     ''' </summary>
-    Public Sub CalculateCable(ByRef tokow As strTokow,
+    Public Sub CalculateCable(ByRef tokow As clsTokow,
                                  Optional Type As String = "СВТ",        ' Тип кабел (СВТ, САВТ, NYY...)
                                 Optional layMethod As Integer = 0,      ' 0=въздух (35°C), 1=земя (15°C)
                                 Optional mountMethod As String = "B1",  ' "A1"=гипсокартон, "B2"=под мазилка, "C"=над таван
@@ -459,7 +459,7 @@ Public Class BreakerCatalog
     ''' <summary>
     ''' Определя и задава подходящ прекъсвач за даден токов кръг.
     ''' </summary>
-    Public Sub CalculateBreaker(ByRef tokow As strTokow)
+    Public Sub CalculateBreaker(ByRef tokow As clsTokow)
         ' Деклариране на променлива за намерения прекъсвач от новия клас
         Dim breaker As BreakerInfo = Nothing
         ' ------------------------------------------------------------
@@ -567,7 +567,7 @@ Public Class BreakerCatalog
         Return selectedBreaker
     End Function
     ' Изчиства данните за прекъсвач (MCB)
-    Public Sub ClearBreaker(ByRef tokow As strTokow)
+    Public Sub ClearBreaker(ByRef tokow As clsTokow)
         tokow.Breaker_Тип_Апарат = ""           ' Серия апарат (EZ9, C120, NSX, MTZ)
         tokow.Breaker_Крива = ""                ' Характеристика (B, C, D)
         tokow.Breaker_Номинален_Ток = ""        ' Номинален ток (пример: "16A")
@@ -733,7 +733,7 @@ Public Class DisconnectorCatalog
     ''' </summary>
     ''' <param name="tokow">Токов кръг</param>
     ''' <param name="brand">Марка на апарата (по подразбиране "Schneider")</param>
-    Public Sub CalculateDisconnector(tokow As strTokow,
+    Public Sub CalculateDisconnector(tokow As clsTokow,
                                      Optional brand As String = "Schneider")
         ' 1️⃣ КОНСТАНТИ (КОЕФИЦИЕНТИ)
         Const MIN_FACTOR As Double = 1.15

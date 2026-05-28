@@ -9,6 +9,9 @@
 ' Това е основната електротехническа част на алгоритъма.
 #End Region
 
+#Region "Процедури"
+
+#End Region
 Public Class ElectricalCalculationEngine
     ' Пазим локални референции към каталозите, които формата вече е създала
     Private _breakerCatalog As BreakerCatalog
@@ -19,8 +22,8 @@ Public Class ElectricalCalculationEngine
     ''' </summary>
     Public Sub New(breakerCat As BreakerCatalog,
                    cableCat As CableCatalog,
-                   rcdCat As RCDCatalog
-                   )
+                   rcdCat As RCDCatalog)
+
         Me._breakerCatalog = breakerCat
         Me._cableCatalog = cableCat
         Me._rcdCatalog = rcdCat
@@ -167,15 +170,15 @@ Public Class ElectricalCalculationEngine
     ''' Да осигури коректно оразмеряване на защита (прекъсвач)
     ''' спрямо реално изчисленото натоварване на всеки токов кръг.
     ''' </summary>
-    Public Sub ExecuteCalculations(tokowList As List(Of strTokow))
+    Public Sub ExecuteCalculations()
         ' Проверка за празен списък (защита от грешки)
-        If tokowList Is Nothing OrElse tokowList.Count = 0 Then Exit Sub
+        If AppSettings.ListTokow Is Nothing OrElse AppSettings.ListTokow.Count = 0 Then Exit Sub
         ' ------------------------------------------------------------
         ' 1) Проверка дали конфигурацията на блоковете е инициализирана
         ' ------------------------------------------------------------
         If BlockConfigs Is Nothing OrElse BlockConfigs.Count = 0 Then InitializeBlockConfigs()
         ' Завъртаме цикъл през всеки токов кръг, извлечен от AutoCAD
-        For Each tokow As strTokow In tokowList
+        For Each tokow As strTokow In AppSettings.ListTokow
             ' Ако апаратът е Главен разединител на таблото, прескачаме стандартните изчисления за товар
             If tokow.Device = "Разединител" Then Continue For
             ' Нулиране на броячи и стойности преди ново (преизчисляване)
@@ -377,7 +380,7 @@ Public Class ElectricalCalculationEngine
     ''' <param name="NumberPoles">Брой фази: "1P" или "3P"</param>
     ''' <param name="Motor">True за двигатели (cos φ = 0.85, КПД = 0.9)</param>
     ''' <returns>Номинален ток в Ampere</returns>
-    Public Function calc_Inom(Pkryg As Double,                     ' мощност
+    Public Function calc_Inom(Pkryg As Double,                      ' мощност
                        NumberPoles As String,                       ' брой фази
                        Optional Motor As Boolean = False            ' Ако е двигател True - КПД и cos FI да са по 0,83
                        ) As Double                                  ' Изчислява номинален ток за товар

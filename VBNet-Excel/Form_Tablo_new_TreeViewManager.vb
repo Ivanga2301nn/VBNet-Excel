@@ -2,13 +2,44 @@
 Imports System.Windows.Forms
 
 Public Class Form_Tablo_new_TreeViewManager
+    ''' <summary>
+    ''' Конструктор на TreeViewManager.
+    ''' 
+    ''' Инициализира:
+    ''' - референция към TreeView контрола
+    ''' - референция към основния списък с токови кръгове
+    ''' - обработчици за избор на възел
+    ''' - Drag & Drop логиката за преместване на табла
+    ''' 
+    ''' Логика:
+    ''' 1. Запазва подадените референции
+    ''' 2. Разрешава Drag & Drop върху TreeView
+    ''' 3. Закача всички необходими събития:
+    '''    - AfterSelect
+    '''    - ItemDrag
+    '''    - DragEnter
+    '''    - DragOver
+    '''    - DragDrop
+    ''' </summary>
+    Public Sub New(ByVal targetTreeView As TreeView)
+        _tv = targetTreeView
+        ' Събитие при избор на възел
+        AddHandler _tv.AfterSelect, AddressOf HandleAfterSelect
+        ' Разрешаваме Drag & Drop върху TreeView
+        _tv.AllowDrop = True
+        ' Закачаме събитията за Drag & Drop
+        AddHandler _tv.ItemDrag, AddressOf HandleItemDrag
+        AddHandler _tv.DragEnter, AddressOf HandleDragEnter
+        AddHandler _tv.DragOver, AddressOf HandleDragOver
+        AddHandler _tv.DragDrop, AddressOf HandleDragDrop
+        ' Инициализиране на менюто за десен бутон
+        InitializeContextMenu()
+    End Sub
     ' ========================================================================
     ' 📌 ОСНОВНИ ПОЛЕТА И СЪБИТИЯ
     ' ========================================================================
     ' TreeView контролът, който се управлява от класа
     Private ReadOnly _tv As TreeView
-    ' Основният списък с данни за табла и токови кръгове
-    Private ReadOnly _listTokow As List(Of strTokow)
     ''' <summary>
     ''' Събитие при избор на обект от TreeView.
     ''' Изпраща избрания запис към основната форма.
@@ -60,40 +91,6 @@ Public Class Form_Tablo_new_TreeViewManager
         ' Връща готов текст за визуализация
         Return $"{ICON_CIRCUITS} {LABEL_CIRCUITS} {item.ТоковКръг} - {item.Device}"
     End Function
-    ''' <summary>
-    ''' Конструктор на TreeViewManager.
-    ''' 
-    ''' Инициализира:
-    ''' - референция към TreeView контрола
-    ''' - референция към основния списък с токови кръгове
-    ''' - обработчици за избор на възел
-    ''' - Drag & Drop логиката за преместване на табла
-    ''' 
-    ''' Логика:
-    ''' 1. Запазва подадените референции
-    ''' 2. Разрешава Drag & Drop върху TreeView
-    ''' 3. Закача всички необходими събития:
-    '''    - AfterSelect
-    '''    - ItemDrag
-    '''    - DragEnter
-    '''    - DragOver
-    '''    - DragDrop
-    ''' </summary>
-    Public Sub New(ByVal targetTreeView As TreeView, ByRef data As List(Of strTokow))
-        _tv = targetTreeView
-        _listTokow = data
-        ' Събитие при избор на възел
-        AddHandler _tv.AfterSelect, AddressOf HandleAfterSelect
-        ' Разрешаваме Drag & Drop върху TreeView
-        _tv.AllowDrop = True
-        ' Закачаме събитията за Drag & Drop
-        AddHandler _tv.ItemDrag, AddressOf HandleItemDrag
-        AddHandler _tv.DragEnter, AddressOf HandleDragEnter
-        AddHandler _tv.DragOver, AddressOf HandleDragOver
-        AddHandler _tv.DragDrop, AddressOf HandleDragDrop
-        ' Инициализиране на менюто за десен бутон
-        InitializeContextMenu()
-    End Sub
     ' ========================================================================
     ' Метод: InitializeContextMenu
     ' ========================================================================
@@ -238,7 +235,7 @@ Public Class Form_Tablo_new_TreeViewManager
             ' - parent tablo key
             Dim tabloToParent As New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase)
             ' 1. ПЪРВИ ПАС: СЪЗДАВАНЕ НА СГРАДИТЕ
-            For Each item In _listTokow
+            For Each item In AppSettings.ListTokow
                 ' Нормализиране на името на сградата.
                 ' Ако липсва име:
                 ' използва се ROOT_NODE_TEXT като fallback root.
@@ -257,7 +254,7 @@ Public Class Form_Tablo_new_TreeViewManager
                 End If
             Next
             ' 2. ВТОРИ ПАС: СЪЗДАВАНЕ НА ТАБЛАТА
-            For Each item In _listTokow
+            For Each item In AppSettings.ListTokow
                 If item.Device IsNot Nothing AndAlso
                         item.Device.Trim().Equals("Табло", StringComparison.OrdinalIgnoreCase) Then
                     Dim bName = If(String.IsNullOrWhiteSpace(item.BuildingName),
@@ -338,7 +335,7 @@ Public Class Form_Tablo_new_TreeViewManager
             ' Стойност:
             ' - total power
             Dim consumerSums As New Dictionary(Of TreeNode, Double)
-            For Each item In _listTokow
+            For Each item In AppSettings.ListTokow
                 ' ПРОВЕРКА ДАЛИ Е КОНСУМАТОР
                 ' Всички елементи, които НЕ са "Табло",
                 ' се третират като консуматори/кръгове.

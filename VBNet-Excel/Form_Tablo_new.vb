@@ -67,20 +67,21 @@ Imports Font = System.Drawing.Font
 Public Module AcadCommands
     <CommandMethod("Tablo_new", CommandFlags.UsePickSet)>
     Public Sub StartTabloForm()
-        ' Извикване на метода и записване на резултата в списък
+        ' 1. Извличаме консуматорите
         Dim extractedConsumers As List(Of strKonsumator) =
-            Form_Tablo_new_ConsumerExtractor.ExtractSelectedConsumers()
-        ' 2. Подаваме извлечените консуматори и получаваме списък
-        Dim extractedTokowList As List(Of strTokow) =
-            Form_Tablo_new_ConsumerExtractor.CreateTokowList(extractedConsumers)
-        ' 3. Подаваме И ДВАТА списъка на формата
-        Dim frm As New Form_Tablo_new(extractedConsumers, extractedTokowList)
+            ConsumerExtractor.ExtractSelectedConsumers()
+        ' 2. Генерираме токовите кръгове и ги НАЛИВАМЕ ДИРЕКТНО в глобалния източник
+        AppSettings.ListTokow = ConsumerExtractor.CreateTokowList(extractedConsumers)
+        ' 3. Отваряме формата "чиста" - тя сама ще си вземе данните от AppSettings
+        Dim frm As New Form_Tablo_new(extractedConsumers)
         frm.ShowDialog()
     End Sub
 End Module
 Public Module AppSettings
     Public Property CurrentManufacturer As String = "Schneider"
     Public Const ROOT_NODE_TEXT As String = "Гл.Р.Т."
+    ' ЦЕНТРАЛНИЯТ ИЗТОЧНИК НА ИСТИНАТА ЗА ЦЕЛИЯ ПРОЕКТ:
+    Public Property ListTokow As New List(Of strTokow)
 End Module
 Public Class Form_Tablo_new
     ' --- Данни за извлечените от AutoCAD консуматори и токови кръгове ---
@@ -123,13 +124,12 @@ Public Class Form_Tablo_new
     ''' <summary>
     ''' Конструктор на формата - приема данните от AutoCAD
     ''' </summary>
-    Public Sub New(ByVal consumersList As List(Of strKonsumator), ByVal extractedTokowList As List(Of strTokow))
+    Public Sub New(ByVal consumersList As List(Of strKonsumator))
+        ' Записваме подадените списъци
+        ListKonsumator = consumersList
         InitializeComponent()
         ' 1. ПЪРВО създаваме каталозите в паметта, за да са готови
         InitializeProjectComponents()
-        ' Записваме подадените списъци
-        ListKonsumator = consumersList
-        ListTokow = extractedTokowList
     End Sub
 
     Private Sub Form_Tablo_new_Load(sender As Object, e As EventArgs) Handles MyBase.Load
@@ -140,11 +140,12 @@ Public Class Form_Tablo_new
         ' каталозите вече ще съществуват в паметта и няма да има NullReference!)
         FillManufacturerCombo()
         ' Подаваме списъка за изчисление
-        _calculationEngine.ExecuteCalculations(ListTokow)
+        _calculationEngine.ExecuteCalculations()
         _boardStructureManager.SortListTokow()
         _boardStructureManager.GroupContactsForRCD()
         _boardStructureManager.EnsureAllStructureRecords()
         _panelBalanceManager.AddFeederRecords()
+
         _treeViewManager.RefreshTree()
 
         DataGridViewConfig.InitializeGridStructure(DataGridView1)
@@ -163,21 +164,18 @@ Public Class Form_Tablo_new
         _rcdCatalog = New RCDCatalog()
         _calculationEngine = New ElectricalCalculationEngine(_breakerCatalog,
                                                              _cableCatalog,
-                                                             _rcdCatalog
-                                                             )
-        _boardStructureManager = New BoardStructureManager(_rcdCatalog, ListTokow)
+                                                             _rcdCatalog)
+        _boardStructureManager = New BoardStructureManager(_rcdCatalog)
         _panelBalanceManager = New PanelBalanceManager(_rcdCatalog,
-                                                       ListTokow,
                                                        _disconnectorCatalog,
                                                        _cableCatalog,
                                                        _calculationEngine)
 
         ' Йерархия и дървовидна структура (TreeView)
-        _treeViewManager = New Form_Tablo_new_TreeViewManager(TreeView_Табло, ListTokow)
+        _treeViewManager = New Form_Tablo_new_TreeViewManager(TreeView_Табло)
 
 
-        _dataGridViewManager = New DataGridViewManager(ListTokow,
-                                                       _disconnectorCatalog,
+        _dataGridViewManager = New DataGridViewManager(_disconnectorCatalog,
                                                        _breakerCatalog,
                                                        _cableCatalog,
                                                        _rcdCatalog
@@ -268,7 +266,7 @@ Public Class Form_Tablo_new
     ''' Тук ще се филтрират прекъсвачите от каталога.
     ''' </summary>  
     Private Sub UpdateGridCombosForNewManufacturer(brandName As String)
-        ' 🛡️ ЗАЩИТА: Ако каталозите още не са готови, излез кротко!
+        ' ЗАЩИТА: Ако каталозите още не са готови, излез кротко!
         If _breakerCatalog Is Nothing Then Exit Sub
         ' Филтрираме списъците за комбо кутиите според избраната марка
         _breakerCatalog.FilterComboLists(brandName)

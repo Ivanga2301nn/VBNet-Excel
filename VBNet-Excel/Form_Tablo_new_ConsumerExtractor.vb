@@ -2,7 +2,7 @@
 Imports Autodesk.AutoCAD.ApplicationServices
 Imports Autodesk.AutoCAD.DatabaseServices
 Imports Autodesk.AutoCAD.EditorInput
-Public Class Form_Tablo_new_ConsumerExtractor
+Public Class ConsumerExtractor
     ''' <summary>
     ''' Стъпка 2: Основен метод за улавяне на селекцията и стартиране на процеса.
     ''' </summary>

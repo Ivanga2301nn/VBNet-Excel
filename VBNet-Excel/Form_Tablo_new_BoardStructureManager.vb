@@ -1,13 +1,11 @@
 ﻿Public Class BoardStructureManager
     ' 1. Пазим локални референции на ниво клас
     Private _rcdCatalog As RCDCatalog
-    Private _listTokow As List(Of strTokow)
     ''' <summary>
     ''' КОНСТРУКТОР: Приема създадените каталози и списъка с токови кръгове от формата
     ''' </summary>
-    Public Sub New(rcdCat As RCDCatalog, tokowList As List(Of strTokow))
+    Public Sub New(rcdCat As RCDCatalog)
         Me._rcdCatalog = rcdCat
-        Me._listTokow = tokowList ' 👈 Запаметяваме списъка в класа при създаването му   
     End Sub
 
     ''' <summary>
@@ -76,7 +74,7 @@
     Public Sub SortListTokow()
         ' Изпълняваме тристепенна LINQ щафета, за да подредим оригиналния списък.
         ' Тъй като променливата е предадена с ByRef, промените ще се отразят веднага.
-        _listTokow = _listTokow.
+        AppSettings.ListTokow = AppSettings.ListTokow.
                     OrderBy(Function(t) If(String.IsNullOrEmpty(t.BuildingName), "БЕЗ СГРАДА", t.BuildingName)). ' ПЪРВО НИВО: Групиране по Сграда.
                     ThenBy(Function(t) t.Tablo). ' ВТОРО НИВО: Подреждане по име на Електрическото Табло.
                     ThenBy(Function(t) GetCircuitSortKey(t.ТоковКръг)). 'ТРЕТО НИВО: Естествено сортиране на самите токови кръгове.
@@ -210,12 +208,12 @@
     ''' </summary>
     Public Sub GroupContactsForRCD()
         ' Проверка за празен списък (защита от грешки)
-        If _listTokow Is Nothing OrElse _listTokow.Count = 0 Then Exit Sub
+        If AppSettings.ListTokow Is Nothing OrElse AppSettings.ListTokow.Count = 0 Then Exit Sub
         ' =========================================================================================
         ' КРИТИЧНА ПРОМЯНА: Групираме по анонимен тип (двоен ключ - Сграда и Табло едновременно).
         ' Това гарантира, че "Табло 1" в "Сграда А" и "Табло 1" в "Сграда Б" ще бъдат две отделни групи.
         ' =========================================================================================
-        Dim panels = _listTokow.GroupBy(Function(t) New With {Key t.BuildingName, Key t.Tablo})
+        Dim panels = AppSettings.ListTokow.GroupBy(Function(t) New With {Key t.BuildingName, Key t.Tablo})
         For Each panelGroup In panels
             ' Избор само на кръговете, които съдържат контакти и не са самото главно табло
             ' panelGroup вече съдържа само кръгове от конкретното табло в конкретната сграда
@@ -353,6 +351,7 @@
         lastCircuit.Ток = originalTok
         lastCircuit.Брой_Полюси = originalPoles
     End Sub
+#End Region
 
     ''' <summary>
     ''' Структурира данните в списъка, като гарантира, че съществуват 
@@ -360,15 +359,15 @@
     ''' </summary>
     Public Sub EnsureAllStructureRecords()
         ' Бърза защита: ако няма прочетени данни от AutoCAD, няма какво да структурираме
-        If _listTokow Is Nothing OrElse _listTokow.Count = 0 Then Exit Sub
+        If AppSettings.ListTokow Is Nothing OrElse AppSettings.ListTokow.Count = 0 Then Exit Sub
         ' 1. Взимаме всички уникални сгради, които съществуват в списъка на един ход
-        Dim allBuildings As List(Of String) = _listTokow.Select(Function(x) x.BuildingName).Distinct().ToList()
+        Dim allBuildings As List(Of String) = AppSettings.ListTokow.Select(Function(x) x.BuildingName).Distinct().ToList()
         ' 2. Започваме обхождането на всяка сграда
         For Each bName As String In allBuildings
             ' ==========================================
             ' ЧАСТ 1: ГАРАНТИРАНЕ НА КОРЕНЕН ЗАПИС (Root Node) ЗА СГРАДАТА
             ' ==========================================
-            Dim rootExists As Boolean = _listTokow.Any(Function(x) x.Tablo = ROOT_NODE_TEXT AndAlso
+            Dim rootExists As Boolean = AppSettings.ListTokow.Any(Function(x) x.Tablo = ROOT_NODE_TEXT AndAlso
                                                               x.BuildingName = bName)
             If Not rootExists Then
                 Dim rootPanel As New strTokow With {
@@ -378,20 +377,20 @@
                 .Табло_Родител = "",
                 .ТоковКръг = "ОБЩО"
             }
-                _listTokow.Add(rootPanel)
+                AppSettings.ListTokow.Add(rootPanel)
             End If
             ' ==========================================
             ' ЧАСТ 2: ГАРАНТИРАНЕ НА ЗАПИС "ОБЩО" ЗА ВСЯКО ТАБЛО В СГРАДАТА
             ' ==========================================
             ' Намираме уникалните имена на табла в текущата сграда (като изключваме корена)
-            Dim panelsInCurrentBuilding = _listTokow.Where(Function(t) t.BuildingName = bName AndAlso
+            Dim panelsInCurrentBuilding = AppSettings.ListTokow.Where(Function(t) t.BuildingName = bName AndAlso
                                                                   t.Tablo <> ROOT_NODE_TEXT) _
                                                .Select(Function(t) t.Tablo) _
                                                .Distinct() _
                                                .ToList()
             ' Обхождаме реалните табла, за да им подсигурим сумарен ред "ОБЩО"
             For Each tName As String In panelsInCurrentBuilding
-                Dim totalExists As Boolean = _listTokow.Any(Function(x) x.BuildingName = bName AndAlso
+                Dim totalExists As Boolean = AppSettings.ListTokow.Any(Function(x) x.BuildingName = bName AndAlso
                                                                    x.Tablo = tName AndAlso
                                                                    x.ТоковКръг = "ОБЩО")
                 If Not totalExists Then
@@ -402,11 +401,9 @@
                     .Device = "Табло",
                     .Табло_Родител = ROOT_NODE_TEXT ' Всяко табло се закача за корена на сградата
                 }
-                    _listTokow.Add(totalRecord)
+                    AppSettings.ListTokow.Add(totalRecord)
                 End If
             Next
         Next
     End Sub
-#End Region
-
 End Class

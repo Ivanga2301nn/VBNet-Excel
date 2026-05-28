@@ -3,7 +3,6 @@
 Public Class PanelBalanceManager
     ' 1. Пазим локални референции на ниво клас
     Private _rcdCatalog As RCDCatalog
-    Private _listTokow As List(Of strTokow)
     Private _disconnectorCatalog As DisconnectorCatalog
     Private _cableCatalog As CableCatalog
     Private _electricalCalculationEngine As ElectricalCalculationEngine
@@ -11,12 +10,10 @@ Public Class PanelBalanceManager
     ''' КОНСТРУКТОР: Приема създадените каталози и списъка с токови кръгове от формата
     ''' </summary>
     Public Sub New(rcdCat As RCDCatalog,
-                   tokowList As List(Of strTokow),
                    disconnectorCat As DisconnectorCatalog,
                    cableCat As CableCatalog,
                    electricalCalcEngine As ElectricalCalculationEngine)
         Me._rcdCatalog = rcdCat                                 ' 👈 Запаметяваме каталога с RCD в класа при създаването му
-        Me._listTokow = tokowList                               ' 👈 Запаметяваме списъка в класа при създаването му
         Me._disconnectorCatalog = disconnectorCat               ' 👈 Запаметяваме каталога с прекъсвачи в класа при създаването му
         Me._cableCatalog = cableCat                             ' 👈 Запаметяваме каталога с кабели в класа при създаването му   
         Me._electricalCalculationEngine = electricalCalcEngine  ' 👈 Запаметяваме електрическия калкулатор в класа при създаването му     
@@ -47,7 +44,7 @@ Public Class PanelBalanceManager
 #Region "📂 EnsureTotalRecordsExists"
     ' Това е "Архитектът на сградите" - неговата единствена задача е да намери сградите
     Public Sub AddFeederRecords()
-        Dim buildings As List(Of String) = _listTokow.Select(Function(t) t.BuildingName).Distinct().ToList()
+        Dim buildings As List(Of String) = AppSettings.ListTokow.Select(Function(t) t.BuildingName).Distinct().ToList()
         For Each bName As String In buildings
             ' Делегираме цялата логика за топологията на сградата
             ProcessBuildingTopology(bName)
@@ -56,7 +53,7 @@ Public Class PanelBalanceManager
     Private Sub ProcessBuildingTopology(buildingName As String)
         ' 1. Създаваме речник за нивата (кеш)
         Dim levels As New Dictionary(Of String, Integer)
-        Dim allPanels = _listTokow.Where(Function(t) t.BuildingName = buildingName AndAlso t.Device = "Табло").ToList()
+        Dim allPanels = AppSettings.ListTokow.Where(Function(t) t.BuildingName = buildingName AndAlso t.Device = "Табло").ToList()
         ' 2. Попълваме речника (пресмятаме само веднъж за всяко табло)
         For Each p In allPanels
             levels(p.Tablo) = CalculateLevel(buildingName, p.Tablo)
@@ -79,7 +76,7 @@ Public Class PanelBalanceManager
             '                                     x.BuildingName = buildingName AndAlso
             '                                     x.Tablo = currentName)
             ' Смени този ред вътре в CalculateLevel:
-            Dim t = _listTokow.FirstOrDefault(Function(x) x.BuildingName = buildingName AndAlso
+            Dim t = AppSettings.ListTokow.FirstOrDefault(Function(x) x.BuildingName = buildingName AndAlso
                                              x.Tablo = currentName AndAlso
                                              x.ТоковКръг = "ОБЩО")
             If t Is Nothing OrElse String.IsNullOrEmpty(t.Табло_Родител) Then Exit While
@@ -101,11 +98,11 @@ Public Class PanelBalanceManager
         ' ВЗИМАМЕ САМО ДИРЕКТНИТЕ ДЕЦА
         ' 1. Преки консуматори в това табло
         ' 2. Преки "ОБЩО" записи на табла, чийто Табло_Родител Е ТОВА табло
-        Dim panelCircuits As List(Of strTokow) = _listTokow.Where(Function(t)
-                                                                      Dim isOwn = (t.BuildingName = buildingName AndAlso t.Tablo = tabloName AndAlso t.ТоковКръг <> "ОБЩО")
-                                                                      Dim isDirectChild = (t.BuildingName = buildingName AndAlso t.Табло_Родител = tabloName AndAlso t.ТоковКръг = "ОБЩО")
-                                                                      Return isOwn OrElse isDirectChild
-                                                                  End Function).ToList()
+        Dim panelCircuits As List(Of strTokow) = AppSettings.ListTokow.Where(Function(t)
+                                                                                 Dim isOwn = (t.BuildingName = buildingName AndAlso t.Tablo = tabloName AndAlso t.ТоковКръг <> "ОБЩО")
+                                                                                 Dim isDirectChild = (t.BuildingName = buildingName AndAlso t.Табло_Родител = tabloName AndAlso t.ТоковКръг = "ОБЩО")
+                                                                                 Return isOwn OrElse isDirectChild
+                                                                             End Function).ToList()
         ' Ако няма нищо за обработка, излизаме
         If panelCircuits.Count = 0 Then Exit Sub
         ' 2. ИЗЧИСЛЕНИЯ
@@ -116,10 +113,10 @@ Public Class PanelBalanceManager
         Dim mostCommonPoles As Integer = If(hasThreePhase, 3, 1)
         Dim totalPhase As String = If(hasThreePhase, "L1,L2,L3", "L")
         ' 3. НАМИРАНЕ НА ЗАПИСА "ОБЩО" ЗА ТОВА ТАБЛО В ТАЗИ СГРАДА
-        Dim totalTokow = _listTokow.FirstOrDefault(Function(t)
-                                                       Return t.BuildingName = buildingName AndAlso
+        Dim totalTokow = AppSettings.ListTokow.FirstOrDefault(Function(t)
+                                                                  Return t.BuildingName = buildingName AndAlso
                                                       t.Tablo = tabloName AndAlso t.ТоковКръг = "ОБЩО"
-                                                   End Function)
+                                                              End Function)
         ' 4. ПОПЪЛВАНЕ НА ДАННИТЕ
         With totalTokow
             .Табло_Родител = GetParentForTablo(buildingName, tabloName) ' Помощна функция за намиране на родителя
@@ -165,11 +162,11 @@ Public Class PanelBalanceManager
     Private Function GetParentForTablo(buildingName As String, tabloName As String) As String
         ' Търси записа за текущото табло
         ' само измежду записите от тип "Табло"
-        Dim currentTabloRecord = _listTokow.FirstOrDefault(Function(t)
-                                                               Return t.BuildingName = buildingName AndAlso
+        Dim currentTabloRecord = AppSettings.ListTokow.FirstOrDefault(Function(t)
+                                                                          Return t.BuildingName = buildingName AndAlso
                                                                   t.Tablo = tabloName AndAlso
                                                                   t.Device = "Табло"
-                                                           End Function)
+                                                                      End Function)
 
         ' Ако е намерен запис:
         ' връща стойността на Табло_Родител
@@ -223,10 +220,10 @@ Public Class PanelBalanceManager
     Private Sub BalancePhases(buildingName As String, tabloName As String)
         ' 1. ВЗЕМИ КРЪГОВЕТЕ (БЕЗ "ОБЩО")
         ' Вече филтрираме по сграда AND табло
-        Dim panelCircuits As List(Of strTokow) = _listTokow.Where(Function(t)
-                                                                      Return (t.BuildingName = buildingName AndAlso t.Tablo = tabloName AndAlso t.ТоковКръг <> "ОБЩО") OrElse
+        Dim panelCircuits As List(Of strTokow) = AppSettings.ListTokow.Where(Function(t)
+                                                                                 Return (t.BuildingName = buildingName AndAlso t.Tablo = tabloName AndAlso t.ТоковКръг <> "ОБЩО") OrElse
                (t.BuildingName = buildingName AndAlso t.Табло_Родител = tabloName AndAlso t.ТоковКръг = "ОБЩО")
-                                                                  End Function).ToList()
+                                                                             End Function).ToList()
         ' Ако няма кръгове → прекратяване
         If panelCircuits.Count = 0 Then Return
         ' =====================================================
@@ -247,11 +244,11 @@ Public Class PanelBalanceManager
             If result = MsgBoxResult.No Then Return
         End If
         ' 3. НАМИРАНЕ НА РЕД "ОБЩО"
-        Dim totalRow = _listTokow.FirstOrDefault(Function(t)
-                                                     Return t.BuildingName = buildingName AndAlso
+        Dim totalRow = AppSettings.ListTokow.FirstOrDefault(Function(t)
+                                                                Return t.BuildingName = buildingName AndAlso
                                                        t.Tablo = tabloName AndAlso
                                                        t.ТоковКръг = "ОБЩО"
-                                                 End Function)
+                                                            End Function)
         ' Маркиране като трифазен
         totalRow.Брой_Полюси = 3
         totalRow.Фаза = "L1,L2,L3"

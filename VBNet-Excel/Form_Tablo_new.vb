@@ -86,7 +86,6 @@ End Module
 Public Class Form_Tablo_new
     ' --- Данни за извлечените от AutoCAD консуматори и токови кръгове ---
     Private ListKonsumator As New List(Of strKonsumator)
-    Private ListTokow As New List(Of strTokow)
 
     ' --- КАТАЛОЗИ (Глобални за формата, за да живеят през цялото време) ---
     Private _motorCatalog As MotorProtectionCatalog
@@ -120,7 +119,7 @@ Public Class Form_Tablo_new
         End Set
     End Property
     ' --- МЕНИДЖЪРИ НА ИНТЕРФЕЙСА ---
-    Private _treeViewManager As Form_Tablo_new_TreeViewManager
+    Private _treeViewManager As TreeViewManager
     ''' <summary>
     ''' Конструктор на формата - приема данните от AutoCAD
     ''' </summary>
@@ -131,7 +130,6 @@ Public Class Form_Tablo_new
         ' 1. ПЪРВО създаваме каталозите в паметта, за да са готови
         InitializeProjectComponents()
     End Sub
-
     Private Sub Form_Tablo_new_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         Me.Height = 950
         Me.Width = 1600
@@ -172,7 +170,7 @@ Public Class Form_Tablo_new
                                                        _calculationEngine)
 
         ' Йерархия и дървовидна структура (TreeView)
-        _treeViewManager = New Form_Tablo_new_TreeViewManager(TreeView_Табло)
+        _treeViewManager = New TreeViewManager(TreeView_Табло)
 
 
         _dataGridViewManager = New DataGridViewManager(_disconnectorCatalog,

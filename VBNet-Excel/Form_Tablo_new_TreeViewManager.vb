@@ -1,7 +1,7 @@
 ﻿Imports System.Drawing
 Imports System.Windows.Forms
 
-Public Class Form_Tablo_new_TreeViewManager
+Public Class TreeViewManager
     ''' <summary>
     ''' Конструктор на TreeViewManager.
     ''' 
@@ -23,6 +23,12 @@ Public Class Form_Tablo_new_TreeViewManager
     ''' </summary>
     Public Sub New(ByVal targetTreeView As TreeView)
         _tv = targetTreeView
+        ' Заковаваме професионален, тъмносив цвят за текста (по-мек от чисто черно)
+        _tv.ForeColor = Color.FromArgb(45, 45, 45)
+        ' Правим свързващите линии дискретни и тънки (светлосиви)
+        _tv.LineColor = Color.FromArgb(180, 180, 180)
+
+
         ' Събитие при избор на възел
         AddHandler _tv.AfterSelect, AddressOf HandleAfterSelect
         ' Разрешаваме Drag & Drop върху TreeView
@@ -247,6 +253,7 @@ Public Class Form_Tablo_new_TreeViewManager
                     ' ICON_BUILDING:
                     ' визуален символ/икона.
                     Dim bNode As New TreeNode($"{ICON_BUILDING} {bName}")
+                    bNode.ForeColor = _tv.ForeColor ' Гаранция за цвят
                     ' Добавяне като root node
                     _tv.Nodes.Add(bNode)
                     ' Записване в речника
@@ -274,6 +281,7 @@ Public Class Form_Tablo_new_TreeViewManager
                         ' - мощности
                         ' - формат
                         Dim tNode As New TreeNode(FormatPanelText(item))
+                        tNode.ForeColor = _tv.ForeColor ' Гаранция за цвят
                         ' пази оригиналния бизнес обект.
                         tNode.Tag = item
                         allTabloNodes(tabloKey) = tNode
@@ -363,12 +371,14 @@ Public Class Form_Tablo_new_TreeViewManager
                         If consumerGroupNode Is Nothing Then
                             consumerGroupNode =
                             New TreeNode($"{ICON_FOLDER} {CONSUMERS_NODE_TEXT}")
+                            consumerGroupNode.ForeColor = _tv.ForeColor ' Гаранция за цвят
                             parentPanelNode.Nodes.Add(consumerGroupNode)
                             ' Начална стойност за сумата
                             consumerSums(consumerGroupNode) = 0
                         End If
                         ' ДОБАВЯНЕ НА КОНСУМАТОР
                         Dim cNode As New TreeNode(FormatCircuitText(item))
+                        cNode.ForeColor = _tv.ForeColor ' Гаранция за цвят
                         cNode.Tag = item
                         consumerGroupNode.Nodes.Add(cNode)
                         ' СУМИРАНЕ НА МОЩНОСТТА

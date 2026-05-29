@@ -1,14 +1,14 @@
 ﻿#Region "КЛАС: CableCatalog (Кабели)"
 Public Class CableCatalog
     Public Class CableInfo
+        Public CableType As String         ' "СВТ", "САВТ", "Al/R"
+        Public InsulationType As String    ' ("ПВЦ", "XLPE", "GUM")
+        Public Material As String          ' "Cu", "Al"
         Public PhaseSize As String         ' "2,5", "4", и т.н.
         Public NeutralSize As String       ' "0", "1,5", "2,5", и т.н.
         Public MaxCurrent_Air As Double    ' Допустим ток във въздух
         Public MaxCurrent_Ground As Double ' Допустим ток в земя
-        Public Material As String          ' "Cu", "Al"
-        Public CableType As String         ' "СВТ", "САВТ", "Al/R"
         Public MaxWorkingTemp As Double    ' (65, 70, 90°C)
-        Public InsulationType As String    ' ("ПВЦ", "XLPE", "GUM")
     End Class
     ''' <summary>
     ''' КОНСТРУКТОР: Извиква се автоматично при New CableCatalog()
@@ -38,7 +38,6 @@ Public Class CableCatalog
     ''' <summary>
     ''' Зарежда каталожните данни за кабелите.
     ''' </summary>
-
     Public Sub LoadCatalog()
         CableList.Clear()
         ' 1. СВТ (Cu, 70°C, PVC)
@@ -91,9 +90,15 @@ Public Class CableCatalog
                          .NeutralSize = "0"
                          })
         Next
-        CableTypesForCombo = CableList.Select(Function(b) b.CableType).Distinct().ToList()
     End Sub
-
+    ''' <summary>
+    ''' Връща уникалните типове кабели от наличния списък.
+    ''' </summary>
+    Public Function GetUniqueCableTypes() As List(Of String)
+        Return CableList.Select(Function(b) b.CableType) _
+                    .Distinct() _
+                    .ToList()
+    End Function
     ''' <summary>
     ''' Автоматично генерира и добавя пълна серия кабели на базата на синхронизираните масиви за сечения.
     ''' </summary>
@@ -408,10 +413,6 @@ Public Class BreakerCatalog
         AddBreakerSeries("Schrack", "MC2", "MCCB",
                          {160, 200, 250, 300},
                          Nothing, {3, 4}, {50}, {"TM", "Electronic"})
-        ' ✅ Автоматично пълним масивите за останалите ComboBox-ове на база избраната марка
-        Breakers_For_combo = Breakers.Select(Function(b) b.Series).Distinct().ToList()
-        TripUnit_For_combo = Breakers.Select(Function(b) b.TripUnit).Distinct().ToList()
-        Curve_For_combo = Breakers.Select(Function(b) b.Curve).Distinct().ToList()
     End Sub
     ''' <summary>
     ''' МЕГА ВАЖНО: Филтрира помощните списъци САМО за избраната в момента марка!
@@ -424,6 +425,7 @@ Public Class BreakerCatalog
         TripUnit_For_combo = filtered.Select(Function(b) b.TripUnit).Distinct().ToList()
         Curve_For_combo = filtered.Select(Function(b) b.Curve).Distinct().ToList()
     End Sub
+
     ''' <summary>
     ''' Универсален метод за вътрешно генериране на комбинациите.
     ''' </summary>
@@ -574,6 +576,101 @@ Public Class BreakerCatalog
         tokow.Breaker_Изкл_Възможност = ""      ' Изключвателна способност ("6000A", "10000A")
         tokow.Breaker_Защитен_блок = ""         ' Изключвателна способност ("6000A", "10000A")
     End Sub
+    ''' <summary>
+    ''' Извлича цифрата от стрингове като "1p", "2p", "3p", "4p". Ако не успее, връща 0.
+    ''' </summary>
+    Private Function ParsePoles(polesStr As String) As Integer
+        If String.IsNullOrWhiteSpace(polesStr) Then Return 0
+        ' Вземаме само първия символ и пробваме да го превърнем в число
+        Dim firstChar As String = polesStr.Trim().Substring(0, 1)
+        Dim poles As Integer
+        If Integer.TryParse(firstChar, poles) Then
+            Return poles
+        End If
+        Return 0
+    End Function
+
+    ''' <summary>
+    ''' Връща уникалните серии прекъсвачи за текущата марка (от AppSettings), 
+    ''' които поддържат подадения номинален ток и брой полюси (напр. "3p").
+    ''' </summary>
+    Public Function GetUniqueBreakerTypes(targetCurrent As String, polesStr As String) As List(Of String)
+        Dim result As New List(Of String)()
+        If String.IsNullOrWhiteSpace(targetCurrent) Then
+            result.Add("---")
+            Return result
+        End If
+        ' 1. Изчистваме и парсваме тока
+        Dim cleanCurrentStr As String = targetCurrent.ToUpper().Replace("A", "").Replace("А", "").Replace(" ", "")
+        Dim currentDecimal As Decimal
+        If Not Decimal.TryParse(cleanCurrentStr, currentDecimal) Then
+            result.Add("---")
+            Return result
+        End If
+        ' 2. Извличаме броя полюси като число
+        Dim targetPoles As Integer = ParsePoles(polesStr)
+        ' 3. Вземаме активната марка
+        Dim activeBrand As String = AppSettings.CurrentManufacturer
+        ' 4. Филтрираме каталога
+        result = Breakers.Where(Function(b) b.Brand.Equals(activeBrand, StringComparison.OrdinalIgnoreCase) AndAlso
+                                          b.NominalCurrent = currentDecimal AndAlso
+                                          b.Poles = targetPoles) _
+                         .Select(Function(b) b.Series) _
+                         .Distinct() _
+                         .ToList()
+        If result.Count = 0 Then result.Add("---")
+        Return result
+    End Function
+    ''' <summary>
+    ''' Връща уникалните амперажи за избраната серия и брой полюси. Ако няма намерени, връща ["---"].
+    ''' </summary>
+    Public Function GetUniqueBreakerCurrents(seriesName As String, polesStr As String) As List(Of String)
+        If String.IsNullOrWhiteSpace(seriesName) Then Return New List(Of String) From {"---"}
+        Dim targetPoles As Integer = ParsePoles(polesStr)
+        Dim activeBrand As String = AppSettings.CurrentManufacturer
+        Dim result = Breakers.Where(Function(b) b.Brand.Equals(activeBrand, StringComparison.OrdinalIgnoreCase) AndAlso
+                                              b.Series.Equals(seriesName, StringComparison.OrdinalIgnoreCase) AndAlso
+                                              b.Poles = targetPoles) _
+                           .Select(Function(b) b.NominalCurrent.ToString()) _
+                           .Distinct() _
+                           .ToList()
+        If result.Count = 0 Then result.Add("---")
+        Return result
+    End Function
+    ''' <summary>
+    ''' Връща уникалните криви за избраната серия и брой полюси. Ако няма, връща ["---"].
+    ''' </summary>
+    Public Function GetUniqueBreakerCurves(seriesName As String, polesStr As String) As List(Of String)
+        If String.IsNullOrWhiteSpace(seriesName) Then Return New List(Of String) From {"---"}
+        Dim targetPoles As Integer = ParsePoles(polesStr)
+        Dim activeBrand As String = AppSettings.CurrentManufacturer
+        Dim result = Breakers.Where(Function(b) b.Brand.Equals(activeBrand, StringComparison.OrdinalIgnoreCase) AndAlso
+                                              b.Series.Equals(seriesName, StringComparison.OrdinalIgnoreCase) AndAlso
+                                              b.Poles = targetPoles) _
+                           .Select(Function(b) b.Curve) _
+                           .Where(Function(c) Not String.IsNullOrEmpty(c) AndAlso c <> "-") _
+                           .Distinct() _
+                           .ToList()
+        If result.Count = 0 Then result.Add("---")
+        Return result
+    End Function
+    ''' <summary>
+    ''' Връща уникалните защитни блокове за избраната серия и брой полюси. Ако няма, връща ["---"].
+    ''' </summary>
+    Public Function GetUniqueBreakerUnits(seriesName As String, polesStr As String) As List(Of String)
+        If String.IsNullOrWhiteSpace(seriesName) Then Return New List(Of String) From {"---"}
+        Dim targetPoles As Integer = ParsePoles(polesStr)
+        Dim activeBrand As String = AppSettings.CurrentManufacturer
+        Dim result = Breakers.Where(Function(b) b.Brand.Equals(activeBrand, StringComparison.OrdinalIgnoreCase) AndAlso
+                                              b.Series.Equals(seriesName, StringComparison.OrdinalIgnoreCase) AndAlso
+                                              b.Poles = targetPoles) _
+                           .Select(Function(b) b.TripUnit) _
+                           .Where(Function(t) Not String.IsNullOrEmpty(t) AndAlso t <> "-") _
+                           .Distinct() _
+                           .ToList()
+        If result.Count = 0 Then result.Add("---")
+        Return result
+    End Function
 End Class
 #End Region
 
@@ -778,6 +875,67 @@ Public Class DisconnectorCatalog
             MsgBox(String.Format("Грешка: Не е намерен разединител от марка '{0}' за {1}А с {2} полюса.", brand, tokow.Ток, tokow.Брой_Полюси))
         End If
     End Sub
+    ''' <summary>
+    ''' Помощна функция: Извлича цифрата от стрингове като "1p", "2p", "3p", "4p". Ако не успее, връща 0.
+    ''' </summary>
+    Private Function ParsePoles(polesStr As String) As Integer
+        If String.IsNullOrWhiteSpace(polesStr) Then Return 0
+        Dim firstChar As String = polesStr.Trim().Substring(0, 1)
+        Dim poles As Integer
+        If Integer.TryParse(firstChar, poles) Then
+            Return poles
+        End If
+        Return 0
+    End Function
+    ''' <summary>
+    ''' Връща уникалните типове разединители за текущата марка (от AppSettings),
+    ''' които поддържат подадения ток и брой полюси. Ако няма, връща ["---"].
+    ''' </summary>
+    Public Function GetUniqueDisconnectorTypes(targetCurrent As String, polesStr As String) As List(Of String)
+        Dim result As New List(Of String)()
+        If String.IsNullOrWhiteSpace(targetCurrent) Then
+            result.Add("---")
+            Return result
+        End If
+        ' 1. Изчистваме тока от "А" (латиница/кирилица) и интервали
+        Dim cleanCurrentStr As String = targetCurrent.ToUpper().Replace("A", "").Replace("А", "").Replace(" ", "")
+        ' 2. Превръщаме в Integer, тъй като в DisconnectorInfo NominalCurrent е Integer
+        Dim currentInt As Integer
+        If Not Integer.TryParse(cleanCurrentStr, currentInt) Then
+            result.Add("---")
+            Return result
+        End If
+        ' 3. Парсваме полюсите
+        Dim targetPoles As Integer = ParsePoles(polesStr)
+        ' 4. Вземаме активната марка от AppSettings
+        Dim activeBrand As String = AppSettings.CurrentManufacturer
+        ' 5. Филтрираме списъка Disconnectors по твоите точни полета: .Brand, .NominalCurrent, .Poles и селектираме .Type
+        result = Disconnectors.Where(Function(d) d.Brand.Equals(activeBrand, StringComparison.OrdinalIgnoreCase) AndAlso
+                                                 d.NominalCurrent = currentInt AndAlso
+                                                 d.Poles = targetPoles) _
+                              .Select(Function(d) d.Type) _
+                              .Distinct() _
+                              .ToList()
+        If result.Count = 0 Then result.Add("---")
+        Return result
+    End Function
+    ''' <summary>
+    ''' Връща уникалните амперажи за избран тип разединител и брой полюси. Ако няма, връща ["---"].
+    ''' </summary>
+    Public Function GetUniqueDisconnectorCurrents(typeName As String, polesStr As String) As List(Of String)
+        If String.IsNullOrWhiteSpace(typeName) Then Return New List(Of String) From {"---"}
+        Dim targetPoles As Integer = ParsePoles(polesStr)
+        Dim activeBrand As String = AppSettings.CurrentManufacturer
+        ' Филтрираме по .Type вместо по .Series
+        Dim result = Disconnectors.Where(Function(d) d.Brand.Equals(activeBrand, StringComparison.OrdinalIgnoreCase) AndAlso
+                                                     d.Type.Equals(typeName, StringComparison.OrdinalIgnoreCase) AndAlso
+                                                     d.Poles = targetPoles) _
+                                  .Select(Function(d) d.NominalCurrent.ToString()) _
+                                  .Distinct() _
+                                  .ToList()
+        If result.Count = 0 Then result.Add("---")
+        Return result
+    End Function
 End Class
 #End Region
 

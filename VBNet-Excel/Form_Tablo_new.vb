@@ -99,7 +99,7 @@ Public Class Form_Tablo_new
     Private _boardStructureManager As BoardStructureManager
     Private _panelBalanceManager As PanelBalanceManager
 
-    Private _dataGridViewManager As DataGridViewManager
+    Private _DataGridViewManager As DataGridViewManager
 
     ' --- ГЛОБАЛНОТО СЪСТОЯНИЕ ЗА МАРКАТА ---
     ' Полето е Shared
@@ -146,8 +146,8 @@ Public Class Form_Tablo_new
 
         _treeViewManager.RefreshTree()
 
-        DataGridViewConfig.InitializeGridStructure(DataGridView1)
-        DataGridViewConfig.SetupDataGridView_Total(DataGridView1)
+        _DataGridViewManager.InitializeGridStructure()
+        _DataGridViewManager.SetupDataGridView_Total()
     End Sub
     ''' <summary>
     ''' Инициализация на компонентите на проекта
@@ -173,7 +173,8 @@ Public Class Form_Tablo_new
         _treeViewManager = New TreeViewManager(TreeView_Табло)
 
 
-        _dataGridViewManager = New DataGridViewManager(_disconnectorCatalog,
+        _DataGridViewManager = New DataGridViewManager(DataGridView1,
+                                                       _disconnectorCatalog,
                                                        _breakerCatalog,
                                                        _cableCatalog,
                                                        _rcdCatalog
@@ -253,7 +254,6 @@ Public Class Form_Tablo_new
         If _breakerCatalog Is Nothing Then Exit Sub
         _breakerCatalog.FilterComboLists(brandName)
     End Sub
-
     ' ============================================================
     ' ОБРАБОТКА НА СЪБИТИЯ ОТ TREEVIEW (DRAG & DROP)
     ' ============================================================
@@ -299,7 +299,7 @@ Public Class Form_Tablo_new
     Private Sub _treeViewManager_NodeLeftClick(ByVal selectedObject As clsTokow) Handles _treeViewManager.NodeLeftClick
         ' Защита: Ако по някаква причина обектът е празен, излизаме безопасно
         If selectedObject Is Nothing Then Exit Sub
-
+        _DataGridViewManager.DisplayBoardStructure(selectedObject)
         ' Разпределяме логиката според това какъв обект е кликнат:
         Select Case selectedObject.Device
             Case "Табло"

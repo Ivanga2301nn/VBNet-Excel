@@ -1063,5 +1063,71 @@ Public Class RCDCatalog
             .FirstOrDefault(Function(r) r.NominalCurrent >= minimumRequiredCurrent)
         Return selectedRcd
     End Function
+    ''' <summary>
+    ''' Определя подходяща диференциална токова защита (RCD/ДЗТ) за даден токов кръг (strTokow).
+    ''' </summary>
+    ''' <param name="tokow">Обект от тип strTokow, представляващ токов кръг или консуматор.</param>
+    ''' <remarks>
+    ''' Функцията избира RCD от каталога RCD_Catalog според следните критерии:
+    ''' 1. Номинален ток >= 1.2 * ток на токовия кръг (минимум 20 A)
+    ''' 2. Брой полюси (2p или 4p) спрямо фазовостта на кръга
+    ''' 3. Дали устройството трябва да бъде RCBO (комбиниран с прекъсвач) или само RCCB
+    '''
+    ''' Стъпки на логиката:
+    ''' - Определя се броят на полюсите според tokow.Брой_Полюси
+    ''' - Изчислява се минималният необходим номинален ток (1.2 пъти токът на кръга или минимум 20 A)
+    ''' - Филтрира се каталога RCD_Catalog по номинален ток, брой полюси и тип устройство (RCBO/RCCB)
+    ''' - Ако няма съвпадение:
+    '''   - Показва се предупреждение с всички търсени параметри и местоположението на токовия кръг (табло, токов кръг)
+    ''' - Ако има съвпадение:
+    '''   - Избира се първият подходящ RCD
+    '''   - Актуализират се параметрите на tokow, включително:
+    '''     Brand, DeviceType, Type, Sensitivity, NominalCurrent, Poles, Нула (N) и RCD_Автомат (Breaker)
+    '''
+    ''' Потенциални забележки:
+    ''' - Ако RCD_Catalog е празен или няма подходящ RCD, се показва съобщение, но функцията не връща грешка програмно.
+    ''' - Използването на First() предполага, че списъкът matchingRCDs е сортиран или е достатъчно добър избор първият елемент.
+    ''' - Полето tokow се модифицира по стойност; ако strTokow е структура (Value Type), може да се наложи връщане на обновения обект или използване на ByRef.
+    ''' - Изчислението на requiredCurrent включва коефициент 1.2; 
+    ''' това е запас за безопасност според стандарти.
+    ''' </remarks>
+    Public Sub SetRCD(tokow As clsTokow)
+        If tokow.ТоковКръг = "ОБЩО" Then Return
+        If tokow.ТоковКръг = "Разединител" Then Return
+        ' Определяне на броя полюси на RCD: 4p за трифазен, 2p за еднофазен
+        Dim poles As String = If(tokow.Брой_Полюси = 3, "4p", "2p")
+        ' Минимален номинален ток: 1.2 * ток на кръга, но не по-малко от 20 A
+        Dim requiredCurrent As Double = If(tokow.Ток * 1.2 < 20, 20, tokow.Ток * 1.2)
+        ' Проверка дали е необходим RCBO (RCD с прекъсвач)
+        Dim needRCBO As Boolean = tokow.RCD_Автомат
+        Dim matchingRCD = SelectRcd(requiredCurrent, poles, needRCBO)
+        ' ----------------------------------------------------
+        ' Ако не е намерена подходяща ДЗТ
+        ' ----------------------------------------------------
+        If matchingRCD Is Nothing Then
+            Dim info As String = $"ВНИМАНИЕ: Не е намерена подходяща ДЗТ!{vbCrLf}{vbCrLf}" &
+                                 $"Търсени параметри:{vbCrLf}" &
+                                 $"- Мин. номинален ток: {requiredCurrent} A{vbCrLf}" &
+                                 $"- Комбинирана (RCBO): {If(needRCBO, "Да", "Не")}{vbCrLf}" &
+                                 $"- Брой полюси: {poles}{vbCrLf}{vbCrLf}" &
+                                 $"Местоположение:{vbCrLf}" &
+                                 $"- Табло: {tokow.Tablo}{vbCrLf}" &
+                                 $"- Токов кръг: {tokow.ТоковКръг}"
+            MsgBox(info, MsgBoxStyle.Exclamation, "Липсваща апаратура в каталога")
+        Else
+            ' ------------------------------------------------
+            ' Актуализиране на параметрите на токовия кръг
+            ' според избраната ДЗТ
+            ' ------------------------------------------------
+            tokow.RCD_Бранд = matchingRCD.Brand
+            tokow.RCD_Тип = matchingRCD.DeviceType
+            tokow.RCD_Клас = matchingRCD.Type
+            tokow.RCD_Чувствителност = matchingRCD.Sensitivity
+            tokow.RCD_Ток = matchingRCD.NominalCurrent
+            tokow.RCD_Полюси = matchingRCD.Poles
+            If String.IsNullOrEmpty(tokow.RCD_Нула) Then tokow.RCD_Нула = "N"
+            tokow.RCD_Автомат = matchingRCD.Breaker
+        End If
+    End Sub
 End Class
 #End Region

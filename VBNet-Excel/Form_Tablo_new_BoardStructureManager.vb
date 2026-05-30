@@ -40,6 +40,7 @@
             End Get
         End Property
     End Class
+
 #Region "Сортиране на списък с токови кръгове (List(Of strTokow))"
     ''' <summary>
     ''' Извършва йерархично сортиране на списъка с токови кръгове (Natural Sort).
@@ -236,6 +237,7 @@
                 Case Is >= 3
                     GroupByThrees(contactCircuits, n, rcdCounter)
             End Select
+            ProcessPanelRCDLogic(panelGroup.ToList())
         Next
     End Sub
     ''' <summary>
@@ -350,6 +352,45 @@
         ' Възстановяване на оригиналните стойности
         lastCircuit.Ток = originalTok
         lastCircuit.Брой_Полюси = originalPoles
+    End Sub
+    ''' <summary>
+    ''' Анализира ДТЗ групите в таблото, изчислява параметрите им 
+    ''' и записва избраната ДТЗ в последния кръг от всяка "N" група.
+    ''' </summary>
+    ''' <param name="panelCircuits">Списък с всички токови кръгове за текущото табло.</param>
+    Private Sub ProcessPanelRCDLogic(panelCircuits As List(Of clsTokow))
+        ' 1. Филтрираме само кръговете, които имат назначена "N" група, 
+        ' и ги групираме по техния N-номер (напр. "N1", "N2"...)
+        Dim rcdGroups = panelCircuits.
+                        Where(Function(t) Not String.IsNullOrEmpty(t.RCD_Нула) AndAlso
+                        t.RCD_Нула.StartsWith("N")).
+                        GroupBy(Function(t) t.RCD_Нула)
+        ' =========================================================================
+        ' ТУК Е ПЕРФЕКТНОТО МЯСТО: Създаваме енджина локално за процедурата
+        ' =========================================================================
+        ' 2. Обхождаме всяка намерена "N" група в таблото
+        For Each group In rcdGroups
+            ' Вземаме списъка с кръгове, които участват в тази конкретна "N" група
+            Dim groupCircuits As List(Of clsTokow) = group.ToList()
+            ' 3. СУМИРАНЕ: Изчисляваме сумарния ток на групата
+            Dim totalCurrent As Double = groupCircuits.Sum(Function(t) t.Ток)
+            ' 4. ПРОВЕРКА ЗА ПОЛЮСИ: Проверяваме дали поне един от кръговете е 3-полюсен
+            Dim hasThreePhase As Boolean = groupCircuits.Any(Function(t) t.Брой_Полюси = 3)
+            ' 5. ВЗЕМАМЕ ПОСЛЕДНИЯ: Намираме последния токов кръг от групата
+            Dim lastCircuit As clsTokow = groupCircuits.Last()
+            ' 6. ЗАПАЗВАНЕ НА ОРИГИНАЛНИТЕ ДАННИ
+            Dim originalTok As Double = lastCircuit.Ток
+            Dim originalPoles As Integer = lastCircuit.Брой_Полюси
+            ' 7. ВРЕМЕННО НАГНАЖДАНЕ НА ПАРАМЕТРИТЕ ЗА СУМАРНАТА ГРУПА
+            lastCircuit.Ток = totalCurrent
+            If hasThreePhase Then lastCircuit.Брой_Полюси = 3
+            _rcdCatalog.SetRCD(lastCircuit)
+            ' 8. ВЪЗСТАНОВЯВАНЕ НА ОРИГИНАЛНИТЕ СТОЙНОСТИ НА КРЪГА
+            ' След като SetRCD е записвала вътре в обекта параметрите на ДТЗ, 
+            ' връщаме оригиналния ток и полюси на самия токов кръг.
+            lastCircuit.Ток = originalTok
+            lastCircuit.Брой_Полюси = originalPoles
+        Next
     End Sub
 #End Region
 

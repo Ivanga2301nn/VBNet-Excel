@@ -134,7 +134,7 @@ Public Class Form_Tablo_new
         Me.Height = 950
         Me.Width = 1600
         ' Извикваме фабриката за класове
-        InitializeProjectComponents()
+        'InitializeProjectComponents()
         ' каталозите вече ще съществуват в паметта и няма да има NullReference!)
         FillManufacturerCombo()
         ' Подаваме списъка за изчисление
@@ -299,6 +299,7 @@ Public Class Form_Tablo_new
         ' Защита: Ако по някаква причина обектът е празен, излизаме безопасно
         If selectedObject Is Nothing Then Exit Sub
         _DataGridViewManager.DisplayBoardStructure(selectedObject)
+        GroupBox2.Text = "Детайли за табло -> " + selectedObject.Tablo
         ' Разпределяме логиката според това какъв обект е кликнат:
         Select Case selectedObject.Device
             Case "Табло"

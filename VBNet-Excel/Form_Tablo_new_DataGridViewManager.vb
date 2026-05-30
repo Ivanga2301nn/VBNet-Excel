@@ -320,8 +320,7 @@ Public Class DataGridViewManager
         ' 2. Логика за автоматично разпознаване на апарата (Главен или Кръг)
         Dim isDisconnector As Boolean = False
         If circuit.Device.ToLower().Contains("табло") OrElse
-       circuit.Device = "Разединител" OrElse
-       String.IsNullOrEmpty(circuit.ТоковКръг) Then
+           circuit.Device = "Разединител" Then
             isDisconnector = True
         End If
         ' 3. Наливане на опциите според параметъра
@@ -389,8 +388,7 @@ Public Class DataGridViewManager
         ' 1. Определяме името и заглавието на колоната спрямо обекта
         Dim columnName As String = ""
         Dim columnHeader As String = ""
-        ' Ако свойството "ТоковКръг" е празно или нищо, значи това е главното табло (ОБЩО)
-        If String.IsNullOrEmpty(circuit.ТоковКръг) Then
+        If circuit.Device = "Табло" Then
             columnName = "colTotal"
             columnHeader = "ОБЩО"
         Else
@@ -403,8 +401,15 @@ Public Class DataGridViewManager
         With newCol
             .Name = columnName
             .HeaderText = columnHeader
-            .CellTemplate = New DataGridViewTextBoxCell() ' Базово раждане като TextBox
-            .Width = 90
+            .CellTemplate = New DataGridViewTextBoxCell()
+            .DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter
+            If columnName = "colTotal" Then
+                .Width = 135
+                .DefaultCellStyle.Font = New Font("Segoe UI", 11, FontStyle.Bold)
+            Else
+                .Width = 110
+                .DefaultCellStyle.Font = New Font("Segoe UI", 11, FontStyle.Regular)
+            End If
             .SortMode = DataGridViewColumnSortMode.NotSortable
         End With
         Dim colIndex As Integer = _dgv.Columns.Add(newCol)
@@ -417,51 +422,40 @@ Public Class DataGridViewManager
     End Sub
     Public Sub SetupDataGridView_ColumnStructure(ByVal colIndex As Integer)
         If colIndex < 0 OrElse colIndex >= _dgv.Columns.Count Then Exit Sub
+        ' ВЗЕМАНЕ НА ИМЕТО НА КОЛОНАТА:
+        Dim ColumnName As String = _dgv.Columns(colIndex).Name
+        Dim isDisconnector As Boolean = False
         For i As Integer = 0 To _dgv.Rows.Count - 1
             Dim dgvRow As DataGridViewRow = _dgv.Rows(i)
             If i >= rowTemplate.Count Then Continue For
             Dim data As Object() = rowTemplate(i)
             Dim parameterName As String = data(0).ToString()
             Dim cellType As String = data(2).ToString()
-            ' 1. СЪЗДАВАНЕ НА ПРАВИЛНАТА КЛЕТКА
             Dim specialCell As DataGridViewCell = Nothing
             Select Case cellType
                 Case "Combo"
                     Dim comboCell As New DataGridViewComboBoxCell()
-                    ' Показва стрелката винаги, за да личи че е падащо меню
-                    comboCell.DisplayStyle = DataGridViewComboBoxDisplayStyle.ComboBox
-                    ' === ТОВА ПРЕМАХВА СИВИТЕ БОРДЕРИ И РАМКИ НА БУТОНА ===
+                    ' МОДЕРЕН И КРАСИВ ДИЗАЙН:
                     comboCell.FlatStyle = FlatStyle.Flat
-                    ' Настройваме стрелката и бордера да се държат като модерна уеб форма:
-                    ' Бордерът ще е тънък и сив, а стрелката ще се появява дискретно при посочване/редакция
-                    comboCell.DisplayStyle = DataGridViewComboBoxDisplayStyle.ComboBox
+                    ' Стрелката се появява ЕЛЕГАНТНО само при посочване с мишката (MouseOver)
+                    comboCell.DisplayStyle = DataGridViewComboBoxDisplayStyle.DropDownButton
+                    ' ЦЕНТРИРАНЕ НА ТЕКСТА В КОМБОТО
                     specialCell = comboCell
                 Case "Check"
                     specialCell = New DataGridViewCheckBoxCell()
-                    specialCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter
                     specialCell.Value = False
                 Case Else
                     specialCell = New DataGridViewTextBoxCell()
-                    specialCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter
+                    ' ЦЕНТРИРАНЕ НА ТЕКСТА ЗА ВСИЧКИ ОСТАНАЛИ КЛЕТКИ
             End Select
-            ' Записваме новата клетка в колоната
+            ' Записваме клетката
             dgvRow.Cells(colIndex) = specialCell
-            ' 2. ВИЗУАЛНО ФОРМАТИРАНЕ НА НОВАТА КЛЕТКА
-            Select Case parameterName
-                Case "---------"
-                    specialCell.Style.BackColor = Color.FromArgb(220, 220, 220)
-                    specialCell.ReadOnly = True
-                    specialCell.Value = "" ' Чистим чертичките в клетките с данни
-                Case "Прекъсвач", "ДТЗ (RCD)", "Кабел", "Фаза"
-                    '' Боядисваме клетката в заглавния син цвят
-                    'specialCell.Style.BackColor = Color.FromArgb(180, 200, 255)
-                    'specialCell.Style.Font = New Font("Arial", 10, FontStyle.Bold)
-                    specialCell.ReadOnly = True
-                Case Else
-                    ' Специфичен цвят за колона ОБЩО, ако редът не е заглавен
-                    If _dgv.Columns(colIndex).Name = "colTotal" Then
-                    End If
-            End Select
+            ' Визуално форматиране за разделителите
+            If parameterName = "---------" Then
+                specialCell.Style.BackColor = Color.FromArgb(220, 220, 220)
+                specialCell.ReadOnly = True
+                specialCell.Value = ""
+            End If
         Next
     End Sub
     ''' <summary>

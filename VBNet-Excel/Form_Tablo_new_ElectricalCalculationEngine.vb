@@ -200,8 +200,7 @@ Public Class ElectricalCalculationEngine
             ' 3) Изчисляване на номиналния ток на кръга (Inom)
             '    Подаваме мощността, полюсите (вече като Integer) и дали е мотор
             ' --------------------------------------------------------
-            Dim isMotor As Boolean = (tokow.Device = "Мotor" OrElse tokow.Device = "Motor")
-            tokow.Ток = calc_Inom(tokow.Мощност, tokow.Брой_Полюси, isMotor)
+            tokow.Ток = calc_Inom(tokow.Мощност, tokow.Брой_Полюси, tokow.Device = "Motor")
             ' --------------------------------------------------------
             ' 4) Автоматичен избор на прекъсвач от базата данни (Excel)
             ' --------------------------------------------------------
@@ -218,7 +217,7 @@ Public Class ElectricalCalculationEngine
             ' 5) Избор на сечение на кабела според тока и полюсите
             ' ----------------------------------------------------
             _cableCatalog.CalculateCable(tokow)
-            SetRCD(tokow)
+            If tokow.ДТЗ_RCD Then SetRCD(tokow)
         Next
     End Sub
     ''' <summary>

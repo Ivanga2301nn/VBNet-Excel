@@ -177,10 +177,13 @@ Partial Class Form_Tablo_new
         '
         'TscboManufacturer
         '
+        Me.TscboManufacturer.DropDownWidth = 121
+        Me.TscboManufacturer.FlatStyle = System.Windows.Forms.FlatStyle.Standard
+        Me.TscboManufacturer.Font = New System.Drawing.Font("Segoe UI", 9.75!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
+        Me.TscboManufacturer.IntegralHeight = False
         Me.TscboManufacturer.Items.AddRange(New Object() {"Schneider Electric", "Schrack Technik"})
         Me.TscboManufacturer.Name = "TscboManufacturer"
         Me.TscboManufacturer.Size = New System.Drawing.Size(121, 25)
-        Me.TscboManufacturer.Text = "Schneider Electric"
         Me.TscboManufacturer.ToolTipText = "Кой ще плаща сметката?" & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10) & "Избери производителя на оборудването."
         '
         'ToolStripSeparator4
@@ -257,13 +260,13 @@ Partial Class Form_Tablo_new
         '
         Me.GroupBox2.Controls.Add(Me.DataGridView1)
         Me.GroupBox2.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.GroupBox2.Font = New System.Drawing.Font("Microsoft Sans Serif", 12.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
+        Me.GroupBox2.Font = New System.Drawing.Font("Microsoft Sans Serif", 12.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.GroupBox2.Location = New System.Drawing.Point(0, 0)
         Me.GroupBox2.Name = "GroupBox2"
         Me.GroupBox2.Size = New System.Drawing.Size(1169, 830)
         Me.GroupBox2.TabIndex = 1
         Me.GroupBox2.TabStop = False
-        Me.GroupBox2.Text = "Детайли за таблото"
+        Me.GroupBox2.Text = "Детайли за табло"
         '
         'DataGridView1
         '

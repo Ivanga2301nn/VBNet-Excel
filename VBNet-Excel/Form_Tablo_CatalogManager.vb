@@ -801,6 +801,7 @@ Public Class DisconnectorCatalog
     ''' Процедура за автоматично запълване на каталога чрез серии
     ''' </summary>
     Private Sub LoadCatalog()
+        Disconnectors.Clear()
         ' Schneider iSW (1, 2, 3, 4 полюса, от 20 до 125А)
         AddDisconnectorSeries("Schneider", "iSW", {20, 32, 40, 63, 100, 125}, {1, 2, 3, 4})
         ' Schneider INS (3 и 4 полюса, от 100 до 1600А)
@@ -812,7 +813,6 @@ Public Class DisconnectorCatalog
     ''' Помощен метод за добавяне на цяла серия разединители по твоя модел.
     ''' </summary>
     Private Sub AddDisconnectorSeries(brand As String, type As String, currents As Integer(), poles As Integer())
-        Disconnectors.Clear()
         For Each p As Integer In poles
             For Each current As Integer In currents
                 Dim discon As New DisconnectorInfo With {
@@ -868,7 +868,7 @@ Public Class DisconnectorCatalog
         ' 4️⃣ ПРОВЕРКА И ЗАПИС
         If suitable IsNot Nothing Then
             tokow.Breaker_Номинален_Ток = suitable.NominalCurrent
-            tokow.Breaker_Тип_Апарат = suitable.Brand & " " & suitable.Type
+            tokow.Breaker_Тип_Апарат = suitable.Type
             tokow.Breaker_Крива = "-"
         Else
             ' Съобщение за грешка с конкретно търсената марка

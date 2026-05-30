@@ -10,7 +10,6 @@ Public Class DataGridViewManager
     ' --- Специфични списъци за зареждане на ComboBox клетките в таблицата ---
     ' Вътрешен списък с опции за ComboBox-а на ред "Управление"
     Private ReadOnly _ComboItems_control As String() = {
-                     "Няма",
                      "Фото реле",
                      "Стълбищен автомат",
                      "Импулсно реле",
@@ -39,7 +38,6 @@ Public Class DataGridViewManager
 
     ' Пазим референция към контролата, за да може целият клас да си я знае
     Private ReadOnly _dgv As DataGridView
-
     ''' <summary>
     ''' Конструктор на мениджъра за DataGridView.
     ''' </summary>
@@ -66,45 +64,45 @@ Public Class DataGridViewManager
         _ComboItems_disconType = disconnectorCat.GetUniqueDisconnectorTypes("63А", "1p")       ' Взима уникалните типове разединители от каталога 
         _ComboItems_disconIn = disconnectorCat.GetUniqueDisconnectorCurrents("iSW", "1p")      ' Взима уникалните амперажи за разединители от каталога
     End Sub
-    Public ReadOnly Property rowTemplate As List(Of String())
+    Public ReadOnly Property rowTemplate As List(Of Object())
         Get
-            Return New List(Of String()) From {
-                New String() {"Прекъсвач", "", "Text"},
-                New String() {"Изчислен ток", "A", "Text"},
-                New String() {"Тип на апарата", "", "Combo"},
-                New String() {"Номинален ток", "A", "Combo"},
-                New String() {"Изкл. възможн.", "kA", "Text"},
-                New String() {"Крива", "", "Combo"},
-                New String() {"Защитен блок", "", "Combo"},
-                New String() {"Брой полюси", "бр.", "Text"},
-                New String() {"ДТЗ (RCD)", "", "Text"},
-                New String() {"ДТЗ Нула", "", "Text"},
-                New String() {"Вид на апарата", "", "Text"},
-                New String() {"Клас на апарата", "", "Text"},
-                New String() {"ДТЗ(RCD) Ном. ток", "A", "Text"},
-                New String() {"Чувствителност", "mA", "Text"},
-                New String() {"ДТЗ(RCD) полюси", "бр.", "Text"},
-                New String() {"---------", "", "Text"},
-                New String() {"Брой лампи", "бр.", "Text"},
-                New String() {"Брой контакти", "бр.", "Text"},
-                New String() {"Инст. мощност", "kW", "Text"},
-                New String() {"---------", "", "Text"},
-                New String() {"Кабел", "", "Text"},
-                New String() {"Начин на монтаж", "--", "Combo"},
-                New String() {"Начин на полагане", "--", "Combo"},
-                New String() {"Паралелни кабели (фаза): ", "бр.", "Text"},
-                New String() {"Съседни кабели (група):", "бр.", "Text"},
-                New String() {"Тип кабел", "---", "Combo"},
-                New String() {"Сечение", "mm²", "Text"},
-                New String() {"---------", "", "Text"},
-                New String() {"Фаза", "", "Text"},
-                New String() {"Консуматор", "---", "Text"},
-                New String() {"предназначение", "---", "Text"},
-                New String() {"Управление", "---", "Combo"},
-                New String() {"---------", "", "Text"},
-                New String() {"Шина", "---", "Check"},
-                New String() {"Постави ДТЗ (RCD)", "---", "Check"}
-            }
+            Return New List(Of Object()) From {
+            New Object() {"Прекъсвач", "", "Text", Function(c As clsTokow) c.Breaker_Тип_Апарат},
+            New Object() {"Изчислен ток", "A", "Text", Function(c As clsTokow) c.Ток.ToString("F2")},
+            New Object() {"Тип на апарата", "", "Combo", Function(c As clsTokow) c.Breaker_Тип_Апарат},
+            New Object() {"Номинален ток", "A", "Combo", Function(c As clsTokow) c.Breaker_Номинален_Ток},
+            New Object() {"Изкл. възможн.", "kA", "Text", Function(c As clsTokow) c.Breaker_Изкл_Възможност},
+            New Object() {"Крива", "", "Combo", Function(c As clsTokow) c.Breaker_Крива},
+            New Object() {"Защитен блок", "", "Combo", Function(c As clsTokow) c.Breaker_Защитен_блок},
+            New Object() {"Брой полюси", "бр.", "Text", Function(c As clsTokow) c.Брой_Полюси.ToString() & "p"},
+            New Object() {"ДТЗ (RCD)", "", "Text", Function(c As clsTokow) c.RCD_Тип},
+            New Object() {"ДТЗ Нула", "", "Text", Function(c As clsTokow) c.RCD_Нула},
+            New Object() {"Вид на апарата", "", "Text", Function(c As clsTokow) c.RCD_Бранд},
+            New Object() {"Клас на апарата", "", "Text", Function(c As clsTokow) c.RCD_Клас},
+            New Object() {"ДТЗ(RCD) Ном. ток", "A", "Text", Function(c As clsTokow) c.RCD_Ток},
+            New Object() {"Чувствителност", "mA", "Text", Function(c As clsTokow) c.RCD_Чувствителност},
+            New Object() {"ДТЗ(RCD) полюси", "бр.", "Text", Function(c As clsTokow) c.RCD_Полюси},
+            New Object() {"---------", "", "Text", Function(c As clsTokow) ""},
+            New Object() {"Брой лампи", "бр.", "Text", Function(c As clsTokow) c.brLamp.ToString()},
+            New Object() {"Брой контакти", "бр.", "Text", Function(c As clsTokow) c.brKontakt.ToString()},
+            New Object() {"Инст. мощност", "kW", "Text", Function(c As clsTokow) c.Мощност.ToString("F2")},
+            New Object() {"---------", "", "Text", Function(c As clsTokow) ""},
+            New Object() {"Кабел", "", "Text", Function(c As clsTokow) c.Кабел_Тип},
+            New Object() {"Начин на монтаж", "--", "Combo", Function(c As clsTokow) c.Кабел_Монтаж},
+            New Object() {"Начин на полагане", "--", "Combo", Function(c As clsTokow) c.Кабел_Полагане},
+            New Object() {"Паралелни кабели (фаза): ", "бр.", "Text", Function(c As clsTokow) c.Кабел_Брой_Фаза},
+            New Object() {"Съседни кабели (група):", "бр.", "Text", Function(c As clsTokow) c.Кабел_Брой_Група},
+            New Object() {"Тип кабел", "---", "Combo", Function(c As clsTokow) c.Кабел_Тип},
+            New Object() {"Сечение", "mm²", "Text", Function(c As clsTokow) c.Кабел_Сечение},
+            New Object() {"---------", "", "Text", Function(c As clsTokow) ""},
+            New Object() {"Фаза", "", "Text", Function(c As clsTokow) c.Фаза},
+            New Object() {"Консуматор", "---", "Text", Function(c As clsTokow) c.Консуматор},
+            New Object() {"предназначение", "---", "Text", Function(c As clsTokow) c.предназначение},
+            New Object() {"Управление", "---", "Combo", Function(c As clsTokow) c.Управление},
+            New Object() {"---------", "", "Text", Function(c As clsTokow) ""},
+            New Object() {"Шина", "---", "Check", Function(c As clsTokow) c.Шина},
+            New Object() {"Постави ДТЗ (RCD)", "---", "Check", Function(c As clsTokow) c.ДТЗ_RCD}
+        }
         End Get
     End Property
     ''' <summary>
@@ -157,7 +155,7 @@ Public Class DataGridViewManager
         ' =====================================================
         ' 4. РЕДОВЕ: попълване от rowData шаблона
         ' =====================================================
-        For Each row As String() In rowTemplate
+        For Each row As Object() In rowTemplate
             Dim dgvRow As New DataGridViewRow()
             dgvRow.CreateCells(_dgv)
             ' Параметър
@@ -236,9 +234,9 @@ Public Class DataGridViewManager
             ' Защита от несъответствие между визуалните редове и източника на данни
             If i >= rowTemplate.Count Then Continue For
             ' Взима съответния ред от източника на данни
-            Dim data As String() = rowTemplate(i)
+            Dim data As Object() = rowTemplate(i)
             ' Тип на реда (определя какви клетки ще се създадат)
-            Dim cellType As String = data(2)
+            Dim cellType As String = data(2).ToString()
             ' Обхождане на целевите колони (Total / Disconnector)
             For Each colIndex In targetColumns
                 Dim specialCell As DataGridViewCell = Nothing
@@ -279,52 +277,6 @@ Public Class DataGridViewManager
             End Select
         Next
     End Sub
-    Private Sub SetupComboBoxCell(ByVal cell As DataGridViewCell, ByVal parameterName As String, ByVal isDisconnector As Boolean)
-        ' Безопасно преобразуване - ако клетката не е ComboBox, методът просто ще излезе без грешка
-        Dim comboCell = TryCast(cell, DataGridViewComboBoxCell)
-        If comboCell Is Nothing Then Exit Sub
-        comboCell.Items.Clear()
-        ' Пълним клетката със съответния нов именуван списък, който вече имаме в класа
-        Select Case parameterName
-            Case "Тип на апарата"
-                If isDisconnector Then
-                    ' Тук ще викаме списъка от разединителите
-                Else
-                    comboCell.Items.AddRange(_ComboItems_breakerType.ToArray())
-                End If
-            Case "Номинален ток"
-                If isDisconnector Then
-                    ' Списък от разединители
-                Else
-                    comboCell.Items.AddRange(_ComboItems_breakerIn.ToArray())
-                End If
-            Case "Крива"
-                If isDisconnector Then
-                    comboCell.Items.Add("-")
-                Else
-                    comboCell.Items.AddRange(_ComboItems_breakerCurve.ToArray())
-                End If
-            Case "Управление"
-                If isDisconnector Then
-                    comboCell.Items.Add("Няма")
-                Else
-                    ' Ползваме нашето ново име!
-                    comboCell.Items.AddRange(_ComboItems_control)
-                End If
-            Case "Тип кабел"
-                comboCell.Items.AddRange(_ComboItems_cableType.ToArray())
-            Case "Начин на монтаж"
-                comboCell.Items.AddRange(_ComboItems_cableInstallation.ToArray())
-            Case "Начин на полагане"
-                comboCell.Items.AddRange(_ComboItems_cableEnvironment.ToArray())
-        End Select
-        ' Задаваме начална стойност по подразбиране
-        If comboCell.Items.Count > 0 Then
-            comboCell.Value = comboCell.Items(0)
-        End If
-        ' Задаваме визуално клетката да изглежда като истински ComboBox през цялото време
-        comboCell.DisplayStyle = DataGridViewComboBoxDisplayStyle.ComboBox
-    End Sub
     ''' <summary>
     ''' Основна процедура за визуализиране на цялостната структура на избраното табло.
     ''' Извиква се при клик в TreeViewManager.
@@ -336,5 +288,110 @@ Public Class DataGridViewManager
         ' За момента я оставяме празна, за да тестваме само извикването и предаването на обекта.
         ' Когато му дойде времето, тук ще напишем логиката, която взема таблото, 
         ' намира кръговете му и чертае колоните (включително "ОБЩО" / Главния разединител).
+        ' 2. Накрая викаш новата функция, за да изсипе данните в "ОБЩО"
+        FillTotalColumnWithData(selectedObject)
+    End Sub
+    ''' <summary>
+    ''' Обхожда редовете на таблицата и попълва колона "ОБЩО" с реалните стойности от обекта, 
+    ''' изпълнявайки ламбда функциите, записани директно в rowTemplate.
+    ''' </summary>
+    Public Sub FillTotalColumnWithData(ByVal circuit As clsTokow)
+        ' 1. Намираме индекса на колоната "ОБЩО" по име, за да сме сигурни къде пишем
+        Dim totalColIndex As Integer = -1
+        If _dgv.Columns.Contains("colTotal") Then
+            totalColIndex = _dgv.Columns("colTotal").Index
+        Else
+            Exit Sub ' Ако колоната я няма, спираме, за да не гръмне кода
+        End If
+        ' Защита: Ако не ни е подаден обект, няма какво да наливаме
+        If circuit Is Nothing Then Exit Sub
+        ' 2. Въртим цикъл по всички редове на грида
+        For rowIndex As Integer = 0 To _dgv.Rows.Count - 1
+            ' Защита: да не излезем извън границите на шаблона
+            If rowIndex >= rowTemplate.Count Then Continue For
+            Dim rowData As Object() = rowTemplate(rowIndex)
+            Dim cellType As String = rowData(2).ToString()
+            Dim targetCell As DataGridViewCell = _dgv.Rows(rowIndex).Cells(totalColIndex)
+            Dim parameterName As String = rowData(0).ToString()
+            ' 3. МАГИЯТА: Вземаме ламбда функцията от индекс 3 и я изпълняваме, подавайки circuit
+            ' 1. Кастваме към базовия Delegate клас в .NET
+            Dim resolver As [Delegate] = DirectCast(rowData(3), [Delegate])
+            ' 2. Изпълняваме я динамично, като подаваме circuit в масив от обекти
+            Dim rawValue As Object = resolver.DynamicInvoke(circuit)
+            ' 4. Записваме стойността в клетката съобразно нейния тип
+            If cellType = "Combo" Then
+                Dim comboCell = DirectCast(targetCell, DataGridViewComboBoxCell)
+                ' ЕТО ГО СЪКРАЩЕНИЕТО: Викаме новата процедура да напълни списъка
+                PopulateComboBoxItems(comboCell, parameterName, circuit)
+                Dim valStr As String = If(rawValue IsNot Nothing, rawValue.ToString(), "")
+                ' Проверяваме дали стойността от обекта съществува в списъка на ComboBox-а
+                If comboCell.Items.Contains(valStr) Then
+                    comboCell.Value = valStr
+                ElseIf comboCell.Items.Count > 0 Then
+                    comboCell.Value = comboCell.Items(0) ' Падащ вариант по подразбиране (напр. "---")
+                End If
+            Else
+                ' За стандартен TextBox (String) или CheckBox (Boolean) - директно наливаме обекта
+                targetCell.Value = rawValue
+            End If
+        Next
+    End Sub
+    ''' <summary>
+    ''' Пълни Items на конкретна ComboBox клетка с филтрирани данни от каталозите според текущия токов кръг.
+    ''' Автоматично превключва между каталог за Разединители (за главното) и Прекъсвачи (за токови кръгове).
+    ''' </summary>
+    Private Sub PopulateComboBoxItems(ByVal comboCell As DataGridViewComboBoxCell,
+                                  ByVal parameterName As String,
+                                  ByVal circuit As clsTokow)
+        comboCell.Items.Clear()
+        comboCell.Items.Add("---") ' Опция по подразбиране
+
+        Dim currentPoles As String = circuit.Брой_Полюси.ToString() & "p"
+        Dim currentBreakerType As String = circuit.Breaker_Тип_Апарат
+        Dim currentIn As String = circuit.Breaker_Номинален_Ток
+
+        ' ЛОГИКА ЗА АВТОМАТИЧНО РАЗПОЗНАВАНЕ:
+        ' Ако името на токовия кръг съдържа "главен", "ввод" или устройството е дефинирано като главно -> ползваме Разединител
+        ' 1. Първо си дефинираш променливата
+        Dim isDisconnector As Boolean = False
+
+        ' 2. Правиш правилната проверка
+        If circuit.Device IsNot Nothing AndAlso
+           (circuit.Device.ToLower().Contains("табло") _
+           OrElse circuit.Device = "Разединител") Then
+            isDisconnector = True
+        End If
+        Select Case parameterName
+            Case "Тип на апарата"
+                If isDisconnector Then
+                    comboCell.Items.AddRange(_disconnectorCatalog.GetUniqueDisconnectorTypes(currentIn, currentPoles).ToArray())
+                Else
+                    comboCell.Items.AddRange(_breakerCatalog.GetUniqueBreakerTypes(currentIn, currentPoles).ToArray())
+                End If
+            Case "Номинален ток"
+                If isDisconnector Then
+                    comboCell.Items.AddRange(_disconnectorCatalog.GetUniqueDisconnectorCurrents(currentBreakerType, currentPoles).ToArray())
+                Else
+                    comboCell.Items.AddRange(_breakerCatalog.GetUniqueBreakerCurrents(currentBreakerType, currentPoles).ToArray())
+                End If
+            Case "Крива"
+                ' Разединителите нямат крива на изключване, зареждаме само за прекъсвачи
+                If Not isDisconnector Then
+                    comboCell.Items.AddRange(_breakerCatalog.GetUniqueBreakerCurves(currentBreakerType, currentPoles).ToArray())
+                End If
+            Case "Защитен блок"
+                ' Разединителите нямат защитен блок, зареждаме само за прекъсвачи
+                If Not isDisconnector Then
+                    comboCell.Items.AddRange(_breakerCatalog.GetUniqueBreakerUnits(currentBreakerType, currentPoles).ToArray())
+                End If
+            Case "Тип кабел"
+                comboCell.Items.AddRange(_ComboItems_cableType.ToArray())
+            Case "Начин на монтаж"
+                comboCell.Items.AddRange(_ComboItems_cableInstallation.ToArray())
+            Case "Начин на полагане"
+                comboCell.Items.AddRange(_ComboItems_cableEnvironment.ToArray())
+            Case "Управление"
+                comboCell.Items.AddRange(_ComboItems_control.ToArray())
+        End Select
     End Sub
 End Class

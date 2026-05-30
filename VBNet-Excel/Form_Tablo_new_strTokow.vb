@@ -78,6 +78,20 @@ Public Class clsTokow
     Public Function Clone() As clsTokow
         Return DirectCast(Me.MemberwiseClone(), clsTokow)
     End Function
+    ''' <summary>
+    ''' Намира и връща всички токови кръгове от глобалния списък, 
+    ''' които принадлежат на ТОВА табло.
+    ''' </summary>
+    Public Function GetMyCircuits() As List(Of clsTokow)
+        ' Защита: Ако текущият обект НЕ Е табло, няма смисъл да търсим кръгове за него
+        If Me.Device <> "Табло" Then Return New List(Of clsTokow)()
+        ' Използваме Me, за да вземем данните на текущото табло
+        Return AppSettings.ListTokow.Where(Function(krug)
+                                               Return krug.BuildingName = Me.BuildingName AndAlso
+                                                     krug.Tablo = Me.Tablo AndAlso
+                                                     krug.Device <> "Табло"
+                                           End Function).ToList()
+    End Function
 End Class
 ''' <summary>
 ''' Клас strKonsumator.

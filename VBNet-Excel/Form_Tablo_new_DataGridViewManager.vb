@@ -75,9 +75,9 @@ Public Class DataGridViewManager
             New Object() {"Крива", "", "Combo", Function(c As clsTokow) c.Breaker_Крива},
             New Object() {"Защитен блок", "", "Combo", Function(c As clsTokow) c.Breaker_Защитен_блок},
             New Object() {"Брой полюси", "бр.", "Text", Function(c As clsTokow) c.Брой_Полюси.ToString() & "p"},
-            New Object() {"ДТЗ (RCD)", "", "Text", Function(c As clsTokow) c.RCD_Тип},
+            New Object() {"ДТЗ (RCD)", "", "Text", Function(c As clsTokow) ""},
             New Object() {"ДТЗ Нула", "", "Text", Function(c As clsTokow) c.RCD_Нула},
-            New Object() {"Вид на апарата", "", "Text", Function(c As clsTokow) c.RCD_Бранд},
+            New Object() {"Вид на апарата", "", "Text", Function(c As clsTokow) c.RCD_Тип},
             New Object() {"Клас на апарата", "", "Text", Function(c As clsTokow) c.RCD_Клас},
             New Object() {"ДТЗ(RCD) Ном. ток", "A", "Text", Function(c As clsTokow) c.RCD_Ток},
             New Object() {"Чувствителност", "mA", "Text", Function(c As clsTokow) c.RCD_Чувствителност},
@@ -87,7 +87,7 @@ Public Class DataGridViewManager
             New Object() {"Брой контакти", "бр.", "Text", Function(c As clsTokow) c.brKontakt.ToString()},
             New Object() {"Инст. мощност", "kW", "Text", Function(c As clsTokow) c.Мощност.ToString("F2")},
             New Object() {"---------", "", "Text", Function(c As clsTokow) ""},
-            New Object() {"Кабел", "", "Text", Function(c As clsTokow) c.Кабел_Тип},
+            New Object() {"Кабел", "", "Text", Function(c As clsTokow) ""},
             New Object() {"Начин на монтаж", "--", "Combo", Function(c As clsTokow) c.Кабел_Монтаж},
             New Object() {"Начин на полагане", "--", "Combo", Function(c As clsTokow) c.Кабел_Полагане},
             New Object() {"Паралелни кабели (фаза): ", "бр.", "Text", Function(c As clsTokow) c.Кабел_Брой_Фаза},
@@ -208,159 +208,50 @@ Public Class DataGridViewManager
         _dgv.BorderStyle = BorderStyle.Fixed3D                             ' Прави рамката на цялата таблица да изглежда обемна (3D)
         _dgv.CellBorderStyle = DataGridViewCellBorderStyle.Single          ' Задава единична тънка линия за граница между отделните клетки
     End Sub
-    ''' <summary>
-    ''' Конфигурира и попълва специалните колони в DataGridView1 за обобщен изглед.
-    ''' Логиката:
-    ''' 1. Определя кои колони (colTotal, colDiscon) съществуват в грида
-    ''' 2. Обхожда всички редове и ги синхронизира с данните от rowData
-    ''' 3. За всяка целева колона създава подходящ тип клетка (ComboBox, CheckBox или TextBox)
-    ''' 4. Попълва ComboBox клетки според контекста на реда
-    ''' 5. Прилага форматиране (цветове и стилове) според типа ред
-    ''' </summary>
-    Public Sub SetupDataGridView_Total()
-        ' Списък с индекси на целевите колони, които ще се обработват
-        Dim targetColumns As New List(Of Integer)
-        ' Имена на колоните, които търсим в DataGridView
-        Dim colNames() As String = {"colTotal", "colDiscon"}
-        ' Проверка дали колоните съществуват в грида и взимане на индексите им
-        For Each colName In colNames
-            If _dgv.Columns.Contains(colName) Then
-                targetColumns.Add(_dgv.Columns(colName).Index)
-            End If
-        Next
-        ' Обхождане на всички редове в DataGridView
-        For i As Integer = 0 To _dgv.Rows.Count - 1
-            Dim dgvRow As DataGridViewRow = _dgv.Rows(i)
-            ' Защита от несъответствие между визуалните редове и източника на данни
-            If i >= rowTemplate.Count Then Continue For
-            ' Взима съответния ред от източника на данни
-            Dim data As Object() = rowTemplate(i)
-            ' Тип на реда (определя какви клетки ще се създадат)
-            Dim cellType As String = data(2).ToString()
-            ' Обхождане на целевите колони (Total / Disconnector)
-            For Each colIndex In targetColumns
-                Dim specialCell As DataGridViewCell = Nothing
-                ' Определяне на типа клетка според cellType
-                Select Case cellType
-                    Case "Combo"
-                        ' Клетка тип ComboBox
-                        Dim comboCell As New DataGridViewComboBoxCell()
-                        specialCell = comboCell
-                    Case "Check"
-                        ' Клетка тип Checkbox
-                        specialCell = New DataGridViewCheckBoxCell()
-                        ' Центриране на съдържанието
-                        specialCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter
-                        ' Задаване на начална стойност
-                        specialCell.Value = False
-                    Case Else
-                        ' Default: текстова клетка
-                        specialCell = New DataGridViewTextBoxCell()
-                        specialCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter
-                End Select
-                ' Подмяна на клетката в конкретния ред и колона
-                dgvRow.Cells(colIndex) = specialCell
-            Next
-            ' Вземане на стойността от първата колона (за определяне на стил на реда)
-            Dim firstVal As String = If(dgvRow.Cells(0).Value IsNot Nothing,
-                                    dgvRow.Cells(0).Value.ToString(),
-                                    "")
-            ' Форматиране на целия ред според типа съдържание
-            Select Case firstVal
-                Case "---------"
-                    ' Сив разделителен ред
-                    dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(220, 220, 220)
-                Case "Прекъсвач", "ДТЗ (RCD)", "Кабел"
-                    ' Акцентни редове за основни компоненти
-                    dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(180, 200, 255)
-                    dgvRow.DefaultCellStyle.Font = New Font("Arial", 10, FontStyle.Bold)
-            End Select
-        Next
-    End Sub
-    ''' <summary>
-    ''' Основна процедура за визуализиране на цялостната структура на избраното табло.
-    ''' Извиква се при клик в TreeViewManager.
-    ''' </summary>
-    ''' <param name="dgv">Контролата DataGridView, която ще се управлява.</param>
-    ''' <param name="selectedObject">Обектът от тип clsTokow, изпратен от TreeView.</param>
     Public Sub DisplayBoardStructure(ByVal selectedObject As clsTokow)
-        ' --- ЗА ТЕСТВАНЕ НА ВРЪЗКАТА ---
-        ' За момента я оставяме празна, за да тестваме само извикването и предаването на обекта.
-        ' Когато му дойде времето, тук ще напишем логиката, която взема таблото, 
-        ' намира кръговете му и чертае колоните (включително "ОБЩО" / Главния разединител).
-        ' 2. Накрая викаш новата функция, за да изсипе данните в "ОБЩО"
-        FillTotalColumnWithData(selectedObject)
-    End Sub
-    ''' <summary>
-    ''' Обхожда редовете на таблицата и попълва колона "ОБЩО" с реалните стойности от обекта, 
-    ''' изпълнявайки ламбда функциите, записани директно в rowTemplate.
-    ''' </summary>
-    Public Sub FillTotalColumnWithData(ByVal circuit As clsTokow)
-        ' 1. Намираме индекса на колоната "ОБЩО" по име, за да сме сигурни къде пишем
-        Dim totalColIndex As Integer = -1
-        If _dgv.Columns.Contains("colTotal") Then
-            totalColIndex = _dgv.Columns("colTotal").Index
-        Else
-            Exit Sub ' Ако колоната я няма, спираме, за да не гръмне кода
-        End If
-        ' Защита: Ако не ни е подаден обект, няма какво да наливаме
-        If circuit Is Nothing Then Exit Sub
-        ' 2. Въртим цикъл по всички редове на грида
-        For rowIndex As Integer = 0 To _dgv.Rows.Count - 1
-            ' Защита: да не излезем извън границите на шаблона
-            If rowIndex >= rowTemplate.Count Then Continue For
-            Dim rowData As Object() = rowTemplate(rowIndex)
-            Dim cellType As String = rowData(2).ToString()
-            Dim targetCell As DataGridViewCell = _dgv.Rows(rowIndex).Cells(totalColIndex)
-            Dim parameterName As String = rowData(0).ToString()
-            ' 3. МАГИЯТА: Вземаме ламбда функцията от индекс 3 и я изпълняваме, подавайки circuit
-            ' 1. Кастваме към базовия Delegate клас в .NET
-            Dim resolver As [Delegate] = DirectCast(rowData(3), [Delegate])
-            ' 2. Изпълняваме я динамично, като подаваме circuit в масив от обекти
-            Dim rawValue As Object = resolver.DynamicInvoke(circuit)
-            ' 4. Записваме стойността в клетката съобразно нейния тип
-            If cellType = "Combo" Then
-                Dim comboCell = DirectCast(targetCell, DataGridViewComboBoxCell)
-                ' ЕТО ГО СЪКРАЩЕНИЕТО: Викаме новата процедура да напълни списъка
-                PopulateComboBoxItems(comboCell, parameterName, circuit)
-                Dim valStr As String = If(rawValue IsNot Nothing, rawValue.ToString(), "")
-                ' Проверяваме дали стойността от обекта съществува в списъка на ComboBox-а
-                If comboCell.Items.Contains(valStr) Then
-                    comboCell.Value = valStr
-                ElseIf comboCell.Items.Count > 0 Then
-                    comboCell.Value = comboCell.Items(0) ' Падащ вариант по подразбиране (напр. "---")
-                End If
-            Else
-                ' За стандартен TextBox (String) или CheckBox (Boolean) - директно наливаме обекта
-                targetCell.Value = rawValue
-            End If
+        ' 1. Защита: Ако няма избран обект, няма какво да изобразяваме
+        If selectedObject Is Nothing Then Exit Sub
+        ' 2. МЕТЛАТА: Изчистваме абсолютно всичко след първите две колони (Параметър и Мярка)
+        ' Така излитат и старите кръгове, и старата колона ОБЩО на един замах
+        For i As Integer = _dgv.Columns.Count - 1 To 2 Step -1
+            _dgv.Columns.RemoveAt(i)
         Next
+        ' 3. Взимаме токовите кръгове за това табло
+        Dim circuitsList As List(Of clsTokow) = selectedObject.GetMyCircuits()
+        ' 4. ПЪРВИ ЦИКЪЛ: Добавяме и пълним колоните за всеки токов кръг (ако има такива)
+        If circuitsList IsNot Nothing Then
+            For Each circuit As clsTokow In circuitsList
+                ' Извикваме споделения майстор
+                CreateAndFillColumn(circuit)
+            Next
+        End If
+        ' 5. ФИНАЛЕН АКОРД: Добавяме и пълним колоната за ОБЩО, 
+        ' като използваме СЪЩАТА процедура, но подаваме главното табло
+        CreateAndFillColumn(selectedObject)
     End Sub
     ''' <summary>
-    ''' Пълни Items на конкретна ComboBox клетка с филтрирани данни от каталозите според текущия токов кръг.
-    ''' Автоматично превключва между каталог за Разединители (за главното) и Прекъсвачи (за токови кръгове).
+    ''' Пълни Items на конкретна ComboBox клетка по нейните индекси с филтрирани данни от каталозите.
     ''' </summary>
-    Private Sub PopulateComboBoxItems(ByVal comboCell As DataGridViewComboBoxCell,
-                                  ByVal parameterName As String,
-                                  ByVal circuit As clsTokow)
+    Private Sub PopulateComboBoxItems(ByVal colIndex As Integer,
+                                      ByVal rowIndex As Integer,
+                                      ByVal parameterName As String,
+                                      ByVal circuit As clsTokow)
+        ' Извличаме клетката директно от грида и я кастваме към ComboBoxCell
+        Dim comboCell As DataGridViewComboBoxCell = DirectCast(_dgv.Rows(rowIndex).Cells(colIndex), DataGridViewComboBoxCell)
         comboCell.Items.Clear()
         comboCell.Items.Add("---") ' Опция по подразбиране
-
-        Dim currentPoles As String = circuit.Брой_Полюси.ToString() & "p"
+        ' 1. Вземане на текущите филтри от обекта
+        Dim currentPoles As String = If(circuit.Брой_Полюси > 0, circuit.Брой_Полюси.ToString() & "p", "1p")
         Dim currentBreakerType As String = circuit.Breaker_Тип_Апарат
         Dim currentIn As String = circuit.Breaker_Номинален_Ток
-
-        ' ЛОГИКА ЗА АВТОМАТИЧНО РАЗПОЗНАВАНЕ:
-        ' Ако името на токовия кръг съдържа "главен", "ввод" или устройството е дефинирано като главно -> ползваме Разединител
-        ' 1. Първо си дефинираш променливата
+        ' 2. Логика за автоматично разпознаване на апарата (Главен или Кръг)
         Dim isDisconnector As Boolean = False
-
-        ' 2. Правиш правилната проверка
-        If circuit.Device IsNot Nothing AndAlso
-           (circuit.Device.ToLower().Contains("табло") _
-           OrElse circuit.Device = "Разединител") Then
+        If circuit.Device.ToLower().Contains("табло") OrElse
+       circuit.Device = "Разединител" OrElse
+       String.IsNullOrEmpty(circuit.ТоковКръг) Then
             isDisconnector = True
         End If
+        ' 3. Наливане на опциите според параметъра
         Select Case parameterName
             Case "Тип на апарата"
                 If isDisconnector Then
@@ -375,15 +266,14 @@ Public Class DataGridViewManager
                     comboCell.Items.AddRange(_breakerCatalog.GetUniqueBreakerCurrents(currentBreakerType, currentPoles).ToArray())
                 End If
             Case "Крива"
-                ' Разединителите нямат крива на изключване, зареждаме само за прекъсвачи
                 If Not isDisconnector Then
                     comboCell.Items.AddRange(_breakerCatalog.GetUniqueBreakerCurves(currentBreakerType, currentPoles).ToArray())
                 End If
             Case "Защитен блок"
-                ' Разединителите нямат защитен блок, зареждаме само за прекъсвачи
                 If Not isDisconnector Then
                     comboCell.Items.AddRange(_breakerCatalog.GetUniqueBreakerUnits(currentBreakerType, currentPoles).ToArray())
                 End If
+        ' --- Кабели и Управление ---
             Case "Тип кабел"
                 comboCell.Items.AddRange(_ComboItems_cableType.ToArray())
             Case "Начин на монтаж"
@@ -393,5 +283,134 @@ Public Class DataGridViewManager
             Case "Управление"
                 comboCell.Items.AddRange(_ComboItems_control.ToArray())
         End Select
+    End Sub
+    ''' <summary>
+    ''' Споделена процедура, която създава колона в края на грида и я конфигурира/пълни 1:1 по rowTemplate.
+    ''' </summary>
+    Private Sub CreateAndFillColumn(ByVal circuit As clsTokow)
+        If circuit Is Nothing Then Exit Sub
+        ' 1. Определяме името и заглавието на колоната спрямо обекта
+        Dim columnName As String = ""
+        Dim columnHeader As String = ""
+        ' Ако свойството "ТоковКръг" е празно или нищо, значи това е главното табло (ОБЩО)
+        If String.IsNullOrEmpty(circuit.ТоковКръг) Then
+            columnName = "colTotal"
+            columnHeader = "ОБЩО"
+        Else
+            ' Ако има име (напр. "Кръг 1"), правим динамично име на колоната
+            columnName = "col_" & circuit.ТоковКръг
+            columnHeader = circuit.ТоковКръг
+        End If
+        ' 2. Създаваме самата колона в края на Grid-a
+        Dim newCol As New DataGridViewColumn()
+        With newCol
+            .Name = columnName
+            .HeaderText = columnHeader
+            .CellTemplate = New DataGridViewTextBoxCell() ' Базово раждане като TextBox
+            .Width = 90
+            .SortMode = DataGridViewColumnSortMode.NotSortable
+        End With
+        Dim colIndex As Integer = _dgv.Columns.Add(newCol)
+        ' 3. Структура: Конфигуриране на типовете клетки (Combo, Check, Text)
+        SetupDataGridView_ColumnStructure(colIndex)
+        ' 4. Каталози: Наливане на опциите в ComboBox клетките
+        FillColumnComboBoxOptions(colIndex, circuit)
+        ' 5. Данни: Наливане на реалните стойности от AutoCAD обекта
+        FillColumnValues(colIndex, circuit)
+    End Sub
+    Public Sub SetupDataGridView_ColumnStructure(ByVal colIndex As Integer)
+        If colIndex < 0 OrElse colIndex >= _dgv.Columns.Count Then Exit Sub
+        For i As Integer = 0 To _dgv.Rows.Count - 1
+            Dim dgvRow As DataGridViewRow = _dgv.Rows(i)
+            If i >= rowTemplate.Count Then Continue For
+            Dim data As Object() = rowTemplate(i)
+            Dim parameterName As String = data(0).ToString()
+            Dim cellType As String = data(2).ToString()
+            ' 1. СЪЗДАВАНЕ НА ПРАВИЛНАТА КЛЕТКА
+            Dim specialCell As DataGridViewCell = Nothing
+            Select Case cellType
+                Case "Combo"
+                    Dim comboCell As New DataGridViewComboBoxCell()
+                    ' Показва стрелката винаги, за да личи че е падащо меню
+                    comboCell.DisplayStyle = DataGridViewComboBoxDisplayStyle.ComboBox
+                    ' === ТОВА ПРЕМАХВА СИВИТЕ БОРДЕРИ И РАМКИ НА БУТОНА ===
+                    comboCell.FlatStyle = FlatStyle.Flat
+                    ' Настройваме стрелката и бордера да се държат като модерна уеб форма:
+                    ' Бордерът ще е тънък и сив, а стрелката ще се появява дискретно при посочване/редакция
+                    comboCell.DisplayStyle = DataGridViewComboBoxDisplayStyle.ComboBox
+                    specialCell = comboCell
+                Case "Check"
+                    specialCell = New DataGridViewCheckBoxCell()
+                    specialCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter
+                    specialCell.Value = False
+                Case Else
+                    specialCell = New DataGridViewTextBoxCell()
+                    specialCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter
+            End Select
+            ' Записваме новата клетка в колоната
+            dgvRow.Cells(colIndex) = specialCell
+            ' 2. ВИЗУАЛНО ФОРМАТИРАНЕ НА НОВАТА КЛЕТКА
+            Select Case parameterName
+                Case "---------"
+                    specialCell.Style.BackColor = Color.FromArgb(220, 220, 220)
+                    specialCell.ReadOnly = True
+                    specialCell.Value = "" ' Чистим чертичките в клетките с данни
+                Case "Прекъсвач", "ДТЗ (RCD)", "Кабел", "Фаза"
+                    '' Боядисваме клетката в заглавния син цвят
+                    'specialCell.Style.BackColor = Color.FromArgb(180, 200, 255)
+                    'specialCell.Style.Font = New Font("Arial", 10, FontStyle.Bold)
+                    specialCell.ReadOnly = True
+                Case Else
+                    ' Специфичен цвят за колона ОБЩО, ако редът не е заглавен
+                    If _dgv.Columns(colIndex).Name = "colTotal" Then
+                    End If
+            End Select
+        Next
+    End Sub
+    ''' <summary>
+    ''' Обхожда редовете на конкретна колона и зарежда опциите в ComboBox клетките от каталозите.
+    ''' </summary>
+    Private Sub FillColumnComboBoxOptions(ByVal colIndex As Integer, ByVal circuit As clsTokow)
+        For rowIndex As Integer = 0 To _dgv.Rows.Count - 1
+            If rowIndex >= rowTemplate.Count Then Continue For
+            Dim data As Object() = rowTemplate(rowIndex)
+            Dim parameterName As String = data(0).ToString()
+            Dim cellType As String = data(2).ToString()
+            ' Пълним списъците само ако клетката е Combo
+            If cellType = "Combo" Then
+                PopulateComboBoxItems(colIndex, rowIndex, parameterName, circuit)
+            End If
+        Next
+    End Sub
+    ''' <summary>
+    ''' Обхожда редовете на конкретна колона и налива реалните стойности от обекта circuit.
+    ''' </summary>
+    Private Sub FillColumnValues(ByVal colIndex As Integer, ByVal circuit As clsTokow)
+        For rowIndex As Integer = 0 To _dgv.Rows.Count - 1
+            If rowIndex >= rowTemplate.Count Then Continue For
+            Dim data As Object() = rowTemplate(rowIndex)
+            Dim cellType As String = data(2).ToString()
+            Dim resolver As [Delegate] = DirectCast(data(3), [Delegate])
+            Dim targetCell As DataGridViewCell = _dgv.Rows(rowIndex).Cells(colIndex)
+            Dim rawValue As Object = resolver.DynamicInvoke(circuit)
+            If cellType = "Combo" Then
+                Dim comboCell = DirectCast(targetCell, DataGridViewComboBoxCell)
+                Dim valStr As String = If(rawValue IsNot Nothing, rawValue.ToString(), "")
+                ' Избираме стойността, ако я има в заредения каталог
+                If comboCell.Items.Contains(valStr) Then
+                    comboCell.Value = valStr
+                Else
+                    comboCell.Value = "---"
+                End If
+            ElseIf cellType = "Check" Then
+                If TypeOf rawValue Is Boolean Then
+                    targetCell.Value = DirectCast(rawValue, Boolean)
+                Else
+                    targetCell.Value = False
+                End If
+            Else
+                targetCell.Value = rawValue
+            End If
+        Next
     End Sub
 End Class

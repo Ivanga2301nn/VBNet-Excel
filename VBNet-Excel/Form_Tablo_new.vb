@@ -147,7 +147,6 @@ Public Class Form_Tablo_new
         _treeViewManager.RefreshTree()
 
         _DataGridViewManager.InitializeGridStructure()
-        _DataGridViewManager.SetupDataGridView_Total()
     End Sub
     ''' <summary>
     ''' Инициализация на компонентите на проекта

@@ -100,6 +100,8 @@ Public Class Form_Tablo_new
     Private _panelBalanceManager As PanelBalanceManager
 
     Private _DataGridViewManager As DataGridViewManager
+    ' Флаг, който спира събитията на Grid-а, докато трае първоначалното наливане на данни
+    Private _isGridLoading As Boolean = False
 
     ' --- ГЛОБАЛНОТО СЪСТОЯНИЕ ЗА МАРКАТА ---
     ' Полето е Shared
@@ -237,18 +239,15 @@ Public Class Form_Tablo_new
             TscboManufacturer.ComboBox.SelectedIndex = 0
         End If
     End Sub
-
     Private Sub OnManufacturerChanged()
         UpdateGridCombosForNewManufacturer(_currentManufacturer)
     End Sub
-
     Private Sub TscboManufacturer_SelectedIndexChanged(sender As Object, e As EventArgs) Handles TscboManufacturer.SelectedIndexChanged
         Dim selectedBrand As String = TscboManufacturer.ComboBox.SelectedItem?.ToString()
         If Not String.IsNullOrEmpty(selectedBrand) Then
             CurrentManufacturer = selectedBrand
         End If
     End Sub
-
     Private Sub UpdateGridCombosForNewManufacturer(brandName As String)
         If _breakerCatalog Is Nothing Then Exit Sub
         _breakerCatalog.FilterComboLists(brandName)
@@ -325,6 +324,105 @@ Public Class Form_Tablo_new
                 ' Избрана е самата сграда (напр. "Сграда_Block")
                 ' Можеш да извлечеш името чрез: selectedObject.BuildingName
 
+        End Select
+    End Sub
+
+    ' =========================================================================
+    ' ОБРАБОТКА НА ПРОМЕНИТЕ ОТ DATAGRIDVIEW (ОБНОВЯВАНЕ НА CLSTOKOW)
+    ' =========================================================================
+    ''' <summary>
+    ''' Събитие за улавяне на всяка промяна в клетка на Grid-a.
+    ''' </summary>
+    Private Sub DataGridView1_CellValueChanged(sender As Object, e As DataGridViewCellEventArgs) Handles DataGridView1.CellValueChanged
+        ' 1. АКО ТАБЛИЦАТА СЕ ЗАРЕЖДА В МОМЕНТА, ИГНОРИРАМЕ ПРОМЕНИТЕ!
+        If _isGridLoading Then Exit Sub
+        ' Защити срещу невалидни индекси и първоначално зареждане
+        If e.RowIndex < 0 OrElse e.ColumnIndex < 0 Then Exit Sub
+        If rowTemplate Is Nothing OrElse e.RowIndex >= rowTemplate.Count Then Exit Sub
+        ' 1. Вземаме името на колоната, за да разберем кой е токовият кръг
+        Dim columnName As String = DataGridView1.Columns(e.ColumnIndex).Name
+        ' Пропускаме служебните колони
+        If columnName = "colParameter" OrElse columnName = "colUnit" OrElse columnName = "colTotal" Then Exit Sub
+        ' 2. Намираме името на параметъра от шаблона (ред)
+        Dim data As Object() = rowTemplate(e.RowIndex)
+        Dim parameterName As String = data(0).ToString()
+        ' 3. Вземаме въведената нова стойност от клетката
+        Dim cellValue As Object = DataGridView1.Rows(e.RowIndex).Cells(e.ColumnIndex).Value
+        Dim newValue As String = If(cellValue IsNot Nothing, cellValue.ToString(), "")
+        ' 4. НАМИРАМЕ ОБЕКТА В ГЛОБАЛНИЯ СПИСЪК И ОБНОВЯВАМЕ СТОЙНОСТТА МУ
+        ' Поддържаме двата варианта: ако колоната се казва "col_333" или директно "333"
+        Dim circuitName As String = columnName.Replace("col_", "")
+        ' Търсим обекта директно в централния източник
+        Dim currentCircuit As clsTokow = AppSettings.ListTokow.FirstOrDefault(Function(c) c.ТоковКръг = circuitName)
+        If currentCircuit IsNot Nothing Then
+            ' Извикваме метода за запис на данните в обекта
+            UpdateCircuitProperty(currentCircuit, parameterName, newValue)
+
+            ' --- Автоматично преизчисляване при промяна ---
+            ' Ако се промени мощност или фаза, тук е перфектното място да извикаш:
+            ' _calculationEngine.ExecuteCalculations()
+            ' _panelBalanceManager.AddFeederRecords()
+        End If
+    End Sub
+    ''' <summary>
+    ''' Принуждава ComboBox и CheckBox да реагират ВЕДНАГА при избор/цъкане, а не чак при излизане от клетката.
+    ''' </summary>
+    Private Sub DataGridView1_CurrentCellDirtyStateChanged(sender As Object, e As EventArgs) Handles DataGridView1.CurrentCellDirtyStateChanged
+        If TypeOf DataGridView1.CurrentCell Is DataGridViewComboBoxCell OrElse
+           TypeOf DataGridView1.CurrentCell Is DataGridViewCheckBoxCell Then
+            DataGridView1.CommitEdit(DataGridViewDataErrorContexts.Commit)
+        End If
+    End Sub
+    ''' <summary>
+    ''' Помощен метод, който разпределя променената стойност от интерфейса към точното свойство на clsTokow.
+    ''' </summary>
+    Private Sub UpdateCircuitProperty(ByVal circuit As clsTokow, ByVal parameterName As String, ByVal value As String)
+        Select Case parameterName
+        ' --- ПРЕКЪСВАЧ ---
+            Case "Тип на апарата", "Серия апарат"
+                circuit.Breaker_Тип_Апарат = value
+            Case "Номинален ток"
+                circuit.Breaker_Номинален_Ток = value
+            Case "Крива"
+                circuit.Breaker_Крива = value
+            Case "Защитен блок"
+                circuit.Breaker_Защитен_блок = value
+            Case "Изключвателна възможност"
+                circuit.Breaker_Изкл_Възможност = value
+        ' --- КАБЕЛ ---
+            Case "Начин на монтаж"
+                circuit.Кабел_Монтаж = value
+            Case "Начин на полагане"
+                circuit.Кабел_Полагане = value
+            Case "Тип кабел"
+                circuit.Кабел_Тип = value
+            Case "Сечение на кабела"
+                circuit.Кабел_Сечение = value
+            Case "Паралелни жила"
+                circuit.Кабел_Брой_Фаза = value
+            Case "Брой в група"
+                circuit.Кабел_Брой_Група = value
+        ' --- ДТЗ (RCD) ---
+            Case "ДТЗ Бранд"
+                circuit.RCD_Бранд = value
+            Case "ДТЗ Клас"
+                circuit.RCD_Клас = value
+            Case "ДТЗ Тип"
+                circuit.RCD_Тип = value
+            Case "ДТЗ Чувствителност"
+                circuit.RCD_Чувствителност = value
+            Case "ДТЗ Ток"
+                circuit.RCD_Ток = value
+        ' --- ОБЩИ ДАННИ ---
+            Case "Предназначение"
+                circuit.предназначение = value
+            Case "Обобщен консуматор"
+                circuit.Консуматор = value
+            Case "Управление"
+                circuit.Управление = value
+                ' Забележка: За Числа (Мощност, Ток) или Булеви (Шина, ДТЗ_RCD) 
+                ' ще трябва конвертиране с Double.TryParse или Boolean.TryParse, 
+                ' ако решиш да ги редактираш директно в Grid-а.
         End Select
     End Sub
 End Class

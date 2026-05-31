@@ -67,7 +67,7 @@ Public Class DataGridViewManager
     Public ReadOnly Property rowTemplate As List(Of Object())
         Get
             Return New List(Of Object()) From {
-            New Object() {"Прекъсвач", "", "Text", Function(c As clsTokow) c.Breaker_Тип_Апарат},
+            New Object() {"Прекъсвач", "", "Text", ""},
             New Object() {"Изчислен ток", "A", "Text", Function(c As clsTokow) c.Ток.ToString("F2")},
             New Object() {"Тип на апарата", "", "Combo", Function(c As clsTokow) c.Breaker_Тип_Апарат},
             New Object() {"Номинален ток", "A", "Combo", Function(c As clsTokow) c.Breaker_Номинален_Ток},
@@ -540,9 +540,18 @@ Public Class DataGridViewManager
             If rowIndex >= rowTemplate.Count Then Continue For
             Dim data As Object() = rowTemplate(rowIndex)
             Dim cellType As String = data(2).ToString()
-            Dim resolver As [Delegate] = DirectCast(data(3), [Delegate])
+            Dim rawValue As Object = Nothing
+            ' ПРОВЕРКА: Дали на позиция 3 имаме реална функция (Делегат)
+            If data.Length > 3 AndAlso TypeOf data(3) Is [Delegate] Then
+                Dim resolver As [Delegate] = DirectCast(data(3), [Delegate])
+                rawValue = resolver.DynamicInvoke(circuit)
+            Else
+                ' Ако не е делегат (а е текст, напр. за разделител или празен ред), 
+                ' просто вземаме самия текст или го оставяме празно
+                rawValue = If(data.Length > 3, data(3), "")
+            End If
             Dim targetCell As DataGridViewCell = _dgv.Rows(rowIndex).Cells(colIndex)
-            Dim rawValue As Object = resolver.DynamicInvoke(circuit)
+            'Dim rawValue As Object = resolver.DynamicInvoke(circuit)
             If cellType = "Combo" Then
                 Dim comboCell = DirectCast(targetCell, DataGridViewComboBoxCell)
                 Dim valStr As String = If(rawValue IsNot Nothing, rawValue.ToString(), "")

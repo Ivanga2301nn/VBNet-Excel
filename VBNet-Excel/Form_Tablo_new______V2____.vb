@@ -2090,7 +2090,7 @@ Public Class Form_Tablo_new
             Case "Contact"
                 ' Ако има специфично правило за брой контакти
                 If visRule IsNot Nothing AndAlso
-               visRule.ContactCount > 0 Then
+                    visRule.ContactCount > 0 Then
                     tokow.brKontakt += visRule.ContactCount
                 Else
                     tokow.brKontakt += count

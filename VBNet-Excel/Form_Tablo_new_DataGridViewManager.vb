@@ -115,6 +115,10 @@ Public Class DataGridViewManager
         _dgv.Columns.Clear()
         _dgv.Rows.Clear()
         _dgv.RowHeadersVisible = False
+        _dgv.SelectionMode = DataGridViewSelectionMode.CellSelect
+        ' Сменя синия фон на селекцията за целия грид на лек, незабележим цвят или сиво
+        _dgv.DefaultCellStyle.SelectionBackColor = Color.White
+        _dgv.DefaultCellStyle.SelectionForeColor = Color.Black
         ' =====================================================
         ' 1. ПЪРВА КОЛОНА: Параметри (описателна колона)
         ' =====================================================
@@ -422,39 +426,65 @@ Public Class DataGridViewManager
     End Sub
     Public Sub SetupDataGridView_ColumnStructure(ByVal colIndex As Integer)
         If colIndex < 0 OrElse colIndex >= _dgv.Columns.Count Then Exit Sub
-        ' ВЗЕМАНЕ НА ИМЕТО НА КОЛОНАТА:
+
+        ' ВЗЕМАНЕ НА ИМЕТО НА КОЛОНАТА И ОПРЕДЕЛЯНЕ ДАЛИ Е "ОБЩО"
         Dim ColumnName As String = _dgv.Columns(colIndex).Name
-        Dim isDisconnector As Boolean = False
+        Dim isTotalColumn As Boolean = (ColumnName = "colTotal")
+
+        ' Подготвяме шрифтовете предварително
+        Dim fontRegular As New Font("Segoe UI", 11, FontStyle.Regular)
+        Dim fontBold As New Font("Segoe UI", 11, FontStyle.Bold)
+
         For i As Integer = 0 To _dgv.Rows.Count - 1
             Dim dgvRow As DataGridViewRow = _dgv.Rows(i)
             If i >= rowTemplate.Count Then Continue For
             Dim data As Object() = rowTemplate(i)
             Dim parameterName As String = data(0).ToString()
             Dim cellType As String = data(2).ToString()
+
             Dim specialCell As DataGridViewCell = Nothing
+
             Select Case cellType
                 Case "Combo"
                     Dim comboCell As New DataGridViewComboBoxCell()
-                    ' МОДЕРЕН И КРАСИВ ДИЗАЙН:
+                    ' Запазваме обемния 3D вид
+                    ' Обемна класическа визия
                     comboCell.FlatStyle = FlatStyle.Flat
-                    ' Стрелката се появява ЕЛЕГАНТНО само при посочване с мишката (MouseOver)
-                    comboCell.DisplayStyle = DataGridViewComboBoxDisplayStyle.DropDownButton
-                    ' ЦЕНТРИРАНЕ НА ТЕКСТА В КОМБОТО
+                    comboCell.DisplayStyle = DataGridViewComboBoxDisplayStyle.ComboBox
+                    ' === ЧИСТЕНЕ НА СИНИЯ БОРДЕР И ФОКУС ===
+                    ' Казваме на клетката да използва стандартния бял цвят за фон, 
+                    ' дори когато е маркирана или на фокус, за да не светва в синьо
+                    comboCell.Style.SelectionBackColor = Color.White
+                    comboCell.Style.SelectionForeColor = Color.Black
+                    ' Центриране на текста в комбото
+                    comboCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter
                     specialCell = comboCell
                 Case "Check"
                     specialCell = New DataGridViewCheckBoxCell()
+                    specialCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter
                     specialCell.Value = False
                 Case Else
                     specialCell = New DataGridViewTextBoxCell()
-                    ' ЦЕНТРИРАНЕ НА ТЕКСТА ЗА ВСИЧКИ ОСТАНАЛИ КЛЕТКИ
+                    ' РЕАЛНО ЦЕНТРИРАНЕ НА ТЕКСТА ЗА ТЕКСТОВИТЕ КЛЕТКИ:
+                    specialCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter
             End Select
-            ' Записваме клетката
+            ' ПОДДЪРЖАНЕ НА ШРИФТА: Задължително го пренабиваме на клетъчно ниво
+            If isTotalColumn Then
+                specialCell.Style.Font = New Font("Segoe UI", 11, FontStyle.Bold)
+            Else
+                specialCell.Style.Font = New Font("Segoe UI", 11, FontStyle.Regular)
+            End If
+            ' Записваме клетката в реалния ред
             dgvRow.Cells(colIndex) = specialCell
             ' Визуално форматиране за разделителите
             If parameterName = "---------" Then
                 specialCell.Style.BackColor = Color.FromArgb(220, 220, 220)
                 specialCell.ReadOnly = True
                 specialCell.Value = ""
+            End If
+            ' Заглавните редове също ги заключваме да са ReadOnly за сигурност
+            If parameterName = "Прекъсвач" OrElse parameterName = "ДТЗ (RCD)" OrElse parameterName = "Кабел" OrElse parameterName = "Фаза" Then
+                specialCell.ReadOnly = True
             End If
         Next
     End Sub

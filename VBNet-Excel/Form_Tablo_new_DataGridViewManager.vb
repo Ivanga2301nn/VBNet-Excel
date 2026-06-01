@@ -75,31 +75,31 @@ Public Class DataGridViewManager
             New Object() {"Крива", "", "Combo", Function(c As clsTokow) c.Breaker_Крива},
             New Object() {"Защитен блок", "", "Combo", Function(c As clsTokow) c.Breaker_Защитен_блок},
             New Object() {"Брой полюси", "бр.", "Text", Function(c As clsTokow) c.Брой_Полюси.ToString() & "p"},
-            New Object() {"ДТЗ (RCD)", "", "Text", Function(c As clsTokow) ""},
+            New Object() {"ДТЗ (RCD)", "", "Text", ""},
             New Object() {"ДТЗ Нула", "", "Text", Function(c As clsTokow) c.RCD_Нула},
             New Object() {"Вид на апарата", "", "Text", Function(c As clsTokow) c.RCD_Тип},
             New Object() {"Клас на апарата", "", "Text", Function(c As clsTokow) c.RCD_Клас},
             New Object() {"ДТЗ(RCD) Ном. ток", "A", "Text", Function(c As clsTokow) c.RCD_Ток},
             New Object() {"Чувствителност", "mA", "Text", Function(c As clsTokow) c.RCD_Чувствителност},
             New Object() {"ДТЗ(RCD) полюси", "бр.", "Text", Function(c As clsTokow) c.RCD_Полюси},
-            New Object() {"---------", "", "Text", Function(c As clsTokow) ""},
+            New Object() {"---------", "", "Text", ""},
             New Object() {"Брой лампи", "бр.", "Text", Function(c As clsTokow) c.brLamp.ToString()},
             New Object() {"Брой контакти", "бр.", "Text", Function(c As clsTokow) c.brKontakt.ToString()},
             New Object() {"Инст. мощност", "kW", "Text", Function(c As clsTokow) c.Мощност.ToString("F2")},
-            New Object() {"---------", "", "Text", Function(c As clsTokow) ""},
-            New Object() {"Кабел", "", "Text", Function(c As clsTokow) ""},
+            New Object() {"---------", "", "Text", ""},
+            New Object() {"Кабел", "", "Text", ""},
             New Object() {"Начин на монтаж", "--", "Combo", Function(c As clsTokow) c.Кабел_Монтаж},
             New Object() {"Начин на полагане", "--", "Combo", Function(c As clsTokow) c.Кабел_Полагане},
             New Object() {"Паралелни кабели (фаза): ", "бр.", "Text", Function(c As clsTokow) c.Кабел_Брой_Фаза},
             New Object() {"Съседни кабели (група):", "бр.", "Text", Function(c As clsTokow) c.Кабел_Брой_Група},
             New Object() {"Тип кабел", "---", "Combo", Function(c As clsTokow) c.Кабел_Тип},
             New Object() {"Сечение", "mm²", "Text", Function(c As clsTokow) c.Кабел_Сечение},
-            New Object() {"---------", "", "Text", Function(c As clsTokow) ""},
+            New Object() {"---------", "", "Text", ""},
             New Object() {"Фаза", "", "Text", Function(c As clsTokow) c.Фаза},
             New Object() {"Консуматор", "---", "Text", Function(c As clsTokow) c.Консуматор},
             New Object() {"предназначение", "---", "Text", Function(c As clsTokow) c.предназначение},
             New Object() {"Управление", "---", "Combo", Function(c As clsTokow) c.Управление},
-            New Object() {"---------", "", "Text", Function(c As clsTokow) ""},
+            New Object() {"---------", "", "Text", ""},
             New Object() {"Шина", "---", "Check", Function(c As clsTokow) c.Шина},
             New Object() {"Постави ДТЗ (RCD)", "---", "Check", Function(c As clsTokow) c.ДТЗ_RCD}
         }
@@ -588,61 +588,82 @@ Public Class DataGridViewManager
         Dim currentCircuit As clsTokow = AppSettings.ListTokow.FirstOrDefault(Function(c) c.ТоковКръг = circuitName)
         ' 5. Ако обектът съществува, му подаваме данните за запис
         If currentCircuit IsNot Nothing Then
-            'currentCircuit.UpdatePropertyByParameterName(parameterName, newValue)
+            UpdateCircuitProperty(currentCircuit, parameterName, newValue)
         End If
     End Sub
-    ''' <summary>
-    ''' Помощен метод, който разпределя променената стойност от интерфейса към точното свойство на clsTokow.
-    ''' </summary>
-    Private Sub UpdateCircuitProperty(ByVal circuit As clsTokow,
-                                      ByVal parameterName As String,
-                                      ByVal value As String)
-        Select Case parameterName
-        ' --- ПРЕКЪСВАЧ ---
-            Case "Тип на апарата", "Серия апарат"
-                circuit.Breaker_Тип_Апарат = value
-            Case "Номинален ток"
-                circuit.Breaker_Номинален_Ток = value
-            Case "Крива"
-                circuit.Breaker_Крива = value
-            Case "Защитен блок"
-                circuit.Breaker_Защитен_блок = value
-            Case "Изключвателна възможност"
-                circuit.Breaker_Изкл_Възможност = value
-        ' --- КАБЕЛ ---
-            Case "Начин на монтаж"
-                circuit.Кабел_Монтаж = value
-            Case "Начин на полагане"
-                circuit.Кабел_Полагане = value
-            Case "Тип кабел"
-                circuit.Кабел_Тип = value
-            Case "Сечение на кабела"
-                circuit.Кабел_Сечение = value
-            Case "Паралелни жила"
-                circuit.Кабел_Брой_Фаза = value
-            Case "Брой в група"
-                circuit.Кабел_Брой_Група = value
-        ' --- ДТЗ (RCD) ---
-            Case "ДТЗ Бранд"
-                circuit.RCD_Бранд = value
-            Case "ДТЗ Клас"
-                circuit.RCD_Клас = value
-            Case "ДТЗ Тип"
-                circuit.RCD_Тип = value
-            Case "ДТЗ Чувствителност"
-                circuit.RCD_Чувствителност = value
-            Case "ДТЗ Ток"
-                circuit.RCD_Ток = value
-        ' --- ОБЩИ ДАННИ ---
-            Case "Предназначение"
-                circuit.предназначение = value
-            Case "Обобщен консуматор"
-                circuit.Консуматор = value
-            Case "Управление"
-                circuit.Управление = value
-                ' Забележка: За Числа (Мощност, Ток) или Булеви (Шина, ДТЗ_RCD) 
-                ' ще трябва конвертиране с Double.TryParse или Boolean.TryParse, 
-                ' ако решиш да ги редактираш директно в Grid-а.
-        End Select
+    '''' <summary>
+    '''' Помощен метод, който разпределя променената стойност към точното свойство на обекта clsTokow.
+    '''' Напълно синхронизиран с реалните свойства от Form_Tablo_new_strTokow.vb
+    '''' </summary>
+    'Private Sub UpdateCircuitProperty(ByVal circuit As clsTokow, ByVal parameterName As String, ByVal value As String)
+    '    Select Case parameterName
+    '    ' === СЕКЦИЯ ПРЕКЪСВАЧ ===
+    '        Case "Тип на апарата"
+    '            circuit.Breaker_Tun_Anapam = value
+    '        Case "Номинален ток"
+    '            circuit.Breaker_Номинален_Ток = value
+    '        Case "Изкл. възможн."
+    '            circuit.Breaker_Is_vazm = value
+    '        Case "Крива"
+    '            circuit.Breaker_Крива = value
+    '        Case "Защитен блок"
+    '            circuit.Breaker_Защитен_блок = value
+    '        Case "Брой полюси"
+    '            circuit.Breaker_Broj_Polusi = value
+
+    '    ' === СЕКЦИЯ ДТЗ (RCD) ===
+    '        Case "ДТЗ Нула"
+    '            circuit.RCD_Nula = value
+    '        Case "Вид на апарата"
+    '            circuit.RCD_Vid = value
+    '        Case "Клас на апарата"
+    '            circuit.RCD_Klas = value
+    '        Case "ДТЗ(RCD) Ном. ток"
+    '            circuit.RCD_Nominal_Tok = value
+    '        Case "Чувствителност"
+    '            circuit.RCD_Chuvstvitelnost = value
+    '        Case "ДТЗ(RCD) полюси"
+    '            circuit.RCD_Polusi = value
+
+    '    ' === СЕКЦИЯ КАБЕЛ ===
+    '        Case "Начин на монтаж"
+    '            circuit.Cable_Placing = value ' Мапнато към Cable_Placing
+    '        Case "Начин на полагане"
+    '            circuit.Cable_Polagane = value ' Мапнато към Cable_Polagane
+    '        Case "Паралелни кабели (фаза):"
+    '            circuit.Cable_Paralelni = value
+    '        Case "Съседни кабели (група):"
+    '            circuit.Cable_Sasedni = value
+    '        Case "Тип кабел"
+    '            circuit.Тип кабел = value ' В класа ти е точно: [Тип кабел]
+    '        Case "Сечение"
+    '            circuit.Сечение = value ' В класа ти е точно: [Сечение]
+
+    '    ' === СЕКЦИЯ ДРУГИ / ИДЕНТИФИКАЦИЯ ===
+    '        Case "Фаза"
+    '            circuit.Фаза = value
+    '        Case "Консуматор"
+    '            circuit.Консуматор = value
+    '        Case "предназначение"
+    '            circuit.предназначение = value
+    '        Case "Управление"
+    '            circuit.Управление = value
+
+    '    ' === СЕКЦИЯ ЧЕКБОКСОВЕ (Check) ===
+    '        Case "Шина"
+    '            ' В твоя клас това е тип Boolean
+    '            circuit.Has_Shina = Convert.ToBoolean(If(String.IsNullOrEmpty(value), "False", value))
+    '        Case "Постави ДТЗ (RCD)"
+    '            ' В твоя клас това е тип Boolean
+    '            circuit.Has_RCD = Convert.ToBoolean(If(String.IsNullOrEmpty(value), "False", value))
+
+    '    End Select
+    'End Sub
+    Private Sub UpdateCircuitProperty(ByVal circuit As clsTokow, ByVal parameterName As String, ByVal value As String)
+        '' 1. Намираме съответствието между българското име и английското свойство в твоя клас
+        'Dim mapping = clsFieldMapping.Mappings.FirstOrDefault(Function(m) m.DisplayName = parameterName)
+
+        '' 2. С едно движение (Reflection) записваме новата стойност в обекта
+        'If mapping IsNot Nothing Then mapping.SetValue(circuit, value)
     End Sub
 End Class

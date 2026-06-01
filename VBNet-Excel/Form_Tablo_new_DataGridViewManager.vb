@@ -1,12 +1,12 @@
 ﻿Imports System.Drawing
 Imports System.Windows.Forms
-
 Public Class DataGridViewManager
     ' Всички технически каталози
     Private ReadOnly _disconnectorCatalog As DisconnectorCatalog
     Private ReadOnly _breakerCatalog As BreakerCatalog
     Private ReadOnly _cableCatalog As CableCatalog
     Private ReadOnly _rcdCatalog As RCDCatalog
+    Private ReadOnly _changeManager As DataGridViewChangeManager
     ' --- Специфични списъци за зареждане на ComboBox клетките в таблицата ---
     ' Вътрешен списък с опции за ComboBox-а на ред "Управление"
     Private ReadOnly _ComboItems_control As String() = {
@@ -45,14 +45,17 @@ Public Class DataGridViewManager
                    ByVal disconnectorCat As DisconnectorCatalog,
                    ByVal breakerCat As BreakerCatalog,
                    ByVal cableCat As CableCatalog,
-                   ByVal rcdCat As RCDCatalog)
+                   ByVal rcdCat As RCDCatalog,
+                   ByVal chManager As DataGridViewChangeManager)
+
         ' Запомняме таблицата веднъж завинаги в този клас
-        Me._dgv = dgv
+        _dgv = dgv
         ' Записваме референциите към данните и каталозите
-        Me._disconnectorCatalog = disconnectorCat
-        Me._breakerCatalog = breakerCat
-        Me._cableCatalog = cableCat
-        Me._rcdCatalog = rcdCat
+        _disconnectorCatalog = disconnectorCat
+        _breakerCatalog = breakerCat
+        _cableCatalog = cableCat
+        _rcdCatalog = rcdCat
+        _changeManager = chManager
 
         ' Зареждаме динамичните списъци за ComboBox клетките от съответните каталози    
         _ComboItems_cableType = cableCat.GetUniqueCableTypes()                      ' Взима уникалните типове кабели от каталога
@@ -67,41 +70,41 @@ Public Class DataGridViewManager
     Public ReadOnly Property rowTemplate As List(Of Object())
         Get
             Return New List(Of Object()) From {
-            New Object() {"Прекъсвач", "", "Text", ""},
-            New Object() {"Изчислен ток", "A", "Text", Function(c As clsTokow) c.Ток.ToString("F2")},
-            New Object() {"Тип на апарата", "", "Combo", Function(c As clsTokow) c.Breaker_Тип_Апарат},
-            New Object() {"Номинален ток", "A", "Combo", Function(c As clsTokow) c.Breaker_Номинален_Ток},
-            New Object() {"Изкл. възможн.", "kA", "Text", Function(c As clsTokow) c.Breaker_Изкл_Възможност},
-            New Object() {"Крива", "", "Combo", Function(c As clsTokow) c.Breaker_Крива},
-            New Object() {"Защитен блок", "", "Combo", Function(c As clsTokow) c.Breaker_Защитен_блок},
-            New Object() {"Брой полюси", "бр.", "Text", Function(c As clsTokow) c.Брой_Полюси.ToString() & "p"},
-            New Object() {"ДТЗ (RCD)", "", "Text", ""},
-            New Object() {"ДТЗ Нула", "", "Text", Function(c As clsTokow) c.RCD_Нула},
-            New Object() {"Вид на апарата", "", "Text", Function(c As clsTokow) c.RCD_Тип},
-            New Object() {"Клас на апарата", "", "Text", Function(c As clsTokow) c.RCD_Клас},
-            New Object() {"ДТЗ(RCD) Ном. ток", "A", "Text", Function(c As clsTokow) c.RCD_Ток},
-            New Object() {"Чувствителност", "mA", "Text", Function(c As clsTokow) c.RCD_Чувствителност},
-            New Object() {"ДТЗ(RCD) полюси", "бр.", "Text", Function(c As clsTokow) c.RCD_Полюси},
-            New Object() {"---------", "", "Text", ""},
-            New Object() {"Брой лампи", "бр.", "Text", Function(c As clsTokow) c.brLamp.ToString()},
-            New Object() {"Брой контакти", "бр.", "Text", Function(c As clsTokow) c.brKontakt.ToString()},
-            New Object() {"Инст. мощност", "kW", "Text", Function(c As clsTokow) c.Мощност.ToString("F2")},
-            New Object() {"---------", "", "Text", ""},
-            New Object() {"Кабел", "", "Text", ""},
-            New Object() {"Начин на монтаж", "--", "Combo", Function(c As clsTokow) c.Кабел_Монтаж},
-            New Object() {"Начин на полагане", "--", "Combo", Function(c As clsTokow) c.Кабел_Полагане},
-            New Object() {"Паралелни кабели (фаза): ", "бр.", "Text", Function(c As clsTokow) c.Кабел_Брой_Фаза},
-            New Object() {"Съседни кабели (група):", "бр.", "Text", Function(c As clsTokow) c.Кабел_Брой_Група},
-            New Object() {"Тип кабел", "---", "Combo", Function(c As clsTokow) c.Кабел_Тип},
-            New Object() {"Сечение", "mm²", "Text", Function(c As clsTokow) c.Кабел_Сечение},
-            New Object() {"---------", "", "Text", ""},
-            New Object() {"Фаза", "", "Text", Function(c As clsTokow) c.Фаза},
-            New Object() {"Консуматор", "---", "Text", Function(c As clsTokow) c.Консуматор},
-            New Object() {"предназначение", "---", "Text", Function(c As clsTokow) c.предназначение},
-            New Object() {"Управление", "---", "Combo", Function(c As clsTokow) c.Управление},
-            New Object() {"---------", "", "Text", ""},
-            New Object() {"Шина", "---", "Check", Function(c As clsTokow) c.Шина},
-            New Object() {"Постави ДТЗ (RCD)", "---", "Check", Function(c As clsTokow) c.ДТЗ_RCD}
+            New Object() {"Прекъсвач", "", "Text", "", ""},
+            New Object() {"Изчислен ток", "A", "Text", Function(c As clsTokow) c.Ток.ToString("F2"), ""},
+            New Object() {"Тип на апарата", "", "Combo", Function(c As clsTokow) c.Breaker_Тип_Апарат, "HandleBreakerTypeChange"},
+            New Object() {"Номинален ток", "A", "Combo", Function(c As clsTokow) c.Breaker_Номинален_Ток, "HandleNominalCurrentChange"},
+            New Object() {"Изкл. възможн.", "kA", "Text", Function(c As clsTokow) c.Breaker_Изкл_Възможност, "HandleBreakingCapacityChange"},
+            New Object() {"Крива", "", "Combo", Function(c As clsTokow) c.Breaker_Крива, "HandleCurveChange"},
+            New Object() {"Защитен блок", "", "Combo", Function(c As clsTokow) c.Breaker_Защитен_блок, "HandleTripUnitChange"},
+            New Object() {"Брой полюси", "бр.", "Text", Function(c As clsTokow) c.Брой_Полюси.ToString() & "p", "HandlePolesChange"},
+            New Object() {"ДТЗ (RCD)", "", "Text", "", ""},
+            New Object() {"ДТЗ Нула", "", "Text", Function(c As clsTokow) c.RCD_Нула, "HandleRcdZeroChange"},
+            New Object() {"Вид на апарата", "", "Text", Function(c As clsTokow) c.RCD_Тип, "HandleRcdTypeChange"},
+            New Object() {"Клас на апарата", "", "Text", Function(c As clsTokow) c.RCD_Клас, "HandleRcdClassChange"},
+            New Object() {"ДТЗ(RCD) Ном. ток", "A", "Text", Function(c As clsTokow) c.RCD_Ток, "HandleRcdCurrentChange"},
+            New Object() {"Чувствителност", "mA", "Text", Function(c As clsTokow) c.RCD_Чувствителност, "HandleRcdSensitivityChange"},
+            New Object() {"ДТЗ(RCD) полюси", "бр.", "Text", Function(c As clsTokow) c.RCD_Полюси, "HandleRcdPolesChange"},
+            New Object() {"---------", "", "Text", "", ""},
+            New Object() {"Брой лампи", "бр.", "Text", Function(c As clsTokow) c.brLamp.ToString(), "HandleLampCountChange"},
+            New Object() {"Брой контакти", "бр.", "Text", Function(c As clsTokow) c.brKontakt.ToString(), "HandleSocketCountChange"},
+            New Object() {"Инст. мощност", "kW", "Text", Function(c As clsTokow) c.Мощност.ToString("F2"), "HandlePowerChange"},
+            New Object() {"---------", "", "Text", "", ""},
+            New Object() {"Кабел", "", "Text", "", ""},
+            New Object() {"Начин на монтаж", "--", "Combo", Function(c As clsTokow) c.Кабел_Монтаж, "HandleCableInstallationChange"},
+            New Object() {"Начин на полагане", "--", "Combo", Function(c As clsTokow) c.Кабел_Полагане, "HandleCableRoutingChange"},
+            New Object() {"Паралелни кабели (фаза): ", "бр.", "Text", Function(c As clsTokow) c.Кабел_Брой_Фаза, "HandleParallelCablesChange"},
+            New Object() {"Съседни кабели (група):", "бр.", "Text", Function(c As clsTokow) c.Кабел_Брой_Група, "HandleGroupCablesChange"},
+            New Object() {"Тип кабел", "---", "Combo", Function(c As clsTokow) c.Кабел_Тип, "HandleCableTypeChange"},
+            New Object() {"Сечение", "mm²", "Text", Function(c As clsTokow) c.Кабел_Сечение, "HandleCableSectionChange"},
+            New Object() {"---------", "", "Text", "", ""},
+            New Object() {"Фаза", "", "Text", Function(c As clsTokow) c.Фаза, "HandlePhaseChange"},
+            New Object() {"Консуматор", "---", "Text", Function(c As clsTokow) c.Консуматор, "HandleConsumerChange"},
+            New Object() {"предназначение", "---", "Text", Function(c As clsTokow) c.предназначение, "HandlePurposeChange"},
+            New Object() {"Управление", "---", "Combo", Function(c As clsTokow) c.Управление, "HandleControlChange"},
+            New Object() {"---------", "", "Text", "", ""},
+            New Object() {"Шина", "---", "Check", Function(c As clsTokow) c.Шина, "HandleBusbarChange"},
+            New Object() {"Постави ДТЗ (RCD)", "---", "Check", Function(c As clsTokow) c.ДТЗ_RCD, "HandleRcdToggleChange"}
         }
         End Get
     End Property
@@ -127,7 +130,7 @@ Public Class DataGridViewManager
         colParam.HeaderText = "Параметър"
         colParam.Width = 200
         colParam.Frozen = True
-        colParam.DefaultCellStyle.Font = New Font("Arial", 10, FontStyle.Bold)
+        colParam.DefaultCellStyle.Font = New Drawing.Font("Arial", 10, FontStyle.Bold)
         colParam.DefaultCellStyle.BackColor = Color.FromArgb(200, 220, 255)
         colParam.SortMode = DataGridViewColumnSortMode.NotSortable
         _dgv.Columns.Add(colParam)
@@ -151,7 +154,7 @@ Public Class DataGridViewManager
         colTotal.Name = "colTotal"
         colTotal.HeaderText = "ОБЩО"
         colTotal.Width = 130
-        colTotal.DefaultCellStyle.Font = New Font("Arial", 10, FontStyle.Bold)
+        colTotal.DefaultCellStyle.Font = New Drawing.Font("Arial", 10, FontStyle.Bold)
         colTotal.DefaultCellStyle.BackColor = Color.FromArgb(230, 240, 255)
         colTotal.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter
         colTotal.SortMode = DataGridViewColumnSortMode.NotSortable
@@ -190,7 +193,7 @@ Public Class DataGridViewManager
                     dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(220, 220, 220)
                 Case "Прекъсвач", "ДТЗ (RCD)", "Кабел"
                     dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(180, 200, 255)
-                    dgvRow.DefaultCellStyle.Font = New Font("Arial", 10, FontStyle.Bold)
+                    dgvRow.DefaultCellStyle.Font = New Drawing.Font("Arial", 10, FontStyle.Bold)
                 Case Else
                     ' стандартен стил
             End Select
@@ -203,7 +206,7 @@ Public Class DataGridViewManager
         _dgv.AllowUserToDeleteRows = False                                 ' Забранява на потребителя да изтрива редове с натискане на Delete
         _dgv.ReadOnly = False                                              ' Позволява редакция на клетките (важно за ComboBox и CheckBox)
         _dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None    ' Изключва автоматичното оразмеряване (разчита на зададен Width)
-        _dgv.ColumnHeadersDefaultCellStyle.Font = New Font("Arial", 10, FontStyle.Bold) ' Задава шрифт Bold за заглавния ред
+        _dgv.ColumnHeadersDefaultCellStyle.Font = New Drawing.Font("Arial", 10, FontStyle.Bold) ' Задава шрифт Bold за заглавния ред
         _dgv.ColumnHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter ' Центрира текста в заглавията на колоните
         _dgv.ColumnHeadersHeight = 25                                      ' Фиксира височината на заглавната лента на 170 пиксела
         _dgv.RowTemplate.Height = 25                                       ' Задава стандартна височина на всеки нов ред с данни
@@ -409,10 +412,10 @@ Public Class DataGridViewManager
             .DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter
             If columnName = "colTotal" Then
                 .Width = 135
-                .DefaultCellStyle.Font = New Font("Segoe UI", 11, FontStyle.Bold)
+                .DefaultCellStyle.Font = New Drawing.Font("Segoe UI", 11, FontStyle.Bold)
             Else
                 .Width = 110
-                .DefaultCellStyle.Font = New Font("Segoe UI", 11, FontStyle.Regular)
+                .DefaultCellStyle.Font = New Drawing.Font("Segoe UI", 11, FontStyle.Regular)
             End If
             .SortMode = DataGridViewColumnSortMode.NotSortable
         End With
@@ -432,8 +435,8 @@ Public Class DataGridViewManager
         Dim isTotalColumn As Boolean = (ColumnName = "colTotal")
 
         ' Подготвяме шрифтовете предварително
-        Dim fontRegular As New Font("Segoe UI", 11, FontStyle.Regular)
-        Dim fontBold As New Font("Segoe UI", 11, FontStyle.Bold)
+        Dim fontRegular As New Drawing.Font("Segoe UI", 11, FontStyle.Regular)
+        Dim fontBold As New Drawing.Font("Segoe UI", 11, FontStyle.Bold)
 
         For i As Integer = 0 To _dgv.Rows.Count - 1
             Dim dgvRow As DataGridViewRow = _dgv.Rows(i)
@@ -470,9 +473,9 @@ Public Class DataGridViewManager
             End Select
             ' ПОДДЪРЖАНЕ НА ШРИФТА: Задължително го пренабиваме на клетъчно ниво
             If isTotalColumn Then
-                specialCell.Style.Font = New Font("Segoe UI", 11, FontStyle.Bold)
+                specialCell.Style.Font = New Drawing.Font("Segoe UI", 11, FontStyle.Bold)
             Else
-                specialCell.Style.Font = New Font("Segoe UI", 11, FontStyle.Regular)
+                specialCell.Style.Font = New Drawing.Font("Segoe UI", 11, FontStyle.Regular)
             End If
             ' Записваме клетката в реалния ред
             dgvRow.Cells(colIndex) = specialCell
@@ -572,7 +575,6 @@ Public Class DataGridViewManager
             End If
         Next
     End Sub
-
     ''' <summary>
     ''' Обработва променената стойност от Grid-а, намира съответния токов кръг и обновява свойствата му.
     ''' </summary>
@@ -586,84 +588,13 @@ Public Class DataGridViewManager
         Dim circuitName As String = columnName.Replace("col_", "")
         ' 4. Намираме обекта clsTokow в глобалния източник на истината
         Dim currentCircuit As clsTokow = AppSettings.ListTokow.FirstOrDefault(Function(c) c.ТоковКръг = circuitName)
+        Dim procedureToExecute As String = data(4).ToString()
+        If String.IsNullOrEmpty(procedureToExecute) Then Exit Sub
         ' 5. Ако обектът съществува, му подаваме данните за запис
-        If currentCircuit IsNot Nothing Then
-            UpdateCircuitProperty(currentCircuit, parameterName, newValue)
-        End If
+        _changeManager.UpdateCircuitProperty(currentCircuit, procedureToExecute, newValue)
+
+
+
     End Sub
-    '''' <summary>
-    '''' Помощен метод, който разпределя променената стойност към точното свойство на обекта clsTokow.
-    '''' Напълно синхронизиран с реалните свойства от Form_Tablo_new_strTokow.vb
-    '''' </summary>
-    'Private Sub UpdateCircuitProperty(ByVal circuit As clsTokow, ByVal parameterName As String, ByVal value As String)
-    '    Select Case parameterName
-    '    ' === СЕКЦИЯ ПРЕКЪСВАЧ ===
-    '        Case "Тип на апарата"
-    '            circuit.Breaker_Tun_Anapam = value
-    '        Case "Номинален ток"
-    '            circuit.Breaker_Номинален_Ток = value
-    '        Case "Изкл. възможн."
-    '            circuit.Breaker_Is_vazm = value
-    '        Case "Крива"
-    '            circuit.Breaker_Крива = value
-    '        Case "Защитен блок"
-    '            circuit.Breaker_Защитен_блок = value
-    '        Case "Брой полюси"
-    '            circuit.Breaker_Broj_Polusi = value
 
-    '    ' === СЕКЦИЯ ДТЗ (RCD) ===
-    '        Case "ДТЗ Нула"
-    '            circuit.RCD_Nula = value
-    '        Case "Вид на апарата"
-    '            circuit.RCD_Vid = value
-    '        Case "Клас на апарата"
-    '            circuit.RCD_Klas = value
-    '        Case "ДТЗ(RCD) Ном. ток"
-    '            circuit.RCD_Nominal_Tok = value
-    '        Case "Чувствителност"
-    '            circuit.RCD_Chuvstvitelnost = value
-    '        Case "ДТЗ(RCD) полюси"
-    '            circuit.RCD_Polusi = value
-
-    '    ' === СЕКЦИЯ КАБЕЛ ===
-    '        Case "Начин на монтаж"
-    '            circuit.Cable_Placing = value ' Мапнато към Cable_Placing
-    '        Case "Начин на полагане"
-    '            circuit.Cable_Polagane = value ' Мапнато към Cable_Polagane
-    '        Case "Паралелни кабели (фаза):"
-    '            circuit.Cable_Paralelni = value
-    '        Case "Съседни кабели (група):"
-    '            circuit.Cable_Sasedni = value
-    '        Case "Тип кабел"
-    '            circuit.Тип кабел = value ' В класа ти е точно: [Тип кабел]
-    '        Case "Сечение"
-    '            circuit.Сечение = value ' В класа ти е точно: [Сечение]
-
-    '    ' === СЕКЦИЯ ДРУГИ / ИДЕНТИФИКАЦИЯ ===
-    '        Case "Фаза"
-    '            circuit.Фаза = value
-    '        Case "Консуматор"
-    '            circuit.Консуматор = value
-    '        Case "предназначение"
-    '            circuit.предназначение = value
-    '        Case "Управление"
-    '            circuit.Управление = value
-
-    '    ' === СЕКЦИЯ ЧЕКБОКСОВЕ (Check) ===
-    '        Case "Шина"
-    '            ' В твоя клас това е тип Boolean
-    '            circuit.Has_Shina = Convert.ToBoolean(If(String.IsNullOrEmpty(value), "False", value))
-    '        Case "Постави ДТЗ (RCD)"
-    '            ' В твоя клас това е тип Boolean
-    '            circuit.Has_RCD = Convert.ToBoolean(If(String.IsNullOrEmpty(value), "False", value))
-
-    '    End Select
-    'End Sub
-    Private Sub UpdateCircuitProperty(ByVal circuit As clsTokow, ByVal parameterName As String, ByVal value As String)
-        '' 1. Намираме съответствието между българското име и английското свойство в твоя клас
-        'Dim mapping = clsFieldMapping.Mappings.FirstOrDefault(Function(m) m.DisplayName = parameterName)
-
-        '' 2. С едно движение (Reflection) записваме новата стойност в обекта
-        'If mapping IsNot Nothing Then mapping.SetValue(circuit, value)
-    End Sub
 End Class

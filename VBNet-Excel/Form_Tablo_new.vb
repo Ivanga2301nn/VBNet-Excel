@@ -104,6 +104,7 @@ Public Class Form_Tablo_new
     Private _panelBalanceManager As PanelBalanceManager
 
     Private _DataGridViewManager As DataGridViewManager
+    Private _gridChangeManager As DataGridViewChangeManager
 
     ' --- ГЛОБАЛНОТО СЪСТОЯНИЕ ЗА МАРКАТА ---
     ' Полето е Shared
@@ -176,13 +177,19 @@ Public Class Form_Tablo_new
         ' Йерархия и дървовидна структура (TreeView)
         _treeViewManager = New TreeViewManager(TreeView_Табло)
 
+        _gridChangeManager = New DataGridViewChangeManager(_breakerCatalog,
+                                                           _disconnectorCatalog,
+                                                           _rcdCatalog,
+                                                           _cableCatalog,
+                                                           _calculationEngine)
+
+
         _DataGridViewManager = New DataGridViewManager(DataGridView1,
                                                        _disconnectorCatalog,
                                                        _breakerCatalog,
                                                        _cableCatalog,
-                                                       _rcdCatalog
-                                                       )
-
+                                                       _rcdCatalog,
+                                                       _gridChangeManager)
 
     End Sub
 #Region "⚙️ СВОЙСТВА ЗА ДОСТЪП ДО КАТАЛОЗИ И МЕНИДЖЪРИ"

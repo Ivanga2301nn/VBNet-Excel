@@ -125,6 +125,7 @@
     </Compile>
     <Compile Include="Form_Tablo_new_BoardStructureManager.vb" />
     <Compile Include="Form_Tablo_new_ConsumerExtractor.vb" />
+    <Compile Include="Form_Tablo_new_DataGridViewChangeManager.vb" />
     <Compile Include="Form_Tablo_new_DataGridViewManager.vb" />
     <Compile Include="Form_Tablo_new_ElectricalCalculationEngine.vb" />
     <Compile Include="Form_Tablo_new_PanelBalanceManager.vb" />

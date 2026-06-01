@@ -426,7 +426,7 @@ Public Class DataGridViewManager
     End Sub
     Public Sub SetupDataGridView_ColumnStructure(ByVal colIndex As Integer)
         If colIndex < 0 OrElse colIndex >= _dgv.Columns.Count Then Exit Sub
-
+        AppSettings.IsGridLoading = True
         ' ВЗЕМАНЕ НА ИМЕТО НА КОЛОНАТА И ОПРЕДЕЛЯНЕ ДАЛИ Е "ОБЩО"
         Dim ColumnName As String = _dgv.Columns(colIndex).Name
         Dim isTotalColumn As Boolean = (ColumnName = "colTotal")
@@ -571,5 +571,78 @@ Public Class DataGridViewManager
                 targetCell.Value = rawValue
             End If
         Next
+    End Sub
+
+    ''' <summary>
+    ''' Обработва променената стойност от Grid-а, намира съответния токов кръг и обновява свойствата му.
+    ''' </summary>
+    Public Sub ProcessCellValueChanged(ByVal rowIndex As Integer, ByVal columnName As String, ByVal newValue As String)
+        ' 1. Защита: Проверяваме дали индексът съответства на нашия шаблон
+        If rowTemplate Is Nothing OrElse rowIndex >= rowTemplate.Count Then Exit Sub
+        ' 2. Намираме името на параметъра от нашия собствен шаблон
+        Dim data As Object() = rowTemplate(rowIndex)
+        Dim parameterName As String = data(0).ToString()
+        ' 3. Извличаме името на токовия кръг от името на колоната
+        Dim circuitName As String = columnName.Replace("col_", "")
+        ' 4. Намираме обекта clsTokow в глобалния източник на истината
+        Dim currentCircuit As clsTokow = AppSettings.ListTokow.FirstOrDefault(Function(c) c.ТоковКръг = circuitName)
+        ' 5. Ако обектът съществува, му подаваме данните за запис
+        If currentCircuit IsNot Nothing Then
+            'currentCircuit.UpdatePropertyByParameterName(parameterName, newValue)
+        End If
+    End Sub
+    ''' <summary>
+    ''' Помощен метод, който разпределя променената стойност от интерфейса към точното свойство на clsTokow.
+    ''' </summary>
+    Private Sub UpdateCircuitProperty(ByVal circuit As clsTokow,
+                                      ByVal parameterName As String,
+                                      ByVal value As String)
+        Select Case parameterName
+        ' --- ПРЕКЪСВАЧ ---
+            Case "Тип на апарата", "Серия апарат"
+                circuit.Breaker_Тип_Апарат = value
+            Case "Номинален ток"
+                circuit.Breaker_Номинален_Ток = value
+            Case "Крива"
+                circuit.Breaker_Крива = value
+            Case "Защитен блок"
+                circuit.Breaker_Защитен_блок = value
+            Case "Изключвателна възможност"
+                circuit.Breaker_Изкл_Възможност = value
+        ' --- КАБЕЛ ---
+            Case "Начин на монтаж"
+                circuit.Кабел_Монтаж = value
+            Case "Начин на полагане"
+                circuit.Кабел_Полагане = value
+            Case "Тип кабел"
+                circuit.Кабел_Тип = value
+            Case "Сечение на кабела"
+                circuit.Кабел_Сечение = value
+            Case "Паралелни жила"
+                circuit.Кабел_Брой_Фаза = value
+            Case "Брой в група"
+                circuit.Кабел_Брой_Група = value
+        ' --- ДТЗ (RCD) ---
+            Case "ДТЗ Бранд"
+                circuit.RCD_Бранд = value
+            Case "ДТЗ Клас"
+                circuit.RCD_Клас = value
+            Case "ДТЗ Тип"
+                circuit.RCD_Тип = value
+            Case "ДТЗ Чувствителност"
+                circuit.RCD_Чувствителност = value
+            Case "ДТЗ Ток"
+                circuit.RCD_Ток = value
+        ' --- ОБЩИ ДАННИ ---
+            Case "Предназначение"
+                circuit.предназначение = value
+            Case "Обобщен консуматор"
+                circuit.Консуматор = value
+            Case "Управление"
+                circuit.Управление = value
+                ' Забележка: За Числа (Мощност, Ток) или Булеви (Шина, ДТЗ_RCD) 
+                ' ще трябва конвертиране с Double.TryParse или Boolean.TryParse, 
+                ' ако решиш да ги редактираш директно в Grid-а.
+        End Select
     End Sub
 End Class

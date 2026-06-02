@@ -395,12 +395,13 @@ Public Class DataGridViewManager
         ' 1. Определяме името и заглавието на колоната спрямо обекта
         Dim columnName As String = ""
         Dim columnHeader As String = ""
+        Dim NameColumn As String = circuit.Tablo & "|" & circuit.BuildingName
         If circuit.Device = "Табло" Then
-            columnName = "colTotal"
+            columnName = "colTotal|" & NameColumn
             columnHeader = "ОБЩО"
         Else
             ' Ако има име (напр. "Кръг 1"), правим динамично име на колоната
-            columnName = "col_" & circuit.ТоковКръг
+            columnName = "col|" & NameColumn & "|" & circuit.ТоковКръг
             columnHeader = circuit.ТоковКръг
         End If
         ' 2. Създаваме самата колона в края на Grid-a
@@ -410,7 +411,7 @@ Public Class DataGridViewManager
             .HeaderText = columnHeader
             .CellTemplate = New DataGridViewTextBoxCell()
             .DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter
-            If columnName = "colTotal" Then
+            If columnName.Contains("colTotal") Then
                 .Width = 135
                 .DefaultCellStyle.Font = New Drawing.Font("Segoe UI", 11, FontStyle.Bold)
             Else
@@ -432,7 +433,7 @@ Public Class DataGridViewManager
         AppSettings.IsGridLoading = True
         ' ВЗЕМАНЕ НА ИМЕТО НА КОЛОНАТА И ОПРЕДЕЛЯНЕ ДАЛИ Е "ОБЩО"
         Dim ColumnName As String = _dgv.Columns(colIndex).Name
-        Dim isTotalColumn As Boolean = (ColumnName = "colTotal")
+        Dim isTotalColumn As Boolean = ColumnName.Contains("colTotal")
 
         ' Подготвяме шрифтовете предварително
         Dim fontRegular As New Drawing.Font("Segoe UI", 11, FontStyle.Regular)
@@ -575,26 +576,40 @@ Public Class DataGridViewManager
             End If
         Next
     End Sub
-    ''' <summary>
-    ''' Обработва променената стойност от Grid-а, намира съответния токов кръг и обновява свойствата му.
-    ''' </summary>
-    Public Sub ProcessCellValueChanged(ByVal rowIndex As Integer, ByVal columnName As String, ByVal newValue As String)
+    Public Sub ProcessCellValueChanged(ByVal rowIndex As Integer, ByVal colIndex As Integer, ByVal newValue As String)
         ' 1. Защита: Проверяваме дали индексът съответства на нашия шаблон
         If rowTemplate Is Nothing OrElse rowIndex >= rowTemplate.Count Then Exit Sub
         ' 2. Намираме името на параметъра от нашия собствен шаблон
         Dim data As Object() = rowTemplate(rowIndex)
-        Dim parameterName As String = data(0).ToString()
-        ' 3. Извличаме името на токовия кръг от името на колоната
-        Dim circuitName As String = columnName.Replace("col_", "")
-        ' 4. Намираме обекта clsTokow в глобалния източник на истината
-        Dim currentCircuit As clsTokow = AppSettings.ListTokow.FirstOrDefault(Function(c) c.ТоковКръг = circuitName)
+        ' Ако масивът е къс или на позиция 4 няма нищо, или е празен низ -> излизаме ВЕДНАГА!
+        If data.Length <= 4 OrElse
+            data(4) Is Nothing OrElse
+            String.IsNullOrEmpty(data(4).ToString()) Then Exit Sub
+        ' Щом кодът премине защитата, си взимаме името на процедурата за изпълнение
         Dim procedureToExecute As String = data(4).ToString()
-        If String.IsNullOrEmpty(procedureToExecute) Then Exit Sub
-        ' 5. Ако обектът съществува, му подаваме данните за запис
+
+        Dim parameterName As String = data(0).ToString()
+        ' ====================================================================
+        ' СЛЕДВАЩА СТЪПКА: ИЗВЛИЧАНЕ НА ИМЕНАТА ОТ КОЛОНАТА
+        ' ====================================================================
+        ' А. Взимаме физическото име на колоната по нейния индекс
+        Dim columnName As String = _dgv.Columns(colIndex).Name
+        ' В. Махаме префикса "col_" от началото. 
+        ' Ако името е "col_Tablo1_SgrA_1AB", ще остане само "Tablo1_SgrA_1AB"
+        Dim cleanName As String = columnName.Substring(4)
+        ' Г. Разделяме останалия текст по символа "|"
+        Dim nameParts As String() = cleanName.Split("|"c)
+        ' Д. Записваме ги в отделни променливи (точно по реда на твоето създаване)
+        Dim extractedTablo As String = nameParts(0)        ' Име на таблото
+        Dim extractedBuilding As String = nameParts(1)     ' Име на сградата
+        Dim extractedCircuit As String = nameParts(2)      ' Име на токовия кръг
+        ' Намираме 100% точния обект по трите критерия наведнъж
+        Dim currentCircuit As clsTokow = AppSettings.ListTokow.FirstOrDefault(
+            Function(c) c.Tablo = extractedTablo AndAlso
+                        c.BuildingName = extractedBuilding AndAlso
+                        c.ТоковКръг = extractedCircuit
+        )
         _changeManager.UpdateCircuitProperty(currentCircuit, procedureToExecute, newValue)
 
-
-
     End Sub
-
 End Class

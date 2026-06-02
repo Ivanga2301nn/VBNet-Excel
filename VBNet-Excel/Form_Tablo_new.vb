@@ -348,15 +348,14 @@ Public Class Form_Tablo_new
         ' 1. Защита при зареждане и невалидни индекси
         If AppSettings.IsGridLoading Then Exit Sub
         If e.RowIndex < 0 OrElse e.ColumnIndex < 0 Then Exit Sub
-        ' 2. Вземаме името на променената колона
+        ' 2. Вземаме името на променената колона за бърза проверка на служебните колони
         Dim columnName As String = DataGridView1.Columns(e.ColumnIndex).Name
-        ' Пропускаме служебните колони директно на ниво интерфейс
         If columnName = "colParameter" OrElse columnName = "colUnit" Then Exit Sub
         ' 3. Вземаме въведената нова стойност от клетката
         Dim cellValue As Object = DataGridView1.Rows(e.RowIndex).Cells(e.ColumnIndex).Value
         Dim newValue As String = If(cellValue IsNot Nothing, cellValue.ToString(), "")
         ' 4. ПРЕДАВАМЕ ВСИЧКО НА МЕНИДЖЪРА
-        _DataGridViewManager.ProcessCellValueChanged(e.RowIndex, columnName, newValue)
+        _DataGridViewManager.ProcessCellValueChanged(e.RowIndex, e.ColumnIndex, newValue)
     End Sub
     ''' <summary>
     ''' Принуждава ComboBox и CheckBox да реагират ВЕДНАГА при избор/цъкане, а не чак при излизане от клетката.

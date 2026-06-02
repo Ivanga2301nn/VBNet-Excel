@@ -29,14 +29,17 @@ Public Class DataGridViewChangeManager
     ''' Главната входна точка. Взема името на процедурата от формата (Индекс 4) 
     ''' и я извиква динамично чрез Reflection.
     ''' </summary>
-    Public Sub UpdateCircuitProperty(ByVal circuit As clsTokow, ByVal procedureToExecute As String, ByVal newValue As String)
+    Public Sub UpdateCircuitProperty(ByVal tokow As clsTokow, ByVal procedureToExecute As String, ByVal newValue As String)
+        If tokow.Device = "Разединител" OrElse
+           tokow.Device = "Съществуващ" OrElse
+           tokow.Device = "Резерва" Then Exit Sub
         ' Тъй като вече си подсигурил защитите във формата, тук директно търсим метода
         Try
             ' Намира публичния метод със съответното име в този клас
             Dim method As MethodInfo = Me.GetType().GetMethod(procedureToExecute)
             If method IsNot Nothing Then
-                ' Изпълнява намерената процедура, подавайки circuit и newValue като аргументи
-                method.Invoke(Me, New Object() {circuit, newValue})
+                ' Изпълнява намерената процедура, подавайки tokow и newValue като аргументи
+                method.Invoke(Me, New Object() {tokow, newValue})
             End If
         Catch ex As TargetInvocationException
             ' Улавяме грешка, възникнала вътре в самата инженерна процедура (напр. в изчислителния модул)
@@ -44,11 +47,11 @@ Public Class DataGridViewChangeManager
             Dim realException As Exception = ex.InnerException
             Dim errorMessage As String = If(realException IsNot Nothing, realException.Message, ex.Message)
             ' Показваме елегантно съобщение на потребителя, вместо да чупим AutoCAD
-            System.Windows.Forms.MessageBox.Show(
+            MessageBox.Show(
                 $"Възникна грешка при обработка на промяната ({procedureToExecute}):{Environment.NewLine}{errorMessage}",
                 "Инженерен изчислителен модул",
-                System.Windows.Forms.MessageBoxButtons.OK,
-                System.Windows.Forms.MessageBoxIcon.Warning)
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning)
         End Try
     End Sub
     ' =================================================================
@@ -61,14 +64,6 @@ Public Class DataGridViewChangeManager
         circuit.Breaker_Тип_Апарат = value
         Select Case circuit.Device
             Case "Разединител", "Табло"
-                ' Трябва да извикаш UpdateComboRow за "Номинален ток" през инстанция или глобален метод
-                ' Стойностите се филтрират от Disconnectors колекцията
-                ' Пример:
-                ' Dim filteredDisco = Disconnectors.Where(Function(b) b.Type = value).ToList()
-                ' Dim valuesForCombo = filteredDisco.Select(Function(b) b.NominalCurrent.ToString()).Distinct().ToList()
-                ' FormInstance.UpdateComboRow("Номинален ток", valuesForCombo, currentColumnIndex)
-
-                If circuit.Device = "Табло" Then circuit.Device = "Табло"
 
             Case Else
                 ' За автоматични прекъсвачи (NewBreakers)
@@ -85,18 +80,17 @@ Public Class DataGridViewChangeManager
         Else
             Dim msg As String = "Сигурен ли си в това, което правиш? " & vbCrLf &
                                "Избраният ток е по-малък от текущия." & vbCrLf &
-                               "Честно казано, правиш простотия!" & vbCrLf &
                                "Искаш ли наистина да продължиш към Тъмната страна?"
-            Dim result As Windows.Forms.DialogResult = Windows.Forms.MessageBox.Show(
+            Dim result As DialogResult = MessageBox.Show(
                 msg, "Внимание: Инженерна мисъл в действие!",
-                Windows.Forms.MessageBoxButtons.YesNo, Windows.Forms.MessageBoxIcon.Warning)
-            If result = System.Windows.Forms.DialogResult.Yes Then
+                MessageBoxButtons.YesNo, MessageBoxIcon.Warning)
+            If result = DialogResult.Yes Then
                 circuit.Breaker_Номинален_Ток = value
             Else
-                Windows.Forms.MessageBox.Show("Мъдро решение! Спести си един ремонт.",
-                                              "Браво!",
-                                              Windows.Forms.MessageBoxButtons.OK,
-                                              Windows.Forms.MessageBoxIcon.Information)
+                MessageBox.Show("Мъдро решение! Спести си един ремонт.",
+                                "Браво!",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Information)
                 Exit Sub
             End If
         End If

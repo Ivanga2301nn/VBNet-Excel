@@ -4,6 +4,7 @@ Imports System.Drawing.Drawing2D
 Imports System.Linq
 Imports System.Security.Cryptography
 Imports System.Security.Cryptography.X509Certificates
+Imports System.Text.RegularExpressions
 Imports System.Windows.Forms
 Imports System.Windows.Forms.VisualStyles.VisualStyleElement
 Imports Autodesk.AutoCAD
@@ -98,7 +99,7 @@ Public Class Form_Tablo_new
     Private _disconnectorCatalog As DisconnectorCatalog
     Private _rcdCatalog As RCDCatalog
 
-    ' Създаваме инстанция на електрическите класове, която ще се грижи за всички изчисления в проекта
+    ' Създаваме инстанция на електрическите класове, които ще се грижат за всички изчисления в проекта
     Private _calculationEngine As ElectricalCalculationEngine
     Private _boardStructureManager As BoardStructureManager
     Private _panelBalanceManager As PanelBalanceManager
@@ -109,6 +110,10 @@ Public Class Form_Tablo_new
     ' --- ГЛОБАЛНОТО СЪСТОЯНИЕ ЗА МАРКАТА ---
     ' Полето е Shared
     Private _currentManufacturer As String = AppSettings.CurrentManufacturer
+
+    ' Създаваме инстанция на помощни класове, които ще се грижиа за
+    Private _AutoCadInserter As Form_Tablo_new_AutoCadInserter
+
 
     ' СВОЙСТВОТО СЪЩО ТРЯБВА ДА Е SHARED:
     Public Property CurrentManufacturer As String
@@ -152,6 +157,12 @@ Public Class Form_Tablo_new
         _treeViewManager.RefreshTree()
 
         _DataGridViewManager.InitializeGridStructure()
+
+
+
+
+
+
         AppSettings.IsGridLoading = True
     End Sub
     ''' <summary>
@@ -190,7 +201,7 @@ Public Class Form_Tablo_new
                                                        _cableCatalog,
                                                        _rcdCatalog,
                                                        _gridChangeManager)
-
+        _AutoCadInserter = New Form_Tablo_new_AutoCadInserter
     End Sub
 #Region "⚙️ СВОЙСТВА ЗА ДОСТЪП ДО КАТАЛОЗИ И МЕНИДЖЪРИ"
     ' --- СВОЙСТВА (Properties) за достъп от външни изчислителни класове ---
@@ -369,8 +380,34 @@ Public Class Form_Tablo_new
     Private Sub ToolStripButton_Вмъкни_Autocad_Click(sender As Object, e As EventArgs) Handles ToolStripButton_Вмъкни_Autocad.Click
         ' 1. Вземаме селектирания възел директно от TreeView контрола във формата
         Dim selectedNode As TreeNode = TreeView_Табло.SelectedNode
-        ' 2. Проверяваме дали има избран възел и дали той съдържа обект clsTokow    
-
+        If selectedNode Is Nothing Then Exit Sub
+        ' 2. Първо разделяме оригиналния път по наклонена черта, за да не счупим нивата
+        Dim rawPathParts As String() = selectedNode.FullPath.Split(New Char() {"\"c}, StringSplitOptions.RemoveEmptyEntries)
+        ' Списък, в който ще съберем перфектно изчистените и тримнати стрингове
+        Dim cleanParts As New List(Of String)()
+        ' 3. Въртим цикъл и чистим всяка папка/табло поотделно
+        For Each part As String In rawPathParts
+            ' А) Махаме мощността в скобите " (XX.XX kW)"
+            Dim cleanStr As String = Regex.Replace(part, "\s*\(.*?\)", "")
+            ' Б) Махаме Unicode иконите (сгради, табла) отпред
+            cleanStr = Regex.Replace(cleanStr, "[^а-яА-Яa-zA-Z0-9_\.\-\s]", "")
+            ' В) ЖЕЛЕЗЕН TRIM: Премахва коварния интервал, останал в началото след иконата!
+            cleanStr = cleanStr.Trim()
+            ' Записваме в чистия списък, ако не е празен
+            If Not String.IsNullOrEmpty(cleanStr) Then
+                cleanParts.Add(cleanStr)
+            End If
+        Next
+        ' 4. Защита: Проверяваме дали масивът ни е валиден
+        If cleanParts.Count = 0 Then Exit Sub
+        ' Конвертираме обратно към масив от чисти стрингове
+        Dim pathParts As String() = cleanParts.ToArray()
+        ' 5. Извикваме инсъртера и му подаваме перфектно изчистения масив
+        ' Сега pathParts(0) е чистото име на сградата, а последното е чистото име на таблото, без интервали!
+        _AutoCadInserter.ExecuteInsert(pathParts)
     End Sub
 End Class
+
+
+
 

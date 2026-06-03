@@ -80,11 +80,18 @@ Public Class Form_Tablo_new_AutoCadInserter
             {"Електромер", "s_Wh_meter"},
             {"Фото реле", "s_switch_light_sens"}
         }
-    Public Sub ExecuteInsert(panelCircuits As List(Of clsTokow), selectedTablo As String)
+    Public Sub ExecuteInsert(selectedTablo As String())
         ' Вземане на текущия AutoCAD документ, редактор и база
         Dim acDoc As Document = ApplicationServices.Application.DocumentManager.MdiActiveDocument
         Dim edt As Editor = acDoc.Editor
         Dim acCurDb As Database = acDoc.Database
+        ' 1. Вземаме стойностите от масива за филтъра
+        Dim filterBuilding As String = selectedTablo(0)
+        Dim filterTablo As String = selectedTablo(selectedTablo.Length - 1)
+        ' 2. Филтрираме централния списък ListTokow
+        Dim panelCircuits As List(Of clsTokow) = AppSettings.ListTokow _
+            .Where(Function(c) c.BuildingName = filterBuilding AndAlso c.Tablo = filterTablo) _
+            .ToList()
         ' ВЗЕМИ БАЗОВА ТОЧКА ОТ ПОТРЕБИТЕЛЯ
         Dim ptBasePointRes As PromptPointResult
         Dim pPtOpts As PromptPointOptions = New PromptPointOptions("")
@@ -93,8 +100,8 @@ Public Class Form_Tablo_new_AutoCadInserter
         If ptBasePointRes.Status = PromptStatus.Cancel Then Exit Sub
         Dim ptBasePoint As Point3d = ptBasePointRes.Value
         ' Проверяваме дали има кръгове на отделна шина
-        twoBus = panelCircuits.Any(Function(c) c.Шина)
-        hasDisconnector = panelCircuits.Any(Function(c) c.Device = "Разединител")
+        'twoBus = panelCircuits.Any(Function(c) c.Шина)
+        'hasDisconnector = panelCircuits.Any(Function(c) c.Device = "Разединител")
         If twoBus Then
             ' Проверяваме дали НЯМА нито един елемент с Device = "Разединител"
             If Not hasDisconnector Then
@@ -108,13 +115,13 @@ Public Class Form_Tablo_new_AutoCadInserter
             Try
                 ' ПРЕДИЗЧИСЛЯВАНЕ НА ПАРАМЕТРИТЕ
                 ' Тук ще извикваме процедурите за чертане една по една
-                DrawPanelFrame(acDoc, acCurDb, ptBasePoint, panelCircuits, selectedTablo)   ' Тук чертаем рамката на таблото
+                DrawPanelFrame(acDoc, acCurDb, ptBasePoint, panelCircuits, filterTablo)   ' Тук чертаем рамката на таблото
                 DrawBusbars(acDoc, acCurDb, ptBasePoint, panelCircuits)                     ' Тук чертаем шините
                 DrawCircuits(acDoc, acCurDb, ptBasePoint, panelCircuits)                    ' Тук чертаем всеки токов кръг (прекъсвачи, текстове, линии)
                 DrawRCDBusbar(acDoc, acCurDb, ptBasePoint, panelCircuits)                   ' Тук чертаем ДЗТ за токовите кръгове (прекъсвачи, текстове, линии)
 
 
-                DrawGrounding(acDoc, acCurDb, ptBasePoint.X, ptBasePoint, selectedTablo)   ' Чертaем заземление само за главно разпределително табло
+                DrawGrounding(acDoc, acCurDb, ptBasePoint.X, ptBasePoint, filterTablo)   ' Чертaем заземление само за главно разпределително табло
                 DrawAnnotations(ptBasePoint, panelCircuits)                                ' Процедурата създава текстови анотации
             Catch ex As Exception
                 trans.Abort()

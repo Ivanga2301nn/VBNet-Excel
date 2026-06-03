@@ -30,6 +30,22 @@ Public Class DataGridViewChangeManager
     ''' и я извиква динамично чрез Reflection.
     ''' </summary>
     Public Sub UpdateCircuitProperty(ByVal tokow As clsTokow, ByVal procedureToExecute As String, ByVal newValue As String)
+        ' ------------------------------------------------------------
+        ' 🛡️ ОБЩА ПРОВЕРКА ЗА КОРЕКТНОСТ (За трите параметъра)
+        ' ------------------------------------------------------------
+        If tokow Is Nothing OrElse
+           String.IsNullOrEmpty(procedureToExecute) OrElse
+           String.IsNullOrEmpty(newValue) Then
+            ' Показваме съобщение за грешни/непълни данни
+            MessageBox.Show(
+                "Операцията е прекратена! Подадени са некоректни или празни данни за токовия кръг, процедурата или стойността.",
+                "Невалидни данни",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Exclamation
+            )
+            ' Изход от процедурата
+            Exit Sub
+        End If
         If tokow.Device = "Разединител" OrElse
            tokow.Device = "Съществуващ" OrElse
            tokow.Device = "Резерва" Then Exit Sub

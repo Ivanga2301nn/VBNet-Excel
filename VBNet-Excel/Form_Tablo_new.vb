@@ -366,5 +366,11 @@ Public Class Form_Tablo_new
             DataGridView1.CommitEdit(DataGridViewDataErrorContexts.Commit)
         End If
     End Sub
+    Private Sub ToolStripButton_Вмъкни_Autocad_Click(sender As Object, e As EventArgs) Handles ToolStripButton_Вмъкни_Autocad.Click
+        ' 1. Вземаме селектирания възел директно от TreeView контрола във формата
+        Dim selectedNode As TreeNode = TreeView_Табло.SelectedNode
+        ' 2. Проверяваме дали има избран възел и дали той съдържа обект clsTokow    
+
+    End Sub
 End Class
 

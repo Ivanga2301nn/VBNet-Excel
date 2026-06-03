@@ -594,21 +594,29 @@ Public Class DataGridViewManager
         ' ====================================================================
         ' А. Взимаме физическото име на колоната по нейния индекс
         Dim columnName As String = _dgv.Columns(colIndex).Name
-        ' В. Махаме префикса "col_" от началото. 
-        ' Ако името е "col_Tablo1_SgrA_1AB", ще остане само "Tablo1_SgrA_1AB"
-        Dim cleanName As String = columnName.Substring(4)
         ' Г. Разделяме останалия текст по символа "|"
-        Dim nameParts As String() = cleanName.Split("|"c)
-        ' Д. Записваме ги в отделни променливи (точно по реда на твоето създаване)
-        Dim extractedTablo As String = nameParts(0)        ' Име на таблото
-        Dim extractedBuilding As String = nameParts(1)     ' Име на сградата
-        Dim extractedCircuit As String = nameParts(2)      ' Име на токовия кръг
+        Dim nameParts As String() = columnName.Split("|"c)
+        ' Декларираме си променливите предварително, за да са достъпни надолу в кода
+        Dim extractedTablo As String = ""
+        Dim extractedBuilding As String = ""
+        Dim extractedCircuit As String = ""
+        ' В. ПРОВЕРКА: Дали колоната НЕ Е сумарна
+        If nameParts(0) <> "colTotal" Then
+            ' Записваме ги в отделни променливи
+            extractedTablo = nameParts(1)        ' Име на таблото
+            extractedBuilding = nameParts(2)     ' Име на сградата
+            extractedCircuit = nameParts(3)      ' Име на токовия кръг
+        Else
+            extractedTablo = nameParts(1)        ' Име на таблото
+            extractedBuilding = nameParts(2)     ' Име на сградата
+            extractedCircuit = "ОБЩО"            ' Име на токовия кръг
+        End If
         ' Намираме 100% точния обект по трите критерия наведнъж
         Dim currentCircuit As clsTokow = AppSettings.ListTokow.FirstOrDefault(
-            Function(c) c.Tablo = extractedTablo AndAlso
-                        c.BuildingName = extractedBuilding AndAlso
-                        c.ТоковКръг = extractedCircuit
-        )
+                                         Function(c) c.Tablo = extractedTablo AndAlso
+                                         c.BuildingName = extractedBuilding AndAlso
+                                         c.ТоковКръг = extractedCircuit
+                                         )
         _changeManager.UpdateCircuitProperty(currentCircuit, procedureToExecute, newValue)
 
     End Sub

@@ -82,7 +82,7 @@ Public Class Form_Tablo_new_AutoCadInserter
         }
     Public Sub ExecuteInsert(panelCircuits As List(Of clsTokow), selectedTablo As String)
         ' Вземане на текущия AutoCAD документ, редактор и база
-        Dim acDoc As Document = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument
+        Dim acDoc As Document = ApplicationServices.Application.DocumentManager.MdiActiveDocument
         Dim edt As Editor = acDoc.Editor
         Dim acCurDb As Database = acDoc.Database
         ' ВЗЕМИ БАЗОВА ТОЧКА ОТ ПОТРЕБИТЕЛЯ

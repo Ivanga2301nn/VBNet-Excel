@@ -335,5 +335,8 @@
   <ItemGroup>
     <None Include="Resources\AddBuildToQueue_16x.png" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\AddFilter_16x.png" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.VisualBasic.targets" />
 </Project>

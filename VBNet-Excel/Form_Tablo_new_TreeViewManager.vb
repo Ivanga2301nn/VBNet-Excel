@@ -167,14 +167,11 @@ Public Class TreeViewManager
         _tv.ExpandAll()
         _tv.EndUpdate()
     End Sub
-
     Private Sub MenuCollapseAll_Click(sender As Object, e As EventArgs)
         _tv.BeginUpdate()
         _tv.CollapseAll()
         _tv.EndUpdate()
     End Sub
-
-
     ' ========================================================================
     ' 🔄 ГЕНЕРИРАНЕ И ОБНОВЯВАНЕ НА ДЪРВОТО
     ' ========================================================================
@@ -186,7 +183,6 @@ Public Class TreeViewManager
             Dim allTabloNodes As New Dictionary(Of String, TreeNode)(StringComparer.OrdinalIgnoreCase)
             Dim tabloToBuilding As New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase)
             Dim tabloToParent As New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase)
-
             ' 1. ПЪРВИ ПАС: СЪЗДАВАНЕ НА СГРАДИТЕ
             For Each item In AppSettings.ListTokow
                 Dim bName = If(String.IsNullOrWhiteSpace(item.BuildingName), ROOT_NODE_TEXT, item.BuildingName.Trim())
@@ -197,14 +193,12 @@ Public Class TreeViewManager
                     buildingNodes.Add(bName, bNode)
                 End If
             Next
-
             ' 2. ВТОРИ ПАС: СЪЗДАВАНЕ НА ТАБЛАТА
             For Each item In AppSettings.ListTokow
                 If item.Device IsNot Nothing AndAlso item.Device.Trim().Equals("Табло", StringComparison.OrdinalIgnoreCase) Then
                     Dim bName = If(String.IsNullOrWhiteSpace(item.BuildingName), ROOT_NODE_TEXT, item.BuildingName.Trim())
                     Dim tName = If(item.Tablo Is Nothing, "", item.Tablo.Trim())
                     Dim tabloKey = bName & "_" & tName
-
                     If Not allTabloNodes.ContainsKey(tabloKey) Then
                         Dim tNode As New TreeNode(FormatPanelText(item))
                         tNode.ForeColor = _tv.ForeColor
@@ -213,13 +207,11 @@ Public Class TreeViewManager
                         tabloToBuilding(tabloKey) = bName
                         tabloToParent(tabloKey) = ""
                     End If
-
                     If Not String.IsNullOrWhiteSpace(item.Табло_Родител) AndAlso item.Табло_Родител.Trim() <> ROOT_NODE_TEXT Then
                         tabloToParent(tabloKey) = bName & "_" & item.Табло_Родител.Trim()
                     End If
                 End If
             Next
-
             ' 3. ТРЕТИ ПАС: ЙЕРАРХИЧНО СВЪРЗВАНЕ НА ТАБЛАТА
             For Each tabloKey In allTabloNodes.Keys
                 Dim currentNode = allTabloNodes(tabloKey)
@@ -241,7 +233,6 @@ Public Class TreeViewManager
                     End If
                 End If
             Next
-
             ' 4. ЧЕТВЪРТИ ПАС: ДОБАВЯНЕ НА КОНСУМАТОРИ
             Dim consumerSums As New Dictionary(Of TreeNode, Double)
             For Each item In AppSettings.ListTokow
@@ -249,44 +240,37 @@ Public Class TreeViewManager
                     Dim bName = If(String.IsNullOrWhiteSpace(item.BuildingName), ROOT_NODE_TEXT, item.BuildingName.Trim())
                     Dim tName = If(item.Tablo Is Nothing, "", item.Tablo.Trim())
                     Dim tabloKey = bName & "_" & tName
-
                     If allTabloNodes.ContainsKey(tabloKey) Then
                         Dim parentPanelNode = allTabloNodes(tabloKey)
                         Dim consumerGroupNode As TreeNode = Nothing
-
                         For Each node In parentPanelNode.Nodes
                             If node.Text.Contains(CONSUMERS_NODE_TEXT) Then
                                 consumerGroupNode = node
                                 Exit For
                             End If
                         Next
-
                         If consumerGroupNode Is Nothing Then
                             consumerGroupNode = New TreeNode($"{ICON_FOLDER} {CONSUMERS_NODE_TEXT}")
                             consumerGroupNode.ForeColor = _tv.ForeColor
                             parentPanelNode.Nodes.Add(consumerGroupNode)
                             consumerSums(consumerGroupNode) = 0
                         End If
-
                         Dim cNode As New TreeNode(FormatCircuitText(item))
                         cNode.ForeColor = _tv.ForeColor
                         cNode.Tag = item
                         consumerGroupNode.Nodes.Add(cNode)
-
                         Dim power As Double = 0
                         Double.TryParse(item.Мощност.ToString(), power)
                         consumerSums(consumerGroupNode) += power
                     End If
                 End If
             Next
-
             ' ОБНОВЯВАНЕ НА МОЩНОСТИТЕ НА ПАПКИТЕ
             Dim formatSpecifier As String = "F" & DECIMAL_PLACES
             For Each groupNode In consumerSums.Keys
                 Dim sumValue As Double = consumerSums(groupNode)
                 groupNode.Text = $"{ICON_FOLDER} {CONSUMERS_NODE_TEXT} ({sumValue.ToString(formatSpecifier)} {POWER_UNIT})"
             Next
-
         Finally
             ' ИНТЕНЛИГЕНТНО РАЗГЪВАНЕ СПОРЕД СЪСТОЯНИЕТО
             If _isFirstLoad Then
@@ -303,29 +287,23 @@ Public Class TreeViewManager
                     rootNode.ExpandAll()
                 Next
             End If
-
             _tv.EndUpdate()
         End Try
     End Sub
-
-
     ' ========================================================================
-    ' 🚚 DRAG & DROP ЛОГИКА (БЕЗ ELSEIF)
+    ' 🚚 DRAG & DROP ЛОГИКА
     ' ========================================================================
     Private Sub HandleItemDrag(sender As Object, e As ItemDragEventArgs)
         _tv.SelectedNode = DirectCast(e.Item, TreeNode)
         _tv.DoDragDrop(e.Item, DragDropEffects.Move)
     End Sub
-
     Private Sub HandleDragEnter(sender As Object, e As DragEventArgs)
         e.Effect = DragDropEffects.Move
     End Sub
-
     Private Sub HandleDragOver(sender As Object, e As DragEventArgs)
         Dim targetPoint As Point = _tv.PointToClient(New Point(e.X, e.Y))
         _tv.SelectedNode = _tv.GetNodeAt(targetPoint)
     End Sub
-
     Private Sub HandleDragDrop(sender As Object, e As DragEventArgs)
         Dim targetPoint As Point = _tv.PointToClient(New Point(e.X, e.Y))
         Dim targetNode As TreeNode = _tv.GetNodeAt(targetPoint)

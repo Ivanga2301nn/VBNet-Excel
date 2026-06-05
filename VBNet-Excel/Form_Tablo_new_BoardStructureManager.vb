@@ -1,6 +1,21 @@
-﻿Public Class BoardStructureManager
+﻿Imports Microsoft.Office.Interop.Excel
+
+Public Class BoardStructureManager
     ' 1. Пазим локални референции на ниво клас
     Private _rcdCatalog As RCDCatalog
+    ' Твоят стандартен инженерен ред (Гръбнакът на системата)
+    ' Ключът е името на групата, а стойността е приоритетът (нивото)
+    Private Shared StandardOrder As New Dictionary(Of String, Integer) From {
+                                    {"СЪЩ", 0},
+                                    {"АВ", 1},
+                                    {"ДО", 2},
+                                    {"ОС", 3},
+                                    {"КО", 4},
+                                    {"ОВ", 5},
+                                    {"[ЧИСТИ ЧИСЛА]", 97},
+                                    {"РЕЗ", 98},
+                                    {"ОБЩО", 99}
+}
     ''' <summary>
     ''' КОНСТРУКТОР: Приема създадените каталози и списъка с токови кръгове от формата
     ''' </summary>
@@ -45,10 +60,6 @@
     ''' <summary>
     ''' Извършва йерархично сортиране на списъка с токови кръгове (Natural Sort).
     ''' </summary>
-    ''' <param name="tokowList">
-    ''' Списъкът с токови кръгове (List(Of strTokow)), който се подава по референция (ByRef).
-    ''' Тъй като се пренаписва оригиналната референция, промените се отразяват директно в извикващата форма.
-    ''' </param>
     ''' <remarks>
     ''' Сортирането следва строга географско-електрическа йерархия в 3 стъпки:
     ''' 1. Сграда (BuildingName) - защитава от празни стойности в AutoCAD.
@@ -74,131 +85,94 @@
     ''' </remarks>
     Public Sub SortListTokow()
         ' Изпълняваме тристепенна LINQ щафета, за да подредим оригиналния списък.
-        ' Тъй като променливата е предадена с ByRef, промените ще се отразят веднага.
         AppSettings.ListTokow = AppSettings.ListTokow.
-                    OrderBy(Function(t) If(String.IsNullOrEmpty(t.BuildingName), "БЕЗ СГРАДА", t.BuildingName)). ' ПЪРВО НИВО: Групиране по Сграда.
-                    ThenBy(Function(t) t.Tablo). ' ВТОРО НИВО: Подреждане по име на Електрическото Табло.
-                    ThenBy(Function(t) GetCircuitSortKey(t.ТоковКръг)). 'ТРЕТО НИВО: Естествено сортиране на самите токови кръгове.
-                    ToList() ' ФИНАЛИЗИРАНЕ: Превръщаме подредената колекция обратно в чист списък (List).
+            OrderBy(Function(t) If(String.IsNullOrEmpty(t.BuildingName), "БЕЗ СГРАДА", t.BuildingName)). ' 1. По Сграда
+            ThenBy(Function(t) t.Tablo). ' 2. По име на Електрическото Табло
+            ThenBy(Function(t) GetUniversalSortKey(t.ТоковКръг)). ' 3. НОВОТО универсално естествено сортиране
+            ToList()
     End Sub
     ''' <summary>
-    ''' Връща ключ за сортиране на токов кръг със специален приоритет
-    ''' Порядок: 1.ав. → 2.до. → 3.други букви → 4.числа → 5.само букви
+    ''' Анализира името на кръга и отделя чистата буквена група от номера, прескачайки разделители
     ''' </summary>
-    Private Function GetCircuitSortKey(circuitName As String) As String
-        If String.IsNullOrEmpty(circuitName) Then Return "ZZZZZZZZZZ"
-        Dim name As String = circuitName.Trim().ToUpper()
-        Dim priority As String = "9"  ' По подразбиране най-нисък приоритет
-        Dim numberPart As String = ""
-        Dim letterPart As String = ""
-        ' ============================================================
-        ' 1. ОПРЕДЕЛИ КАТЕГОРИЯТА (ПРИОРИТЕТ)
-        ' ============================================================
-        Select Case True
-            ' 1. СЪЩЕСТВУВАЩИ
-            Case name = "СЪЩ."
-                priority = "0"
-                numberPart = ExtractNumber(name)
-                letterPart = "СЪЩ"
-            ' 2. АВАРИЙНИ
-            Case name.Contains("АВ")
-                priority = "1"
-                numberPart = ExtractNumber(name)
-                letterPart = "АВ"
-            ' 3. ДОПЪЛНИТЕЛНИ
-            Case name.Contains("ДО")
-                priority = "2"
-                numberPart = ExtractNumber(name)
-                letterPart = "ДО"
-            ' 4. ЧИСТИ ЧИСЛА
-            Case IsNumeric(name)
-                priority = "3"
-                numberPart = name
-                letterPart = ""
-            ' 5. ЧИСЛО + БУКВА (напр. 1а, 2б)
-            Case HasNumberAndLetters(name) AndAlso Char.IsDigit(name(0))
-                priority = "4"
-                numberPart = ExtractNumber(name)
-                letterPart = ExtractLetters(name)
-            ' 6. ОБЩО (Провери го ПРЕДИ общия случай за букви)
-            Case name = "ОБЩО"
-                priority = "9"
-                numberPart = ""
-                letterPart = "ZZZZZ"
-            ' 7. РЕЗЕРВА
-            Case name = "РЕЗ."
-                priority = "8"
-                numberPart = ""
-                letterPart = "РЕЗ"
-            ' 8. ВСИЧКО ЗАПОЧВАЩО С БУКВА (Основни кръгове като А1, Б1 и т.н.)
-            Case Not String.IsNullOrEmpty(name) AndAlso Char.IsLetter(name(0))
-                priority = "5"
-                numberPart = ExtractNumber(name)
-                letterPart = name
-                ' 9. ВСИЧКО ОСТАНАЛО
-            Case Else
-                priority = "8"
-                numberPart = ""
-                letterPart = name
-        End Select
-        ' ============================================================
-        ' 2. СЪЗДАЙ КЛЮЧ ЗА СОРТИРАНЕ
-        ' ============================================================
-        ' Формат: Приоритет + Номер (с водещи нули) + Букви
-        ' Пример: "10000000001АВ" за "1ав."
-        If numberPart.Length > 0 Then
-            ' Подравняване на числото с водещи нули (до 10 цифри)
-            numberPart = numberPart.PadLeft(10, "0"c)
-            Return priority & numberPart & letterPart
-        Else
-            ' Само букви - сортирай азбучно
-            Return priority & "0000000000" & letterPart
+    Private Sub AnalyzeCircuitName(circuitName As String, ByRef letterPart As String, ByRef numberPart As String)
+        If String.IsNullOrEmpty(circuitName) Then
+            letterPart = ""
+            numberPart = ""
+            Exit Sub
         End If
-    End Function
-    ''' <summary>
-    ''' Извлича числото от низ (напр. "1АВ" → "1", "А2Б" → "2")
-    ''' </summary>
-    Private Function ExtractNumber(text As String) As String
-        Dim result As String = ""
-        For Each c As Char In text
+        ' 1. Нормализация (премахваме точки и интервали)
+        Dim name As String = circuitName.Trim().ToUpper().Replace(".", "")
+        ' Служебни твърди съвпадения за края на таблото
+        If name = "ОБЩО" Then
+            letterPart = "ОБЩО"
+            numberPart = ""
+            Exit Sub
+        End If
+        If name = "РЕЗ" OrElse name = "РЕЗЕРВА" Then
+            letterPart = "РЕЗ"
+            numberPart = ""
+            Exit Sub
+        End If
+        ' 2. Извличане на чистите цифри и чистите букви (тирета и долни черти се прескачат)
+        Dim digits As String = ""
+        Dim letters As String = ""
+        For Each c As Char In name
             If Char.IsDigit(c) Then
-                result &= c
+                digits &= c
+            Else
+                If Char.IsLetter(c) Then
+                    letters &= c
+                End If
             End If
         Next
-        Return result
-    End Function
+        ' 3. Класификация на резултата
+        If letters.Length > 0 AndAlso digits.Length > 0 Then
+            ' Има и букви, и цифри (напр. "ОС-1", "2_КО", "1АВ")
+            letterPart = letters
+            numberPart = digits
+        ElseIf digits.Length > 0 Then
+            ' Само числа (напр. "15", "1")
+            letterPart = "[ЧИСТИ ЧИСЛА]"
+            numberPart = digits
+        Else
+            ' Само букви (напр. "ОС", "КО")
+            letterPart = letters
+            numberPart = ""
+        End If
+    End Sub
     ''' <summary>
-    ''' Извлича буквите от низ (напр. "1АВ" → "АВ", "А2Б" → "АБ")
+    ''' Генерира мощен ключ за сортиране на база динамичното тегло на групите
     ''' </summary>
-    Private Function ExtractLetters(text As String) As String
-        Dim result As String = ""
-        For Each c As Char In text
-            If Char.IsLetter(c) Then
-                result &= c
-            End If
-        Next
-        Return result
-    End Function
-    ''' <summary>
-    ''' Проверява дали низът съдържа и букви и числа
-    ''' </summary>
-    Private Function HasNumberAndLetters(text As String) As Boolean
-        Dim hasNumber As Boolean = False
-        Dim hasLetter As Boolean = False
-        For Each c As Char In text
-            If Char.IsDigit(c) Then hasNumber = True
-            If Char.IsLetter(c) Then hasLetter = True
-        Next
-        Return hasNumber AndAlso hasLetter
-    End Function
-    ''' <summary>
-    ''' Проверява дали низът е само число
-    ''' </summary>
-    Private Function IsNumeric(text As String) As Boolean
-        For Each c As Char In text
-            If Not Char.IsDigit(c) Then Return False
-        Next
-        Return text.Length > 0
+    Public Function GetUniversalSortKey(circuitName As String) As String
+        ' Ако името е празно, връщаме максимално голям ключ, за да отиде най-отзад
+        If String.IsNullOrEmpty(circuitName) Then Return "99_9999999999_ZZZZZ"
+        Dim letterPart As String = ""
+        Dim numberPart As String = ""
+        ' Извикваме анализатора, който ни връща чиста група (без разделители) и числови номер
+        AnalyzeCircuitName(circuitName, letterPart, numberPart)
+        Dim priority As String = ""
+        ' 1. Директна и светкавична проверка в Речника
+        If StandardOrder.ContainsKey(letterPart) Then
+            ' Взимаме нивото (напр. 0, 1, 3, или 99 за ОБЩО) 
+            ' и го правим на текст с водеща нула (напр. "00", "01", "03", "99")
+            Dim level As Integer = StandardOrder(letterPart)
+            priority = level.ToString().PadLeft(2, "0"c)
+        Else
+            ' 2. За напълно нови букви (извън речника) - отиват в "златната среда" (приоритет 50),
+            ' за да са след основните групи, но ПРЕД твърдо закованите РЕЗЕРВА (98) и ОБЩО (99).
+            ' Добавяме и самите букви към приоритета, за да се подредят азбучно спрямо други нови букви.
+            priority = "50_" & letterPart
+        End If
+        ' 3. Форматираме номера с водещи нули (до 10 цифри за правилно "естествено" сортиране)
+        If numberPart.Length > 0 Then
+            numberPart = numberPart.PadLeft(10, "0"c)
+        Else
+            numberPart = "0000000000"
+        End If
+        ' Крайният ключ комбинира: Приоритет на групата + Номер + Буква (за разграничение при еднакви номера)
+        ' Пример за "ОС-1": "03_0000000001_ОС"
+        ' Пример за "ОБЩО": "99_0000000000_ОБЩО"
+        Return priority & "_" & numberPart & "_" & letterPart
     End Function
 #End Region
 

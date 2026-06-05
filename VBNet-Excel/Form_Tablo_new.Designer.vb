@@ -26,32 +26,35 @@ Partial Class Form_Tablo_new
         Me.StatusStrip1 = New System.Windows.Forms.StatusStrip()
         Me.ToolStripProgressBar1 = New System.Windows.Forms.ToolStripProgressBar()
         Me.ToolStrip1 = New System.Windows.Forms.ToolStrip()
-        Me.NewToolStripButton = New System.Windows.Forms.ToolStripButton()
-        Me.OpenToolStripButton = New System.Windows.Forms.ToolStripButton()
-        Me.SaveToolStripButton = New System.Windows.Forms.ToolStripButton()
-        Me.PrintToolStripButton = New System.Windows.Forms.ToolStripButton()
         Me.toolStripSeparator6 = New System.Windows.Forms.ToolStripSeparator()
-        Me.CutToolStripButton = New System.Windows.Forms.ToolStripButton()
-        Me.CopyToolStripButton = New System.Windows.Forms.ToolStripButton()
-        Me.PasteToolStripButton = New System.Windows.Forms.ToolStripButton()
         Me.toolStripSeparator7 = New System.Windows.Forms.ToolStripSeparator()
-        Me.HelpToolStripButton = New System.Windows.Forms.ToolStripButton()
         Me.ToolStripSeparator2 = New System.Windows.Forms.ToolStripSeparator()
         Me.TscboManufacturer = New System.Windows.Forms.ToolStripComboBox()
         Me.ToolStripSeparator4 = New System.Windows.Forms.ToolStripSeparator()
-        Me.ToolStripButton_Балансирай_фазите = New System.Windows.Forms.ToolStripButton()
         Me.ToolStripSeparator3 = New System.Windows.Forms.ToolStripSeparator()
-        Me.ToolStripButton_Поправи_ДЗТ = New System.Windows.Forms.ToolStripButton()
         Me.ToolStripSeparator1 = New System.Windows.Forms.ToolStripSeparator()
-        Me.ToolStripButton_Вмъкни_Autocad = New System.Windows.Forms.ToolStripButton()
         Me.ToolStripSeparator5 = New System.Windows.Forms.ToolStripSeparator()
-        Me.ToolStripButton_ШИНА = New System.Windows.Forms.ToolStripButton()
-        Me.ToolStripButton_Добави_резерва = New System.Windows.Forms.ToolStripButton()
         Me.GroupBox2 = New System.Windows.Forms.GroupBox()
         Me.DataGridView1 = New System.Windows.Forms.DataGridView()
         Me.GroupBox1 = New System.Windows.Forms.GroupBox()
         Me.TreeView_Табло = New System.Windows.Forms.TreeView()
         Me.SplitContainer1 = New System.Windows.Forms.SplitContainer()
+        Me.ToolStripSeparator8 = New System.Windows.Forms.ToolStripSeparator()
+        Me.ToolStripSeparator9 = New System.Windows.Forms.ToolStripSeparator()
+        Me.NewToolStripButton = New System.Windows.Forms.ToolStripButton()
+        Me.OpenToolStripButton = New System.Windows.Forms.ToolStripButton()
+        Me.SaveToolStripButton = New System.Windows.Forms.ToolStripButton()
+        Me.PrintToolStripButton = New System.Windows.Forms.ToolStripButton()
+        Me.CutToolStripButton = New System.Windows.Forms.ToolStripButton()
+        Me.CopyToolStripButton = New System.Windows.Forms.ToolStripButton()
+        Me.PasteToolStripButton = New System.Windows.Forms.ToolStripButton()
+        Me.HelpToolStripButton = New System.Windows.Forms.ToolStripButton()
+        Me.ToolStripButton_Балансирай_фазите = New System.Windows.Forms.ToolStripButton()
+        Me.ToolStripButton_Поправи_ДЗТ = New System.Windows.Forms.ToolStripButton()
+        Me.ToolStripButton_Вмъкни_Autocad = New System.Windows.Forms.ToolStripButton()
+        Me.ToolStripButton_ШИНА = New System.Windows.Forms.ToolStripButton()
+        Me.ToolStripButton_Добави_резерва = New System.Windows.Forms.ToolStripButton()
+        Me.ToolStripButton_Сортиране = New System.Windows.Forms.ToolStripButton()
         Me.StatusStrip1.SuspendLayout()
         Me.ToolStrip1.SuspendLayout()
         Me.GroupBox2.SuspendLayout()
@@ -82,93 +85,22 @@ Partial Class Form_Tablo_new
         '
         'ToolStrip1
         '
-        Me.ToolStrip1.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.NewToolStripButton, Me.OpenToolStripButton, Me.SaveToolStripButton, Me.PrintToolStripButton, Me.toolStripSeparator6, Me.CutToolStripButton, Me.CopyToolStripButton, Me.PasteToolStripButton, Me.toolStripSeparator7, Me.HelpToolStripButton, Me.ToolStripSeparator2, Me.TscboManufacturer, Me.ToolStripSeparator4, Me.ToolStripButton_Балансирай_фазите, Me.ToolStripSeparator3, Me.ToolStripButton_Поправи_ДЗТ, Me.ToolStripSeparator1, Me.ToolStripButton_Вмъкни_Autocad, Me.ToolStripSeparator5, Me.ToolStripButton_ШИНА, Me.ToolStripButton_Добави_резерва})
+        Me.ToolStrip1.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.NewToolStripButton, Me.OpenToolStripButton, Me.SaveToolStripButton, Me.PrintToolStripButton, Me.toolStripSeparator6, Me.CutToolStripButton, Me.CopyToolStripButton, Me.PasteToolStripButton, Me.toolStripSeparator7, Me.HelpToolStripButton, Me.ToolStripSeparator2, Me.TscboManufacturer, Me.ToolStripSeparator4, Me.ToolStripButton_Балансирай_фазите, Me.ToolStripSeparator3, Me.ToolStripButton_Поправи_ДЗТ, Me.ToolStripSeparator1, Me.ToolStripButton_Вмъкни_Autocad, Me.ToolStripSeparator5, Me.ToolStripButton_ШИНА, Me.ToolStripSeparator8, Me.ToolStripButton_Добави_резерва, Me.ToolStripSeparator9, Me.ToolStripButton_Сортиране})
         Me.ToolStrip1.Location = New System.Drawing.Point(5, 5)
         Me.ToolStrip1.Name = "ToolStrip1"
         Me.ToolStrip1.Size = New System.Drawing.Size(1373, 25)
         Me.ToolStrip1.TabIndex = 2
         Me.ToolStrip1.Text = "ToolStrip1"
         '
-        'NewToolStripButton
-        '
-        Me.NewToolStripButton.Image = CType(resources.GetObject("NewToolStripButton.Image"), System.Drawing.Image)
-        Me.NewToolStripButton.ImageTransparentColor = System.Drawing.Color.Magenta
-        Me.NewToolStripButton.Name = "NewToolStripButton"
-        Me.NewToolStripButton.Size = New System.Drawing.Size(68, 22)
-        Me.NewToolStripButton.Text = "&Избери"
-        Me.NewToolStripButton.ToolTipText = "Покажи ми кои блокове си хареса днес – избери ги от чертежа." & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10)
-        '
-        'OpenToolStripButton
-        '
-        Me.OpenToolStripButton.Image = CType(resources.GetObject("OpenToolStripButton.Image"), System.Drawing.Image)
-        Me.OpenToolStripButton.ImageTransparentColor = System.Drawing.Color.Magenta
-        Me.OpenToolStripButton.Name = "OpenToolStripButton"
-        Me.OpenToolStripButton.Size = New System.Drawing.Size(68, 22)
-        Me.OpenToolStripButton.Text = "&Отвори"
-        Me.OpenToolStripButton.ToolTipText = "Да видим какво има вътре!" & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10) & "Отвори файла с един клик."
-        '
-        'SaveToolStripButton
-        '
-        Me.SaveToolStripButton.Image = CType(resources.GetObject("SaveToolStripButton.Image"), System.Drawing.Image)
-        Me.SaveToolStripButton.ImageTransparentColor = System.Drawing.Color.Magenta
-        Me.SaveToolStripButton.Name = "SaveToolStripButton"
-        Me.SaveToolStripButton.Size = New System.Drawing.Size(72, 22)
-        Me.SaveToolStripButton.Text = "&Запиши"
-        Me.SaveToolStripButton.ToolTipText = "Спаси труда си, преди да е дошъл багеристът извън офиса!" & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10) & "Запиши промените."
-        '
-        'PrintToolStripButton
-        '
-        Me.PrintToolStripButton.Image = CType(resources.GetObject("PrintToolStripButton.Image"), System.Drawing.Image)
-        Me.PrintToolStripButton.ImageTransparentColor = System.Drawing.Color.Magenta
-        Me.PrintToolStripButton.Name = "PrintToolStripButton"
-        Me.PrintToolStripButton.Size = New System.Drawing.Size(73, 22)
-        Me.PrintToolStripButton.Text = "&Постави"
-        '
         'toolStripSeparator6
         '
         Me.toolStripSeparator6.Name = "toolStripSeparator6"
         Me.toolStripSeparator6.Size = New System.Drawing.Size(6, 25)
         '
-        'CutToolStripButton
-        '
-        Me.CutToolStripButton.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image
-        Me.CutToolStripButton.Image = CType(resources.GetObject("CutToolStripButton.Image"), System.Drawing.Image)
-        Me.CutToolStripButton.ImageTransparentColor = System.Drawing.Color.Magenta
-        Me.CutToolStripButton.Name = "CutToolStripButton"
-        Me.CutToolStripButton.Size = New System.Drawing.Size(23, 22)
-        Me.CutToolStripButton.Text = "C&ut"
-        '
-        'CopyToolStripButton
-        '
-        Me.CopyToolStripButton.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image
-        Me.CopyToolStripButton.Image = CType(resources.GetObject("CopyToolStripButton.Image"), System.Drawing.Image)
-        Me.CopyToolStripButton.ImageTransparentColor = System.Drawing.Color.Magenta
-        Me.CopyToolStripButton.Name = "CopyToolStripButton"
-        Me.CopyToolStripButton.Size = New System.Drawing.Size(23, 22)
-        Me.CopyToolStripButton.Text = "&Copy"
-        '
-        'PasteToolStripButton
-        '
-        Me.PasteToolStripButton.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image
-        Me.PasteToolStripButton.Image = CType(resources.GetObject("PasteToolStripButton.Image"), System.Drawing.Image)
-        Me.PasteToolStripButton.ImageTransparentColor = System.Drawing.Color.Magenta
-        Me.PasteToolStripButton.Name = "PasteToolStripButton"
-        Me.PasteToolStripButton.Size = New System.Drawing.Size(23, 22)
-        Me.PasteToolStripButton.Text = "&Paste"
-        '
         'toolStripSeparator7
         '
         Me.toolStripSeparator7.Name = "toolStripSeparator7"
         Me.toolStripSeparator7.Size = New System.Drawing.Size(6, 25)
-        '
-        'HelpToolStripButton
-        '
-        Me.HelpToolStripButton.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image
-        Me.HelpToolStripButton.Image = CType(resources.GetObject("HelpToolStripButton.Image"), System.Drawing.Image)
-        Me.HelpToolStripButton.ImageTransparentColor = System.Drawing.Color.Magenta
-        Me.HelpToolStripButton.Name = "HelpToolStripButton"
-        Me.HelpToolStripButton.Size = New System.Drawing.Size(23, 22)
-        Me.HelpToolStripButton.Text = "He&lp"
         '
         'ToolStripSeparator2
         '
@@ -191,70 +123,20 @@ Partial Class Form_Tablo_new
         Me.ToolStripSeparator4.Name = "ToolStripSeparator4"
         Me.ToolStripSeparator4.Size = New System.Drawing.Size(6, 25)
         '
-        'ToolStripButton_Балансирай_фазите
-        '
-        Me.ToolStripButton_Балансирай_фазите.Image = CType(resources.GetObject("ToolStripButton_Балансирай_фазите.Image"), System.Drawing.Image)
-        Me.ToolStripButton_Балансирай_фазите.ImageTransparentColor = System.Drawing.Color.Magenta
-        Me.ToolStripButton_Балансирай_фазите.Name = "ToolStripButton_Балансирай_фазите"
-        Me.ToolStripButton_Балансирай_фазите.Size = New System.Drawing.Size(134, 22)
-        Me.ToolStripButton_Балансирай_фазите.Text = "Балансирай фазите"
-        Me.ToolStripButton_Балансирай_фазите.ToolTipText = "Фазите са по-разбалансирани от бюджета ми след покупка на нови инструменти." & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10) & "Попр" &
-    "ави ги!"
-        '
         'ToolStripSeparator3
         '
         Me.ToolStripSeparator3.Name = "ToolStripSeparator3"
         Me.ToolStripSeparator3.Size = New System.Drawing.Size(6, 25)
-        '
-        'ToolStripButton_Поправи_ДЗТ
-        '
-        Me.ToolStripButton_Поправи_ДЗТ.Image = CType(resources.GetObject("ToolStripButton_Поправи_ДЗТ.Image"), System.Drawing.Image)
-        Me.ToolStripButton_Поправи_ДЗТ.ImageTransparentColor = System.Drawing.Color.Magenta
-        Me.ToolStripButton_Поправи_ДЗТ.Name = "ToolStripButton_Поправи_ДЗТ"
-        Me.ToolStripButton_Поправи_ДЗТ.Size = New System.Drawing.Size(101, 22)
-        Me.ToolStripButton_Поправи_ДЗТ.Text = "Поправи ДЗТ"
-        Me.ToolStripButton_Поправи_ДЗТ.ToolTipText = resources.GetString("ToolStripButton_Поправи_ДЗТ.ToolTipText")
         '
         'ToolStripSeparator1
         '
         Me.ToolStripSeparator1.Name = "ToolStripSeparator1"
         Me.ToolStripSeparator1.Size = New System.Drawing.Size(6, 25)
         '
-        'ToolStripButton_Вмъкни_Autocad
-        '
-        Me.ToolStripButton_Вмъкни_Autocad.Image = CType(resources.GetObject("ToolStripButton_Вмъкни_Autocad.Image"), System.Drawing.Image)
-        Me.ToolStripButton_Вмъкни_Autocad.ImageTransparentColor = System.Drawing.Color.Magenta
-        Me.ToolStripButton_Вмъкни_Autocad.Name = "ToolStripButton_Вмъкни_Autocad"
-        Me.ToolStripButton_Вмъкни_Autocad.Size = New System.Drawing.Size(129, 22)
-        Me.ToolStripButton_Вмъкни_Autocad.Text = "Генерирай чертеж"
-        Me.ToolStripButton_Вмъкни_Autocad.ToolTipText = "Последна спирка преди плотера!" & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10) & "Натисни тук, за да накараш AutoCAD да свърши малк" &
-    "о работа за промяна."
-        '
         'ToolStripSeparator5
         '
         Me.ToolStripSeparator5.Name = "ToolStripSeparator5"
         Me.ToolStripSeparator5.Size = New System.Drawing.Size(6, 25)
-        '
-        'ToolStripButton_ШИНА
-        '
-        Me.ToolStripButton_ШИНА.Image = Global.VBNet_Excel.My.Resources.Resources.ListFolderOpen_16x
-        Me.ToolStripButton_ШИНА.ImageTransparentColor = System.Drawing.Color.Magenta
-        Me.ToolStripButton_ШИНА.Name = "ToolStripButton_ШИНА"
-        Me.ToolStripButton_ШИНА.Size = New System.Drawing.Size(105, 22)
-        Me.ToolStripButton_ШИНА.Text = "Раздели шина"
-        Me.ToolStripButton_ШИНА.ToolTipText = "Секциониране:" & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10) & "Защото една шина е просто твърде скучна за такъв сложен проект." & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10) & "Р" &
-    "аздели ги сега, преди AutoCAD да ги е слял завинаги в един вечен и неразделим бл" &
-    "ок!" & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10)
-        '
-        'ToolStripButton_Добави_резерва
-        '
-        Me.ToolStripButton_Добави_резерва.Image = Global.VBNet_Excel.My.Resources.Resources.AddBuildToQueue_16x
-        Me.ToolStripButton_Добави_резерва.ImageTransparentColor = System.Drawing.Color.Magenta
-        Me.ToolStripButton_Добави_резерва.Name = "ToolStripButton_Добави_резерва"
-        Me.ToolStripButton_Добави_резерва.Size = New System.Drawing.Size(153, 22)
-        Me.ToolStripButton_Добави_резерва.Text = "Съществуващ/Резерва"
-        Me.ToolStripButton_Добави_резерва.ToolTipText = "Да захраним проекта!" & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10) & "Добави съществуващи кръгове + няколко резервни за 'всеки сл" &
-    "учай'."
         '
         'GroupBox2
         '
@@ -315,6 +197,145 @@ Partial Class Form_Tablo_new
         Me.SplitContainer1.SplitterDistance = 200
         Me.SplitContainer1.TabIndex = 4
         '
+        'ToolStripSeparator8
+        '
+        Me.ToolStripSeparator8.Name = "ToolStripSeparator8"
+        Me.ToolStripSeparator8.Size = New System.Drawing.Size(6, 25)
+        '
+        'ToolStripSeparator9
+        '
+        Me.ToolStripSeparator9.Name = "ToolStripSeparator9"
+        Me.ToolStripSeparator9.Size = New System.Drawing.Size(6, 25)
+        '
+        'NewToolStripButton
+        '
+        Me.NewToolStripButton.Image = CType(resources.GetObject("NewToolStripButton.Image"), System.Drawing.Image)
+        Me.NewToolStripButton.ImageTransparentColor = System.Drawing.Color.Magenta
+        Me.NewToolStripButton.Name = "NewToolStripButton"
+        Me.NewToolStripButton.Size = New System.Drawing.Size(68, 22)
+        Me.NewToolStripButton.Text = "&Избери"
+        Me.NewToolStripButton.ToolTipText = "Покажи ми кои блокове си хареса днес – избери ги от чертежа." & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10)
+        '
+        'OpenToolStripButton
+        '
+        Me.OpenToolStripButton.Image = CType(resources.GetObject("OpenToolStripButton.Image"), System.Drawing.Image)
+        Me.OpenToolStripButton.ImageTransparentColor = System.Drawing.Color.Magenta
+        Me.OpenToolStripButton.Name = "OpenToolStripButton"
+        Me.OpenToolStripButton.Size = New System.Drawing.Size(68, 22)
+        Me.OpenToolStripButton.Text = "&Отвори"
+        Me.OpenToolStripButton.ToolTipText = "Да видим какво има вътре!" & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10) & "Отвори файла с един клик."
+        '
+        'SaveToolStripButton
+        '
+        Me.SaveToolStripButton.Image = CType(resources.GetObject("SaveToolStripButton.Image"), System.Drawing.Image)
+        Me.SaveToolStripButton.ImageTransparentColor = System.Drawing.Color.Magenta
+        Me.SaveToolStripButton.Name = "SaveToolStripButton"
+        Me.SaveToolStripButton.Size = New System.Drawing.Size(72, 22)
+        Me.SaveToolStripButton.Text = "&Запиши"
+        Me.SaveToolStripButton.ToolTipText = "Спаси труда си, преди да е дошъл багеристът извън офиса!" & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10) & "Запиши промените."
+        '
+        'PrintToolStripButton
+        '
+        Me.PrintToolStripButton.Image = CType(resources.GetObject("PrintToolStripButton.Image"), System.Drawing.Image)
+        Me.PrintToolStripButton.ImageTransparentColor = System.Drawing.Color.Magenta
+        Me.PrintToolStripButton.Name = "PrintToolStripButton"
+        Me.PrintToolStripButton.Size = New System.Drawing.Size(73, 22)
+        Me.PrintToolStripButton.Text = "&Постави"
+        '
+        'CutToolStripButton
+        '
+        Me.CutToolStripButton.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image
+        Me.CutToolStripButton.Image = CType(resources.GetObject("CutToolStripButton.Image"), System.Drawing.Image)
+        Me.CutToolStripButton.ImageTransparentColor = System.Drawing.Color.Magenta
+        Me.CutToolStripButton.Name = "CutToolStripButton"
+        Me.CutToolStripButton.Size = New System.Drawing.Size(23, 22)
+        Me.CutToolStripButton.Text = "C&ut"
+        '
+        'CopyToolStripButton
+        '
+        Me.CopyToolStripButton.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image
+        Me.CopyToolStripButton.Image = CType(resources.GetObject("CopyToolStripButton.Image"), System.Drawing.Image)
+        Me.CopyToolStripButton.ImageTransparentColor = System.Drawing.Color.Magenta
+        Me.CopyToolStripButton.Name = "CopyToolStripButton"
+        Me.CopyToolStripButton.Size = New System.Drawing.Size(23, 22)
+        Me.CopyToolStripButton.Text = "&Copy"
+        '
+        'PasteToolStripButton
+        '
+        Me.PasteToolStripButton.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image
+        Me.PasteToolStripButton.Image = CType(resources.GetObject("PasteToolStripButton.Image"), System.Drawing.Image)
+        Me.PasteToolStripButton.ImageTransparentColor = System.Drawing.Color.Magenta
+        Me.PasteToolStripButton.Name = "PasteToolStripButton"
+        Me.PasteToolStripButton.Size = New System.Drawing.Size(23, 22)
+        Me.PasteToolStripButton.Text = "&Paste"
+        '
+        'HelpToolStripButton
+        '
+        Me.HelpToolStripButton.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image
+        Me.HelpToolStripButton.Image = CType(resources.GetObject("HelpToolStripButton.Image"), System.Drawing.Image)
+        Me.HelpToolStripButton.ImageTransparentColor = System.Drawing.Color.Magenta
+        Me.HelpToolStripButton.Name = "HelpToolStripButton"
+        Me.HelpToolStripButton.Size = New System.Drawing.Size(23, 22)
+        Me.HelpToolStripButton.Text = "He&lp"
+        '
+        'ToolStripButton_Балансирай_фазите
+        '
+        Me.ToolStripButton_Балансирай_фазите.Image = CType(resources.GetObject("ToolStripButton_Балансирай_фазите.Image"), System.Drawing.Image)
+        Me.ToolStripButton_Балансирай_фазите.ImageTransparentColor = System.Drawing.Color.Magenta
+        Me.ToolStripButton_Балансирай_фазите.Name = "ToolStripButton_Балансирай_фазите"
+        Me.ToolStripButton_Балансирай_фазите.Size = New System.Drawing.Size(134, 22)
+        Me.ToolStripButton_Балансирай_фазите.Text = "Балансирай фазите"
+        Me.ToolStripButton_Балансирай_фазите.ToolTipText = "Фазите са по-разбалансирани от бюджета ми след покупка на нови инструменти." & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10) & "Попр" &
+    "ави ги!"
+        '
+        'ToolStripButton_Поправи_ДЗТ
+        '
+        Me.ToolStripButton_Поправи_ДЗТ.Image = CType(resources.GetObject("ToolStripButton_Поправи_ДЗТ.Image"), System.Drawing.Image)
+        Me.ToolStripButton_Поправи_ДЗТ.ImageTransparentColor = System.Drawing.Color.Magenta
+        Me.ToolStripButton_Поправи_ДЗТ.Name = "ToolStripButton_Поправи_ДЗТ"
+        Me.ToolStripButton_Поправи_ДЗТ.Size = New System.Drawing.Size(101, 22)
+        Me.ToolStripButton_Поправи_ДЗТ.Text = "Поправи ДЗТ"
+        Me.ToolStripButton_Поправи_ДЗТ.ToolTipText = resources.GetString("ToolStripButton_Поправи_ДЗТ.ToolTipText")
+        '
+        'ToolStripButton_Вмъкни_Autocad
+        '
+        Me.ToolStripButton_Вмъкни_Autocad.Image = CType(resources.GetObject("ToolStripButton_Вмъкни_Autocad.Image"), System.Drawing.Image)
+        Me.ToolStripButton_Вмъкни_Autocad.ImageTransparentColor = System.Drawing.Color.Magenta
+        Me.ToolStripButton_Вмъкни_Autocad.Name = "ToolStripButton_Вмъкни_Autocad"
+        Me.ToolStripButton_Вмъкни_Autocad.Size = New System.Drawing.Size(129, 22)
+        Me.ToolStripButton_Вмъкни_Autocad.Text = "Генерирай чертеж"
+        Me.ToolStripButton_Вмъкни_Autocad.ToolTipText = "Последна спирка преди плотера!" & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10) & "Натисни тук, за да накараш AutoCAD да свърши малк" &
+    "о работа за промяна."
+        '
+        'ToolStripButton_ШИНА
+        '
+        Me.ToolStripButton_ШИНА.Image = Global.VBNet_Excel.My.Resources.Resources.ListFolderOpen_16x
+        Me.ToolStripButton_ШИНА.ImageTransparentColor = System.Drawing.Color.Magenta
+        Me.ToolStripButton_ШИНА.Name = "ToolStripButton_ШИНА"
+        Me.ToolStripButton_ШИНА.Size = New System.Drawing.Size(105, 22)
+        Me.ToolStripButton_ШИНА.Text = "Раздели шина"
+        Me.ToolStripButton_ШИНА.ToolTipText = "Секциониране:" & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10) & "Защото една шина е просто твърде скучна за такъв сложен проект." & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10) & "Р" &
+    "аздели ги сега, преди AutoCAD да ги е слял завинаги в един вечен и неразделим бл" &
+    "ок!" & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10)
+        '
+        'ToolStripButton_Добави_резерва
+        '
+        Me.ToolStripButton_Добави_резерва.Image = Global.VBNet_Excel.My.Resources.Resources.AddBuildToQueue_16x
+        Me.ToolStripButton_Добави_резерва.ImageTransparentColor = System.Drawing.Color.Magenta
+        Me.ToolStripButton_Добави_резерва.Name = "ToolStripButton_Добави_резерва"
+        Me.ToolStripButton_Добави_резерва.Size = New System.Drawing.Size(153, 22)
+        Me.ToolStripButton_Добави_резерва.Text = "Съществуващ/Резерва"
+        Me.ToolStripButton_Добави_резерва.ToolTipText = "Да захраним проекта!" & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10) & "Добави съществуващи кръгове + няколко резервни за 'всеки сл" &
+    "учай'."
+        '
+        'ToolStripButton_Сортиране
+        '
+        Me.ToolStripButton_Сортиране.Image = Global.VBNet_Excel.My.Resources.Resources.AddFilter_16x
+        Me.ToolStripButton_Сортиране.ImageTransparentColor = System.Drawing.Color.Magenta
+        Me.ToolStripButton_Сортиране.Name = "ToolStripButton_Сортиране"
+        Me.ToolStripButton_Сортиране.Size = New System.Drawing.Size(87, 22)
+        Me.ToolStripButton_Сортиране.Text = "Сортиране"
+        '
         'Form_Tablo_new
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(9.0!, 20.0!)
@@ -373,4 +394,7 @@ Partial Class Form_Tablo_new
     Friend WithEvents ToolStripButton_ШИНА As Windows.Forms.ToolStripButton
     Friend WithEvents ToolStripButton_Добави_резерва As Windows.Forms.ToolStripButton
     Friend WithEvents SplitContainer1 As Windows.Forms.SplitContainer
+    Friend WithEvents ToolStripSeparator8 As Windows.Forms.ToolStripSeparator
+    Friend WithEvents ToolStripSeparator9 As Windows.Forms.ToolStripSeparator
+    Friend WithEvents ToolStripButton_Сортиране As Windows.Forms.ToolStripButton
 End Class

@@ -406,6 +406,13 @@ Public Class Form_Tablo_new
         ' Сега pathParts(0) е чистото име на сградата, а последното е чистото име на таблото, без интервали!
         _AutoCadInserter.ExecuteInsert(pathParts)
     End Sub
+    Private Sub ToolStripButton_Добави_резерва_Click(sender As Object, e As EventArgs) Handles ToolStripButton_Добави_резерва.Click
+
+    End Sub
+
+    Private Sub ToolStripButton_Сортиране_Click(sender As Object, e As EventArgs) Handles ToolStripButton_Сортиране.Click
+
+    End Sub
 End Class
 
 

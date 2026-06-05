@@ -282,32 +282,31 @@ Public Class Form_Tablo_new
     ''' Диригентски метод: Улавя преместването на обекти в дървото 
     ''' и отразява промените в централния ListTokow.
     ''' </summary>
-    Private Sub _treeViewManager_RequestMoveObject(ByVal source As clsTokow, ByVal target As clsTokow) Handles _treeViewManager.RequestMoveObject
+    Private Sub _treeViewManager_RequestMoveObject(ByVal source As clsTokow,
+                                                   ByVal target As clsTokow) Handles _treeViewManager.RequestMoveObject
         If source Is Nothing OrElse target Is Nothing Then Exit Sub
         If source.Device = "Табло" Then
-            ' Местим ЦЯЛО ТАБЛО (Промяна на захранващата структура)
             If target.Device = "Tablo" OrElse target.Device = "Табло" Then
                 source.Табло_Родител = target.Tablo
                 source.BuildingName = target.BuildingName
-            ElseIf target.Device = "Сграда" Then
+            End If
+            If target.Device = "Сграда" Then
                 source.Табло_Родител = ""
                 source.BuildingName = target.BuildingName
             End If
-
-        ElseIf source.Device = "Консуматор" Then
-            ' Местим ТОКОВ КРЪГ (Прекачване от едно табло в друго)
+        End If
+        If source.Device = "Консуматор" Then
             If target.Device = "Tablo" OrElse target.Device = "Табло" Then
                 source.Tablo = target.Tablo
                 source.BuildingName = target.BuildingName
-            ElseIf target.Device = "Сграда" Then
+            End If
+            If target.Device = "Сграда" Then
                 source.Tablo = ""
                 source.Табло_Родител = ""
                 source.BuildingName = target.BuildingName
             End If
         End If
-
         _panelBalanceManager.AddFeederRecords()
-        ' Преначертаваме дървото
         _treeViewManager.RefreshTree()
     End Sub
     ' ============================================================

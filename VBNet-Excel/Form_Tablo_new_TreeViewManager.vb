@@ -12,7 +12,7 @@ Public Class TreeViewManager
     Public Event NodeLeftClick(ByVal selectedObject As clsTokow)
 
     ''' <summary>
-    ''' Задейства се при успешно пускане на елемент чрез Drag & Drop.
+    ''' Задейства се при успешно пускане на елемент чрез Drag&Drop.
     ''' </summary>
     Public Event RequestMoveObject(ByVal source As clsTokow, ByVal target As clsTokow)
 
@@ -59,8 +59,6 @@ Public Class TreeViewManager
         ' Инициализиране на контекстното меню
         InitializeContextMenu()
     End Sub
-
-
     ' ========================================================================
     ' 🎨 ПОМОЩНИ ФОРМАТИРАЩИ ФУНКЦИИ
     ' ========================================================================
@@ -69,12 +67,9 @@ Public Class TreeViewManager
         Dim formattedPower As String = item.Мощност.ToString(formatSpecifier)
         Return $"{ICON_PANEL} {item.Tablo} ({formattedPower} {POWER_UNIT})"
     End Function
-
     Private Function FormatCircuitText(item As clsTokow) As String
         Return $"{ICON_CIRCUITS} {LABEL_CIRCUITS} {item.ТоковКръг} - {item.Device}"
     End Function
-
-
     ' ========================================================================
     ' 🖱️ УПРАВЛЕНИЕ НА КЛИКОВЕ И СЪБИТИЯ С МИШКАТА
     ' ========================================================================
@@ -83,7 +78,6 @@ Public Class TreeViewManager
     ''' </summary>
     Private Sub _tv_NodeMouseClick(sender As Object, e As TreeNodeMouseClickEventArgs) Handles _tv.NodeMouseClick
         Dim currentItem As clsTokow = TryCast(e.Node.Tag, clsTokow)
-
         Select Case e.Button
             Case MouseButtons.Left
                 ' --- ЛЯВ КЛИК: Избор на обект за таблицата ---
@@ -119,8 +113,6 @@ Public Class TreeViewManager
             e.Cancel = True
         End If
     End Sub
-
-
     ' ========================================================================
     ' 🖱️ КОНТЕКСТНО МЕНЮ (МЕНЮ ПРИ ДЕСЕН БУТОН)
     ' ========================================================================

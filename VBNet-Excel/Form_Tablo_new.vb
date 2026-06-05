@@ -113,7 +113,7 @@ Public Class Form_Tablo_new
 
     ' Създаваме инстанция на помощни класове, които ще се грижиа за
     Private _AutoCadInserter As Form_Tablo_new_AutoCadInserter
-
+    Private _Form_SortPriority As Form_SortPriority
 
     ' СВОЙСТВОТО СЪЩО ТРЯБВА ДА Е SHARED:
     Public Property CurrentManufacturer As String
@@ -143,13 +143,15 @@ Public Class Form_Tablo_new
     Private Sub Form_Tablo_new_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         Me.Height = 950
         Me.Width = 1600
+        ' Заковава формата точно в средата на екрана при стартиране
+        Me.StartPosition = FormStartPosition.CenterScreen
         ' Извикваме фабриката за класове
         'InitializeProjectComponents()
         ' каталозите вече ще съществуват в паметта и няма да има NullReference!)
         FillManufacturerCombo()
         ' Подаваме списъка за изчисление
         _calculationEngine.ExecuteCalculations()
-        _boardStructureManager.SortListTokow()
+        _Form_SortPriority.SortListTokow()
         _boardStructureManager.GroupContactsForRCD()
         _boardStructureManager.EnsureAllStructureRecords()
         _panelBalanceManager.AddFeederRecords()
@@ -202,6 +204,7 @@ Public Class Form_Tablo_new
                                                        _rcdCatalog,
                                                        _gridChangeManager)
         _AutoCadInserter = New Form_Tablo_new_AutoCadInserter
+        _Form_SortPriority = New Form_SortPriority
     End Sub
 #Region "⚙️ СВОЙСТВА ЗА ДОСТЪП ДО КАТАЛОЗИ И МЕНИДЖЪРИ"
     ' --- СВОЙСТВА (Properties) за достъп от външни изчислителни класове ---
@@ -337,14 +340,12 @@ Public Class Form_Tablo_new
             ' Тук формата знае кой токов кръг е избран (напр. "333")
             ' Можеш да извлечеш името/номера му чрез: selectedObject.ТоковКръг
             ' Пример за бъдеща логика: Позициониране на фокуса в Grid-а върху този кръг.
-
             Case "Сграда"
                 ' --------------------------------------------------------
                 ' ПОТРЕБИТЕЛЯТ Е КЛИКНАЛ ВЪРХУ КОРЕНА НА СГРАДАТА
                 ' --------------------------------------------------------
                 ' Избрана е самата сграда (напр. "Сграда_Block")
                 ' Можеш да извлечеш името чрез: selectedObject.BuildingName
-
         End Select
         AppSettings.IsGridLoading = False
     End Sub
@@ -406,12 +407,28 @@ Public Class Form_Tablo_new
         ' Сега pathParts(0) е чистото име на сградата, а последното е чистото име на таблото, без интервали!
         _AutoCadInserter.ExecuteInsert(pathParts)
     End Sub
-    Private Sub ToolStripButton_Добави_резерва_Click(sender As Object, e As EventArgs) Handles ToolStripButton_Добави_резерва.Click
-
-    End Sub
-
     Private Sub ToolStripButton_Сортиране_Click(sender As Object, e As EventArgs) Handles ToolStripButton_Сортиране.Click
-
+        ' 1. Преди да отворим формата, вземаме текущо избрания възел в дървото
+        Dim selectedNode As TreeNode = TreeView_Табло.SelectedNode
+        If selectedNode Is Nothing Then Exit Sub
+        ' 2. Отваряме формата за сортиране като диалог
+        Using frm As New Form_SortPriority()
+            If frm.ShowDialog() = DialogResult.OK Then
+                ' --- ТУК ФОРМИРАМЕ selectedObject СЛЕД СОРТИРАНЕТО ---
+                ' Вземаме актуалния бизнес обект от "джоба" (Tag) на избрания възел
+                Dim selectedObject As clsTokow = TryCast(selectedNode.Tag, clsTokow)
+                ' Проверяваме дали възелът наистина е валиден обект
+                If selectedObject IsNot Nothing Then
+                    ' Вдигаме флага, че гридът се зарежда (за да спрем събитията при пълнене)
+                    AppSettings.IsGridLoading = True
+                    ' Викаме мениджъра на таблицата. Той ще прочете новосортирания списък 
+                    ' и ще пренареди редовете на екрана веднага!
+                    _DataGridViewManager.DisplayBoardStructure(selectedObject)
+                    ' Сваляме флага обратно
+                    AppSettings.IsGridLoading = False
+                End If
+            End If
+        End Using
     End Sub
 End Class
 

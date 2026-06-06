@@ -1,7 +1,7 @@
 ﻿Imports System.Reflection
-Imports System.Text.RegularExpressions
 Imports System.Windows.Forms
-Imports VBNet_Excel.Tablo
+
+
 
 Public Class DataGridViewChangeManager
     ' Пазим препратки към шестте компонента
@@ -10,7 +10,8 @@ Public Class DataGridViewChangeManager
     Private _disconnectorCatalog As DisconnectorCatalog
     Private _rcdCatalog As RCDCatalog
     Private _calculationEngine As ElectricalCalculationEngine
-
+    Private _allCircuits As List(Of clsTokow)
+    Dim _boardManager As New BoardStructureManager(_rcdCatalog)
     ''' <summary>
     ''' Конструкторът вече приема точно шестте компонента от формата
     ''' </summary>
@@ -18,7 +19,8 @@ Public Class DataGridViewChangeManager
                    ByVal disconnectorCat As DisconnectorCatalog,
                    ByVal rcdCat As RCDCatalog,
                    ByVal cableCat As CableCatalog,
-                   ByVal calcEngine As ElectricalCalculationEngine)
+                   ByVal calcEngine As ElectricalCalculationEngine) ' <-- Новите попълнения
+
         Me._breakerCatalog = breakerCat
         Me._disconnectorCatalog = disconnectorCat
         Me._rcdCatalog = rcdCat
@@ -74,18 +76,100 @@ Public Class DataGridViewChangeManager
     ' === СЪЩИНСКИ ПРОЦЕДУРИ (Пренесени от стария Select Case) ===
     ' =================================================================
     ''' <summary>
-    ''' Сменя: "Тип на апарата"
+    ''' Сменя: "ДТЗ Нула" (Валидира текста и го записва в обекта)
+    ''' Извиква се при: "HandleRcdZeroChange"
     ''' </summary>
-    Public Sub HandleBreakerTypeChange(ByVal circuit As clsTokow, ByVal value As String)
+    Public Sub HandleRcdZeroChange(ByVal panelCircuits As clsTokow, ByVal value As String)
+        ' 1. Пускаме текста през санитарния филтър
+        Dim validatedValue As String = ValidateRCDNulla(value)
+        ' 2. Ако филтърът върне валиден резултат → записваме го в обекта
+        If validatedValue IsNot Nothing Then panelCircuits.RCD_Нула = validatedValue
+        Dim panels = AppSettings.ListTokow.Where(Function(t) New With {Key t.BuildingName, Key t.Tablo} = currentPanelKey) _
+            .ToList()
+
+        ' Викаме публичния метод от BoardStructureManager, за да пренареди ДТЗ-тата на таблото
+        _boardManager.ProcessPanelRCDLogic(panels)
+    End Sub
+    ' =================================================================
+    ' === ПОМОЩНИ ФУНКЦИИ (Валидации и санитарни филтри) ===
+    ' =================================================================
+    ''' <summary>
+    ''' Санитарен филтър: Изчиства текста и проверява дали форматът отговаря на "N" + число (напр. N1, N2)
+    ''' </summary>
+    Private Function ValidateRCDNulla(ByVal inputValue As String) As String
+        ' Проверка 1: Дали е празно и дали започва с "N"
+        If String.IsNullOrEmpty(inputValue) OrElse Not inputValue.ToUpper().StartsWith("N") Then
+            Return Nothing
+        End If
+        ' Извлечи числото след "N"
+        Dim numberPart As String = inputValue.Substring(1).Trim()
+        ' Премахни всичко, което НЕ е цифра
+        numberPart = New String(numberPart.Where(Function(c) Char.IsDigit(c)).ToArray())
+        ' Проверка 2: Дали има останали числа след чистенето
+        If String.IsNullOrEmpty(numberPart) Then
+            Return Nothing
+        End If
+        ' Проверка 3: Дали числото е валидно
+        Dim rcdNumber As Integer
+        If Not Integer.TryParse(numberPart, rcdNumber) Then
+            Return Nothing
+        End If
+        ' Проверка 4: Дали числото е строго по-голямо од 0
+        If rcdNumber <= 0 Then
+            Return Nothing
+        End If
+        ' ✅ Всички проверки минаха → връщаме стандартизирания текст с главна буква
+        Return "N" & rcdNumber.ToString()
+    End Function
+    ''' <summary>
+    ''' Сменя: "Тип на апарата". 
+    ''' Филтрира каталозите според вида на устройството и връща новите списъци за ComboBox клетките.
+    ''' </summary>
+    Public Function HandleBreakerTypeChange(ByVal circuit As clsTokow, ByVal value As String) As Dictionary(Of String, List(Of String))
+        ' Създаваме речник, в който ще запишем филтрираните списъци за различните редове
+        Dim resultLists As New Dictionary(Of String, List(Of String))()
+        If circuit Is Nothing OrElse String.IsNullOrEmpty(value) Then Return resultLists
+        ' 1. Записваме новия избран тип апарат в обекта
         circuit.Breaker_Тип_Апарат = value
+        ' 2. Разделяме логиката според типа на устройството (Device)
         Select Case circuit.Device
             Case "Разединител", "Табло"
+                ' Използваме инжектирания каталог за разединители
+                If _disconnectorCatalog IsNot Nothing Then
+                    ' Филтрираме разединителите по избрания тип (selectedValue)
+                    Dim filteredDisco = _disconnectorCatalog.Disconnectors.Where(Function(b) b.Type = value).ToList()
 
+                    ' Извличаме уникалните номинални токове
+                    Dim valuesForCombo = filteredDisco _
+                                    .Select(Function(b) b.NominalCurrent.ToString()) _
+                                    .Distinct() _
+                                    .ToList()
+                    ' Записваме в речника, че за ред "Номинален ток" имаме нов списък
+                    resultLists.Add("Номинален ток", valuesForCombo)
+                End If
             Case Else
-                ' За автоматични прекъсвачи (NewBreakers)
-                ' Тук се извличат Ics_kA, Крива, Защитен блок и се подават на UpdateComboRow
+                ' За автоматични прекъсвачи – използваме инжектирания каталог _breakerCatalog
+                If _breakerCatalog IsNot Nothing Then
+                    ' Филтрираме прекъсвачите по избраната серия (Series)
+                    Dim filteredBreakers = _breakerCatalog.Breakers.Where(Function(b) b.Series = value).ToList()
+                    If filteredBreakers.Count = 0 Then Return resultLists
+                    ' 3. Записваме автоматично изключвателната възможност (Ics) в обекта
+                    circuit.Breaker_Изкл_Възможност = filteredBreakers.First().Ics_kA & "kA"
+                    ' 4. Генерираме уникалните списъци за ComboBox-овете в Grid-а
+                    ' Списък за "Номинален ток"
+                    Dim valuesNominal = filteredBreakers.Select(Function(b) b.NominalCurrent.ToString()).Distinct().ToList()
+                    resultLists.Add("Номинален ток", valuesNominal)
+                    ' Списък за "Крива"
+                    Dim valuesCurve = filteredBreakers.Select(Function(b) b.Curve.ToString()).Distinct().ToList()
+                    resultLists.Add("Крива", valuesCurve)
+                    ' Списък за "Защитен блок"
+                    Dim valuesTripUnit = filteredBreakers.Select(Function(b) b.TripUnit).Distinct().ToList()
+                    resultLists.Add("Защитен блок", valuesTripUnit)
+                End If
         End Select
-    End Sub
+        ' Връщаме събраните списъци обратно към формата
+        Return resultLists
+    End Function
     ''' <summary>
     ''' Сменя: "Номинален ток"
     ''' </summary>

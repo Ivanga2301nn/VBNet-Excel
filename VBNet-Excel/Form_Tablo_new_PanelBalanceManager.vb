@@ -1,5 +1,4 @@
 ﻿Imports System.Windows.Forms
-
 Public Class PanelBalanceManager
     ' 1. Пазим локални референции на ниво клас
     Private _rcdCatalog As RCDCatalog
@@ -162,11 +161,12 @@ Public Class PanelBalanceManager
     Private Function GetParentForTablo(buildingName As String, tabloName As String) As String
         ' Търси записа за текущото табло
         ' само измежду записите от тип "Табло"
-        Dim currentTabloRecord = AppSettings.ListTokow.FirstOrDefault(Function(t)
-                                                                          Return t.BuildingName = buildingName AndAlso
-                                                                  t.Tablo = tabloName AndAlso
-                                                                  t.Device = "Табло"
-                                                                      End Function)
+        Dim currentTabloRecord =
+            AppSettings.ListTokow.FirstOrDefault(Function(t)
+                                                     Return t.BuildingName = buildingName AndAlso
+                                                                          t.Tablo = tabloName AndAlso
+                                                                          t.Device = "Табло"
+                                                 End Function)
 
         ' Ако е намерен запис:
         ' връща стойността на Табло_Родител
@@ -440,4 +440,5 @@ Public Class PanelBalanceManager
         Return groups
     End Function
 #End Region
+
 End Class

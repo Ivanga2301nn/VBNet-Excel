@@ -60,8 +60,8 @@ Public Class BoardStructureManager
             ' Избор само на кръговете, които съдържат контакти и не са самото главно табло
             ' panelGroup вече съдържа само кръгове от конкретното табло в конкретната сграда
             Dim contactCircuits = panelGroup.Where(
-                Function(t) t.brKontakt > 0 AndAlso t.Device <> "Табло"
-            ).ToList()
+                                  Function(t) t.brKontakt > 0 AndAlso t.Device <> "Табло"
+                                  ).ToList()
             ' Брой на контактните кръгове в това конкретно табло
             Dim n As Integer = contactCircuits.Count
             ' Ако в това табло няма контакти – преминава към следващото табло/сграда
@@ -199,7 +199,7 @@ Public Class BoardStructureManager
     ''' и записва избраната ДТЗ в последния кръг от всяка "N" група.
     ''' </summary>
     ''' <param name="panelCircuits">Списък с всички токови кръгове за текущото табло.</param>
-    Private Sub ProcessPanelRCDLogic(panelCircuits As List(Of clsTokow))
+    Public Sub ProcessPanelRCDLogic(panelCircuits As List(Of clsTokow))
         ' 1. Филтрираме само кръговете, които имат назначена "N" група, 
         ' и ги групираме по техния N-номер (напр. "N1", "N2"...)
         Dim rcdGroups = panelCircuits.

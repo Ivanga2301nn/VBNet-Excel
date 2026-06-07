@@ -440,7 +440,3 @@ Public Class Form_Tablo_new
         End Using
     End Sub
 End Class
-
-
-
-

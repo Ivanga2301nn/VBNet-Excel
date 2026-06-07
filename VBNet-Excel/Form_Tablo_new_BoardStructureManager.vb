@@ -9,39 +9,6 @@
         Me._rcdCatalog = AppSettings.RcdCatalog
     End Sub
 
-    ''' <summary>
-    ''' Клас за групиране на токови кръгове за балансиране на фазите
-    ''' </summary>
-    Public Class BalanceGroup
-        Public Circuits As List(Of clsTokow) ' Списък с токови кръгове в групата
-        Public GroupType As String ' Тип на групата: "ThreePhase", "RCD", "SmallBus", "LargeBus", "Normal"
-        Public GroupKey As String ' Ключ на групата: RCD_Нула (N1, N2...), "Bus" или Nothing
-        Public TotalCurrent As Double ' Сумарен ток на групата (сума от токовете на всички ТК)
-        Public AssignedPhase As String ' Зададена фаза след балансиране (L1, L2, L3 или "L1,L2,L3")
-        ''' <summary>
-        ''' Конструктор - инициализира списъка с ТК
-        ''' </summary>
-        Public Sub New()
-            Circuits = New List(Of clsTokow)
-        End Sub
-        ''' <summary>
-        ''' Брой токови кръгове в групата
-        ''' </summary>
-        Public ReadOnly Property CircuitCount As Integer
-            Get
-                Return Circuits.Count
-            End Get
-        End Property
-        ''' <summary>
-        ''' Сумарна мощност на групата
-        ''' </summary>
-        Public ReadOnly Property TotalPower As Double
-            Get
-                Return Circuits.Sum(Function(t) t.Мощност)
-            End Get
-        End Property
-    End Class
-
 #Region "Групиране на контактни кръгове с ДТЗ (RCD)"
     ''' <summary>
     ''' Групира контактните токови кръгове в ДЗТ (RCD) групи, 
@@ -287,4 +254,36 @@
             Next
         Next
     End Sub
+End Class
+''' <summary>
+''' Клас за групиране на токови кръгове за балансиране на фазите
+''' </summary>
+Public Class BalanceGroup
+    Public Circuits As List(Of clsTokow) ' Списък с токови кръгове в групата
+    Public GroupType As String ' Тип на групата: "ThreePhase", "RCD", "SmallBus", "LargeBus", "Normal"
+    Public GroupKey As String ' Ключ на групата: RCD_Нула (N1, N2...), "Bus" или Nothing
+    Public TotalCurrent As Double ' Сумарен ток на групата (сума от токовете на всички ТК)
+    Public AssignedPhase As String ' Зададена фаза след балансиране (L1, L2, L3 или "L1,L2,L3")
+    ''' <summary>
+    ''' Конструктор - инициализира списъка с ТК
+    ''' </summary>
+    Public Sub New()
+        Circuits = New List(Of clsTokow)
+    End Sub
+    ''' <summary>
+    ''' Брой токови кръгове в групата
+    ''' </summary>
+    Public ReadOnly Property CircuitCount As Integer
+        Get
+            Return Circuits.Count
+        End Get
+    End Property
+    ''' <summary>
+    ''' Сумарна мощност на групата
+    ''' </summary>
+    Public ReadOnly Property TotalPower As Double
+        Get
+            Return Circuits.Sum(Function(t) t.Мощност)
+        End Get
+    End Property
 End Class

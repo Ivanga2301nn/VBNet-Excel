@@ -69,10 +69,6 @@ Public Class DataGridViewChangeManager
             ' Тук може да добавиш код, който винаги трябва да се изпълни след опита за извикване на процедурата
             ' Например, ако искаш да обновиш някакъв статус в UI-то или да логнеш действието
 
-
-
-
-
         End Try
     End Sub
     ' =================================================================
@@ -88,8 +84,6 @@ Public Class DataGridViewChangeManager
         ' 2. Ако филтърът върне валиден резултат → записваме го в обекта
         If validatedValue IsNot Nothing Then panelCircuits.RCD_Нула = validatedValue
         Dim panels = AppSettings.ListTokow.Where(Function(t) t.BuildingName = panelCircuits.BuildingName AndAlso t.Tablo = panelCircuits.Tablo).ToList()
-
-
         ' Викаме публичния метод от BoardStructureManager, за да пренареди ДТЗ-тата на таблото
         _boardManager.ProcessPanelRCDLogic(panels)
     End Sub

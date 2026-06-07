@@ -35,7 +35,6 @@ Public Class DataGridViewManager
     Private _ComboItems_disconType As New List(Of String)       ' Списък за ред "Тип на апарата" при разединители (напр. Interpact INS, iSW)
     Private _ComboItems_disconIn As New List(Of String)         ' Списък за ред "Номинален ток" за разединители (напр. 40А, 63А, 100А...)
 
-
     ' Пазим референция към контролата, за да може целият клас да си я знае
     Private ReadOnly _dgv As DataGridView
     ''' <summary>
@@ -421,6 +420,27 @@ Public Class DataGridViewManager
         ' 5. Данни: Наливане на реалните стойности от AutoCAD обекта
         FillColumnValues(colIndex, circuit)
     End Sub
+    ''' <summary>
+    ''' Изгражда структурата на клетките за конкретна колона
+    ''' в DataGridView.
+    '''
+    ''' Според описанието в rowTemplate създава
+    ''' подходящ тип клетка (TextBox, ComboBox или CheckBox),
+    ''' прилага необходимото визуално оформление
+    ''' и настройва специалните редове.
+    '''
+    ''' При обработка на колоната "ОБЩО"
+    ''' използва различно форматиране,
+    ''' за да се отличава визуално от останалите колони.
+    '''
+    ''' Използва се при създаване на нови колони,
+    ''' преди зареждането на каталожните данни
+    ''' и реалните стойности.
+    ''' </summary>
+    ''' <param name="colIndex">
+    ''' Индекс на колоната в DataGridView,
+    ''' за която ще бъде изградена структурата.
+    ''' </param>
     Public Sub SetupDataGridView_ColumnStructure(ByVal colIndex As Integer)
         If colIndex < 0 OrElse colIndex >= _dgv.Columns.Count Then Exit Sub
         AppSettings.IsGridLoading = True
@@ -569,6 +589,19 @@ Public Class DataGridViewManager
             End If
         Next
     End Sub
+    ''' <summary>
+    ''' Обработва промяна на стойност в клетка от DataGridView.
+    '''
+    ''' Определя кой параметър е променен,
+    ''' намира съответния токов кръг,
+    ''' извършва обновяване на данните
+    ''' и актуализира визуализацията на колоната.
+    '''
+    ''' Използва информацията от rowTemplate
+    ''' и структурата на имената на колоните,
+    ''' за да свърже редакцията в потребителския интерфейс
+    ''' с конкретен обект от модела на данните.
+    ''' </summary>
     Public Sub ProcessCellValueChanged(ByVal rowIndex As Integer, ByVal colIndex As Integer, ByVal newValue As String)
         ' 1. Защита: Проверяваме дали индексът съответства на нашия шаблон
         If rowTemplate Is Nothing OrElse rowIndex >= rowTemplate.Count Then Exit Sub

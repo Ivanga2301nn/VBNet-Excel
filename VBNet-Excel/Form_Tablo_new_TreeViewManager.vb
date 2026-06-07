@@ -42,8 +42,9 @@ Public Class TreeViewManager
     ' ========================================================================
     ' 📌 КОНСТРУКТОР
     ' ========================================================================
-    Public Sub New(ByVal targetTreeView As TreeView)
-        _tv = targetTreeView
+    Public Sub New()
+        ' Взимаме дървото директно по име от глобалния склад
+        _tv = TargetTreeView
 
         ' Визуални настройки
         _tv.ForeColor = Color.FromArgb(45, 45, 45)

@@ -1125,5 +1125,13 @@ Public Class RCDCatalog
             tokow.RCD_Автомат = matchingRCD.Breaker
         End If
     End Sub
+    Public Sub ClearRCD(ByRef tokow As clsTokow)
+        tokow.RCD_Бранд = ""
+        tokow.RCD_Тип = ""
+        tokow.RCD_Клас = ""
+        tokow.RCD_Чувствителност = ""
+        tokow.RCD_Ток = 0
+        tokow.RCD_Полюси = 0
+    End Sub
 End Class
 #End Region

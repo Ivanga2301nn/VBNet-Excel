@@ -8,14 +8,11 @@ Public Class PanelBalanceManager
     ''' <summary>
     ''' КОНСТРУКТОР: Приема създадените каталози и списъка с токови кръгове от формата
     ''' </summary>
-    Public Sub New(rcdCat As RCDCatalog,
-                   disconnectorCat As DisconnectorCatalog,
-                   cableCat As CableCatalog,
-                   electricalCalcEngine As ElectricalCalculationEngine)
-        Me._rcdCatalog = rcdCat                                 ' 👈 Запаметяваме каталога с RCD в класа при създаването му
-        Me._disconnectorCatalog = disconnectorCat               ' 👈 Запаметяваме каталога с прекъсвачи в класа при създаването му
-        Me._cableCatalog = cableCat                             ' 👈 Запаметяваме каталога с кабели в класа при създаването му   
-        Me._electricalCalculationEngine = electricalCalcEngine  ' 👈 Запаметяваме електрическия калкулатор в класа при създаването му     
+    Public Sub New()
+        Me._rcdCatalog = AppSettings.RcdCatalog                                    ' 👈 Запаметяваме каталога с RCD в класа при създаването му
+        Me._disconnectorCatalog = AppSettings.DisconnectorCatalog                  ' 👈 Запаметяваме каталога с прекъсвачи в класа при създаването му
+        Me._cableCatalog = AppSettings.CableCatalog                                ' 👈 Запаметяваме каталога с кабели в класа при създаването му   
+        Me._electricalCalculationEngine = AppSettings.ElectricalCalculationEngine  ' 👈 Запаметяваме електрическия калкулатор в класа при създаването му     
     End Sub
     ''' <summary>
     ''' Клас за групиране на токови кръгове за балансиране на фазите
@@ -49,6 +46,17 @@ Public Class PanelBalanceManager
             ProcessBuildingTopology(bName)
         Next
     End Sub
+    ''' <summary>
+    ''' Визуализира избраното табло в DataGridView.
+    '''
+    ''' Процедурата изчиства старите колони,
+    ''' създава и попълва колони за всички токови кръгове
+    ''' на таблото и накрая добавя колоната "ОБЩО",
+    ''' съдържаща обобщените параметри на таблото.
+    '''
+    ''' Използва се за цялостно обновяване на изгледа
+    ''' при избор на ново табло.
+    ''' </summary>
     Private Sub ProcessBuildingTopology(buildingName As String)
         ' 1. Създаваме речник за нивата (кеш)
         Dim levels As New Dictionary(Of String, Integer)
@@ -65,7 +73,17 @@ Public Class PanelBalanceManager
             BuildPanelSummaryRecord(buildingName, tName)
         Next
     End Sub
-    ' Помощна функция само за изчислението, която ползваме за кеширането
+    ''' <summary>
+    ''' Изчислява нивото на вложеност на табло
+    ''' в йерархията на дадена сграда.
+    '''
+    ''' Проследява последователно родителските табла,
+    ''' докато достигне кореновия елемент,
+    ''' и връща броя на преминатите нива.
+    '''
+    ''' Използва се при изграждане и подреждане
+    ''' на йерархичната структура на таблата.
+    ''' </summary>
     Private Function CalculateLevel(buildingName As String, tabloName As String) As Integer
         ' Тук остава твоята логика с While, тя е стабилна
         Dim level As Integer = 0
@@ -114,7 +132,7 @@ Public Class PanelBalanceManager
         ' 3. НАМИРАНЕ НА ЗАПИСА "ОБЩО" ЗА ТОВА ТАБЛО В ТАЗИ СГРАДА
         Dim totalTokow = AppSettings.ListTokow.FirstOrDefault(Function(t)
                                                                   Return t.BuildingName = buildingName AndAlso
-                                                      t.Tablo = tabloName AndAlso t.ТоковКръг = "ОБЩО"
+                                                                         t.Tablo = tabloName AndAlso t.ТоковКръг = "ОБЩО"
                                                               End Function)
         ' 4. ПОПЪЛВАНЕ НА ДАННИТЕ
         With totalTokow

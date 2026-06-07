@@ -2085,7 +2085,7 @@ Public Class Form_Tablo_new
         Select Case config.Category
             Case "Lamp"
                 ' Увеличаваме броя лампи
-                tokow.brLamp += count
+                tokow.brLamp += 1
                 tokow.Device = "Лампа"
             Case "Contact"
                 ' Ако има специфично правило за брой контакти

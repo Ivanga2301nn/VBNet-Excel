@@ -1,8 +1,6 @@
 ﻿Imports System.Reflection
 Imports System.Windows.Forms
 
-
-
 Public Class DataGridViewChangeManager
     ' Пазим препратки към шестте компонента
     Private _cableCatalog As CableCatalog
@@ -11,21 +9,18 @@ Public Class DataGridViewChangeManager
     Private _rcdCatalog As RCDCatalog
     Private _calculationEngine As ElectricalCalculationEngine
     Private _allCircuits As List(Of clsTokow)
-    Dim _boardManager As New BoardStructureManager(_rcdCatalog)
+    Private _boardManager As BoardStructureManager
     ''' <summary>
     ''' Конструкторът вече приема точно шестте компонента от формата
     ''' </summary>
-    Public Sub New(ByVal breakerCat As BreakerCatalog,
-                   ByVal disconnectorCat As DisconnectorCatalog,
-                   ByVal rcdCat As RCDCatalog,
-                   ByVal cableCat As CableCatalog,
-                   ByVal calcEngine As ElectricalCalculationEngine) ' <-- Новите попълнения
-
-        Me._breakerCatalog = breakerCat
-        Me._disconnectorCatalog = disconnectorCat
-        Me._rcdCatalog = rcdCat
-        Me._cableCatalog = cableCat
-        Me._calculationEngine = calcEngine
+    Public Sub New()
+        Me._breakerCatalog = AppSettings.BreakerCatalog
+        Me._disconnectorCatalog = AppSettings.DisconnectorCatalog
+        Me._rcdCatalog = AppSettings.RcdCatalog
+        Me._cableCatalog = AppSettings.CableCatalog
+        Me._calculationEngine = AppSettings.ElectricalCalculationEngine
+        Me._allCircuits = AppSettings.ListTokow
+        Me._boardManager = AppSettings.BoardStructureManager
     End Sub
     ''' <summary>
     ''' Главната входна точка. Взема името на процедурата от формата (Индекс 4) 
@@ -70,6 +65,14 @@ Public Class DataGridViewChangeManager
                 "Инженерен изчислителен модул",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning)
+        Finally
+            ' Тук може да добавиш код, който винаги трябва да се изпълни след опита за извикване на процедурата
+            ' Например, ако искаш да обновиш някакъв статус в UI-то или да логнеш действието
+
+
+
+
+
         End Try
     End Sub
     ' =================================================================
@@ -84,8 +87,8 @@ Public Class DataGridViewChangeManager
         Dim validatedValue As String = ValidateRCDNulla(value)
         ' 2. Ако филтърът върне валиден резултат → записваме го в обекта
         If validatedValue IsNot Nothing Then panelCircuits.RCD_Нула = validatedValue
-        Dim panels = AppSettings.ListTokow.Where(Function(t) New With {Key t.BuildingName, Key t.Tablo} = currentPanelKey) _
-            .ToList()
+        Dim panels = AppSettings.ListTokow.Where(Function(t) t.BuildingName = panelCircuits.BuildingName AndAlso t.Tablo = panelCircuits.Tablo).ToList()
+
 
         ' Викаме публичния метод от BoardStructureManager, за да пренареди ДТЗ-тата на таблото
         _boardManager.ProcessPanelRCDLogic(panels)

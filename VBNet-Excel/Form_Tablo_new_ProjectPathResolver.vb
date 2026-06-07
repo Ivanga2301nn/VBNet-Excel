@@ -17,7 +17,7 @@ Imports System.Text.RegularExpressions
 ''' сериализация и управление на проектната информация,
 ''' свързана с ListTokow и структурата на таблата.
 ''' </summary>
-Public Class Form_Tablo_new_ProjectPathResolver
+Public Class ProjectPathResolver
     ''' <summary>
     ''' Извлича име на сграда от името на DWG файла.
     ''' Логиката:

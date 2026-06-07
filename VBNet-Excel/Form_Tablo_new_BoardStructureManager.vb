@@ -1,13 +1,12 @@
-﻿Imports Microsoft.Office.Interop.Excel
-
-Public Class BoardStructureManager
+﻿Public Class BoardStructureManager
     ' 1. Пазим локални референции на ниво клас
     Private _rcdCatalog As RCDCatalog
     ''' <summary>
     ''' КОНСТРУКТОР: Приема създадените каталози и списъка с токови кръгове от формата
     ''' </summary>
-    Public Sub New(rcdCat As RCDCatalog)
-        Me._rcdCatalog = rcdCat
+    Public Sub New()
+        ' Пием вода директно от извора при раждането на класа!
+        Me._rcdCatalog = AppSettings.RcdCatalog
     End Sub
 
     ''' <summary>
@@ -206,9 +205,9 @@ Public Class BoardStructureManager
                         Where(Function(t) Not String.IsNullOrEmpty(t.RCD_Нула) AndAlso
                         t.RCD_Нула.StartsWith("N")).
                         GroupBy(Function(t) t.RCD_Нула)
-        ' =========================================================================
-        ' ТУК Е ПЕРФЕКТНОТО МЯСТО: Създаваме енджина локално за процедурата
-        ' =========================================================================
+        For Each RCD In panelCircuits
+            _rcdCatalog.ClearRCD(RCD)
+        Next
         ' 2. Обхождаме всяка намерена "N" група в таблото
         For Each group In rcdGroups
             ' Вземаме списъка с кръгове, които участват в тази конкретна "N" група

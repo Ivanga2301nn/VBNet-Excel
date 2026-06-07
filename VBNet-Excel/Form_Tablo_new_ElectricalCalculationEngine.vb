@@ -20,13 +20,10 @@ Public Class ElectricalCalculationEngine
     ''' <summary>
     ''' КОНСТРУКТОР: Приема създадените каталози от формата, за да работи с техните актуални данни
     ''' </summary>
-    Public Sub New(breakerCat As BreakerCatalog,
-                   cableCat As CableCatalog,
-                   rcdCat As RCDCatalog)
-
-        Me._breakerCatalog = breakerCat
-        Me._cableCatalog = cableCat
-        Me._rcdCatalog = rcdCat
+    Public Sub New()
+        Me._breakerCatalog = AppSettings.BreakerCatalog
+        Me._cableCatalog = AppSettings.CableCatalog
+        Me._rcdCatalog = AppSettings.RcdCatalog
     End Sub
     Public Class BlockConfig
         Public BlockNames As List(Of String)        ' Възможни имена на блока
@@ -313,7 +310,7 @@ Public Class ElectricalCalculationEngine
         Select Case config.Category
             Case "Lamp"
                 ' Увеличаваме броя лампи
-                tokow.brLamp += count
+                tokow.brLamp += 1
                 tokow.Device = "Лампа"
             Case "Contact"
                 ' Ако има специфично правило за брой контакти

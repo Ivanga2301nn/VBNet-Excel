@@ -79,174 +79,184 @@ Public Module AcadCommands
     End Sub
 End Module
 Public Module AppSettings
+    ' =================================================================
+    ' === ОБЩИ НАСТРОЙКИ И ИЗТОЧНИК НА ИСТИНАТА ===
+    ' =================================================================
     Public Property CurrentManufacturer As String = "Schneider"
     Public Const ROOT_NODE_TEXT As String = "Гл.Р.Т."
-
-    ' ЦЕНТРАЛНИЯТ ИЗТОЧНИК НА ИСТИНАТА ЗА ЦЕЛИЯ ПРОЕКТ:    Public Property ListTokow As New List(Of clsTokow)
+    ''' <summary>
+    ''' ЦЕНТРАЛНИЯТ ИЗТОЧНИК НА ИСТИНАТА ЗА ЦЕЛИЯ ПРОЕКТ (Всички токови кръгове)
+    ''' </summary>
     Public Property ListTokow As New List(Of clsTokow)
-
-    ' Флаг, който спира събитията на Grid-а, докато трае зареждането на данни
+    ''' <summary>
+    ''' Списък със суровите консуматори, извлечени от AutoCAD
+    ''' </summary>
+    Public Property ListKonsumator As New List(Of strKonsumator)
+    ''' <summary>
+    ''' Флаг, който спира събитията на Grid-а, докато трае зареждането на данни
+    ''' </summary>
     Public Property IsGridLoading As Boolean = False
+    ' =================================================================
+    ' === ГЛОБАЛНИ КАТАЛОЗИ
+    ' =================================================================
+    Public Property RcdCatalog As RCDCatalog
+    Public Property BreakerCatalog As BreakerCatalog
+    Public Property CableCatalog As CableCatalog
+    Public Property DisconnectorCatalog As DisconnectorCatalog
+    Public Property MotorProtectionCatalog As MotorProtectionCatalog
+    ' =================================================================
+    ' === ВСИЧКИ КЛАСОВЕ И МЕНИДЖЪРИ ОТ СНИМКАТА (Живеят мирно тук) ===
+    ' =================================================================
+    ' Мениджъри за интерфейса (UI) и логиката на Grid / TreeView
+    Public Property DataGridViewManager As DataGridViewManager
+    Public Property DataGridViewChangeManager As DataGridViewChangeManager
+    Public Property TreeViewManager As TreeViewManager
+    Public Property FormSortPriority As Form_SortPriority
+    ' Инженерни енджини и изчисления
+    Public Property ElectricalCalculationEngine As ElectricalCalculationEngine
+    Public Property PanelBalanceManager As PanelBalanceManager
+    Public Property BoardStructureManager As BoardStructureManager
+    ' Мениджъри за данни и интеграция (AutoCAD / Данни)
+    Public Property ConsumerExtractor As ConsumerExtractor
+    Public Property AutoCadInserter As Form_Tablo_new_AutoCadInserter
+    Public Property BatchAddCircuits As Form_BatchAddCircuits
+    Public Property ProjectPathResolver As ProjectPathResolver
+    Public Property TargetDataGridView As DataGridView
+    Public Property TargetTreeView As System.Windows.Forms.TreeView
 End Module
 Public Class Form_Tablo_new
-    ' --- Данни за извлечените от AutoCAD консуматори и токови кръгове ---
-    Private ListKonsumator As New List(Of strKonsumator)
-
-    ' --- КАТАЛОЗИ (Глобални за формата, за да живеят през цялото време) ---
-    Private _motorCatalog As MotorProtectionCatalog
-    Private _cableCatalog As CableCatalog
-    Private _breakerCatalog As BreakerCatalog
-    Private _disconnectorCatalog As DisconnectorCatalog
-    Private _rcdCatalog As RCDCatalog
-
-    ' Създаваме инстанция на електрическите класове, които ще се грижат за всички изчисления в проекта
-    Private _calculationEngine As ElectricalCalculationEngine
-    Private _boardStructureManager As BoardStructureManager
-    Private _panelBalanceManager As PanelBalanceManager
-
-    Private _DataGridViewManager As DataGridViewManager
-    Private _gridChangeManager As DataGridViewChangeManager
-
-    ' --- ГЛОБАЛНОТО СЪСТОЯНИЕ ЗА МАРКАТА ---
-    ' Полето е Shared
-    Private _currentManufacturer As String = AppSettings.CurrentManufacturer
-
-    ' Създаваме инстанция на помощни класове, които ще се грижиа за
-    Private _AutoCadInserter As Form_Tablo_new_AutoCadInserter
-    Private _Form_SortPriority As Form_SortPriority
-
-    ' СВОЙСТВОТО СЪЩО ТРЯБВА ДА Е SHARED:
+    ' --- ГЛОБАЛНОТО СЪСТОЯНИЕ ЗА МАРКАТА (Пренасочено към централния склад) ---
     Public Property CurrentManufacturer As String
         Get
-            Return _currentManufacturer
+            Return AppSettings.CurrentManufacturer
         End Get
         Set(value As String)
-            If _currentManufacturer <> value Then
-                _currentManufacturer = value
-                ' Внимание: Методът OnManufacturerChanged също ще трябва да стане Shared!
+            If AppSettings.CurrentManufacturer <> value Then
+                AppSettings.CurrentManufacturer = value
+                ' Методът се вика, ако имаш логика за преначертаване на интерфейса при смяна на марката
                 OnManufacturerChanged()
             End If
         End Set
     End Property
-    ' --- МЕНИДЖЪРИ НА ИНТЕРФЕЙСА ---
+
+    ' --- МЕНИДЖЪРИ НА ИНТЕРФЕЙСА (Държим WithEvents тук, за да хващаме събитията от TreeView-то) ---
+    ' Закачаме го към AppSettings при инициализация
     Public WithEvents _treeViewManager As TreeViewManager
+
     ''' <summary>
     ''' Конструктор на формата - приема данните от AutoCAD
     ''' </summary>
     Public Sub New(ByVal consumersList As List(Of strKonsumator))
-        ' Записваме подадените списъци
-        ListKonsumator = consumersList
+        ' 1. Наливаме извлечените консуматори директно в централния склад
+        AppSettings.ListKonsumator = consumersList
         InitializeComponent()
-        ' 1. ПЪРВО създаваме каталозите в паметта, за да са готови
+        ' 2. ПЪРВО зареждаме каталозите и събуждаме мениджърите в AppSettings
         InitializeProjectComponents()
+        ' 3. Свързваме локалния WithEvents мениджър с този в склада, за да работят събитията (кликове, селекции)
+        Me._treeViewManager = AppSettings.TreeViewManager
     End Sub
     Private Sub Form_Tablo_new_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        ' 1. Размери и позициониране на формата
         Me.Height = 950
         Me.Width = 1600
-        ' Заковава формата точно в средата на екрана при стартиране
         Me.StartPosition = FormStartPosition.CenterScreen
-        ' Извикваме фабриката за класове
-        'InitializeProjectComponents()
-        ' каталозите вече ще съществуват в паметта и няма да има NullReference!)
+        ' 2. Напълване на Комбо бокса с производители (Schneider и т.н.)
         FillManufacturerCombo()
-        ' Подаваме списъка за изчисление
-        _calculationEngine.ExecuteCalculations()
-        _Form_SortPriority.SortListTokow()
-        _boardStructureManager.GroupContactsForRCD()
-        _boardStructureManager.EnsureAllStructureRecords()
-        _panelBalanceManager.AddFeederRecords()
-
-        _treeViewManager.RefreshTree()
-
-        _DataGridViewManager.InitializeGridStructure()
-
-
-
-
-
-
+        ' =================================================================
+        ' 3. ИНЖЕНЕРНИ ИЗЧИСЛЕНИЯ И ЛОГИКА (Всичко минава през AppSettings!)
+        ' =================================================================
+        ' Изчисления на токове, мощности и пада на напрежение
+        AppSettings.ElectricalCalculationEngine.ExecuteCalculations()
+        ' Сортиране на токовите кръгове по приоритети
+        AppSettings.FormSortPriority.SortListTokow()
+        ' Групиране на ДТЗ / контакти и подреждане на структурата на таблото
+        AppSettings.BoardStructureManager.GroupContactsForRCD()
+        AppSettings.BoardStructureManager.EnsureAllStructureRecords()
+        ' Добавяне на захранващи линии / главни прекъсвачи в баланса на фазите
+        AppSettings.PanelBalanceManager.AddFeederRecords()
+        ' =================================================================
+        ' 4. ВИЗУАЛИЗАЦИЯ НА ИНТЕРФЕЙСА (Дърво и Таблица)
+        ' =================================================================
+        ' Опресняваме TreeView структурата вляво
+        AppSettings.TreeViewManager.RefreshTree()
+        ' Инициализираме колоните и структурата на DataGridView (Grid-а)
+        AppSettings.DataGridViewManager.InitializeGridStructure()
+        ' Вдигаме флага, че зареждането приключи и Grid-ът вече е готов за работа
         AppSettings.IsGridLoading = True
     End Sub
     ''' <summary>
-    ''' Инициализация на компонентите на проекта
+    ''' Инициализация на компонентите на проекта в централния склад AppSettings
     ''' </summary>
     Private Sub InitializeProjectComponents()
-        ' Инициализираме обектите на ниво клас.
-        ' Когато се изпълни "New()", в самите каталози автоматично ще се извика техния LoadCatalog()
-        _motorCatalog = New MotorProtectionCatalog()
-        _cableCatalog = New CableCatalog()
-        _breakerCatalog = New BreakerCatalog()
-        _disconnectorCatalog = New DisconnectorCatalog()
-        _rcdCatalog = New RCDCatalog()
-        _calculationEngine = New ElectricalCalculationEngine(_breakerCatalog,
-                                                             _cableCatalog,
-                                                             _rcdCatalog)
-        _boardStructureManager = New BoardStructureManager(_rcdCatalog)
-        _panelBalanceManager = New PanelBalanceManager(_rcdCatalog,
-                                                       _disconnectorCatalog,
-                                                       _cableCatalog,
-                                                       _calculationEngine)
+        TargetDataGridView = DataGridView1
+        TargetTreeView = TreeView_Табло
+        ' 1. Инициализираме КАТАЛОЗИТЕ директно в AppSettings.
+        ' Когато се изпълни "New()", вътре в тях автоматично ще се зареди LoadCatalog()
+        AppSettings.MotorProtectionCatalog = New MotorProtectionCatalog()
+        AppSettings.CableCatalog = New CableCatalog()
+        AppSettings.BreakerCatalog = New BreakerCatalog()
+        AppSettings.DisconnectorCatalog = New DisconnectorCatalog()
+        AppSettings.RcdCatalog = New RCDCatalog()
 
-        ' Йерархия и дървовидна структура (TreeView)
-        _treeViewManager = New TreeViewManager(TreeView_Табло)
+        ' 2. Инициализираме ИНЖЕНЕРНИТЕ ЕНДЖИНИ (Вече с празни конструктори!)
+        AppSettings.ElectricalCalculationEngine = New ElectricalCalculationEngine()
+        AppSettings.BoardStructureManager = New BoardStructureManager()
+        AppSettings.PanelBalanceManager = New PanelBalanceManager()
 
-        _gridChangeManager = New DataGridViewChangeManager(_breakerCatalog,
-                                                           _disconnectorCatalog,
-                                                           _rcdCatalog,
-                                                           _cableCatalog,
-                                                           _calculationEngine)
+        ' 3. Инициализираме МЕНИДЖЪРИТЕ ЗА ИНТЕРФЕЙСА
+        ' Подаваме им само съответните контроли от формата, за да ги управляват
+        AppSettings.TreeViewManager = New TreeViewManager()
+        AppSettings.DataGridViewChangeManager = New DataGridViewChangeManager()
+        AppSettings.DataGridViewManager = New DataGridViewManager()
 
+        ' 4. Помощни класове и форми
+        AppSettings.AutoCadInserter = New Form_Tablo_new_AutoCadInserter()
+        AppSettings.FormSortPriority = New Form_SortPriority()
 
-        _DataGridViewManager = New DataGridViewManager(DataGridView1,
-                                                       _disconnectorCatalog,
-                                                       _breakerCatalog,
-                                                       _cableCatalog,
-                                                       _rcdCatalog,
-                                                       _gridChangeManager)
-        _AutoCadInserter = New Form_Tablo_new_AutoCadInserter
-        _Form_SortPriority = New Form_SortPriority
+        ' (Ако ProjectPathResolver ти трябва, добави го и него тук)
+        AppSettings.ProjectPathResolver = New ProjectPathResolver()
     End Sub
 #Region "⚙️ СВОЙСТВА ЗА ДОСТЪП ДО КАТАЛОЗИ И МЕНИДЖЪРИ"
     ' --- СВОЙСТВА (Properties) за достъп от външни изчислителни класове ---
     ' Ако утре направиш друг клас, който ще смята, той ще иска достъп до тези каталози през формата:
     Public ReadOnly Property CableCatalog As CableCatalog
         Get
-            Return _cableCatalog
+            Return AppSettings.CableCatalog
         End Get
     End Property
     Public ReadOnly Property BreakerCatalog As BreakerCatalog
         Get
-            Return _breakerCatalog
+            Return AppSettings.BreakerCatalog
         End Get
     End Property
     Public ReadOnly Property MotorCatalog As MotorProtectionCatalog
         Get
-            Return _motorCatalog
+            Return AppSettings.MotorProtectionCatalog
         End Get
     End Property
     Public ReadOnly Property DisconnectorCatalog As DisconnectorCatalog
         Get
-            Return _disconnectorCatalog
+            Return AppSettings.DisconnectorCatalog
         End Get
     End Property
     Public ReadOnly Property RCDCatalog As RCDCatalog
         Get
-            Return _rcdCatalog
+            Return AppSettings.RcdCatalog
         End Get
     End Property
     Public ReadOnly Property CalculationEngine As ElectricalCalculationEngine
         Get
-            Return _calculationEngine
+            Return AppSettings.ElectricalCalculationEngine
         End Get
     End Property
     Public ReadOnly Property BoardStructureManager As BoardStructureManager
         Get
-            Return _boardStructureManager
+            Return AppSettings.BoardStructureManager
         End Get
     End Property
     Public ReadOnly Property PanelBalanceManager As PanelBalanceManager
         Get
-            Return _panelBalanceManager
+            Return AppSettings.PanelBalanceManager
         End Get
     End Property
 #End Region
@@ -255,7 +265,7 @@ Public Class Form_Tablo_new
     ''' </summary>
     Private Sub FillManufacturerCombo()
         TscboManufacturer.ComboBox.Items.Clear()
-        For Each brand As String In _breakerCatalog.Brand_For_combo
+        For Each brand As String In AppSettings.BreakerCatalog.Brand_For_combo
             TscboManufacturer.ComboBox.Items.Add(brand)
         Next
         If TscboManufacturer.ComboBox.Items.Count > 0 Then
@@ -263,7 +273,7 @@ Public Class Form_Tablo_new
         End If
     End Sub
     Private Sub OnManufacturerChanged()
-        UpdateGridCombosForNewManufacturer(_currentManufacturer)
+        UpdateGridCombosForNewManufacturer(CurrentManufacturer)
     End Sub
     Private Sub TscboManufacturer_SelectedIndexChanged(sender As Object, e As EventArgs) Handles TscboManufacturer.SelectedIndexChanged
         Dim selectedBrand As String = TscboManufacturer.ComboBox.SelectedItem?.ToString()
@@ -272,8 +282,8 @@ Public Class Form_Tablo_new
         End If
     End Sub
     Private Sub UpdateGridCombosForNewManufacturer(brandName As String)
-        If _breakerCatalog Is Nothing Then Exit Sub
-        _breakerCatalog.FilterComboLists(brandName)
+        If AppSettings.BreakerCatalog Is Nothing Then Exit Sub
+        AppSettings.BreakerCatalog.FilterComboLists(brandName)
     End Sub
     ' ============================================================
     ' ОБРАБОТКА НА СЪБИТИЯ ОТ TREEVIEW (DRAG & DROP)
@@ -306,8 +316,8 @@ Public Class Form_Tablo_new
                 source.BuildingName = target.BuildingName
             End If
         End If
-        _panelBalanceManager.AddFeederRecords()
-        _treeViewManager.RefreshTree()
+        AppSettings.PanelBalanceManager.AddFeederRecords()
+        AppSettings.TreeViewManager.RefreshTree()
     End Sub
     ' ============================================================
     ' ОБРАБОТКА НА СЪБИТИЕ: ЛЯВ КЛИК ВЪРХУ ВЪЗЕЛ В ДЪРВОТО
@@ -320,7 +330,7 @@ Public Class Form_Tablo_new
         ' Защита: Ако по някаква причина обектът е празен, излизаме безопасно
         If selectedObject Is Nothing Then Exit Sub
         AppSettings.IsGridLoading = True
-        _DataGridViewManager.DisplayBoardStructure(selectedObject)
+        AppSettings.DataGridViewManager.DisplayBoardStructure(selectedObject)
         GroupBox2.Text = "Детайли за табло -> " + selectedObject.Tablo
         ' Разпределяме логиката според това какъв обект е кликнат:
         Select Case selectedObject.Device
@@ -366,7 +376,7 @@ Public Class Form_Tablo_new
         Dim cellValue As Object = DataGridView1.Rows(e.RowIndex).Cells(e.ColumnIndex).Value
         Dim newValue As String = If(cellValue IsNot Nothing, cellValue.ToString(), "")
         ' 4. ПРЕДАВАМЕ ВСИЧКО НА МЕНИДЖЪРА
-        _DataGridViewManager.ProcessCellValueChanged(e.RowIndex, e.ColumnIndex, newValue)
+        AppSettings.DataGridViewManager.ProcessCellValueChanged(e.RowIndex, e.ColumnIndex, newValue)
     End Sub
     ''' <summary>
     ''' Принуждава ComboBox и CheckBox да реагират ВЕДНАГА при избор/цъкане, а не чак при излизане от клетката.
@@ -404,7 +414,7 @@ Public Class Form_Tablo_new
         Dim pathParts As String() = cleanParts.ToArray()
         ' 5. Извикваме инсъртера и му подаваме перфектно изчистения масив
         ' Сега pathParts(0) е чистото име на сградата, а последното е чистото име на таблото, без интервали!
-        _AutoCadInserter.ExecuteInsert(pathParts)
+        AppSettings.AutoCadInserter.ExecuteInsert(pathParts)
     End Sub
     Private Sub ToolStripButton_Сортиране_Click(sender As Object, e As EventArgs) Handles ToolStripButton_Сортиране.Click
         ' 1. Преди да отворим формата, вземаме текущо избрания възел в дървото
@@ -422,7 +432,7 @@ Public Class Form_Tablo_new
                     AppSettings.IsGridLoading = True
                     ' Викаме мениджъра на таблицата. Той ще прочете новосортирания списък 
                     ' и ще пренареди редовете на екрана веднага!
-                    _DataGridViewManager.DisplayBoardStructure(selectedObject)
+                    AppSettings.DataGridViewManager.DisplayBoardStructure(selectedObject)
                     ' Сваляме флага обратно
                     AppSettings.IsGridLoading = False
                 End If

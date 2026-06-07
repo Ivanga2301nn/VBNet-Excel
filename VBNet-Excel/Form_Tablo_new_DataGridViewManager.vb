@@ -41,31 +41,24 @@ Public Class DataGridViewManager
     ''' <summary>
     ''' Конструктор на мениджъра за DataGridView.
     ''' </summary>
-    Public Sub New(ByVal dgv As DataGridView,
-                   ByVal disconnectorCat As DisconnectorCatalog,
-                   ByVal breakerCat As BreakerCatalog,
-                   ByVal cableCat As CableCatalog,
-                   ByVal rcdCat As RCDCatalog,
-                   ByVal chManager As DataGridViewChangeManager)
-
+    Public Sub New()
         ' Запомняме таблицата веднъж завинаги в този клас
-        _dgv = dgv
+        _dgv = AppSettings.TargetDataGridView
         ' Записваме референциите към данните и каталозите
-        _disconnectorCatalog = disconnectorCat
-        _breakerCatalog = breakerCat
-        _cableCatalog = cableCat
-        _rcdCatalog = rcdCat
-        _changeManager = chManager
-
+        _disconnectorCatalog = AppSettings.DisconnectorCatalog
+        _breakerCatalog = AppSettings.BreakerCatalog
+        _cableCatalog = AppSettings.CableCatalog
+        _rcdCatalog = AppSettings.RcdCatalog
+        _changeManager = AppSettings.DataGridViewChangeManager
         ' Зареждаме динамичните списъци за ComboBox клетките от съответните каталози    
-        _ComboItems_cableType = cableCat.GetUniqueCableTypes()                      ' Взима уникалните типове кабели от каталога
-        _ComboItems_breakerType = breakerCat.GetUniqueBreakerTypes("63А", "1p")     ' Взима уникалните типове прекъсвачи от каталога
-        _ComboItems_breakerIn = breakerCat.GetUniqueBreakerCurrents("NSXm", "1p")   ' Взима уникалните амперажи от каталога
-        _ComboItems_breakerCurve = breakerCat.GetUniqueBreakerCurves("NSXm", "1p")  ' Взима уникалните криви от каталога
-        _ComboItems_breakerUnit = breakerCat.GetUniqueBreakerUnits("NSXm", "1p")    ' Взима уникалните защитни блокове от каталога
+        _ComboItems_cableType = _cableCatalog.GetUniqueCableTypes()                      ' Взима уникалните типове кабели от каталога
+        _ComboItems_breakerType = _breakerCatalog.GetUniqueBreakerTypes("63А", "1p")     ' Взима уникалните типове прекъсвачи от каталога
+        _ComboItems_breakerIn = _breakerCatalog.GetUniqueBreakerCurrents("NSXm", "1p")   ' Взима уникалните амперажи от каталога
+        _ComboItems_breakerCurve = _breakerCatalog.GetUniqueBreakerCurves("NSXm", "1p")  ' Взима уникалните криви от каталога
+        _ComboItems_breakerUnit = _breakerCatalog.GetUniqueBreakerUnits("NSXm", "1p")    ' Взима уникалните защитни блокове от каталога
 
-        _ComboItems_disconType = disconnectorCat.GetUniqueDisconnectorTypes("63А", "1p")       ' Взима уникалните типове разединители от каталога 
-        _ComboItems_disconIn = disconnectorCat.GetUniqueDisconnectorCurrents("iSW", "1p")      ' Взима уникалните амперажи за разединители от каталога
+        _ComboItems_disconType = _disconnectorCatalog.GetUniqueDisconnectorTypes("63А", "1p")       ' Взима уникалните типове разединители от каталога 
+        _ComboItems_disconIn = _disconnectorCatalog.GetUniqueDisconnectorCurrents("iSW", "1p")      ' Взима уникалните амперажи за разединители от каталога
     End Sub
     Public ReadOnly Property rowTemplate As List(Of Object())
         Get
@@ -583,8 +576,8 @@ Public Class DataGridViewManager
         Dim data As Object() = rowTemplate(rowIndex)
         ' Ако масивът е къс или на позиция 4 няма нищо, или е празен низ -> излизаме ВЕДНАГА!
         If data.Length <= 4 OrElse
-            data(4) Is Nothing OrElse
-            String.IsNullOrEmpty(data(4).ToString()) Then Exit Sub
+           data(4) Is Nothing OrElse
+           String.IsNullOrEmpty(data(4).ToString()) Then Exit Sub
         ' Щом кодът премине защитата, си взимаме името на процедурата за изпълнение
         Dim procedureToExecute As String = data(4).ToString()
 
@@ -618,6 +611,9 @@ Public Class DataGridViewManager
                                          c.ТоковКръг = extractedCircuit
                                          )
         _changeManager.UpdateCircuitProperty(currentCircuit, procedureToExecute, newValue)
+
+
+        FillColumnValues(colIndex, currentCircuit)
 
     End Sub
 End Class

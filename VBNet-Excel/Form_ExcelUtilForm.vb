@@ -1987,7 +1987,9 @@ Public Class Form_ExcelUtilForm
                             Text_Dostawka = "пускател въздушен; " &
                                 wsKontakti.Cells(i, 6).Value
                         Case "Изход 1p", "Проточен", "Бойлер кухня",
-                             "Вертикален", "Хоризонтален"
+                             "Вертикален", "Хоризонтален",
+                             "Хоризонтален - 380V", "Вертикален - 380V",
+                             "Проточен - 380V"
                             wsKontakti.Range("M" & i.ToString).Value = 3 * broj_elementi
                         Case "Изход 3p"
                             Dim value As Double
@@ -8065,7 +8067,7 @@ Public Class Form_ExcelUtilForm
                                     wsCableTrays.Range("B" + i.ToString).Value.ToString +
                                     "x" +
                                     wsCableTrays.Range("C" + i.ToString).Value.ToString +
-                                    "mm, комоплект с капак за кабелна скара"
+                                    "mm, комплект с капак за кабелна скара"
                     skara = skara + broj_elementi
                     Select Case wsCableTrays.Range("C" + i.ToString).Value
                         Case = 35

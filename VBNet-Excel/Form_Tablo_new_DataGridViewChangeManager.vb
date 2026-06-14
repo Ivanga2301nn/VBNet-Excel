@@ -86,6 +86,7 @@ Public Class DataGridViewChangeManager
         Dim panels = AppSettings.ListTokow.Where(Function(t) t.BuildingName = panelCircuits.BuildingName AndAlso t.Tablo = panelCircuits.Tablo).ToList()
         ' Викаме публичния метод от BoardStructureManager, за да пренареди ДТЗ-тата на таблото
         _boardManager.ProcessPanelRCDLogic(panels)
+        AppSettings.DataGridViewManager.ProcessCellValueChanged(panels)
     End Sub
     ' =================================================================
     ' === ПОМОЩНИ ФУНКЦИИ (Валидации и санитарни филтри) ===

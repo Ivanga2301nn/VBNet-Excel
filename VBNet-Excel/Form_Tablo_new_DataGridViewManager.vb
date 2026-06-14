@@ -644,9 +644,60 @@ Public Class DataGridViewManager
                                          c.ТоковКръг = extractedCircuit
                                          )
         _changeManager.UpdateCircuitProperty(currentCircuit, procedureToExecute, newValue)
-
-
         FillColumnValues(colIndex, currentCircuit)
 
+    End Sub
+
+    Public Sub ProcessCellValueChanged(ByVal panelCircuits As List(Of clsTokow))
+        ' 1. БЕЗОПАСНОСТ: Ако списъкът е празен, няма какво да обновяваме
+        If panelCircuits Is Nothing OrElse panelCircuits.Count = 0 Then Exit Sub
+        ' 2. ДЕФИНИРАНЕ НА ТОЧНИЯ СПИСЪК СЪС ЗАГЛАВИЯ ЗА ДТЗ ГРУПАТА
+        Dim rcdRowTitles As New List(Of String) From {
+                            "ДТЗ Нула",
+                            "Вид на апарата",
+                            "Клас на апарата",
+                            "ДТЗ(RCD) Ном. ток",
+                            "Чувствителност",
+                            "ДТЗ(RCD) полюси"
+        }
+        ' 3. 💾 ЗАПАЗВАМЕ КОМФОРТА НА ПОТРЕБИТЕЛЯ (Позицията на скрола)
+        Dim currentFirstVisibleColumn As Integer = _dgv.FirstDisplayedScrollingColumnIndex
+        ' 4. ВЪНШЕН ЦИКЪЛ: Обхождаме абсолютно всички редове в шаблона (Вертикално)
+        For r As Integer = 0 To rowTemplate.Count - 1
+            Dim rowData As Object() = rowTemplate(r)
+            ' Взимаме заглавието на текущия ред (първия елемент)
+            Dim currentTitle As String = rowData(0).ToString()
+            ' ПРОВЕРКА 1: Този ред част ли е от нашето ДТЗ семейство?
+            If rcdRowTitles.Contains(currentTitle) Then
+                ' Защита: Ако редът е просто заглавен (като "ДТЗ (RCD)") и няма функция на позиция 3, го пропускаме
+                If rowData.Length <= 3 OrElse rowData(3) Is Nothing OrElse String.IsNullOrEmpty(rowData(3).ToString()) Then
+                    Continue For
+                End If
+                ' Взимаме изчислителната функция (делегата) за този конкретен ред
+                Dim valueFunction As [Delegate] = CType(rowData(3), [Delegate])
+                ' 5. ВЪТРЕШЕН ЦИКЪЛ: Обхождаме всички колони на екрана (Хоризонтално)
+                For col As Integer = 0 To _dgv.ColumnCount - 1
+                    Dim columnName As String = _dgv.Columns(col).Name
+                    ' Разделяме името на колоната по твоя точен разделител "|"
+                    Dim nameParts As String() = columnName.Split("|"c)
+                    ' ПРОВЕРКА 2: Дали колоната е редовен токов кръг (започва с "col")
+                    If nameParts(0) = "col" Then
+                        ' Взимаме името на токовия кръг от позиция 3 в името на колоната
+                        Dim circuitName As String = nameParts(3)
+                        ' ПРОВЕРКА 3: Намираме съответния обект директно от подаденото табло (panelCircuits)
+                        Dim currentCircuit As clsTokow = panelCircuits.FirstOrDefault(Function(c) c.ТоковКръг = circuitName)
+                        ' Ако обектът съществува в това табло, преизчисляваме стойността и я отпечатваме
+                        If currentCircuit IsNot Nothing Then
+                            Dim updatedValue As Object = valueFunction.DynamicInvoke(currentCircuit)
+                            _dgv.Rows(r).Cells(col).Value = If(updatedValue IsNot Nothing, updatedValue.ToString(), "")
+                        End If
+                    End If
+                Next ' Край на колоните
+            End If
+        Next ' Край на редовете
+        ' 6. 🔄 ВЪЗСТАНОВЯВАМЕ ПОЗИЦИЯТА НА СКРОЛА (Екранът не мърда)
+        If currentFirstVisibleColumn >= 0 AndAlso currentFirstVisibleColumn < _dgv.ColumnCount Then
+            _dgv.FirstDisplayedScrollingColumnIndex = currentFirstVisibleColumn
+        End If
     End Sub
 End Class

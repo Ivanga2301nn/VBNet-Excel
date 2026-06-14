@@ -115,7 +115,7 @@ Public Class Form_Tablo_new_AutoCadInserter
             Try
                 ' ПРЕДИЗЧИСЛЯВАНЕ НА ПАРАМЕТРИТЕ
                 ' Тук ще извикваме процедурите за чертане една по една
-                DrawPanelFrame(acDoc, acCurDb, ptBasePoint, panelCircuits, filterTablo)   ' Тук чертаем рамката на таблото
+                DrawPanelFrame(acDoc, acCurDb, ptBasePoint, panelCircuits, filterTablo)     ' Тук чертаем рамката на таблото
                 DrawBusbars(acDoc, acCurDb, ptBasePoint, panelCircuits)                     ' Тук чертаем шините
                 DrawCircuits(acDoc, acCurDb, ptBasePoint, panelCircuits)                    ' Тук чертаем всеки токов кръг (прекъсвачи, текстове, линии)
                 DrawRCDBusbar(acDoc, acCurDb, ptBasePoint, panelCircuits)                   ' Тук чертаем ДЗТ за токовите кръгове (прекъсвачи, текстове, линии)
@@ -630,19 +630,19 @@ Public Class Form_Tablo_new_AutoCadInserter
         blockName = "s_c60_circ_break"
         ' 2. Логика за избор на тип апарат и блок
         Select Case True
-    ' Първи приоритет: Резерви
+            ' Първи приоритет: Резерви
             Case circuit.Device = "Резерва"
                 rcd_Yes = "Резерва"
                 blockName = "s_c60_circ_break"
-    ' Първи приоритет: Резерви
+            ' Първи приоритет: Резерви
             Case circuit.Device = "Съществуващ"
                 rcd_Yes = "Съществуващ"
                 blockName = "s_c60_circ_break"
-    ' Втори приоритет: Моторна защита
+            ' Втори приоритет: Моторна защита
             Case circuit.Управление = "Моторна защита"
                 rcd_Yes = "Моторна защита"
                 blockName = "s_GV2"
-    ' Трети приоритет: Проверка за RCD (ако има попълнен тип)
+            ' Трети приоритет: Проверка за RCD (ако има попълнен тип)
             Case Not String.IsNullOrWhiteSpace(circuit.RCD_Тип)
                 rcd_Yes = "RCD"
                 blockName = "s_dpnn_vigi_circ_break"

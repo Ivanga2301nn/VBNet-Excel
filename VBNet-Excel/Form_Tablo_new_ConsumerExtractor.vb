@@ -11,15 +11,27 @@ Public Class ConsumerExtractor
         If acDoc Is Nothing Then Return Nothing
         Dim acCurDb As Database = acDoc.Database
         Dim ed As Editor = acDoc.Editor
-        ' Улавяне на предварителната селекция
+        ' 1. Създаваме променлива, която ще държи крайната селекция за обработка
+        Dim finalSelection As SelectionSet = Nothing
+        ' 2. Опитваме да уловим предварителната селекция (ако потребителят е маркирал предварително)
         Dim selRes As PromptSelectionResult = ed.SelectImplied()
-        If selRes.Status <> PromptStatus.OK OrElse selRes.Value Is Nothing OrElse selRes.Value.Count = 0 Then
+        If selRes.Status = PromptStatus.OK AndAlso selRes.Value IsNot Nothing AndAlso selRes.Value.Count > 0 Then
+            ' Имаме успешен предварителен избор - използваме го директно
+            finalSelection = selRes.Value
+        Else
+            ' 3. АКО НЯМА ПРЕДВАРИТЕЛЕН ИЗБОР:
+            ' Извикваме твоята готова и работеща процедура от CommonUtil
+            Dim cu As New CommonUtil()
+            finalSelection = cu.GetObjects("INSERT", "Изберете консуматори от чертежа")
+        End If
+        ' Защита: Ако потребителят се откаже и от ръчния избор (натисне ESC), finalSelection ще е Nothing
+        If finalSelection Is Nothing OrElse finalSelection.Count = 0 Then
             Return Nothing
         End If
         ' Взимане на името на активния чертеж
         Dim sourceDwgName As String = Path.GetFileName(acCurDb.Filename)
-        ' Извикваме процедурата за филтриране и обработка
-        Return FilterAndProcessSelection(selRes.Value, acCurDb)
+        ' 4. Подаваме финалната селекция (независимо как е придобита) към обработката
+        Return FilterAndProcessSelection(finalSelection, acCurDb)
     End Function
     ''' <summary>
     ''' Процедура за филтриране по тип (INSERT), пространство (ModelSpace) и слой (EL*).

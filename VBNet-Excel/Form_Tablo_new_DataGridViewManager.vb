@@ -500,7 +500,15 @@ Public Class DataGridViewManager
                 specialCell.Value = ""
             End If
             ' Заглавните редове също ги заключваме да са ReadOnly за сигурност
-            If parameterName = "Прекъсвач" OrElse parameterName = "ДТЗ (RCD)" OrElse parameterName = "Кабел" OrElse parameterName = "Фаза" Then
+            Dim readOnlyParams As String() = {"Прекъсвач",
+                                              "ДТЗ (RCD)",
+                                              "Кабел",
+                                              "Фаза",
+                                              "Инст. мощност",
+                                              "Брой контакти",
+                                              "Брой лампи",
+                                              "Брой полюси"}
+            If readOnlyParams.Contains(parameterName) Then
                 specialCell.ReadOnly = True
             End If
         Next
@@ -645,9 +653,29 @@ Public Class DataGridViewManager
                                          )
         _changeManager.UpdateCircuitProperty(currentCircuit, procedureToExecute, newValue)
         FillColumnValues(colIndex, currentCircuit)
-
     End Sub
-
+    ''' <summary>
+    ''' Обновява автоматично изчисляемите параметри
+    ''' на ДТЗ (RCD) за всички токови кръгове в таблото.
+    '''
+    ''' Процедурата обхожда редовете, свързани с ДТЗ,
+    ''' преизчислява необходимите стойности
+    ''' и актуализира съответните клетки в DataGridView.
+    '''
+    ''' Работи само с колоните, представящи
+    ''' реални токови кръгове, като използва
+    ''' подадения списък с обекти clsTokow.
+    '''
+    ''' По време на обновяването запазва
+    ''' текущата позиция на хоризонталния скрол,
+    ''' за да не се нарушава работата на потребителя.
+    ''' </summary>
+    ''' <param name="panelCircuits">
+    ''' Списък с токовите кръгове
+    ''' на текущото табло,
+    ''' използван за преизчисляване
+    ''' и обновяване на данните.
+    ''' </param>
     Public Sub ProcessCellValueChanged(ByVal panelCircuits As List(Of clsTokow))
         ' 1. БЕЗОПАСНОСТ: Ако списъкът е празен, няма какво да обновяваме
         If panelCircuits Is Nothing OrElse panelCircuits.Count = 0 Then Exit Sub
@@ -689,7 +717,8 @@ Public Class DataGridViewManager
                         ' Ако обектът съществува в това табло, преизчисляваме стойността и я отпечатваме
                         If currentCircuit IsNot Nothing Then
                             Dim updatedValue As Object = valueFunction.DynamicInvoke(currentCircuit)
-                            _dgv.Rows(r).Cells(col).Value = If(updatedValue IsNot Nothing, updatedValue.ToString(), "")
+                            _dgv.Rows(r).Cells(col).Value = If(updatedValue IsNot Nothing OrElse
+                                                               updatedValue = "0", updatedValue.ToString(), " ")
                         End If
                     End If
                 Next ' Край на колоните

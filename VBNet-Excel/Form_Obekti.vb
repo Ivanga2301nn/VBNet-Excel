@@ -11,8 +11,6 @@ Imports System.Drawing.Drawing2D
 Imports Autodesk.AutoCAD.DatabaseServices.Filters
 Imports Autodesk.AutoCAD.GraphicsInterface
 
-Imports excel = Microsoft.Office.Interop.Excel
-
 Imports ACSMCOMPONENTS24Lib
 Imports Microsoft.Office.Interop
 
@@ -56,12 +54,10 @@ Public Class Obekti
         DataGridView.Rows(e.RowIndex).Cells(1).Value = cu.GetObjects_TEXT("Изберете " & sss)
         Me.Visible = True
     End Sub
-
     Private Sub butExit_Click(sender As Object, e As EventArgs) Handles butExit.Click
         Me.Close()
     End Sub
 End Class
-
 Public Class Set_SheetSet
     Dim Form_Obekti As New Obekti
     <CommandMethod("Set_SheetSet")>

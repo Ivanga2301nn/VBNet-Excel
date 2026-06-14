@@ -31,8 +31,7 @@ Public Class DataGridViewChangeManager
         ' 🛡️ ОБЩА ПРОВЕРКА ЗА КОРЕКТНОСТ (За трите параметъра)
         ' ------------------------------------------------------------
         If tokow Is Nothing OrElse
-           String.IsNullOrEmpty(procedureToExecute) OrElse
-           String.IsNullOrEmpty(newValue) Then
+           String.IsNullOrEmpty(procedureToExecute) Then
             ' Показваме съобщение за грешни/непълни данни
             MessageBox.Show(
                 "Операцията е прекратена! Подадени са некоректни или празни данни за токовия кръг, процедурата или стойността.",
@@ -83,7 +82,10 @@ Public Class DataGridViewChangeManager
         Dim validatedValue As String = ValidateRCDNulla(value)
         ' 2. Ако филтърът върне валиден резултат → записваме го в обекта
         If validatedValue IsNot Nothing Then panelCircuits.RCD_Нула = validatedValue
-        Dim panels = AppSettings.ListTokow.Where(Function(t) t.BuildingName = panelCircuits.BuildingName AndAlso t.Tablo = panelCircuits.Tablo).ToList()
+        Dim panels = AppSettings.ListTokow.Where(Function(t)
+                                                     Return t.BuildingName = panelCircuits.BuildingName AndAlso
+                                                     t.Tablo = panelCircuits.Tablo
+                                                 End Function).ToList()
         ' Викаме публичния метод от BoardStructureManager, за да пренареди ДТЗ-тата на таблото
         _boardManager.ProcessPanelRCDLogic(panels)
         AppSettings.DataGridViewManager.ProcessCellValueChanged(panels)

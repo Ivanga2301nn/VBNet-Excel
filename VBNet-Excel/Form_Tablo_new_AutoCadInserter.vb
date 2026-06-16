@@ -638,6 +638,9 @@ Public Class Form_Tablo_new_AutoCadInserter
             Case circuit.Device = "Съществуващ"
                 rcd_Yes = "Съществуващ"
                 blockName = "s_c60_circ_break"
+            Case circuit.Device = "Контакт"
+                rcd_Yes = "Прекъсвач"
+                blockName = "s_c60_circ_break"
             ' Втори приоритет: Моторна защита
             Case circuit.Управление = "Моторна защита"
                 rcd_Yes = "Моторна защита"

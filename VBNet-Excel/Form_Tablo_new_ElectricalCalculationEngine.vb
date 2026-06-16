@@ -8,10 +8,6 @@
 '
 ' Това е основната електротехническа част на алгоритъма.
 #End Region
-
-#Region "Процедури"
-
-#End Region
 Public Class ElectricalCalculationEngine
     ' Пазим локални референции към каталозите, които формата вече е създала
     Private _breakerCatalog As BreakerCatalog

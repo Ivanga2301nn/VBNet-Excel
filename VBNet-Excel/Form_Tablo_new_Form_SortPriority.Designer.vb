@@ -110,7 +110,8 @@ Partial Class Form_SortPriority
         Me.ClientSize = New System.Drawing.Size(284, 361)
         Me.Controls.Add(Me.TableLayoutPanel1)
         Me.Name = "Form_SortPriority"
-        Me.Text = "СОРТИРАНЕ"
+        Me.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen
+        Me.Text = "СОРТИРАНЕ ТОКОВИ КРЪГОВЕ"
         Me.TableLayoutPanel1.ResumeLayout(False)
         Me.ResumeLayout(False)
 

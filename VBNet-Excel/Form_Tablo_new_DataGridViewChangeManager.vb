@@ -74,50 +74,53 @@ Public Class DataGridViewChangeManager
     ' === СЪЩИНСКИ ПРОЦЕДУРИ (Пренесени от стария Select Case) ===
     ' =================================================================
     ''' <summary>
-    ''' Сменя: "ДТЗ Нула" (Валидира текста и го записва в обекта)
-    ''' Извиква се при: "HandleRcdZeroChange"
+    ''' Обработва промяната в групата на ДТЗ Нула, преизчислява логиката на таблото
+    ''' и автоматично обновява съответните редове и колони в потребителския интерфейс.
     ''' </summary>
     Public Sub HandleRcdZeroChange(ByVal panelCircuits As clsTokow, ByVal value As String)
         ' 1. Пускаме текста през санитарния филтър
         Dim validatedValue As String = ValidateRCDNulla(value)
         ' 2. Ако филтърът върне валиден резултат → записваме го в обекта
-        If validatedValue IsNot Nothing Then panelCircuits.RCD_Нула = validatedValue
+        If validatedValue IsNot Nothing Then
+            panelCircuits.RCD_Нула = validatedValue
+        End If
+        ' 3. Филтрираме всички токови кръгове за текущата сграда и табло
         Dim panels = AppSettings.ListTokow.Where(Function(t)
                                                      Return t.BuildingName = panelCircuits.BuildingName AndAlso
-                                                     t.Tablo = panelCircuits.Tablo
+                                                            t.Tablo = panelCircuits.Tablo
                                                  End Function).ToList()
-        ' Викаме публичния метод от BoardStructureManager, за да пренареди ДТЗ-тата на таблото
-        _boardManager.ProcessPanelRCDLogic(panels)
-        AppSettings.DataGridViewManager.ProcessCellValueChanged(panels)
+        ' 4. КРИТИЧНА ЗАЩИТА: Сваляме флага на False, за да блокираме CellValueChanged събитията на Grid-а
+        AppSettings.IsGridLoading = False
+        Try
+            ' 5. Извикваме мениджъра, за да пренареди и преизчисли ДТЗ групите на таблото
+            _boardManager.ProcessPanelRCDLogic(panels)
+            ' 6. Извикваме втората процедура, която софтуерно ще попълни новите данни в Grid-а
+            AppSettings.DataGridViewManager.UpdateRcdGridValues(panels)
+        Finally
+            ' 7. Вдигаме флага обратно на True, за да разрешим отново нормалната работа на потребителя с Grid-а
+            AppSettings.IsGridLoading = True
+        End Try
     End Sub
     ' =================================================================
     ' === ПОМОЩНИ ФУНКЦИИ (Валидации и санитарни филтри) ===
     ' =================================================================
     ''' <summary>
-    ''' Санитарен филтър: Изчиства текста и проверява дали форматът отговаря на "N" + число (напр. N1, N2)
+    ''' Изчиства текста и проверява дали форматът отговаря на "N" + число (напр. N1, N2)
     ''' </summary>
     Private Function ValidateRCDNulla(ByVal inputValue As String) As String
         ' Проверка 1: Дали е празно и дали започва с "N"
-        If String.IsNullOrEmpty(inputValue) OrElse Not inputValue.ToUpper().StartsWith("N") Then
-            Return Nothing
-        End If
+        If String.IsNullOrEmpty(inputValue) OrElse Not inputValue.ToUpper().StartsWith("N") Then Return Nothing
         ' Извлечи числото след "N"
         Dim numberPart As String = inputValue.Substring(1).Trim()
         ' Премахни всичко, което НЕ е цифра
         numberPart = New String(numberPart.Where(Function(c) Char.IsDigit(c)).ToArray())
         ' Проверка 2: Дали има останали числа след чистенето
-        If String.IsNullOrEmpty(numberPart) Then
-            Return Nothing
-        End If
+        If String.IsNullOrEmpty(numberPart) Then Return Nothing
         ' Проверка 3: Дали числото е валидно
         Dim rcdNumber As Integer
-        If Not Integer.TryParse(numberPart, rcdNumber) Then
-            Return Nothing
-        End If
-        ' Проверка 4: Дали числото е строго по-голямо од 0
-        If rcdNumber <= 0 Then
-            Return Nothing
-        End If
+        If Not Integer.TryParse(numberPart, rcdNumber) Then Return Nothing
+        ' Проверка 4: Дали числото е строго по-голямо от 0
+        If rcdNumber <= 0 Then Return Nothing
         ' ✅ Всички проверки минаха → връщаме стандартизирания текст с главна буква
         Return "N" & rcdNumber.ToString()
     End Function

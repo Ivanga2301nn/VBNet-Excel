@@ -1231,7 +1231,7 @@ Public Class Legend
                          "3W-Насочен", "6W-Насочен"
                         strBlockText = "Високоговорител за стенен монтаж"
                     Case "EOL"
-                        strBlockText = "Микрофонен пулт за съобщения"
+                        strBlockText = "Модул за контрол на линията"
                     Case Else
                         strBlockText = "################################"
                 End Select

@@ -396,5 +396,4 @@ Public Class ElectricalCalculationEngine
         End If
         Return Inom                                                 ' Връща изчисления номинален ток
     End Function
-
 End Class

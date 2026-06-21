@@ -676,7 +676,10 @@ Public Class DataGridViewManager
     ''' използван за преизчисляване
     ''' и обновяване на данните.
     ''' </param>
-    Public Sub ProcessCellValueChanged(ByVal panelCircuits As List(Of clsTokow))
+    Public Sub UpdateRcdGridValues(ByVal panelCircuits As List(Of clsTokow))
+        ' Защита против безкраен цикъл: 
+        ' Изпълняваме процедурата САМО ако IsGridLoading е False (т.е. когато тече контролирано софтуерно обновяване)
+        If AppSettings.IsGridLoading Then Exit Sub
         ' 1. БЕЗОПАСНОСТ: Ако списъкът е празен, няма какво да обновяваме
         If panelCircuits Is Nothing OrElse panelCircuits.Count = 0 Then Exit Sub
         ' 2. ДЕФИНИРАНЕ НА ТОЧНИЯ СПИСЪК СЪС ЗАГЛАВИЯ ЗА ДТЗ ГРУПАТА
@@ -688,7 +691,7 @@ Public Class DataGridViewManager
                             "Чувствителност",
                             "ДТЗ(RCD) полюси"
         }
-        ' 3. 💾 ЗАПАЗВАМЕ КОМФОРТА НА ПОТРЕБИТЕЛЯ (Позицията на скрола)
+        ' 3. ЗАПАЗВАМЕ КОМФОРТА НА ПОТРЕБИТЕЛЯ (Позицията на скрола)
         Dim currentFirstVisibleColumn As Integer = _dgv.FirstDisplayedScrollingColumnIndex
         ' 4. ВЪНШЕН ЦИКЪЛ: Обхождаме абсолютно всички редове в шаблона (Вертикално)
         For r As Integer = 0 To rowTemplate.Count - 1
@@ -698,7 +701,10 @@ Public Class DataGridViewManager
             ' ПРОВЕРКА 1: Този ред част ли е от нашето ДТЗ семейство?
             If rcdRowTitles.Contains(currentTitle) Then
                 ' Защита: Ако редът е просто заглавен (като "ДТЗ (RCD)") и няма функция на позиция 3, го пропускаме
-                If rowData.Length <= 3 OrElse rowData(3) Is Nothing OrElse String.IsNullOrEmpty(rowData(3).ToString()) Then
+                If rowData.Length <= 3 OrElse
+                    rowData(3) Is Nothing OrElse
+                    String.IsNullOrEmpty(rowData(3).ToString()) Then
+
                     Continue For
                 End If
                 ' Взимаме изчислителната функция (делегата) за този конкретен ред
@@ -724,8 +730,9 @@ Public Class DataGridViewManager
                 Next ' Край на колоните
             End If
         Next ' Край на редовете
-        ' 6. 🔄 ВЪЗСТАНОВЯВАМЕ ПОЗИЦИЯТА НА СКРОЛА (Екранът не мърда)
-        If currentFirstVisibleColumn >= 0 AndAlso currentFirstVisibleColumn < _dgv.ColumnCount Then
+        ' 6. ВЪЗСТАНОВЯВАМЕ ПОЗИЦИЯТА НА СКРОЛА (Екранът не мърда)
+        If currentFirstVisibleColumn >= 0 AndAlso
+           currentFirstVisibleColumn < _dgv.ColumnCount Then
             _dgv.FirstDisplayedScrollingColumnIndex = currentFirstVisibleColumn
         End If
     End Sub

@@ -113,7 +113,6 @@ Public Class Form_SortPriority
         Me.Close()
     End Sub
 #End Region
-
 #Region "Сортиране на списък с токови кръгове (List(Of strTokow))"
     ''' <summary>
     ''' Извършва йерархично сортиране на списъка с токови кръгове (Natural Sort).

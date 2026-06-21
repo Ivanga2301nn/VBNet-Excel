@@ -2341,9 +2341,6 @@ Public Class Tablo
 
 
             End If
-
-
-
         Finally
             isCellChangeTriggeredProgrammatically = False
         End Try
@@ -4716,23 +4713,3 @@ Public Class Tablo
         Return text
     End Function
 End Class
-
-'Using rec As New Xrecord()
-'rec.Data = New ResultBuffer(
-'                New TypedValue(CInt(DxfCode.Text), "This is a test"),
-'                New TypedValue(CInt(DxfCode.Int8), 0),
-'                New TypedValue(CInt(DxfCode.Int16), 1),
-'                New TypedValue(CInt(DxfCode.Int32), 2),
-'                New TypedValue(CInt(DxfCode.HardPointerId), db.BlockTableId),
-'                New TypedValue(CInt(DxfCode.BinaryChunk), New Byte() {0, 1, 2, 3, 4}),
-'                New TypedValue(CInt(DxfCode.ArbitraryHandle), db.BlockTableId.Handle),
-'                New TypedValue(CInt(DxfCode.UcsOrg), New Point3d(0, 0, 0)))
-'End Using
-
-'искам да добавя още малко логика в избора на сечение:
-'избраното сечението се записва е променлива calc
-'когато избраното сечението е по-малко от 185 (има една грешка която съм допуснал сеченито 180 трябва да е 185) 
-'трбва да остане 185
-'но когато е по-голямо не е удобно да се работи с такива големи сечения
-'тогава се избират два кабела и се поставят в паралел
-'например ако избраното сечение е трябва да е 

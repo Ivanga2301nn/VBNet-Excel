@@ -512,6 +512,7 @@ Public Class DataGridViewManager
                 specialCell.ReadOnly = True
             End If
         Next
+        AppSettings.IsGridLoading = False
     End Sub
     ''' <summary>
     ''' Попълва наличните стойности в ComboBox клетките

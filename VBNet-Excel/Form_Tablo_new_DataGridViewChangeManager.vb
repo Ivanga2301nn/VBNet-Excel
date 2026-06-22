@@ -89,16 +89,17 @@ Public Class DataGridViewChangeManager
                                                      Return t.BuildingName = panelCircuits.BuildingName AndAlso
                                                             t.Tablo = panelCircuits.Tablo
                                                  End Function).ToList()
-        ' 4. КРИТИЧНА ЗАЩИТА: Сваляме флага на False, за да блокираме CellValueChanged събитията на Grid-а
-        AppSettings.IsGridLoading = False
+        ' 4. КРИТИЧНА ЗАЩИТА: Сваляме флага на True, за да блокираме CellValueChanged събитията на Grid-а
+        AppSettings.IsGridLoading = True
         Try
             ' 5. Извикваме мениджъра, за да пренареди и преизчисли ДТЗ групите на таблото
             _boardManager.ProcessPanelRCDLogic(panels)
             ' 6. Извикваме втората процедура, която софтуерно ще попълни новите данни в Grid-а
             AppSettings.DataGridViewManager.UpdateRcdGridValues(panels)
         Finally
-            ' 7. Вдигаме флага обратно на True, за да разрешим отново нормалната работа на потребителя с Grid-а
-            AppSettings.IsGridLoading = True
+            ' 7. Вдигаме флага обратно на False,
+            ' за да разрешим отново нормалната работа на потребителя с Grid-а
+            AppSettings.IsGridLoading = False
         End Try
     End Sub
     ' =================================================================

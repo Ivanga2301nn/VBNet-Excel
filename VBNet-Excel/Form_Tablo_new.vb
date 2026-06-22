@@ -375,7 +375,9 @@ Public Class Form_Tablo_new
         Dim cellValue As Object = DataGridView1.Rows(e.RowIndex).Cells(e.ColumnIndex).Value
         Dim newValue As String = If(cellValue IsNot Nothing, cellValue.ToString(), "")
         ' 4. ПРЕДАВАМЕ ВСИЧКО НА МЕНИДЖЪРА
+        AppSettings.IsGridLoading = True
         AppSettings.DataGridViewManager.ProcessCellValueChanged(e.RowIndex, e.ColumnIndex, newValue)
+        AppSettings.IsGridLoading = False
     End Sub
     ''' <summary>
     ''' Принуждава ComboBox и CheckBox да реагират ВЕДНАГА при избор/цъкане, а не чак при излизане от клетката.
@@ -429,7 +431,8 @@ Public Class Form_Tablo_new
                 If selectedObject IsNot Nothing Then
                     ' Вдигаме флага, че гридът се зарежда (за да спрем събитията при пълнене)
                     AppSettings.IsGridLoading = True
-                    ' Викаме мениджъра на таблицата. Той ще прочете новосортирания списък 
+                    ' Викаме мениджъра на таблицата.
+                    ' Той ще прочете новосортирания списък 
                     ' и ще пренареди редовете на екрана веднага!
                     AppSettings.DataGridViewManager.DisplayBoardStructure(selectedObject)
                     ' Сваляме флага обратно

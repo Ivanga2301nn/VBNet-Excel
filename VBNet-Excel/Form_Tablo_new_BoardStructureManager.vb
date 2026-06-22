@@ -1,4 +1,6 @@
-﻿Public Class BoardStructureManager
+﻿Imports System.Windows.Forms.VisualStyles.VisualStyleElement.TextBox
+
+Public Class BoardStructureManager
     ' 1. Пазим локални референции на ниво клас
     Private _rcdCatalog As RCDCatalog
     Private _breakerCatalog As BreakerCatalog
@@ -20,7 +22,7 @@
         ' Проверка за празен списък (защита от грешки)
         If AppSettings.ListTokow Is Nothing OrElse AppSettings.ListTokow.Count = 0 Then Exit Sub
         ' =========================================================================================
-        ' КРИТИЧНА ПРОМЯНА: Групираме по анонимен тип (двоен ключ - Сграда и Табло едновременно).
+        ' Групираме по анонимен тип (двоен ключ - Сграда и Табло едновременно).
         ' Това гарантира, че "Табло 1" в "Сграда А" и "Табло 1" в "Сграда Б" ще бъдат две отделни групи.
         ' =========================================================================================
         Dim panels = AppSettings.ListTokow.GroupBy(Function(t) New With {Key t.BuildingName, Key t.Tablo})
@@ -37,15 +39,12 @@
             ' Брояч за номера на ДТЗ в рамките на ТОВА ТАБЛО
             Dim rcdCounter As Integer = 0
             ' Динамично разпределяне според броя на контактите
-            Select Case n
-                ' Обединяваме Case 1 и Case 2, тъй като логиката им е идентична (отиват под една ДЗТ)
-                Case 1, 2
-                    rcdCounter += 1
-                    CreateRCDGroup(contactCircuits, rcdCounter)
-                ' Три или повече контактни кръга → задейства се разпределителния алгоритъм
-                Case Is >= 3
-                    GroupByThrees(contactCircuits, n, rcdCounter)
-            End Select
+            If n = 1 Then
+                ' Един контакт в таблото
+            Else
+                ' Два и повече контакта в таблото
+                GroupByThrees(contactCircuits, n, rcdCounter)
+            End If
             ProcessPanelRCDLogic(panelGroup.ToList())
         Next
     End Sub

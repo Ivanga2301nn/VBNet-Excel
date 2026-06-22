@@ -949,16 +949,17 @@ Public Class RCDCatalog
     ''' Променен на Клас за надеждна проверка за "Nothing", ако апаратът не бъде намерен в каталога.
     ''' </remarks>
     Public Class RCDInfo
-        Public Brand As String 'Производител на RCD устройството
-        Public NominalCurrent As Integer 'Номинален ток на RCD в ампери
-        Public Type As String ' Тип на чувствителността на RCD спрямо диференциален ток.
+        Public Brand As String              ' Производител на RCD устройството
+        Public NominalCurrent As Integer    ' Номинален ток на RCD в ампери
+        Public Type As String               ' Тип на чувствителността на RCD спрямо диференциален ток.
         ' - "AC" – реагира на синусоидален променлив ток
         ' - "A" – реагира на променлив и пулсиращ постоянен ток
         ' - "F" – висока чувствителност, бърза реакция на различни видове ток
-        Public Poles As String ' Брой полюси на устройството ("2p", "4p")
-        Public Sensitivity As Integer ' Чувствителност на RCD в милиампери
-        Public DeviceType As String 'Вид на устройството ("RCCB", "RCBO", "iID")
-        Public Breaker As Boolean ' True – устройството е RCBO (комбиниран прекъсвач + ДТЗ);
+        Public Poles As String              ' Брой полюси на устройството ("2p", "4p")
+        Public Sensitivity As Integer       ' Чувствителност на RCD в милиампери
+        Public DeviceType As String         ' Вид на устройството ("RCCB", "RCBO", "iID")
+        Public Breaker As Boolean
+        ' True – устройството е RCBO (комбиниран прекъсвач + ДТЗ);
         ' False – устройството е RCCB (само диференциална защита).
     End Class
     ''' <summary>

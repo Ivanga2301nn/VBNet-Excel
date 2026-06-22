@@ -1,12 +1,14 @@
 ﻿Public Class BoardStructureManager
     ' 1. Пазим локални референции на ниво клас
     Private _rcdCatalog As RCDCatalog
+    Private _breakerCatalog As BreakerCatalog
     ''' <summary>
     ''' КОНСТРУКТОР: Приема създадените каталози и списъка с токови кръгове от формата
     ''' </summary>
     Public Sub New()
         ' Пием вода директно от извора при раждането на класа!
         Me._rcdCatalog = AppSettings.RcdCatalog
+        Me._breakerCatalog = AppSettings.BreakerCatalog
     End Sub
 
 #Region "Групиране на контактни кръгове с ДТЗ (RCD)"
@@ -191,6 +193,10 @@
             ' 7. ВРЕМЕННО НАГНАЖДАНЕ НА ПАРАМЕТРИТЕ ЗА СУМАРНАТА ГРУПА
             lastCircuit.Ток = totalCurrent
             If hasThreePhase Then lastCircuit.Брой_Полюси = 3
+            If groupCircuits.Count = 1 Then
+                _BreakerCatalog.ClearBreaker(lastCircuit)
+                lastCircuit.RCD_Автомат = True
+            End If
             _rcdCatalog.SetRCD(lastCircuit)
             ' 8. ВЪЗСТАНОВЯВАНЕ НА ОРИГИНАЛНИТЕ СТОЙНОСТИ НА КРЪГА
             ' След като SetRCD е записвала вътре в обекта параметрите на ДТЗ, 

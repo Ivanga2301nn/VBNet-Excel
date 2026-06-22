@@ -1,6 +1,5 @@
 ﻿Imports System.Reflection
 Imports System.Windows.Forms
-Imports Autodesk.AutoCAD.GraphicsSystem
 
 Public Class DataGridViewChangeManager
     ' Пазим препратки към шестте компонента
@@ -200,8 +199,8 @@ Public Class DataGridViewChangeManager
         End If
     End Sub
     ''' <summary>
-    ''' Обработва промяна на настройката за наличие на ДТЗ
-    ''' за конкретен токов кръг.
+    ''' Обработва промяна на настройката за 
+    ''' наличие на ДТЗ за конкретен токов кръг.
     '''
     ''' При валидна входна стойност обновява
     ''' свойството ДТЗ_RCD на подадения обект.
@@ -210,15 +209,10 @@ Public Class DataGridViewChangeManager
     ''' не е разрешено и стойността винаги се задава като False.
     ''' </summary>
     ''' <param name="circuit">
-    ''' Обектът clsTokow,
-    ''' за който се променя
-    ''' настройката за ДТЗ.
+    ''' Обектът clsTokow, за който се променя настройката за ДТЗ.
     ''' </param>
     ''' <param name="value">
-    ''' Новата стойност,
-    ''' подадена като текст,
-    ''' която се преобразува
-    ''' до Boolean.
+    ''' Новата стойност, подадена като текст, която се преобразува до Boolean.
     ''' </param>
     Public Sub HandleRcdToggleChange(ByVal circuit As clsTokow, ByVal value As String)
         If circuit.Device = "Табло" Then
@@ -229,6 +223,8 @@ Public Class DataGridViewChangeManager
         If Boolean.TryParse(value, result) Then
             circuit.ДТЗ_RCD = result
         End If
+
+
 
     End Sub
 End Class

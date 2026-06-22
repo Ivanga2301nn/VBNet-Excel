@@ -138,7 +138,6 @@ Public Class Form_Tablo_new
             End If
         End Set
     End Property
-
     ' --- МЕНИДЖЪРИ НА ИНТЕРФЕЙСА (Държим WithEvents тук, за да хващаме събитията от TreeView-то) ---
     ' Закачаме го към AppSettings при инициализация
     Public WithEvents _treeViewManager As TreeViewManager
@@ -401,7 +400,7 @@ Public Class Form_Tablo_new
             Dim cleanStr As String = Regex.Replace(part, "\s*\(.*?\)", "")
             ' Б) Махаме Unicode иконите (сгради, табла) отпред
             cleanStr = Regex.Replace(cleanStr, "[^а-яА-Яa-zA-Z0-9_\.\-\s]", "")
-            ' В) ЖЕЛЕЗЕН TRIM: Премахва коварния интервал, останал в началото след иконата!
+            ' В) Премахва коварния интервал, останал в началото след иконата!
             cleanStr = cleanStr.Trim()
             ' Записваме в чистия списък, ако не е празен
             If Not String.IsNullOrEmpty(cleanStr) Then

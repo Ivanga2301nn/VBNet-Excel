@@ -561,41 +561,45 @@ Public Class DataGridViewManager
     ''' а всеки ред представя конкретен параметър от този кръг.
     ''' </summary>
     Private Sub FillColumnValues(ByVal colIndex As Integer, ByVal circuit As clsTokow)
-        For rowIndex As Integer = 0 To _dgv.Rows.Count - 1
-            If rowIndex >= rowTemplate.Count Then Continue For
-            Dim data As Object() = rowTemplate(rowIndex)
-            Dim cellType As String = data(2).ToString()
-            Dim rawValue As Object = Nothing
-            ' ПРОВЕРКА: Дали на позиция 3 имаме реална функция (Делегат)
-            If data.Length > 3 AndAlso TypeOf data(3) Is [Delegate] Then
-                Dim resolver As [Delegate] = DirectCast(data(3), [Delegate])
-                rawValue = resolver.DynamicInvoke(circuit)
-            Else
-                ' Ако не е делегат (а е текст, напр. за разделител или празен ред), 
-                ' просто вземаме самия текст или го оставяме празно
-                rawValue = If(data.Length > 3, data(3), "")
-            End If
-            Dim targetCell As DataGridViewCell = _dgv.Rows(rowIndex).Cells(colIndex)
-            'Dim rawValue As Object = resolver.DynamicInvoke(circuit)
-            If cellType = "Combo" Then
-                Dim comboCell = DirectCast(targetCell, DataGridViewComboBoxCell)
-                Dim valStr As String = If(rawValue IsNot Nothing, rawValue.ToString(), "")
-                ' Избираме стойността, ако я има в заредения каталог
-                If comboCell.Items.Contains(valStr) Then
-                    comboCell.Value = valStr
+        Try
+            For rowIndex As Integer = 0 To _dgv.Rows.Count - 1
+                If rowIndex >= rowTemplate.Count Then Continue For
+                Dim data As Object() = rowTemplate(rowIndex)
+                Dim cellType As String = data(2).ToString()
+                Dim rawValue As Object = Nothing
+                ' ПРОВЕРКА: Дали на позиция 3 имаме реална функция (Делегат)
+                If data.Length > 3 AndAlso TypeOf data(3) Is [Delegate] Then
+                    Dim resolver As [Delegate] = DirectCast(data(3), [Delegate])
+                    rawValue = resolver.DynamicInvoke(circuit)
                 Else
-                    comboCell.Value = "---"
+                    ' Ако не е делегат (а е текст, напр. за разделител или празен ред), 
+                    ' просто вземаме самия текст или го оставяме празно
+                    rawValue = If(data.Length > 3, data(3), "")
                 End If
-            ElseIf cellType = "Check" Then
-                If TypeOf rawValue Is Boolean Then
-                    targetCell.Value = DirectCast(rawValue, Boolean)
+                Dim targetCell As DataGridViewCell = _dgv.Rows(rowIndex).Cells(colIndex)
+                'Dim rawValue As Object = resolver.DynamicInvoke(circuit)
+                If cellType = "Combo" Then
+                    Dim comboCell = DirectCast(targetCell, DataGridViewComboBoxCell)
+                    Dim valStr As String = If(rawValue IsNot Nothing, rawValue.ToString(), "")
+                    ' Избираме стойността, ако я има в заредения каталог
+                    If comboCell.Items.Contains(valStr) Then
+                        comboCell.Value = valStr
+                    Else
+                        comboCell.Value = "---"
+                    End If
+                ElseIf cellType = "Check" Then
+                    If TypeOf rawValue Is Boolean Then
+                        targetCell.Value = DirectCast(rawValue, Boolean)
+                    Else
+                        targetCell.Value = False
+                    End If
                 Else
-                    targetCell.Value = False
+                    targetCell.Value = rawValue
                 End If
-            Else
-                targetCell.Value = rawValue
-            End If
-        Next
+            Next
+        Catch ex As Exception
+
+        End Try
     End Sub
     ''' <summary>
     ''' Обработва промяна на стойност в клетка от DataGridView.

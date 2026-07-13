@@ -210,7 +210,10 @@ Public Class ElectricalCalculationEngine
             ' 5) Избор на сечение на кабела според тока и полюсите
             ' ----------------------------------------------------
             _cableCatalog.CalculateCable(tokow)
-            If tokow.ДТЗ_RCD Then _rcdCatalog.SetRCD(tokow)
+            If tokow.ДТЗ_RCD Then
+                tokow.RCD_Нула = "N"
+                _rcdCatalog.SetRCD(tokow) ' Процедурата се извиква за да избере ДЗТ за бойлерите
+            End If
             If tokow.RCD_Автомат Then _breakerCatalog.ClearBreaker(tokow)
         Next
     End Sub

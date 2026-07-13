@@ -1,6 +1,4 @@
-﻿Imports System.Windows.Forms.VisualStyles.VisualStyleElement.TextBox
-
-Public Class BoardStructureManager
+﻿Public Class BoardStructureManager
     ' 1. Пазим локални референции на ниво клас
     Private _rcdCatalog As RCDCatalog
     Private _breakerCatalog As BreakerCatalog
@@ -39,11 +37,9 @@ Public Class BoardStructureManager
             ' Брояч за номера на ДТЗ в рамките на ТОВА ТАБЛО
             Dim rcdCounter As Integer = 0
             ' Динамично разпределяне според броя на контактите
-            If n = 1 Then
-                ' Един контакт в таблото
-            Else
+            If n > 1 Then
                 ' Два и повече контакта в таблото
-                GroupByThrees(contactCircuits, n, rcdCounter)
+                GroupByThrees(contactCircuits)
             End If
             ProcessPanelRCDLogic(panelGroup.ToList())
         Next
@@ -75,7 +71,8 @@ Public Class BoardStructureManager
     ''' - При малък брой групи (например 4 кръга) алгоритъмът създава една група от 4,
     '''   вместо 3+1, което е по-практично при реални електрически табла.
     ''' </remarks>
-    Private Sub GroupByThrees(circuits As List(Of clsTokow), n As Integer, ByRef rcdCounter As Integer)
+    Private Sub GroupByThrees(circuits As List(Of clsTokow))
+        Dim n As Integer = circuits.Count
         ' Брой пълни групи по 3
         Dim fullGroups = n \ 3
         ' Остатък след групиране
@@ -101,10 +98,11 @@ Public Class BoardStructureManager
                 Next
                 groups.Add(circuits.Skip(fullGroups * 3).Take(2).ToList())
         End Select
+        Dim rcdCounter As Integer = 1
         ' Създаване на ДТЗ за всяка група
         For Each group In groups
-            rcdCounter += 1
             CreateRCDGroup(group, rcdCounter)
+            rcdCounter += 1
         Next
     End Sub
     ''' <summary>
@@ -180,28 +178,24 @@ Public Class BoardStructureManager
         For Each group In rcdGroups
             ' Вземаме списъка с кръгове, които участват в тази конкретна "N" група
             Dim groupCircuits As List(Of clsTokow) = group.ToList()
-            ' 3. СУМИРАНЕ: Изчисляваме сумарния ток на групата
-            Dim totalCurrent As Double = groupCircuits.Sum(Function(t) t.Ток)
-            ' 4. ПРОВЕРКА ЗА ПОЛЮСИ: Проверяваме дали поне един от кръговете е 3-полюсен
-            Dim hasThreePhase As Boolean = groupCircuits.Any(Function(t) t.Брой_Полюси = 3)
-            ' 5. ВЗЕМАМЕ ПОСЛЕДНИЯ: Намираме последния токов кръг от групата
-            Dim lastCircuit As clsTokow = groupCircuits.Last()
-            ' 6. ЗАПАЗВАНЕ НА ОРИГИНАЛНИТЕ ДАННИ
-            Dim originalTok As Double = lastCircuit.Ток
-            Dim originalPoles As Integer = lastCircuit.Брой_Полюси
-            ' 7. ВРЕМЕННО НАГНАЖДАНЕ НА ПАРАМЕТРИТЕ ЗА СУМАРНАТА ГРУПА
-            lastCircuit.Ток = totalCurrent
-            If hasThreePhase Then lastCircuit.Брой_Полюси = 3
+            ' Ако в групата няма кръгове, прескачаме
+            If groupCircuits.Count = 0 Then Continue For
+            ' Вземаме първия (или който и да е) кръг от групата, за да го подадем като отправна точка.
+            ' Нашата нова SetRCD ще вземе неговата Сграда, Табло и RCD_Нула и ще си намери цялата група сама.
+            Dim referenceCircuit As clsTokow = groupCircuits.Last
+            ' Специфична твоя логика: Ако групата се състои от само 1 консуматор,
+            ' тогава ДЗТ-то е комбинирано (RCBO - ДЗТ с предпазител в едно).
+            ' Затова чистим стандартния прекъсвач и вдигаме флага RCD_Автомат.
             If groupCircuits.Count = 1 Then
-                _BreakerCatalog.ClearBreaker(lastCircuit)
-                lastCircuit.RCD_Автомат = True
+                _breakerCatalog.ClearBreaker(referenceCircuit)
+                referenceCircuit.RCD_Автомат = True
+            Else
+                ' Ако са повече от 1 консуматор, това е групово ДЗТ, а не RCBO
+                referenceCircuit.RCD_Автомат = False
             End If
-            _rcdCatalog.SetRCD(lastCircuit)
-            ' 8. ВЪЗСТАНОВЯВАНЕ НА ОРИГИНАЛНИТЕ СТОЙНОСТИ НА КРЪГА
-            ' След като SetRCD е записвала вътре в обекта параметрите на ДТЗ, 
-            ' връщаме оригиналния ток и полюси на самия токов кръг.
-            lastCircuit.Ток = originalTok
-            lastCircuit.Брой_Полюси = originalPoles
+            ' 3. Викаме умната SetRCD. Тя сама ще сметне общия ток, полюсите 
+            ' и ще запише резултата във ВСИЧКИ консуматори от тази група!
+            _rcdCatalog.SetRCD(referenceCircuit)
         Next
     End Sub
 #End Region

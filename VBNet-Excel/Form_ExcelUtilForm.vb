@@ -3415,6 +3415,10 @@ Public Class Form_ExcelUtilForm
         Dim boEL_2x1_5 As Boolean = True
         Dim boEL_4x1_5 As Boolean = True
 
+        Dim boEL_3x2_5 As Boolean = True
+        Dim boEL_3x4_0 As Boolean = True
+        Dim boEL_5x2_5 As Boolean = True
+
         For i = 0 To UBound(masType)
             If masType(i).blLength = 0 Then Exit For
             If masType(i).blType = "EL__DIM" Or
@@ -3422,12 +3426,13 @@ Public Class Form_ExcelUtilForm
                masType(i).blType = "EL-DIM" Then
                 Continue For
             End If
-            If masType(i).blType = "СВТ2x1,5mm²" Then
-                boEL_2x1_5 = False
-            End If
-            If masType(i).blType = "СВТ4x1,5mm²" Then
-                boEL_4x1_5 = False
-            End If
+            If masType(i).blType = "СВТ2x1,5mm²" Then boEL_2x1_5 = False
+            If masType(i).blType = "СВТ4x1,5mm²" Then boEL_4x1_5 = False
+
+            If masType(i).blType = "СВТ3x2,5mm²" Then boEL_3x2_5 = False
+            If masType(i).blType = "СВТ3x4,0mm²" Then boEL_3x4_0 = False
+            If masType(i).blType = "СВТ5x2,5mm²" Then boEL_5x2_5 = False
+
             '
             formu = ""
             rang = ""
@@ -3488,6 +3493,11 @@ Public Class Form_ExcelUtilForm
                             formu = "=" & colum & "2*" & Кабел_кутия.ToString & "+" & colum & "2*" & Str(H_Етаж - H_Контакт)
                             rang = colum & Trim(index.ToString) & ":" & colum & Trim(index.ToString)
                             wsLines.Range(rang).Formula = formu
+                            colum = "$AB$"
+                            formu = "=" & colum & "2*" & Кабел_кутия.ToString &
+                                    "+" & colum & "2*" & Str(H_Етаж - H_Ключ)
+                            rang = colum & Trim(index.ToString) & ":" & colum & Trim(index.ToString)
+                            wsLines.Range(rang).Formula = formu
                         Case "СВТ3x4,0mm²"
                             colum = "$U$"
                             formu = "=" & colum & "2*" & Кабел_кутия.ToString &
@@ -3497,11 +3507,6 @@ Public Class Form_ExcelUtilForm
                             colum = "$R$"
                             formu = "=" & colum & "2*" & Кабел_кутия.ToString &
                                     "+" & colum & "2*" & Str(H_Етаж - H_Контакт)
-                            rang = colum & Trim(index.ToString) & ":" & colum & Trim(index.ToString)
-                            wsLines.Range(rang).Formula = formu
-                            colum = "$AB$"
-                            formu = "=" & colum & "2*" & Кабел_кутия.ToString &
-                                    "+" & colum & "2*" & Str(H_Етаж - H_Ключ)
                             rang = colum & Trim(index.ToString) & ":" & colum & Trim(index.ToString)
                             wsLines.Range(rang).Formula = formu
                         Case "СВТ4x1,5mm²"
@@ -3765,7 +3770,6 @@ Public Class Form_ExcelUtilForm
                     index += 1
                 End If
             End If
-
             If boEL_4x1_5 Then
                 If (wsLines.Cells(2, 10).Value + wsLines.Cells(2, 13).Value) > 0 Then
                     colum = "$J$"
@@ -3786,7 +3790,68 @@ Public Class Form_ExcelUtilForm
                     index += 1
                 End If
             End If
+            If boEL_3x2_5 Then
+                If (wsLines.Cells(2, 16).Value) > 0 Then
+                    colum = "$P$"
+                    formu = "=" & colum & "2*" & Кабел_кутия.ToString &
+                                    "+" & colum & "2*" & Str(H_Етаж - H_Ключ) &
+                                    "+" & colum & "2*" & Str(3 * Кабел_Розетка)
+                    rang = colum & Trim(index.ToString)
+                    wsLines.Range(rang).Formula = formu
+                    With wsLines
+                        .Cells(index, 1) = Инсталация + "-КАБЕЛ"
+                        .Cells(index, 2) = "СВТ3x2,5mm²"
+                        .Cells(index, 3) = 0
+                    End With
+                    index += 1
+                End If
+                If (wsLines.Cells(2, 28).Value) > 0 Then
+                    colum = "$AB$"
+                    formu = "=" & colum & "2*" & Кабел_кутия.ToString &
+                                    "+" & colum & "2*" & Str(H_Етаж - H_Ключ) &
+                                    "+" & colum & "2*" & Str(3 * Кабел_Розетка)
+                    rang = colum & Trim(index.ToString)
+                    wsLines.Range(rang).Formula = formu
+                    With wsLines
+                        .Cells(index, 1) = Инсталация + "-КАБЕЛ"
+                        .Cells(index, 2) = "СВТ3x2,5mm²"
+                        .Cells(index, 3) = 0
+                    End With
+                    index += 1
+                End If
+            End If
+            If boEL_3x4_0 Then
+                If wsLines.Cells(2, 18).Value > 0 Then
+                    colum = "$R$"
+                    formu = "=" & colum & "2*" & Кабел_кутия.ToString &
+                                    "+" & colum & "2*" & Str(H_Етаж - H_Контакт)
+                    rang = colum & Trim(index.ToString)
+                    wsLines.Range(rang).Formula = formu
+                    With wsLines
+                        .Cells(index, 1) = Инсталация + "-КАБЕЛ"
+                        .Cells(index, 2) = "СВТ3x4,0mm²"
+                        .Cells(index, 3) = 0
+                    End With
+                    index += 1
+                End If
+            End If
+            If boEL_5x2_5 Then
+                If wsLines.Cells(2, 17).Value > 0 Then
+                    colum = "$Q$"
+                    formu = "=" & colum & "2*" & Кабел_кутия.ToString &
+                                    "+" & colum & "2*" & Str(H_Етаж - H_Контакт)
+                    rang = colum & Trim(index.ToString)
+                    wsLines.Range(rang).Formula = formu
+                    With wsLines
+                        .Cells(index, 1) = Инсталация + "-КАБЕЛ"
+                        .Cells(index, 2) = "СВТ5x2,5mm²"
+                        .Cells(index, 3) = 0
+                    End With
+                    index += 1
+                End If
+            End If
         End If
+
         Dim masPol() As strKabel = Kol_smetka_Kabel(Kabel, vbFalse)
 
         For i = 0 To UBound(masPol)

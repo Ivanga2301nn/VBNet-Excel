@@ -441,7 +441,6 @@ Public Class Form_Tablo_new
             End If
         End Using
     End Sub
-
     Private Sub ToolStripButton_Поправи_ДЗТ_Click(sender As Object, e As EventArgs) Handles ToolStripButton_Поправи_ДЗТ.Click
         'ProcessPanelRCDLogic(panelCircuits As List(Of clsTokow))
     End Sub

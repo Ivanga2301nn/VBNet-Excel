@@ -237,4 +237,25 @@ Public Class DataGridViewChangeManager
         End If
         _cableCatalog.CalculateCable(circuit)
     End Sub
+    Public Sub HandleCableTypeChange(ByVal circuit As clsTokow, ByVal value As String)
+
+        circuit.Кабел_Тип = value
+
+
+        'circuit.Кабел_Монтаж As String              
+        'circuit.Кабел_Полагане As String 
+        'circuit.Кабел_Сечение As String 
+
+        'circuit.Кабел_Брой_Фаза As String 
+        'circuit.Кабел_Брой_Група As String 
+
+        _cableCatalog.CalculateCable(circuit)
+
+
+
+
+
+
+
+    End Sub
 End Class

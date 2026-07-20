@@ -121,8 +121,8 @@ Public Class CableCatalog
     ''' Оптимизиран за сградни инсталации
     ''' </summary>
     Public Sub CalculateCable(ByRef tokow As clsTokow,
-                          Optional Type As String = Nothing,          ' Тип кабел ("СВТ", "САВТ", "NYY"...). Nothing = използвай стойността от tokow.
-                          Optional layMethod As Integer? = Nothing,   ' Полагане: 0=въздух (35°C), 1=земя (15°C). Nothing = използвай tokow.
+                          Optional Cable_Type As String = Nothing,    ' Тип кабел ("СВТ", "САВТ", "NYY"...). Nothing = използвай стойността от tokow.
+                          Optional layMethod As String = Nothing,     ' Полагане: 0=въздух (35°C), 1=земя (15°C). Nothing = използвай tokow.
                           Optional mountMethod As String = Nothing,   ' Начин на монтаж ("A1", "B1", "C"...). Nothing = използвай tokow.
                           Optional Broj_Cable As Integer? = Nothing,  ' Брой паралелни кабели в групата. Nothing = използвай tokow.
                           Optional Tipe_Cable As Integer? = Nothing,  ' Тип проводник: 0=кабел (3/4/5-жилен), 1=едножилни проводници. Nothing = използвай tokow.
@@ -134,7 +134,7 @@ Public Class CableCatalog
            tokow.Device = "Съществуващ" OrElse
            tokow.Device = "Резерва" Then Exit Sub
         Dim currentType As String
-        Dim currentLayMethod As Integer
+        Dim currentLayMethod As String
         Dim currentMountMethod As String
         Dim currentBrojCable As Integer
         Dim currentTipeCable As Integer
@@ -143,9 +143,9 @@ Public Class CableCatalog
         ' ============================================================
         ' ОПРЕДЕЛЯНЕ НА ТИП КАБЕЛ
         ' ============================================================
-        If Type IsNot Nothing Then currentType = Type
+        If Cable_Type IsNot Nothing Then currentType = Cable_Type
         If String.IsNullOrWhiteSpace(currentType) Then currentType = tokow.Кабел_Тип
-        If String.IsNullOrWhiteSpace(currentType) Then currentType = "СВТ"
+        If String.IsNullOrWhiteSpace(currentType) Then currentType = "СВТ" ' Аварийна стойност при липсващи данни
         ' ============================================================
         ' ОПРЕДЕЛЯНЕ НА МАТЕРИАЛ СПОРЕД ТИПА КАБЕЛ
         ' ============================================================
@@ -168,7 +168,7 @@ Public Class CableCatalog
         Else
             If cableInfo IsNot Nothing Then currentMaterial = cableInfo.Material
         End If
-        If String.IsNullOrWhiteSpace(currentMaterial) Then currentMaterial = "Cu"
+        If String.IsNullOrWhiteSpace(currentMaterial) Then currentMaterial = "Cu" ' Аварийна стойност при липсващи данни
         ' ============================================================
         ' БРОЙ ПАРАЛЕЛНИ КАБЕЛИ В ГРУПА
         ' Приоритет:
@@ -196,21 +196,13 @@ Public Class CableCatalog
         ' 2. Данни от tokow
         ' 3. Стойност по подразбиране
         ' ============================================================
-        If layMethod.HasValue Then currentLayMethod = layMethod.Value
-        If currentLayMethod = -1 Then
-            Select Case tokow.Кабел_Полагане
-                Case "Земя", "1"
-                    currentLayMethod = 1
-                Case "Въздух", "0"
-                    currentLayMethod = 0
-            End Select
-        End If
-        ' По подразбиране
-        If currentLayMethod = -1 Then currentLayMethod = 0
+        If layMethod IsNot Nothing Then currentLayMethod = layMethod
+        If String.IsNullOrWhiteSpace(currentLayMethod) Then currentLayMethod = tokow.Кабел_Полагане
+        If String.IsNullOrWhiteSpace(currentLayMethod) Then currentLayMethod = "Във въздух"
 
 
         ' Изчисляваме Inom като вземаме по-голямото число между двете
-        Dim Inom As Double = Math.Max(Val(tokow.Breaker_Номинален_Ток), Val(tokow.RCD_Ток))
+        Dim Inom As Double = Math.Max(Val(tokow.Breaker_Номинален_Ток), tokow.Ток)
         Dim NumberPoles As String = tokow.Брой_Полюси
 
         Dim filteredCables = CableList.Where(
@@ -229,7 +221,9 @@ Public Class CableCatalog
                             }
         Dim K1 As Double = If(K1_Table.ContainsKey(currentBrojCable), K1_Table(currentBrojCable), 0.7)
 
-        Dim Qok As Double = If(currentLayMethod = 1, 15, 35) ' 15°C земя, 35°C въздух
+        Dim Qok As Double = If(currentLayMethod.ToLower.Contains("зем"), 15, 35)
+        ' 15°C - директно полагане в земя
+        ' 35°C - въздух, тръби, канали и други случаи без директен контакт със земята
         Const Qokdef As Double = 25
         Dim Q As Double = filteredCables(0).MaxWorkingTemp
         ' K2 - температура
@@ -250,14 +244,13 @@ Public Class CableCatalog
         ' ТЪРСИМ ПЪРВОТО СЕЧЕНИЕ КОЕТО ИЗДЪРЖА Idop
         For i As Integer = 0 To filteredCables.Count - 1
             Dim cable As CableInfo = filteredCables(i)
-            Dim Imax As Double = If(currentLayMethod = 1, cable.MaxCurrent_Ground, cable.MaxCurrent_Air)
-
+            Dim Imax As Double = If(currentLayMethod.ToLower.Contains("зем"), cable.MaxCurrent_Ground, cable.MaxCurrent_Air)
             If Imax >= Idop Then
                 calc = cable.PhaseSize
                 Exit For
             End If
         Next
-        ' 4. ИЗВЛИЧАНЕ НА ТОКОВЕ ЗА ГОЛЕМИ СЕЧЕНИЯ (за паралелни кабели)
+        ' 4. ИЗВЛИЧАНЕ НА ТОКОВЕ ЗА ГОЛЕМИ СЕЧЕНИЯ (за паралелни жила)
         Dim bestSection As String = ""
         Dim bestNum As Integer = 0
         Dim bestNeutral As String = ""
@@ -315,7 +308,7 @@ Public Class CableCatalog
                 If index >= 0 Then calc_N = filteredCables(index).NeutralSize
             End If
             Text = If(bestNum > 1, bestNum & "x", "")
-            Text += Type & " "
+            Text += currentType & " "
             If Poles = "4х" AndAlso Not String.IsNullOrEmpty(calc_N) Then
                 Text += "3х" & calc & "+" & calc_N
             Else
@@ -327,7 +320,7 @@ Public Class CableCatalog
         tokow.Кабел_Брой_Група = currentBrojCable
         tokow.Кабел_Сечение = Text
         tokow.Кабел_Тип = currentType
-        tokow.Кабел_Полагане = If(currentLayMethod = 0, "Във въздух", "В земя")
+        tokow.Кабел_Полагане = currentLayMethod
         tokow.Кабел_Монтаж = GetMountMethodInfo(currentMountMethod)
     End Sub
     ''' <summary>

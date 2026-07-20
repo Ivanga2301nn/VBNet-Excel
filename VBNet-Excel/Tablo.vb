@@ -63,7 +63,6 @@ Public Class Tablo
     Public widthTablo As Double = 410      ' Ширина на цялото табло (за блокове и линии)
     Public heightText As Double = 12       ' Височина на текста, използван в блоковете
     Public Y_Шина As Double = 620          ' Вертикална позиция на шината (Y координата)
-
     Public Structure strTokow
         Dim ТоковКръг As String         ' Номер на токов кръг
         Dim brLamp As Integer           ' Брой лампи
@@ -2748,7 +2747,6 @@ Public Class Tablo
     ''' върхов ток на кръга и брой полюси.
     ''' </summary>
     Private Function FindRCDPriority(Ikryg As Double, Poles As String, PreferredDevice As String) As strRCD
-
         ' --- 1. Проверка за RCCB ---
         If PreferredDevice.ToUpper() = "RCCB" AndAlso Ikryg > 63 Then
             Return New strRCD With {

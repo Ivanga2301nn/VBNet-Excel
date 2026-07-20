@@ -709,7 +709,6 @@ Public Class DataGridViewManager
                 If rowData.Length <= 3 OrElse
                     rowData(3) Is Nothing OrElse
                     String.IsNullOrEmpty(rowData(3).ToString()) Then
-
                     Continue For
                 End If
                 ' Взимаме изчислителната функция (делегата) за този конкретен ред

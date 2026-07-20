@@ -204,7 +204,9 @@
     <Compile Include="Form_ExcelUtilForm.Designer.vb">
       <DependentUpon>Form_ExcelUtilForm.vb</DependentUpon>
     </Compile>
-    <Compile Include="Form_ExcelUtilForm.vb" />
+    <Compile Include="Form_ExcelUtilForm.vb">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="ExportExcelUtil.vb" />
     <Compile Include="My Project\AssemblyInfo.vb" />
     <Compile Include="My Project\Application.Designer.vb">

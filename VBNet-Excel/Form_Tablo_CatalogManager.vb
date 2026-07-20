@@ -589,7 +589,6 @@ Public Class BreakerCatalog
         End If
         Return 0
     End Function
-
     ''' <summary>
     ''' Връща уникалните серии прекъсвачи за текущата марка (от AppSettings), 
     ''' които поддържат подадения номинален ток и брой полюси (напр. "3p").
@@ -1140,5 +1139,6 @@ Public Class RCDCatalog
         tokow.RCD_Ток = 0
         tokow.RCD_Полюси = 0
     End Sub
+
 End Class
 #End Region

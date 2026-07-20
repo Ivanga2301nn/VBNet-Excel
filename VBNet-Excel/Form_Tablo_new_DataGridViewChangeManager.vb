@@ -1,5 +1,6 @@
 ﻿Imports System.Reflection
 Imports System.Windows.Forms
+Imports iTextSharp.text.pdf.qrcode.Version
 
 Public Class DataGridViewChangeManager
     ' Пазим препратки към шестте компонента
@@ -95,6 +96,7 @@ Public Class DataGridViewChangeManager
             ' 5. Извикваме мениджъра, за да пренареди и преизчисли ДТЗ групите на таблото
             _boardManager.ProcessPanelRCDLogic(panels)
             ' 6. Извикваме втората процедура, която софтуерно ще попълни новите данни в Grid-а
+            AppSettings.IsGridLoading = False
             AppSettings.DataGridViewManager.UpdateRcdGridValues(panels)
         Finally
             ' 7. Вдигаме флага обратно на False,
@@ -221,11 +223,17 @@ Public Class DataGridViewChangeManager
             Exit Sub
         End If
         Dim result As Boolean
-        If Boolean.TryParse(value, result) Then
-            circuit.ДТЗ_RCD = result
+        If Boolean.TryParse(value, result) Then circuit.ДТЗ_RCD = result
+        circuit.RCD_Автомат = True
+        _rcdCatalog.ClearRCD(circuit)
+        _breakerCatalog.ClearBreaker(circuit)
+        If circuit.ДТЗ_RCD Then
+            circuit.RCD_Нула = "N"
+            _rcdCatalog.SetRCD(circuit)
+        Else
+            _breakerCatalog.CalculateBreaker(circuit)
+            _cableCatalog.CalculateCable(circuit)
         End If
-
-
 
     End Sub
 End Class

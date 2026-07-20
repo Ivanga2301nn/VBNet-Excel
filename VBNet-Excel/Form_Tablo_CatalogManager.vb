@@ -134,7 +134,9 @@ Public Class CableCatalog
            tokow.Device = "Съществуващ" OrElse
            tokow.Device = "Резерва" Then Exit Sub
 
-        Dim Ibreaker As String = tokow.Breaker_Номинален_Ток
+        ' Изчисляваме Inom като вземаме по-голямото число между двете
+        Dim Inom As Double = Math.Max(Val(tokow.Breaker_Номинален_Ток), Val(tokow.RCD_Ток))
+
         Dim NumberPoles As String = tokow.Брой_Полюси
 
         ' 1. МАТЕРИАЛ И ФИЛТРИРАНЕ НА КАТАЛОГА (използваме DataList вместо Catalog_Cables)
@@ -170,7 +172,6 @@ Public Class CableCatalog
 
         ' 3. ИЗБОР НА СЕЧЕНИЕ
         Dim calc As String = "######"
-        Dim Inom As Double = Val(Ibreaker)
         Dim Idop As Double = Inom / (K1 * K2 * K3)
 
         ' ТЪРСИМ ПЪРВОТО СЕЧЕНИЕ КОЕТО ИЗДЪРЖА Idop
@@ -1136,8 +1137,9 @@ Public Class RCDCatalog
         tokow.RCD_Тип = ""
         tokow.RCD_Клас = ""
         tokow.RCD_Чувствителност = ""
-        tokow.RCD_Ток = 0
-        tokow.RCD_Полюси = 0
+        tokow.RCD_Ток = ""
+        tokow.RCD_Полюси = ""
+        tokow.RCD_Нула = ""
     End Sub
 
 End Class

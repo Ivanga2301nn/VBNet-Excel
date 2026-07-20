@@ -200,6 +200,7 @@ Public Class DataGridViewChangeManager
                 Exit Sub
             End If
         End If
+        _cableCatalog.CalculateCable(circuit)
     End Sub
     ''' <summary>
     ''' Обработва промяна на настройката за 
@@ -225,15 +226,15 @@ Public Class DataGridViewChangeManager
         Dim result As Boolean
         If Boolean.TryParse(value, result) Then circuit.ДТЗ_RCD = result
         circuit.RCD_Автомат = True
-        _rcdCatalog.ClearRCD(circuit)
         _breakerCatalog.ClearBreaker(circuit)
+        _rcdCatalog.ClearRCD(circuit)
         If circuit.ДТЗ_RCD Then
-            circuit.RCD_Нула = "N"
+            circuit.RCD_Нула = "N0"
             _rcdCatalog.SetRCD(circuit)
+            circuit.RCD_Нула = "N"
         Else
             _breakerCatalog.CalculateBreaker(circuit)
-            _cableCatalog.CalculateCable(circuit)
         End If
-
+        _cableCatalog.CalculateCable(circuit)
     End Sub
 End Class

@@ -302,7 +302,6 @@
         busSwitchRecord.Брой_Полюси = If(tabloTrifazi, 3, 1)
         busSwitchRecord.Фаза = If(tabloTrifazi, "L1,L2,L3", "L1")
         ' Използваме предварително заредената инстанция от конструктора на класа
-        _DisconnectorCatalog.CalculateDisconnector(busSwitchRecord, "Schneider")
-
+        _DisconnectorCatalog.CalculateDisconnector(busSwitchRecord)
     End Sub
 End Class

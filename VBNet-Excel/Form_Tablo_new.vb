@@ -1,23 +1,5 @@
-﻿Imports System.Collections.Generic
-Imports System.Drawing
-Imports System.Drawing.Drawing2D
-Imports System.Linq
-Imports System.Security.Cryptography
-Imports System.Security.Cryptography.X509Certificates
-Imports System.Text.RegularExpressions
+﻿Imports System.Text.RegularExpressions
 Imports System.Windows.Forms
-Imports System.Windows.Forms.VisualStyles.VisualStyleElement
-Imports Autodesk.AutoCAD
-Imports Autodesk.AutoCAD.ApplicationServices
-Imports Autodesk.AutoCAD.ComponentModel
-Imports Autodesk.AutoCAD.DatabaseServices
-Imports Autodesk.AutoCAD.DatabaseServices.Filters
-Imports Autodesk.AutoCAD.EditorInput
-Imports Autodesk.AutoCAD.Geometry
-Imports Autodesk.AutoCAD.GraphicsSystem
-Imports Autodesk.AutoCAD.Internal
-Imports Autodesk.AutoCAD.Internal.DatabaseServices
-Imports Autodesk.AutoCAD.PlottingServices
 Imports Autodesk.AutoCAD.Runtime
 Imports AXDBLib
 Imports iTextSharp.text.pdf
@@ -389,33 +371,7 @@ Public Class Form_Tablo_new
         End If
     End Sub
     Private Sub ToolStripButton_Вмъкни_Autocad_Click(sender As Object, e As EventArgs) Handles ToolStripButton_Вмъкни_Autocad.Click
-        ' 1. Вземаме селектирания възел директно от TreeView контрола във формата
-        Dim selectedNode As TreeNode = TreeView_Табло.SelectedNode
-        If selectedNode Is Nothing Then Exit Sub
-        ' 2. Първо разделяме оригиналния път по наклонена черта, за да не счупим нивата
-        Dim rawPathParts As String() = selectedNode.FullPath.Split(New Char() {"\"c}, StringSplitOptions.RemoveEmptyEntries)
-        ' Списък, в който ще съберем перфектно изчистените и тримнати стрингове
-        Dim cleanParts As New List(Of String)()
-        ' 3. Въртим цикъл и чистим всяка папка/табло поотделно
-        For Each part As String In rawPathParts
-            ' А) Махаме мощността в скобите " (XX.XX kW)"
-            Dim cleanStr As String = Regex.Replace(part, "\s*\(.*?\)", "")
-            ' Б) Махаме Unicode иконите (сгради, табла) отпред
-            cleanStr = Regex.Replace(cleanStr, "[^а-яА-Яa-zA-Z0-9_\.\-\s]", "")
-            ' В) Премахва коварния интервал, останал в началото след иконата!
-            cleanStr = cleanStr.Trim()
-            ' Записваме в чистия списък, ако не е празен
-            If Not String.IsNullOrEmpty(cleanStr) Then
-                cleanParts.Add(cleanStr)
-            End If
-        Next
-        ' 4. Защита: Проверяваме дали масивът ни е валиден
-        If cleanParts.Count = 0 Then Exit Sub
-        ' Конвертираме обратно към масив от чисти стрингове
-        Dim pathParts As String() = cleanParts.ToArray()
-        ' 5. Извикваме инсъртера и му подаваме перфектно изчистения масив
-        ' Сега pathParts(0) е чистото име на сградата, а последното е чистото име на таблото, без интервали!
-        AppSettings.AutoCadInserter.ExecuteInsert(pathParts)
+        AppSettings.AutoCadInserter.ExecuteInsert(GetSelectedTreePathParts())
     End Sub
     Private Sub ToolStripButton_Сортиране_Click(sender As Object, e As EventArgs) Handles ToolStripButton_Сортиране.Click
         ' 1. Преди да отворим формата, вземаме текущо избрания възел в дървото
@@ -441,7 +397,38 @@ Public Class Form_Tablo_new
             End If
         End Using
     End Sub
-    Private Sub ToolStripButton_Поправи_ДЗТ_Click(sender As Object, e As EventArgs) Handles ToolStripButton_Поправи_ДЗТ.Click
-        'ProcessPanelRCDLogic(panelCircuits As List(Of clsTokow))
+    Private Sub ToolStripButton_ШИНА_Click(sender As Object, e As EventArgs) Handles ToolStripButton_ШИНА.Click
+        AppSettings.BoardStructureManager.ProcessBusAndSwitch(GetSelectedTreePathParts())
     End Sub
+    ''' <summary>
+    ''' Връща масив с имената от пътя на избрания възел в TreeView,
+    ''' като премахва иконите, мощността в скоби и излишните интервали.
+    ''' </summary>
+    ''' <returns>
+    ''' Масив от почистени имена или Nothing, ако няма избран възел.
+    ''' </returns>
+    Private Function GetSelectedTreePathParts() As String()
+        ' Вземаме избрания възел
+        Dim selectedNode As TreeNode = TreeView_Табло.SelectedNode
+        If selectedNode Is Nothing Then Return Nothing
+        ' Разделяме пътя по "\"
+        Dim rawPathParts As String() = selectedNode.FullPath.Split(
+            New Char() {"\"c},
+            StringSplitOptions.RemoveEmptyEntries)
+        ' Списък с почистените имена
+        Dim cleanParts As New List(Of String)
+        For Each part As String In rawPathParts
+            ' Премахваме мощността в скоби
+            Dim cleanStr As String = Regex.Replace(part, "\s*\(.*?\)", "")
+            ' Премахваме Unicode иконите
+            cleanStr = Regex.Replace(cleanStr, "[^а-яА-Яa-zA-Z0-9_\.\-\s]", "")
+            ' Премахваме водещи и следващи интервали
+            cleanStr = cleanStr.Trim()
+            If cleanStr <> "" Then
+                cleanParts.Add(cleanStr)
+            End If
+        Next
+        If cleanParts.Count = 0 Then Return Nothing
+        Return cleanParts.ToArray()
+    End Function
 End Class

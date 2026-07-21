@@ -200,8 +200,4 @@ Public Class Form_BatchAddCircuits
         Me.ResumeLayout(False)
 
     End Sub
-
-    Private Sub Form_BatchAddCircuits_Load(sender As Object, e As EventArgs) Handles MyBase.Load
-
-    End Sub
 End Class

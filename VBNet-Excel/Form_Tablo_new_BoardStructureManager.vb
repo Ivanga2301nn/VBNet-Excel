@@ -2,6 +2,8 @@
     ' 1. Пазим локални референции на ниво клас
     Private _rcdCatalog As RCDCatalog
     Private _breakerCatalog As BreakerCatalog
+    Private _DisconnectorCatalog As DisconnectorCatalog
+
     ''' <summary>
     ''' КОНСТРУКТОР: Приема създадените каталози и списъка с токови кръгове от формата
     ''' </summary>
@@ -9,8 +11,8 @@
         ' Пием вода директно от извора при раждането на класа!
         Me._rcdCatalog = AppSettings.RcdCatalog
         Me._breakerCatalog = AppSettings.BreakerCatalog
+        Me._DisconnectorCatalog = AppSettings.DisconnectorCatalog
     End Sub
-
 #Region "Групиране на контактни кръгове с ДТЗ (RCD)"
     ''' <summary>
     ''' Групира контактните токови кръгове в ДЗТ (RCD) групи, 
@@ -252,5 +254,55 @@
                 End If
             Next
         Next
+    End Sub
+    Public Sub ProcessBusAndSwitch(selectedTablo As String())
+        ' 1. Вземаме стойностите от масива за филтъра
+        Dim filterBuilding As String = selectedTablo(0)
+        Dim filterTablo As String = selectedTablo(selectedTablo.Length - 1)
+
+        ' 2. Филтрираме списъка за текущото табло от глобалния източник
+        Dim panelCircuits As List(Of clsTokow) = AppSettings.ListTokow _
+        .Where(Function(c) c.BuildingName = filterBuilding AndAlso c.Tablo = filterTablo) _
+        .ToList()
+        Dim sumBusPower As Double = 0
+        Dim sumBusCurrent As Double = 0
+        Dim tabloTrifazi As Boolean = False
+        Dim hasSecondBus As Boolean = False
+        ' 3. Обхождаме кръговете за сумиране и проверка за шини
+        For Each krug In panelCircuits
+            If krug.Device = "Разединител" Then Continue For
+            If krug.Шина Then
+                sumBusPower += krug.Мощност
+                sumBusCurrent += krug.Ток
+                hasSecondBus = True
+            End If
+            If krug.Брой_Полюси > 1 AndAlso Not tabloTrifazi Then
+                tabloTrifazi = True
+            End If
+        Next
+        ' 4. Ако имаме отделна шина, управляваме нейния разединител през наложения каталог
+        If Not hasSecondBus Then Exit Sub
+        Dim busSwitchRecord = AppSettings.ListTokow.FirstOrDefault(Function(c) _
+            c.BuildingName = filterBuilding AndAlso
+            c.Tablo = filterTablo AndAlso
+            c.Device = "Разединител" AndAlso
+            c.ТоковКръг = "Шина")
+        If busSwitchRecord Is Nothing Then
+            busSwitchRecord = New clsTokow With {
+            .BuildingName = filterBuilding,
+            .Tablo = filterTablo,
+            .Device = "Разединител",
+            .ТоковКръг = "Шина",
+            .Шина = True
+        }
+            AppSettings.ListTokow.Add(busSwitchRecord)
+        End If
+        busSwitchRecord.Мощност = sumBusPower
+        busSwitchRecord.Ток = sumBusCurrent
+        busSwitchRecord.Брой_Полюси = If(tabloTrifazi, 3, 1)
+        busSwitchRecord.Фаза = If(tabloTrifazi, "L1,L2,L3", "L1")
+        ' Използваме предварително заредената инстанция от конструктора на класа
+        _DisconnectorCatalog.CalculateDisconnector(busSwitchRecord, "Schneider")
+
     End Sub
 End Class

@@ -107,7 +107,7 @@ Public Module AppSettings
     Public Property TargetTreeView As System.Windows.Forms.TreeView
 End Module
 Public Class Form_Tablo_new
-    ' --- ГЛОБАЛНОТО СЪСТОЯНИЕ ЗА МАРКАТА (Пренасочено към централния склад) ---
+    ' --- ГЛОБАЛНОТО СЪСТОЯНИЕ ЗА МАРКАТА ---
     Public Property CurrentManufacturer As String
         Get
             Return AppSettings.CurrentManufacturer
@@ -256,14 +256,32 @@ Public Class Form_Tablo_new
     Private Sub OnManufacturerChanged()
         UpdateGridCombosForNewManufacturer(CurrentManufacturer)
     End Sub
+    ''' <summary>
+    ''' Обработва промяната на избора в ToolStripComboBox `TscboManufacturer`.
+    ''' Взема текущия избран елемент от вътрешния `ComboBox` и, ако не е празен,
+    ''' го записва в глобалната/полето `CurrentManufacturer`.
+    ''' </summary>
+    ''' <param name="sender">Обектът-източник на събитието.</param>
+    ''' <param name="e">Аргументи на събитието.</param>
     Private Sub TscboManufacturer_SelectedIndexChanged(sender As Object, e As EventArgs) Handles TscboManufacturer.SelectedIndexChanged
+        ' Вземи избрания елемент като низ (пази се от Null чрез ?).
         Dim selectedBrand As String = TscboManufacturer.ComboBox.SelectedItem?.ToString()
+        ' Ако има валидна (непразна) стойност — присвои я.
         If Not String.IsNullOrEmpty(selectedBrand) Then
             CurrentManufacturer = selectedBrand
         End If
     End Sub
+    ''' <summary>
+    ''' Обновява стойностите на Combo списъците в DataGridView за нов избран производител.
+    ''' Ако каталогът на прекъсвачите не е инициализиран — прекратява изпълнението.
+    ''' Делегира филтрирането към `AppSettings.BreakerCatalog.FilterComboLists`.
+    ''' </summary>
+    ''' <param name="brandName">Името на производителя, по което да се филтрират списъците.</param>
     Private Sub UpdateGridCombosForNewManufacturer(brandName As String)
+        ' Ако няма наличен каталог — нищо не правим
         If AppSettings.BreakerCatalog Is Nothing Then Exit Sub
+        ' Може да се добави проверка за празен/Null brandName:
+        If String.IsNullOrWhiteSpace(brandName) Then Exit Sub
         AppSettings.BreakerCatalog.FilterComboLists(brandName)
     End Sub
     ' ============================================================
@@ -370,6 +388,13 @@ Public Class Form_Tablo_new
             DataGridView1.CommitEdit(DataGridViewDataErrorContexts.Commit)
         End If
     End Sub
+    ''' <summary>
+    ''' Обработва клик върху бутонa "Вмъкни Autocad".
+    ''' Предава частите от селектирания път в TreeView към `AutoCadInserter`
+    ''' за по-нататъшна обработка (напр. вмъкване на обекти в AutoCAD).
+    ''' </summary>
+    ''' <param name="sender">Източник на събитието.</param>
+    ''' <param name="e">Аргументи на събитието.</param>
     Private Sub ToolStripButton_Вмъкни_Autocad_Click(sender As Object, e As EventArgs) Handles ToolStripButton_Вмъкни_Autocad.Click
         AppSettings.AutoCadInserter.ExecuteInsert(GetSelectedTreePathParts())
     End Sub
@@ -397,8 +422,18 @@ Public Class Form_Tablo_new
             End If
         End Using
     End Sub
+    ''' <summary>
+    ''' Обработва клик върху бутонa "ШИНА".
+    ''' Предава частите от селектирания път в TreeView към `BoardStructureManager`
+    ''' за по-нататъшна обработка (напр. поставяне/премахване на шинна връзка).
+    ''' </summary>
+    ''' <param name="sender">Източник на събитието.</param>
+    ''' <param name="e">Аргументи на събитието.</param>
     Private Sub ToolStripButton_ШИНА_Click(sender As Object, e As EventArgs) Handles ToolStripButton_ШИНА.Click
-        AppSettings.BoardStructureManager.ProcessBusAndSwitch(GetSelectedTreePathParts())
+        ' Вземи текущо избраните части от пътя в дървото (например табло / подсекция)
+        Dim pathParts = GetSelectedTreePathParts()
+        ' Предай ги на BoardStructureManager за обработка на шината/връзките.
+        AppSettings.BoardStructureManager.ProcessBusAndSwitch(pathParts)
     End Sub
     ''' <summary>
     ''' Връща масив с имената от пътя на избрания възел в TreeView,

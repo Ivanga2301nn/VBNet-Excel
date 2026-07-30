@@ -635,7 +635,7 @@ Public Class Legend
                             Tablo_Name = False
                             Tablo_Text = Apar.bl_Табло
                             Continue For
-                        Case "E60", "Е60", "iC60", "C120",
+                        Case "E60", "Е60", "C120", "iC60N",
                              "Е120", "iK60", "NG160",
                              "EZ9 MCB", "EZ9 MCB "
                             Tekst1 = Tekst1 + " " + Apar.bl_1

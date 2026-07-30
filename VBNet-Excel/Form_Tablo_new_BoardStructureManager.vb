@@ -259,11 +259,11 @@
         ' 1. Вземаме стойностите от масива за филтъра
         Dim filterBuilding As String = selectedTablo(0)
         Dim filterTablo As String = selectedTablo(selectedTablo.Length - 1)
-
         ' 2. Филтрираме списъка за текущото табло от глобалния източник
         Dim panelCircuits As List(Of clsTokow) = AppSettings.ListTokow _
-        .Where(Function(c) c.BuildingName = filterBuilding AndAlso c.Tablo = filterTablo) _
-        .ToList()
+                             .Where(Function(c) c.BuildingName =
+                             filterBuilding AndAlso c.Tablo = filterTablo) _
+                             .ToList()
         Dim sumBusPower As Double = 0
         Dim sumBusCurrent As Double = 0
         Dim tabloTrifazi As Boolean = False

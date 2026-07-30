@@ -6551,7 +6551,7 @@ Public Class Form_ExcelUtilForm
                     Нишa_Таблo = vbTrue
                 Case "Kaedra - щепселни съединения"
                 Case "Kaedra"
-                Case "E60", "Е60", "iK60", "iC60", "EZ9 MCB", "EZ9 MCB ",
+                Case "E60", "Е60", "iK60", "iC60N", "EZ9 MCB", "EZ9 MCB ",
                      "Е120", "E120", "EZCV250", "C120", "С120"
                     text = text + " - Автоматичен прекъсвач - "
                     text = text + wsElboard.Cells(i, 2).Value + " "
@@ -7011,7 +7011,7 @@ Public Class Form_ExcelUtilForm
                     '
                     '
                     '
-                Case "E60", "Е60", "iK60", "iC60", "EZ9 MCB ",
+                Case "E60", "Е60", "iK60", "iC60N", "EZ9 MCB ",
                      "Е120", "E120", "EZCV250", "C120", "С120"
                     text = text + " - Автоматичен прекъсвач - "
                     text = text + wsElboard.Cells(i, 2).Value + " "

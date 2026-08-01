@@ -503,7 +503,7 @@ Public Class SheetSet
             ' Import the sheet into the sheet set
             ' Check to see if the Component is a Subset or Sheet Set
             If component.GetTypeName = "AcSmSubset" Then
-                ' Сложи това на ред 729
+
                 Debug.Print("Опит за импорт: File=" & fileName & " Layout=" & layout)
 
                 ' Провери дали файлът физически съществува в този момент

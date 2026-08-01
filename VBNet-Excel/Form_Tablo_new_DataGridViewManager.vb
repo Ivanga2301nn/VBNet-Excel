@@ -444,7 +444,7 @@ Public Class DataGridViewManager
     ''' </param>
     Public Sub SetupDataGridView_ColumnStructure(ByVal colIndex As Integer)
         If colIndex < 0 OrElse colIndex >= _dgv.Columns.Count Then Exit Sub
-        AppSettings.IsGridLoading = True
+        AppSettings.EnterGridUpdate()
         ' ВЗЕМАНЕ НА ИМЕТО НА КОЛОНАТА И ОПРЕДЕЛЯНЕ ДАЛИ Е "ОБЩО"
         Dim ColumnName As String = _dgv.Columns(colIndex).Name
         Dim isTotalColumn As Boolean = ColumnName.Contains("colTotal")
@@ -513,7 +513,7 @@ Public Class DataGridViewManager
                 specialCell.ReadOnly = True
             End If
         Next
-        AppSettings.IsGridLoading = False
+        AppSettings.ExitGridUpdate()
     End Sub
     ''' <summary>
     ''' Попълва наличните стойности в ComboBox клетките

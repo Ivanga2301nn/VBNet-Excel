@@ -79,29 +79,30 @@ Public Class DataGridViewChangeManager
     ''' и автоматично обновява съответните редове и колони в потребителския интерфейс.
     ''' </summary>
     Public Sub HandleRcdZeroChange(ByVal panelCircuits As clsTokow, ByVal value As String)
-        ' 1. Пускаме текста през санитарния филтър
-        Dim validatedValue As String = ValidateRCDNulla(value)
-        ' 2. Ако филтърът върне валиден резултат → записваме го в обекта
-        If validatedValue IsNot Nothing Then
-            panelCircuits.RCD_Нула = validatedValue
+        If AppSettings.IsProcessingRcd Then
+            Dim validatedSilent = ValidateRCDNulla(value)
+            If validatedSilent IsNot Nothing Then
+                AppSettings.EnterGridUpdate()
+                Try
+                    panelCircuits.RCD_Нула = validatedSilent
+                Finally
+                    AppSettings.ExitGridUpdate()
+                End Try
+            End If
+            Return
         End If
-        ' 3. Филтрираме всички токови кръгове за текущата сграда и табло
-        Dim panels = AppSettings.ListTokow.Where(Function(t)
-                                                     Return t.BuildingName = panelCircuits.BuildingName AndAlso
-                                                            t.Tablo = panelCircuits.Tablo
-                                                 End Function).ToList()
-        ' 4. КРИТИЧНА ЗАЩИТА: Сваляме флага на True, за да блокираме CellValueChanged събитията на Grid-а
-        AppSettings.IsGridLoading = True
+
+        Dim validatedValue As String = ValidateRCDNulla(value)
+        If validatedValue IsNot Nothing Then panelCircuits.RCD_Нула = validatedValue
+
+        Dim panels = AppSettings.ListTokow.Where(Function(t) t.BuildingName = panelCircuits.BuildingName AndAlso t.Tablo = panelCircuits.Tablo).ToList()
+
+        AppSettings.EnterGridUpdate()
         Try
-            ' 5. Извикваме мениджъра, за да пренареди и преизчисли ДТЗ групите на таблото
-            _boardManager.ProcessPanelRCDLogic(panels)
-            ' 6. Извикваме втората процедура, която софтуерно ще попълни новите данни в Grid-а
-            AppSettings.IsGridLoading = False
+            AppSettings.BoardStructureManager.ProcessPanelRCDLogic(panels)
             AppSettings.DataGridViewManager.UpdateRcdGridValues(panels)
         Finally
-            ' 7. Вдигаме флага обратно на False,
-            ' за да разрешим отново нормалната работа на потребителя с Grid-а
-            AppSettings.IsGridLoading = False
+            AppSettings.ExitGridUpdate()
         End Try
     End Sub
     ' =================================================================

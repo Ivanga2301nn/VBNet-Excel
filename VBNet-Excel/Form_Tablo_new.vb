@@ -74,10 +74,6 @@ Public Module AppSettings
     ''' Списък със суровите консуматори, извлечени от AutoCAD
     ''' </summary>
     Public Property ListKonsumator As New List(Of strKonsumator)
-    ''' <summary>
-    ''' Флаг, който спира събитията на Grid-а, докато трае зареждането на данни
-    ''' </summary>
-    Public Property IsGridLoading As Boolean = False
     ' =================================================================
     ' === ГЛОБАЛНИ КАТАЛОЗИ
     ' =================================================================
@@ -105,6 +101,37 @@ Public Module AppSettings
     Public Property ProjectPathResolver As ProjectPathResolver
     Public Property TargetDataGridView As DataGridView
     Public Property TargetTreeView As System.Windows.Forms.TreeView
+
+
+    ' =================================================================
+    ' === ГЛОБАЛНИ ФЛАГОВЕ ЗА СЪСТОЯНИЕ НА ФОРМАТА ===
+    ' =================================================================
+
+    Private _gridUpdateDepth As Integer = 0
+
+    ''' <summary>
+    ''' True когато програмно потискаме Grid събитията.
+    ''' </summary>
+    Public ReadOnly Property IsGridLoading As Boolean
+        Get
+            Return _gridUpdateDepth > 0
+        End Get
+    End Property
+
+    Public Sub EnterGridUpdate()
+        System.Threading.Interlocked.Increment(_gridUpdateDepth)
+    End Sub
+
+    Public Sub ExitGridUpdate()
+        If System.Threading.Interlocked.Decrement(_gridUpdateDepth) < 0 Then
+            System.Threading.Interlocked.Exchange(_gridUpdateDepth, 0)
+        End If
+    End Sub
+
+    ''' <summary>
+    ''' Глобален флаг срещу рекурсия при обработка на RCD логика.
+    ''' </summary>
+    Public Property IsProcessingRcd As Boolean = False
 End Module
 Public Class Form_Tablo_new
     ' --- ГЛОБАЛНОТО СЪСТОЯНИЕ ЗА МАРКАТА ---
@@ -163,7 +190,7 @@ Public Class Form_Tablo_new
         ' Инициализираме колоните и структурата на DataGridView (Grid-а)
         AppSettings.DataGridViewManager.InitializeGridStructure()
         ' Вдигаме флага, че зареждането приключи и Grid-ът вече е готов за работа
-        AppSettings.IsGridLoading = True
+        AppSettings.EnterGridUpdate()
     End Sub
     ''' <summary>
     ''' Инициализация на компонентите на проекта в централния склад AppSettings
@@ -328,7 +355,7 @@ Public Class Form_Tablo_new
     Private Sub _treeViewManager_NodeLeftClick(ByVal selectedObject As clsTokow) Handles _treeViewManager.NodeLeftClick
         ' Защита: Ако по някаква причина обектът е празен, излизаме безопасно
         If selectedObject Is Nothing Then Exit Sub
-        AppSettings.IsGridLoading = True
+        AppSettings.EnterGridUpdate()
         AppSettings.DataGridViewManager.DisplayBoardStructure(selectedObject)
         GroupBox2.Text = "Детайли за табло -> " + selectedObject.Tablo
         ' Разпределяме логиката според това какъв обект е кликнат:
@@ -355,7 +382,7 @@ Public Class Form_Tablo_new
                 ' Избрана е самата сграда (напр. "Сграда_Block")
                 ' Можеш да извлечеш името чрез: selectedObject.BuildingName
         End Select
-        AppSettings.IsGridLoading = False
+        AppSettings.ExitGridUpdate()
     End Sub
     ' =========================================================================
     ' ОБРАБОТКА НА ПРОМЕНИТЕ ОТ DATAGRIDVIEW (ОБНОВЯВАНЕ НА CLSTOKOW)
@@ -365,19 +392,19 @@ Public Class Form_Tablo_new
     ''' Събира суровата информация и я предава към DataGridViewManager.
     ''' </summary>
     Private Sub DataGridView1_CellValueChanged(sender As Object, e As DataGridViewCellEventArgs) Handles DataGridView1.CellValueChanged
-        ' 1. Защита при зареждане и невалидни индекси
         If AppSettings.IsGridLoading Then Exit Sub
         If e.RowIndex < 0 OrElse e.ColumnIndex < 0 Then Exit Sub
-        ' 2. Вземаме името на променената колона за бърза проверка на служебните колони
         Dim columnName As String = DataGridView1.Columns(e.ColumnIndex).Name
         If columnName = "colParameter" OrElse columnName = "colUnit" Then Exit Sub
-        ' 3. Вземаме въведената нова стойност от клетката
         Dim cellValue As Object = DataGridView1.Rows(e.RowIndex).Cells(e.ColumnIndex).Value
         Dim newValue As String = If(cellValue IsNot Nothing, cellValue.ToString(), "")
-        ' 4. ПРЕДАВАМЕ ВСИЧКО НА МЕНИДЖЪРА
-        AppSettings.IsGridLoading = True
-        AppSettings.DataGridViewManager.ProcessCellValueChanged(e.RowIndex, e.ColumnIndex, newValue)
-        AppSettings.IsGridLoading = False
+
+        AppSettings.EnterGridUpdate()
+        Try
+            AppSettings.DataGridViewManager.ProcessCellValueChanged(e.RowIndex, e.ColumnIndex, newValue)
+        Finally
+            AppSettings.ExitGridUpdate()
+        End Try
     End Sub
     ''' <summary>
     ''' Принуждава ComboBox и CheckBox да реагират ВЕДНАГА при избор/цъкане, а не чак при излизане от клетката.
@@ -411,13 +438,13 @@ Public Class Form_Tablo_new
                 ' Проверяваме дали възелът наистина е валиден обект
                 If selectedObject IsNot Nothing Then
                     ' Вдигаме флага, че гридът се зарежда (за да спрем събитията при пълнене)
-                    AppSettings.IsGridLoading = True
+                    AppSettings.ExitGridUpdate()
                     ' Викаме мениджъра на таблицата.
                     ' Той ще прочете новосортирания списък 
                     ' и ще пренареди редовете на екрана веднага!
                     AppSettings.DataGridViewManager.DisplayBoardStructure(selectedObject)
                     ' Сваляме флага обратно
-                    AppSettings.IsGridLoading = False
+                    AppSettings.ExitGridUpdate()
                 End If
             End If
         End Using

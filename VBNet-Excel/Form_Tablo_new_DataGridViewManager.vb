@@ -17,7 +17,8 @@ Public Class DataGridViewManager
                      "Моторна защита",
                      "Моторен механизъм",
                      "Честотен регулатор",
-                     "Електромер"
+                     "Електромер",
+                     "Часовник"
                      }
     ' Динамични списъци (зареждат се в паметта от каталога за прекъсвачи BreakerCatalog)
     Private _ComboItems_breakerType As New List(Of String)        ' Списък за ред "Тип на апарата" (сериите: iC60, EZ9 и др.)

@@ -677,15 +677,13 @@ Public Class DataGridViewManager
     ''' за да не се нарушава работата на потребителя.
     ''' </summary>
     ''' <param name="panelCircuits">
-    ''' Списък с токовите кръгове
-    ''' на текущото табло,
-    ''' използван за преизчисляване
-    ''' и обновяване на данните.
+    ''' Списък с токовите кръгове на текущото табло, 
+    ''' използван за преизчисляване и обновяване на данните.
     ''' </param>
     Public Sub UpdateRcdGridValues(ByVal panelCircuits As List(Of clsTokow))
         ' Защита против безкраен цикъл: 
         ' Изпълняваме процедурата САМО ако IsGridLoading е False (т.е. когато тече контролирано софтуерно обновяване)
-        If AppSettings.IsGridLoading Then Exit Sub
+        'If AppSettings.IsGridLoading Then Exit Sub
         ' 1. БЕЗОПАСНОСТ: Ако списъкът е празен, няма какво да обновяваме
         If panelCircuits Is Nothing OrElse panelCircuits.Count = 0 Then Exit Sub
         ' 2. ДЕФИНИРАНЕ НА ТОЧНИЯ СПИСЪК СЪС ЗАГЛАВИЯ ЗА ДТЗ ГРУПАТА

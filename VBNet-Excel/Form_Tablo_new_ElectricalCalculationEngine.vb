@@ -377,7 +377,7 @@ Public Class ElectricalCalculationEngine
     ''' <param name="Motor">True за двигатели (cos φ = 0.85, КПД = 0.9)</param>
     ''' <returns>Номинален ток в Ampere</returns>
     Public Function calc_Inom(Pkryg As Double,                      ' мощност
-                       NumberPoles As Integer,                       ' брой фази
+                       NumberPoles As Integer,                      ' брой фази
                        Optional Motor As Boolean = False            ' Ако е двигател True - КПД и cos FI да са по 0,83
                        ) As Double                                  ' Изчислява номинален ток за товар
         Dim CosFI As Double                                         ' Декларира променлива за cos φ (фактор на мощността)

@@ -335,9 +335,9 @@ Public Class PanelBalanceManager
         ' 9. ЗАПИС В "ОБЩО"
         ' =====================================================
         totalRow.RCD_Тип = "Ток фази"
-        totalRow.RCD_Клас = "Фаза L1->" & phaseCurrents("L1").ToString("N2")
-        totalRow.RCD_Ток = "Фаза L2->" & phaseCurrents("L2").ToString("N2")
-        totalRow.RCD_Чувствителност = "Фаза L3->" & phaseCurrents("L3").ToString("N2")
+        totalRow.RCD_Клас = "L1->" & phaseCurrents("L1").ToString("N2")
+        totalRow.RCD_Ток = "L2->" & phaseCurrents("L2").ToString("N2")
+        totalRow.RCD_Чувствителност = "L3->" & phaseCurrents("L3").ToString("N2")
         ' =====================================================
         ' 10. ОПРЕДЕЛЯНЕ НА МАКСИМАЛЕН ТОК
         ' =====================================================

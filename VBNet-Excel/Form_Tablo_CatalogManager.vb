@@ -133,13 +133,13 @@ Public Class CableCatalog
         If tokow.Device = "Разединител" OrElse
            tokow.Device = "Съществуващ" OrElse
            tokow.Device = "Резерва" Then Exit Sub
-        Dim currentType As String
-        Dim currentLayMethod As String
-        Dim currentMountMethod As String
-        Dim currentBrojCable As Integer
-        Dim currentTipeCable As Integer
-        Dim currentMatType As Integer
-        Dim currentRetType As Integer
+        Dim currentType As String = ""
+        Dim currentLayMethod As String = ""
+        Dim currentMountMethod As String = ""
+        Dim currentBrojCable As Integer = 0
+        'Dim currentTipeCable As Integer
+        'Dim currentMatType As Integer
+        'Dim currentRetType As Integer
         ' ============================================================
         ' ОПРЕДЕЛЯНЕ НА ТИП КАБЕЛ
         ' ============================================================
@@ -212,7 +212,6 @@ Public Class CableCatalog
                              ).ToList()
 
         If filteredCables.Count = 0 Then Exit Sub ' Защита, ако каталогът е празен
-
         ' 2. КОРЕКЦИОННИ КОЕФИЦИЕНТИ
         ' K1 - брой кабели на скара
         Dim K1_Table As New Dictionary(Of Integer, Double) _
@@ -262,16 +261,16 @@ Public Class CableCatalog
             For Each cable As CableInfo In filteredCables
                 Select Case cable.PhaseSize
                     Case "120"
-                        Current_120 = If(currentLayMethod = 1, cable.MaxCurrent_Ground, cable.MaxCurrent_Air)
+                        Current_120 = If(currentLayMethod = "Във въздух", cable.MaxCurrent_Air, cable.MaxCurrent_Ground)
                         Neutral_120 = cable.NeutralSize
                     Case "150"
-                        Current_150 = If(currentLayMethod = 1, cable.MaxCurrent_Ground, cable.MaxCurrent_Air)
+                        Current_150 = If(currentLayMethod = "Във въздух", cable.MaxCurrent_Air, cable.MaxCurrent_Ground)
                         Neutral_150 = cable.NeutralSize
                     Case "185"
-                        Current_185 = If(currentLayMethod = 1, cable.MaxCurrent_Ground, cable.MaxCurrent_Air)
+                        Current_185 = If(currentLayMethod = "Във въздух", cable.MaxCurrent_Air, cable.MaxCurrent_Ground)
                         Neutral_185 = cable.NeutralSize
                     Case "240"
-                        Current_240 = If(currentLayMethod = 1, cable.MaxCurrent_Ground, cable.MaxCurrent_Air)
+                        Current_240 = If(currentLayMethod = "Във въздух", cable.MaxCurrent_Air, cable.MaxCurrent_Ground)
                         Neutral_240 = cable.NeutralSize
                 End Select
             Next
@@ -323,6 +322,7 @@ Public Class CableCatalog
         tokow.Кабел_Полагане = currentLayMethod
         tokow.Кабел_Монтаж = GetMountMethodInfo(currentMountMethod)
     End Sub
+
     ''' <summary>
     ''' Напълва списъка с дефинираните начини на монтаж
     ''' </summary>

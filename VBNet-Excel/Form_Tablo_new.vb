@@ -101,14 +101,10 @@ Public Module AppSettings
     Public Property ProjectPathResolver As ProjectPathResolver
     Public Property TargetDataGridView As DataGridView
     Public Property TargetTreeView As System.Windows.Forms.TreeView
-
-
     ' =================================================================
     ' === ГЛОБАЛНИ ФЛАГОВЕ ЗА СЪСТОЯНИЕ НА ФОРМАТА ===
     ' =================================================================
-
     Private _gridUpdateDepth As Integer = 0
-
     ''' <summary>
     ''' True когато програмно потискаме Grid събитията.
     ''' </summary>
@@ -150,7 +146,6 @@ Public Class Form_Tablo_new
     ' --- МЕНИДЖЪРИ НА ИНТЕРФЕЙСА (Държим WithEvents тук, за да хващаме събитията от TreeView-то) ---
     ' Закачаме го към AppSettings при инициализация
     Public WithEvents _treeViewManager As TreeViewManager
-
     ''' <summary>
     ''' Конструктор на формата - приема данните от AutoCAD
     ''' </summary>
@@ -164,33 +159,37 @@ Public Class Form_Tablo_new
         Me._treeViewManager = AppSettings.TreeViewManager
     End Sub
     Private Sub Form_Tablo_new_Load(sender As Object, e As EventArgs) Handles MyBase.Load
-        ' 1. Размери и позициониране на формата
-        Me.Height = 950
-        Me.Width = 1600
-        Me.StartPosition = FormStartPosition.CenterScreen
-        ' 2. Напълване на Комбо бокса с производители (Schneider и т.н.)
-        FillManufacturerCombo()
-        ' =================================================================
-        ' 3. ИНЖЕНЕРНИ ИЗЧИСЛЕНИЯ И ЛОГИКА (Всичко минава през AppSettings!)
-        ' =================================================================
-        ' Изчисления на токове, мощности и пада на напрежение
-        AppSettings.ElectricalCalculationEngine.ExecuteCalculations()
-        ' Сортиране на токовите кръгове по приоритети
-        AppSettings.FormSortPriority.SortListTokow()
-        ' Групиране на ДТЗ / контакти и подреждане на структурата на таблото
-        AppSettings.BoardStructureManager.GroupContactsForRCD()
-        AppSettings.BoardStructureManager.EnsureAllStructureRecords()
-        ' Добавяне на захранващи линии / главни прекъсвачи в баланса на фазите
-        AppSettings.PanelBalanceManager.AddFeederRecords()
-        ' =================================================================
-        ' 4. ВИЗУАЛИЗАЦИЯ НА ИНТЕРФЕЙСА (Дърво и Таблица)
-        ' =================================================================
-        ' Опресняваме TreeView структурата вляво
-        AppSettings.TreeViewManager.RefreshTree()
-        ' Инициализираме колоните и структурата на DataGridView (Grid-а)
-        AppSettings.DataGridViewManager.InitializeGridStructure()
-        ' Вдигаме флага, че зареждането приключи и Grid-ът вече е готов за работа
         AppSettings.EnterGridUpdate()
+        Try
+            ' 1. Размери и позициониране на формата
+            Me.Height = 950
+            Me.Width = 1600
+            Me.StartPosition = FormStartPosition.CenterScreen
+            ' 2. Напълване на Комбо бокса с производители (Schneider и т.н.)
+            FillManufacturerCombo()
+            ' =================================================================
+            ' 3. ИНЖЕНЕРНИ ИЗЧИСЛЕНИЯ И ЛОГИКА (Всичко минава през AppSettings!)
+            ' =================================================================
+            ' Изчисления на токове, мощности и пада на напрежение
+            AppSettings.ElectricalCalculationEngine.ExecuteCalculations()
+            ' Сортиране на токовите кръгове по приоритети
+            AppSettings.FormSortPriority.SortListTokow()
+            ' Групиране на ДТЗ / контакти и подреждане на структурата на таблото
+            AppSettings.BoardStructureManager.GroupContactsForRCD()
+            AppSettings.BoardStructureManager.EnsureAllStructureRecords()
+            ' Добавяне на захранващи линии / главни прекъсвачи в баланса на фазите
+            AppSettings.PanelBalanceManager.AddFeederRecords()
+            ' =================================================================
+            ' 4. ВИЗУАЛИЗАЦИЯ НА ИНТЕРФЕЙСА (Дърво и Таблица)
+            ' =================================================================
+            ' Опресняваме TreeView структурата вляво
+            AppSettings.TreeViewManager.RefreshTree()
+            ' Инициализираме колоните и структурата на DataGridView (Grid-а)
+            AppSettings.DataGridViewManager.InitializeGridStructure()
+        Finally
+            ' Вдигаме флага, че зареждането приключи и Grid-ът вече е готов за работа
+            AppSettings.ExitGridUpdate()
+        End Try
     End Sub
     ''' <summary>
     ''' Инициализация на компонентите на проекта в централния склад AppSettings
@@ -221,7 +220,7 @@ Public Class Form_Tablo_new
         AppSettings.AutoCadInserter = New Form_Tablo_new_AutoCadInserter()
         AppSettings.FormSortPriority = New Form_SortPriority()
 
-        ' (Ако ProjectPathResolver ти трябва, добави го и него тук)
+        ' 5. Клас за управление на проектни данни за електрически табла
         AppSettings.ProjectPathResolver = New ProjectPathResolver()
     End Sub
 #Region "⚙️ СВОЙСТВА ЗА ДОСТЪП ДО КАТАЛОЗИ И МЕНИДЖЪРИ"
@@ -392,13 +391,24 @@ Public Class Form_Tablo_new
     ''' Събира суровата информация и я предава към DataGridViewManager.
     ''' </summary>
     Private Sub DataGridView1_CellValueChanged(sender As Object, e As DataGridViewCellEventArgs) Handles DataGridView1.CellValueChanged
+        ' 1. Базови защити
         If AppSettings.IsGridLoading Then Exit Sub
         If e.RowIndex < 0 OrElse e.ColumnIndex < 0 Then Exit Sub
+
+        ' 2. ЖЕЛЕЗНА ПРОВЕРКА ЗА РЪЧНО ВЪВЕЖДАНЕ ОТ ПОТРЕБИТЕЛ:
+        ' - IsCurrentCellInEditMode: Показва дали клетката е била в режим на редактиране от потребителя
+        ' - Focused: Показва дали самият Grid има фокус от мишката/клавиатурата
+        ' - IsGridUpdating: Ползваме твоя вграден флаг за активна обновеност
+        If Not DataGridView1.IsCurrentCellInEditMode AndAlso Not DataGridView1.Focused Then Exit Sub
+
+        ' 3. Игнорираме служебни колони
         Dim columnName As String = DataGridView1.Columns(e.ColumnIndex).Name
         If columnName = "colParameter" OrElse columnName = "colUnit" Then Exit Sub
+
         Dim cellValue As Object = DataGridView1.Rows(e.RowIndex).Cells(e.ColumnIndex).Value
         Dim newValue As String = If(cellValue IsNot Nothing, cellValue.ToString(), "")
 
+        ' 4. Подаване към мениджъра
         AppSettings.EnterGridUpdate()
         Try
             AppSettings.DataGridViewManager.ProcessCellValueChanged(e.RowIndex, e.ColumnIndex, newValue)

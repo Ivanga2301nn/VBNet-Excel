@@ -167,7 +167,7 @@
     ''' </summary>
     ''' <param name="panelCircuits">Списък с всички токови кръгове за текущото табло.</param>
     Public Sub ProcessPanelRCDLogic(panelCircuits As List(Of clsTokow))
-        If AppSettings.IsGridLoading = True Then Return
+        'If AppSettings.IsGridLoading = True Then Return
         ' 1. Филтрираме само кръговете, които имат назначена "N" група, 
         ' и ги групираме по техния N-номер (напр. "N1", "N2"...)
         Dim rcdGroups = panelCircuits.

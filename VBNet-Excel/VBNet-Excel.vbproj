@@ -229,6 +229,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Form_ExcelUtilForm.resx">
       <DependentUpon>Form_ExcelUtilForm.vb</DependentUpon>
+      <SubType>Designer</SubType>
     </EmbeddedResource>
     <EmbeddedResource Include="Form_Print.resx">
       <DependentUpon>Form_Print.vb</DependentUpon>

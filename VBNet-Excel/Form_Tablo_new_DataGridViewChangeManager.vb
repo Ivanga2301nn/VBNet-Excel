@@ -112,7 +112,6 @@ Public Class DataGridViewChangeManager
     ''' Изчиства текста и проверява дали форматът отговаря на "N" + число (напр. N1, N2)
     ''' </summary>
     Private Function ValidateRCDNulla(ByVal inputValue As String) As String
-        If AppSettings.IsGridLoading = True Then Return Nothing
         ' Проверка 1: Дали е празно и дали започва с "N"
         If String.IsNullOrEmpty(inputValue) OrElse Not inputValue.ToUpper().StartsWith("N") Then Return Nothing
         ' Извлечи числото след "N"

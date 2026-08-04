@@ -226,9 +226,8 @@ Public Class DataGridViewManager
     ''' така и за общите параметри на таблото.
     ''' </summary>
     ''' <param name="selectedObject">
-    ''' Избраният обект от тип clsTokow,
-    ''' представляващ таблото, което трябва
-    ''' да бъде визуализирано.
+    ''' Избраният обект от тип clsTokow, представляващ таблото, 
+    ''' което трябва да бъде визуализирано.
     '''
     ''' От него се извличат:
     ''' - токовите кръгове
@@ -237,13 +236,26 @@ Public Class DataGridViewManager
     Public Sub DisplayBoardStructure(ByVal selectedObject As clsTokow)
         ' 1. Защита: Ако няма избран обект, няма какво да изобразяваме
         If selectedObject Is Nothing Then Exit Sub
-        ' 2. МЕТЛАТА: Изчистваме абсолютно всичко след първите две колони (Параметър и Мярка)
+        ' 2. Изчистваме абсолютно всичко след първите две колони (Параметър и Мярка)
         ' Така излитат и старите кръгове, и старата колона ОБЩО на един замах
         For i As Integer = _dgv.Columns.Count - 1 To 2 Step -1
             _dgv.Columns.RemoveAt(i)
         Next
         ' 3. Взимаме токовите кръгове за това табло
         Dim circuitsList As List(Of clsTokow) = selectedObject.GetMyCircuits()
+        Dim disconnectorList As List(Of clsTokow) = circuitsList.Where(Function(c) c.Device = "Разединител").ToList()
+        ' 3. АКО ИМА РАЗЕДИНИТЕЛ: Едва тогава "мъчим компа" да дели и пренарежда шините!
+        If disconnectorList.Count > 0 Then
+            Dim busTrueCircuits As List(Of clsTokow) = circuitsList.Where(Function(c) c.Шина = True AndAlso
+                                                                          c.Device <> "Разединител").ToList()
+            Dim busFalseCircuits As List(Of clsTokow) = circuitsList.Where(Function(c) c.Шина = False AndAlso
+                                                                           c.Device <> "Разединител").ToList()
+            ' Сглобяваме пренаредения списък
+            circuitsList = New List(Of clsTokow)()
+            circuitsList.AddRange(busTrueCircuits)
+            circuitsList.AddRange(disconnectorList)
+            circuitsList.AddRange(busFalseCircuits)
+        End If
         ' 4. ПЪРВИ ЦИКЪЛ: Добавяме и пълним колоните за всеки токов кръг (ако има такива)
         If circuitsList IsNot Nothing Then
             For Each circuit As clsTokow In circuitsList

@@ -11,6 +11,8 @@ Public Class DataGridViewChangeManager
     Private _calculationEngine As ElectricalCalculationEngine
     Private _allCircuits As List(Of clsTokow)
     Private _boardManager As BoardStructureManager
+    Private _PanelBalanceManager As PanelBalanceManager
+    Private _DataGridViewManager As DataGridViewManager
     ''' <summary>
     ''' Конструкторът вече приема точно шестте компонента от формата
     ''' </summary>
@@ -336,87 +338,5 @@ Public Class DataGridViewChangeManager
         If circuit Is Nothing Then Exit Sub
         ' Записваме новата стойност на тикчето
         Boolean.TryParse(value, circuit.Шина)
-        ' Взимаме директно само маркираните консуматори за това табло
-        Dim busbarCircuits = AppSettings.ListTokow.Where(Function(c) _
-                             c.BuildingName = circuit.BuildingName AndAlso
-                             c.Tablo = circuit.Tablo AndAlso
-                             c.ТоковКръг <> "ОБЩО" AndAlso
-                             c.Device <> "Разединител" AndAlso
-                             c.Шина = True).ToList()
-        ' Търсим дали ВЕЧЕ съществува такъв апарат за това табло
-        Dim existingDisconnector = AppSettings.ListTokow.FirstOrDefault(Function(c) _
-                                   c.BuildingName = circuit.BuildingName AndAlso
-                                   c.Tablo = circuit.Tablo AndAlso
-                                   c.Device = "Разединител")
-        ' ПРОВЕРКА: Ако няма нито едно тикче (Шина = 0)
-        If busbarCircuits.Count = 0 Then
-            If existingDisconnector IsNot Nothing Then
-                AppSettings.ListTokow.Remove(existingDisconnector)
-            End If
-            Exit Sub
-        End If
-        ' АКО ИМА ТИКЧЕТА: Намираме или създаваме Разединителя
-        If existingDisconnector Is Nothing Then
-            existingDisconnector = New clsTokow() With {
-            .BuildingName = circuit.BuildingName,
-            .Tablo = circuit.Tablo,
-            .ТоковКръг = "Шина 1",
-            .Консуматор = "Разединител Шина",
-            .Device = "Разединител"}
-            AppSettings.ListTokow.Add(existingDisconnector)
-        End If
-        ' -------------------------------------------------------------
-        ' 6. ИЗЧИСЛЕНИЯ САМО ЗА МАРКИРАНИТЕ В ШИНАТА
-        ' -------------------------------------------------------------
-        Dim totalPower As Double = busbarCircuits.Sum(Function(c) c.Мощност)
-        Dim totalLamps As Integer = busbarCircuits.Sum(Function(c) c.brLamp)
-        Dim totalContacts As Integer = busbarCircuits.Sum(Function(c) c.brKontakt)
-        Dim hasThreePhase As Boolean = busbarCircuits.Any(Function(c) c.Брой_Полюси = 3)
-        Dim mostCommonPoles As Integer = If(hasThreePhase, 3, 1)
-        Dim totalPhase As String = If(hasThreePhase, "L1,L2,L3", "L")
-
-        Dim phaseCurrents As New Dictionary(Of String, Double) From {
-                                 {"L1", 0}, {"L2", 0}, {"L3", 0}
-                                 }
-
-        ' Сумираме токовете по фази САМО за консуматорите на шината
-        For Each busCircuit In busbarCircuits
-            If busCircuit.Брой_Полюси = 3 OrElse busCircuit.Фаза = "L1,L2,L3" Then
-                phaseCurrents("L1") += busCircuit.Ток
-                phaseCurrents("L2") += busCircuit.Ток
-                phaseCurrents("L3") += busCircuit.Ток
-            Else
-                Dim p As String = busCircuit.Фаза.Trim().ToUpper()
-                If phaseCurrents.ContainsKey(p) Then
-                    phaseCurrents(p) += busCircuit.Ток
-                End If
-            End If
-        Next
-        ' Актуализираме данните на разединителя
-        With existingDisconnector
-            .Табло_Родител = circuit.Tablo
-            .Брой_Полюси = mostCommonPoles
-            .Мощност = totalPower
-            .Фаза = totalPhase
-            .brLamp = totalLamps
-            .brKontakt = totalContacts
-            ' Записваме фазовите токове в служебните полета
-            .RCD_Тип = "Ток фази"
-            .RCD_Клас = "L1->" & phaseCurrents("L1").ToString("N2")
-            .RCD_Ток = "L2->" & phaseCurrents("L2").ToString("N2")
-            .RCD_Чувствителност = "L3->" & phaseCurrents("L3").ToString("N2")
-        End With
-        ' -------------------------------------------------------------
-        ' 7. ИЗЧИСЛЯВАНЕ НА ТОКА И ИЗБОР ОТ КАТАЛОЗИТЕ
-        ' -------------------------------------------------------------
-        If hasThreePhase Then
-            ' Можеш да ползваш своя calculation engine или баланс
-            existingDisconnector.Ток = _calculationEngine.calc_Inom(totalPower, 3)
-        Else
-            existingDisconnector.Ток = _calculationEngine.calc_Inom(totalPower, 1)
-        End If
-        ' Автоматичен избор на апарат и кабел
-        _disconnectorCatalog.CalculateDisconnector(existingDisconnector)
-        _cableCatalog.CalculateCable(existingDisconnector)
     End Sub
 End Class

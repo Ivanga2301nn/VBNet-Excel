@@ -86,13 +86,36 @@ Public Module AppSettings
     ' === ВСИЧКИ КЛАСОВЕ И МЕНИДЖЪРИ ОТ СНИМКАТА (Живеят мирно тук) ===
     ' =================================================================
     ' Мениджъри за интерфейса (UI) и логиката на Grid / TreeView
-    Public Property DataGridViewManager As DataGridViewManager
     Public Property DataGridViewChangeManager As DataGridViewChangeManager
     Public Property TreeViewManager As TreeViewManager
     Public Property FormSortPriority As Form_SortPriority
     ' Инженерни енджини и изчисления
     Public Property ElectricalCalculationEngine As ElectricalCalculationEngine
+    Private _panelBalanceManager As PanelBalanceManager
     Public Property PanelBalanceManager As PanelBalanceManager
+        Get
+            If _panelBalanceManager Is Nothing Then
+                _panelBalanceManager = New PanelBalanceManager()
+            End If
+            Return _panelBalanceManager
+        End Get
+        Set(value As PanelBalanceManager)
+            _panelBalanceManager = value
+        End Set
+    End Property
+    Private _dataGridViewManager As DataGridViewManager
+
+    Public Property DataGridViewManager As DataGridViewManager
+        Get
+            If _DataGridViewManager Is Nothing Then
+                _DataGridViewManager = New DataGridViewManager()
+            End If
+            Return _DataGridViewManager
+        End Get
+        Set(value As DataGridViewManager)
+            _DataGridViewManager = value
+        End Set
+    End Property
     Public Property BoardStructureManager As BoardStructureManager
     ' Мениджъри за данни и интеграция (AutoCAD / Данни)
     Public Property ConsumerExtractor As ConsumerExtractor

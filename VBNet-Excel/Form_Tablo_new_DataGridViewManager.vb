@@ -209,8 +209,7 @@ Public Class DataGridViewManager
         _dgv.CellBorderStyle = DataGridViewCellBorderStyle.Single          ' Задава единична тънка линия за граница между отделните клетки
     End Sub
     ''' <summary>
-    ''' Изгражда и визуализира структурата на избраното табло
-    ''' в DataGridView.
+    ''' Изгражда и визуализира структурата на избраното табло в DataGridView.
     '''
     ''' Процедурата изчиства предишното съдържание,
     ''' създава колони за всички токови кръгове на таблото
@@ -263,9 +262,14 @@ Public Class DataGridViewManager
                 CreateAndFillColumn(circuit)
             Next
         End If
-        ' 5. ФИНАЛЕН АКОРД: Добавяме и пълним колоната за ОБЩО, 
-        ' като използваме СЪЩАТА процедура, но подаваме главното табло
-        CreateAndFillColumn(selectedObject)
+        ' 5. ФИНАЛЕН АКОРД: Добавяме и пълним колоната за ОБЩО
+        ' Гарантираме, че за ОБЩО винаги подаваме обекта "Табло", а не Разединителя
+        Dim mainBoardObject As clsTokow = AppSettings.ListTokow.FirstOrDefault(
+            Function(c) c.BuildingName = selectedObject.BuildingName AndAlso
+                        c.Tablo = selectedObject.Tablo AndAlso
+                        c.Device = "Табло"
+        )
+        CreateAndFillColumn(mainBoardObject)
     End Sub
     ''' <summary>
     ''' Зарежда възможните стойности в конкретна ComboBox клетка
@@ -416,13 +420,17 @@ Public Class DataGridViewManager
             .HeaderText = columnHeader
             .CellTemplate = New DataGridViewTextBoxCell()
             .DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter
-            If columnName.Contains("colTotal") Then
-                .Width = 135
-                .DefaultCellStyle.Font = New Drawing.Font("Segoe UI", 11, FontStyle.Bold)
-            Else
-                .Width = 110
-                .DefaultCellStyle.Font = New Drawing.Font("Segoe UI", 11, FontStyle.Regular)
-            End If
+            Select Case True
+                Case columnName.Contains("Шина")
+                    .Width = 135
+                    .DefaultCellStyle.Font = New Drawing.Font("Segoe UI", 11, FontStyle.Bold)
+                Case columnName.Contains("colTotal")
+                    .Width = 135
+                    .DefaultCellStyle.Font = New Drawing.Font("Segoe UI", 11, FontStyle.Bold)
+                Case Else
+                    .Width = 110
+                    .DefaultCellStyle.Font = New Drawing.Font("Segoe UI", 11, FontStyle.Regular)
+            End Select
             .SortMode = DataGridViewColumnSortMode.NotSortable
         End With
         Dim colIndex As Integer = _dgv.Columns.Add(newCol)

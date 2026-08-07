@@ -824,7 +824,7 @@ Public Class CommonUtil
             Case "EL_TV"
                 laye = "коакс.кабел RG6/64"
             Case "EL_UTP", "EL_Video_FTP", "EL_DOMO"
-                laye = "FTP 4x2x24AWG, cat. 5e"
+                laye = "FTP 4x2x24AWG, cat. 6"
             Case "EL_Video_RG59CU"
                 laye = "RG59CU + 2x0.75mm²"
             Case "EL_PB_1x16"

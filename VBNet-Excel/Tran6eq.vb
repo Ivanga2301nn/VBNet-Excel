@@ -75,7 +75,6 @@ Public Class Tran6eq
         '
         ' Запълва масива Tryba с празни символи
         '
-
         ReDim Tryba(ss.Count - 1)
 
         For i = 0 To UBound(Tryba)
@@ -152,12 +151,12 @@ Public Class Tran6eq
         ' Запълва масива Tryba с данни за кабелите
         '
         Using trans As Transaction = acDoc.TransactionManager.StartTransaction()
-
             For Each sObj As SelectedObject In ss
                 Dim line As Line = TryCast(trans.GetObject(sObj.ObjectId, OpenMode.ForRead), Line)
                 If line.Linetype = "" Then Continue For
 
                 Dim line_Type As String = cu.GET_line_Type(line.Linetype, vbTrue)
+
                 Dim Kabel_Type = cu.line_Layer(line.Layer)
                 '
                 '   Групира слаботоковите и соларните кабели
@@ -350,7 +349,6 @@ Public Class Tran6eq
         Dim blkRecId_Tran6 As ObjectId = ObjectId.Null
         Try
             Dim pDouOpts_Dylbo As PromptDoubleOptions = New PromptDoubleOptions("")
-
             '
             ' Потребителски избор ДЪЛБОЧИНАТА на траншеята
             '
@@ -393,6 +391,7 @@ Public Class Tran6eq
                 Dyno = pKeyRes.StringResult
             Else
                 Dyno = pKeyRes.Value.ToString()
+
             End If
             'Dim poz_X As Double = 0
             'Dim poz_Y As Double = 100
@@ -686,7 +685,33 @@ Public Class Tran6eq
             If blkRecId_Tran6.IsNull Then
                 MsgBox("Възникна грешка: " & "Във файла липсва блок 'ТРАНШЕЯ'!!!")
             Else
-                MsgBox("Възникна грешка: " & ex.Message & vbCrLf & vbCrLf & ex.StackTrace.ToString)
+                ' Валидация на масива Tryba()
+                Dim validationFailed As Boolean = False
+                Dim errorMessage As String = "Моля, коригирайте следните проблеми преди продължаване:" & vbCrLf
+                For i = 0 To Tryba.Length - 1
+                    ' Проверка за външен диаметър (най-честият проблем)
+                    If Tryba(i).D_OD <= 0 Then
+                        validationFailed = True
+                        errorMessage &= $"• Тръба №{i + 1} ({Tryba(i).Layer}) [{Tryba(i).Kabel}]: Липсва или е нулѐн външният диаметър (D_OD)." & vbCrLf
+                    End If
+                    ' Проверка за вътрешен диаметър
+                    If Tryba(i).D_IN <= 0 Then
+                        validationFailed = True
+                        errorMessage &= $"• Тръба №{i + 1} ({Tryba(i).Layer}) [{Tryba(i).Kabel}]: Липсва или е нулѐн вътрешният диаметър (D_IN)." & vbCrLf
+                    End If
+                    ' Проверка за тип на тръбата (пример за текстово поле)
+                    If String.IsNullOrEmpty(Tryba(i).Type) Then
+                        validationFailed = True
+                        errorMessage &= $"• Тръба №{i + 1} ({Tryba(i).Layer}) [{Tryba(i).Kabel}]: Липсва зададен тип на тръбата." & vbCrLf
+                    End If
+                Next
+                ' Ако има грешки при валидацията, спираме с културно съобщение
+                If validationFailed Then
+                    MsgBox(errorMessage, MsgBoxStyle.Exclamation, "Непълни или грешни данни")
+                Else
+                    MsgBox("Възникна грешка: " & ex.Message & vbCrLf & vbCrLf & ex.StackTrace.ToString)
+                End If
+
             End If
         End Try
     End Sub

@@ -199,8 +199,6 @@ Public Class CableCatalog
         If layMethod IsNot Nothing Then currentLayMethod = layMethod
         If String.IsNullOrWhiteSpace(currentLayMethod) Then currentLayMethod = tokow.Кабел_Полагане
         If String.IsNullOrWhiteSpace(currentLayMethod) Then currentLayMethod = "Във въздух"
-
-
         ' Изчисляваме Inom като вземаме по-голямото число между двете
         Dim Inom As Double = Math.Max(Val(tokow.Breaker_Номинален_Ток), tokow.Ток)
         Dim NumberPoles As String = tokow.Брой_Полюси
@@ -419,7 +417,7 @@ Public Class BreakerCatalog
         AddBreakerSeries("Schneider", "EZ9 MCB", "MCB",
                          {6, 10, 16, 20, 25, 32, 40, 50, 63},
                          {"C"}, {1, 2, 3, 4}, {6}, Nothing)
-        AddBreakerSeries("Schneider", "iC60N", "MCB",
+        AddBreakerSeries("Schneider", "iC60", "MCB",
                          {2, 3, 4, 6, 10, 16, 20, 25, 32, 40, 50, 63},
                          {"C", "B", "D"}, {1, 2, 3, 4}, {6}, Nothing)
         AddBreakerSeries("Schneider", "C120", "MCB",

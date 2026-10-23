@@ -909,7 +909,7 @@ Public Class Form_ExcelUtilForm
         Dim edt As Editor = acDoc.Editor
         Dim acCurDb As Database = acDoc.Database
         Dim SelectedSet = cu.GetObjects("INSERT", "Изберете блок")
-        Dim arrBlock(500) As strKontakt
+        Dim arrBlock(100) As strKontakt
         If SelectedSet Is Nothing Then
             Me.Visible = vbTrue
             Exit Sub
@@ -1010,6 +1010,11 @@ Public Class Form_ExcelUtilForm
                                 If prop.PropertyName = "Дължина" Then strWis = prop.Value
                             Next
                             iVisib = Array.FindIndex(arrBlock, Function(f) f.blName = blName)
+                        Case "ШИНА"
+                            For Each prop As DynamicBlockReferenceProperty In props
+                                If prop.PropertyName = "Дължина" Then strWis = prop.Value
+                            Next
+                            iVisib = Array.FindIndex(arrBlock, Function(f) f.blName = blName And f.blVisibility = Visibility)
                         Case "LED_ULTRALUX", "LED_ULTRALUX_100", "LED_ULTRALUX_нов"
                             For Each objID As ObjectId In attCol
                                 Dim dbObj As DBObject = acTrans.GetObject(objID, OpenMode.ForRead)
@@ -1129,7 +1134,7 @@ Public Class Form_ExcelUtilForm
                                 End If
                             Case "Линия МХЛ - 220V", "Плафони", "Металхаогенна лампа", "Прожектор", "Полилей"
                                 arrBlock(index).blLamp_Power = strWis
-                            Case "LED_lenta"
+                            Case "LED_lenta", "ШИНА"
                                 arrBlock(index).blLED_Lenta_Length = strWis
                             Case "LED_ULTRALUX", "LED_ULTRALUX_100", "LED_ULTRALUX_нов"
                                 arrBlock(index).blLamp_Power = strLamp_Power
@@ -1147,9 +1152,12 @@ Public Class Form_ExcelUtilForm
 
                         End Select
                         index += 1
+                        If index >= arrBlock.Length Then
+                            ReDim Preserve arrBlock(arrBlock.Length + 100)
+                        End If
                     Else
                         arrBlock(iVisib).count = arrBlock(iVisib).count + 1
-                        If blName = "LED_lenta" Then
+                        If blName = "LED_lenta" OrElse blName = "ШИНА" Then
                             arrBlock(iVisib).blLED_Lenta_Length = Str(Val(arrBlock(iVisib).blLED_Lenta_Length) + Val(strWis))
                         End If
                     End If
@@ -2038,6 +2046,25 @@ Public Class Form_ExcelUtilForm
                     End Select
                 Case "Луминисцентна лампа"
                 Case "LED_DENIMA"
+                Case "ШИНА"
+                    Dim shinaLength As Double = wsKontakti.Cells(i, 7).Value ' дължината в см
+                    Dim shinaMeters As Double = shinaLength / 100
+                    wsKontakti.Range("L" & i.ToString).Value = shinaMeters
+                    broj_elementi = shinaMeters
+                    Select Case wsKontakti.Cells(i, 4).Value.ToString()
+                        Case "Магнитна за вграждане"
+                            Text_Dostawka = "Шина магнитна за вграждане, комплект с аксесоари за свързване и монтаж."
+                            ' тук записваш в съответната колона за този тип
+                        Case "Магнитна за открит монтаж"
+                            Text_Dostawka = "Шина магнитна за открит монтаж, комплект с аксесоари за свързване и монтаж"
+                            ' тук записваш в съответната колона
+                        Case "Релсова монофазна"
+                            Text_Dostawka = "Шина релсова монофазна, комплект с аксесоари за свързване и монтаж"
+                            ' тук записваш в съответната колона
+                        Case "Релсова трифазна"
+                            Text_Dostawka = "Шина релсова трифазна, комплект с аксесоари за свързване и монтаж"
+                            ' тук записваш в съответната колона
+                    End Select
                 Case Else
                     Text_Dostawka = "НЕИЗВЕСТЕН ЕЛЕМЕНТ --> " & wsKontakti.Cells(i, 2).Value & " - " & wsKontakti.Cells(i, 4).Value
             End Select
@@ -2046,7 +2073,8 @@ Public Class Form_ExcelUtilForm
                     .Cells(index, 2).Value = "Доставка и монтаж на " + Text_Dostawka
                     .Cells(index, 2).VerticalAlignment = excel.XlVAlign.xlVAlignTop
                     .Cells(index, 2).HorizontalAlignment = excel.XlHAlign.xlHAlignLeft
-                    .Cells(index, 3).Value = IIf(wsKontakti.Cells(i, 2).Value = "LED_lenta", "m", "бр.")
+                    .Cells(index, 3).Value = IIf(wsKontakti.Cells(i, 2).Value = "LED_lenta" Or
+                                                 wsKontakti.Cells(i, 2).Value = "ШИНА", "m", "бр.")
                     .Cells(index, 4).Value = broj_elementi
                 End With
                 index += 1
@@ -6551,7 +6579,7 @@ Public Class Form_ExcelUtilForm
                     Нишa_Таблo = vbTrue
                 Case "Kaedra - щепселни съединения"
                 Case "Kaedra"
-                Case "E60", "Е60", "iK60", "iC60N", "EZ9 MCB", "EZ9 MCB ",
+                Case "E60", "Е60", "iK60", "iC60", "EZ9 MCB", "EZ9 MCB ",
                      "Е120", "E120", "EZCV250", "C120", "С120"
                     text = text + " - Автоматичен прекъсвач - "
                     text = text + wsElboard.Cells(i, 2).Value + " "
@@ -7011,7 +7039,7 @@ Public Class Form_ExcelUtilForm
                     '
                     '
                     '
-                Case "E60", "Е60", "iK60", "iC60N", "EZ9 MCB ",
+                Case "E60", "Е60", "iK60", "iC60", "EZ9 MCB ",
                      "Е120", "E120", "EZCV250", "C120", "С120"
                     text = text + " - Автоматичен прекъсвач - "
                     text = text + wsElboard.Cells(i, 2).Value + " "

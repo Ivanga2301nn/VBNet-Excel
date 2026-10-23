@@ -795,9 +795,9 @@ Partial Class Form_ExcelUtilForm
         'TabPage8
         '
         Me.TabPage8.Controls.Add(Me.TabControl2)
-        Me.TabPage8.Location = New System.Drawing.Point(4, 29)
+        Me.TabPage8.Location = New System.Drawing.Point(4, 22)
         Me.TabPage8.Name = "TabPage8"
-        Me.TabPage8.Size = New System.Drawing.Size(961, 452)
+        Me.TabPage8.Size = New System.Drawing.Size(961, 465)
         Me.TabPage8.TabIndex = 7
         Me.TabPage8.Text = "Слаботокови"
         Me.TabPage8.UseVisualStyleBackColor = True
@@ -814,7 +814,7 @@ Partial Class Form_ExcelUtilForm
         Me.TabControl2.Location = New System.Drawing.Point(0, 0)
         Me.TabControl2.Name = "TabControl2"
         Me.TabControl2.SelectedIndex = 0
-        Me.TabControl2.Size = New System.Drawing.Size(961, 452)
+        Me.TabControl2.Size = New System.Drawing.Size(961, 465)
         Me.TabControl2.TabIndex = 0
         '
         'TabPage9
@@ -823,7 +823,7 @@ Partial Class Form_ExcelUtilForm
         Me.TabPage9.Location = New System.Drawing.Point(4, 29)
         Me.TabPage9.Name = "TabPage9"
         Me.TabPage9.Padding = New System.Windows.Forms.Padding(3)
-        Me.TabPage9.Size = New System.Drawing.Size(953, 419)
+        Me.TabPage9.Size = New System.Drawing.Size(953, 432)
         Me.TabPage9.TabIndex = 1
         Me.TabPage9.Text = "TV и Интернет"
         Me.TabPage9.UseVisualStyleBackColor = True
@@ -850,7 +850,7 @@ Partial Class Form_ExcelUtilForm
         Me.TableLayoutPanel5.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 37.0!))
         Me.TableLayoutPanel5.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 37.0!))
         Me.TableLayoutPanel5.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100.0!))
-        Me.TableLayoutPanel5.Size = New System.Drawing.Size(947, 413)
+        Me.TableLayoutPanel5.Size = New System.Drawing.Size(947, 426)
         Me.TableLayoutPanel5.TabIndex = 13
         '
         'Button_Вземи_РОЗЕТКИ1

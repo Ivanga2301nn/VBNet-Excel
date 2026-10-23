@@ -1274,6 +1274,7 @@ Public Class Zapiska
         Dim височина As String = ""
         Dim дълбочина As String = ""
         Dim размери As String = ""
+        Dim клас As String = ""
 
         ' Обработи всяка част от текста и я присвой към съответната променлива
         For Each component As String In components
@@ -1285,6 +1286,7 @@ Public Class Zapiska
             If component.Contains("ш:") Then ширина = component.Replace("ш:", "").Trim().ToUpper()
             If component.Contains("в:") Then височина = component.Replace("в:", "").Trim().ToUpper()
             If component.Contains("д:") Then дълбочина = component.Replace("д:", "").Trim().ToUpper().Replace(";", "")
+            If component.Contains("огън:") Then клас = component.Split(":"c)(1).Replace(";", "").Trim().ToUpper()
         Next
         If Not монтаж.Contains("монтаж") Then
             If шкаф.Contains("стоящ") Then
@@ -1315,6 +1317,16 @@ Public Class Zapiska
         Dim random As New Random()
         Dim templateIndex As Integer = random.Next(0, templates.Length)
         rezult = " " & templates(templateIndex)
+        ' Второ изречение - клас по реакция на огън съгласно Наредба № Iз-1971 (чл. 246)
+        If Not String.IsNullOrEmpty(клас) Then
+            Dim fireTemplates As String() = {
+                $" Корпусът на таблото ще е с клас по реакция на огън {клас}, съгласно чл. 246 от Наредба № Iз-1971.",
+                $" За корпуса е предвиден клас по реакция на огън {клас} (съгласно чл. 246 от Наредба № Iз-1971).",
+                $" В съответствие с чл. 246 от Наредба № Iз-1971, корпусът да се изпълни с клас по реакция на огън {клас}.",
+                $" Материалът на корпуса да отговаря на клас по реакция на огън {клас} по чл. 246 от Наредба № Iз-1971."}
+            Dim fireIndex As Integer = random.Next(0, fireTemplates.Length)
+            rezult &= fireTemplates(fireIndex)
+        End If
         Return rezult
     End Function
     Private Function TabloNa4alo(Име_ГРТ As String,

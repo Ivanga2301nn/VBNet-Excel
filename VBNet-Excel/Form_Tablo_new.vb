@@ -526,4 +526,8 @@ Public Class Form_Tablo_new
         If cleanParts.Count = 0 Then Return Nothing
         Return cleanParts.ToArray()
     End Function
+    Private Sub ToolStripButton_Балансирай_фазите_Click(sender As Object, e As EventArgs) Handles ToolStripButton_Балансирай_фазите.Click
+        Dim pathParts = GetSelectedTreePathParts()
+        AppSettings.PanelBalanceManager.BalancePhases(pathParts(0), pathParts(2))
+    End Sub
 End Class

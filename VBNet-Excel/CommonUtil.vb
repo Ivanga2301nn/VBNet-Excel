@@ -1,10 +1,10 @@
-﻿Imports Autodesk.AutoCAD.ApplicationServices
+﻿Imports System.Text
+Imports System.Text.RegularExpressions
+Imports Autodesk.AutoCAD.ApplicationServices
+Imports Autodesk.AutoCAD.Colors
 Imports Autodesk.AutoCAD.DatabaseServices
-Imports Autodesk.AutoCAD.Runtime
 Imports Autodesk.AutoCAD.EditorInput
 Imports Autodesk.AutoCAD.Geometry
-Imports System.Text
-Imports System.Text.RegularExpressions
 Imports VBNet_Excel.Form_ExcelUtilForm
 
 Public Class CommonUtil
@@ -920,10 +920,43 @@ Public Class CommonUtil
             Case "EL_РЕЗЕРВА"
                 laye = "Резервна тръба"
             Case Else
-                laye = Layer
+                laye = new_line_Layer(Layer)
         End Select
 
         Return laye
+    End Function
+    Private Function new_line_Layer(ByVal Layer As String) As String
+        Dim laye As String = Layer
+        ' Стандартните сечения, подредени по големина
+        Dim StandardPhaseSizes As String() = {
+        "1,5", "2,5", "4", "6", "10", "16", "25", "35", "50", "70", "95", "120", "150", "185", "240"
+        }
+        ' Стандартните сечения на неутралното жило, подредени по големина
+        Dim StandardNeutralSizes As String() = {
+        "1,5", "2,5", "4", "6", "10", "16", "16", "16", "25", "35", "50", "70", "70", "95", "120"
+        }
+        ' Шаблонът трябва да започва с "EL_"
+        If Not Layer.StartsWith("EL_") Then Return Layer
+        ' Разбиваме го по долни черти "_"
+        ' Например "EL_Cu_3x1_5" се разделя на: parts(0)="EL", parts(1)="Cu", parts(2)="3x1_5"
+        Dim parts As String() = Layer.Split("_"c)
+        If parts.Length < 3 Then Return Layer
+        Dim metalType As String = parts(1) ' "Cu" или "Al"
+        ' Всичко след втората долна черта го събираме обратно (в случай че имаме сложни имена с плюс)
+        Dim configAndSize As String = String.Join("_", parts, 2, parts.Length - 2)
+        ' Определяме типа кабел (СВТ за мед, САВТ за алуминий)
+        Dim cablePrefix As String = ""
+        If metalType = "Cu" Then
+            cablePrefix = "СВТ"
+        ElseIf metalType = "Al" Then
+            cablePrefix = "САВТ"
+        Else
+            Return Layer
+        End If
+        ' Заменяме долната черта в сечението с десетична запетая (напр. 1_5 става 1,5)
+        Dim formattedSize As String = configAndSize.Replace("_", ",")
+        ' Сглобяваме крайния резултат: префикс + конфигурация/сечение + mm²
+        Return cablePrefix & formattedSize & "mm²"
     End Function
     Public Function GET_line_Type(Type_Line As String,
                                   FullName As Boolean
@@ -1051,163 +1084,163 @@ Public Class CommonUtil
     Public Function GET_line_Diamet(Type_Line As String) As Double
         Dim Diam As Double = -1
         Select Case Type_Line
-            Case "EL_1x1_5"
+            Case "EL_1x1_5", "EL_Cu_1x1_5", "EL_Al_1x1_5"
                 Diam = 7.2
-            Case "EL_1x2_5"
+            Case "EL_1x2_5", "EL_Cu_1x2_5", "EL_Al_1x2_5"
                 Diam = 7.6
-            Case "EL_1x4"
+            Case "EL_1x4", "EL_Cu_1x4", "EL_Al_1x4"
                 Diam = 8
-            Case "EL_1x6"
+            Case "EL_1x6", "EL_Cu_1x6", "EL_Al_1x6"
                 Diam = 8.5
-            Case "EL_1x10"
+            Case "EL_1x10", "EL_Cu_1x10", "EL_Al_1x10"
                 Diam = 9.3
-            Case "EL_1x16"
+            Case "EL_1x16", "EL_Cu_1x16", "EL_Al_1x16"
                 Diam = 10.8
-            Case "EL_1x25"
+            Case "EL_1x25", "EL_Cu_1x25", "EL_Al_1x25"
                 Diam = 11.9
-            Case "EL_1x35"
+            Case "EL_1x35", "EL_Cu_1x35", "EL_Al_1x35"
                 Diam = 13
-            Case "EL_1x50"
+            Case "EL_1x50", "EL_Cu_1x50", "EL_Al_1x50"
                 Diam = 14.2
-            Case "EL_1x70"
+            Case "EL_1x70", "EL_Cu_1x70", "EL_Al_1x70"
                 Diam = 16.7
-            Case "EL_1x95"
+            Case "EL_1x95", "EL_Cu_1x95", "EL_Al_1x95"
                 Diam = 18.4
-            Case "EL_1x120"
+            Case "EL_1x120", "EL_Cu_1x120", "EL_Al_1x120"
                 Diam = 19.9
-            Case "EL_1x150"
+            Case "EL_1x150", "EL_Cu_1x150", "EL_Al_1x150"
                 Diam = 21.9
-            Case "EL_1x185"
+            Case "EL_1x185", "EL_Cu_1x185", "EL_Al_1x185"
                 Diam = 24.3
-            Case "EL_1x240"
+            Case "EL_1x240", "EL_Cu_1x240", "EL_Al_1x240"
                 Diam = 27.2
-            Case "EL_1x300"
+            Case "EL_1x300", "EL_Cu_1x300", "EL_Al_1x300"
                 Diam = 30.3
-            Case "EL_1x400"
+            Case "EL_1x400", "EL_Cu_1x400", "EL_Al_1x400"
                 Diam = 33.8
-            Case "EL_1x500"
+            Case "EL_1x500", "EL_Cu_1x500", "EL_Al_1x500"
                 Diam = 37.9
-            Case "EL_2x1_0"
+            Case "EL_2x1_0", "EL_Cu_2x1_0", "EL_Al_2x1_0"
                 Diam = 9.5
-            Case "EL_2x1_5"
+            Case "EL_2x1_5", "EL_Cu_2x1_5", "EL_Al_2x1_5"
                 Diam = 10
-            Case "EL_2x2_5"
+            Case "EL_2x2_5", "EL_Cu_2x2_5", "EL_Al_2x2_5"
                 Diam = 10.6
-            Case "EL_2x4"
+            Case "EL_2x4", "EL_Cu_2x4", "EL_Al_2x4"
                 Diam = 12.5
-            Case "EL_2x6"
+            Case "EL_2x6", "EL_Cu_2x6", "EL_Al_2x6"
                 Diam = 13.3
-            Case "EL_2x10"
+            Case "EL_2x10", "EL_Cu_2x10", "EL_Al_2x10"
                 Diam = 15.2
-            Case "EL_2x16"
+            Case "EL_2x16", "EL_Cu_2x16", "EL_Al_2x16"
                 Diam = 18
-            Case "EL_2x25"
+            Case "EL_2x25", "EL_Cu_2x25", "EL_Al_2x25"
                 Diam = 21.5
-            Case "EL_2x35"
+            Case "EL_2x35", "EL_Cu_2x35", "EL_Al_2x35"
                 Diam = 23.8
-            Case "EL_2x50"
+            Case "EL_2x50", "EL_Cu_2x50", "EL_Al_2x50"
                 Diam = 27
-            Case "EL_3x1_0"
+            Case "EL_3x1_0", "EL_Cu_3x1_0", "EL_Al_3x1_0"
                 Diam = 9.7
-            Case "EL_3x1_5"
+            Case "EL_3x1_5", "EL_Cu_3x1_5", "EL_Al_3x1_5"
                 Diam = 10.2
-            Case "EL_3x2_5"
+            Case "EL_3x2_5", "EL_Cu_3x2_5", "EL_Al_3x2_5"
                 Diam = 11
-            Case "EL_3x4"
+            Case "EL_3x4", "EL_Cu_3x4", "EL_Al_3x4"
                 Diam = 13
-            Case "EL_3x6"
+            Case "EL_3x6", "EL_Cu_3x6", "EL_Al_3x6"
                 Diam = 14
-            Case "EL_3x10"
+            Case "EL_3x10", "EL_Cu_3x10", "EL_Al_3x10"
                 Diam = 16
-            Case "EL_3x16"
+            Case "EL_3x16", "EL_Cu_3x16", "EL_Al_3x16"
                 Diam = 19.5
-            Case "EL_3x25"
+            Case "EL_3x25", "EL_Cu_3x25", "EL_Al_3x25"
                 Diam = 22.8
-            Case "EL_3x35"
+            Case "EL_3x35", "EL_Cu_3x35", "EL_Al_3x35"
                 Diam = 25.3
-            Case "EL_3x50"
+            Case "EL_3x50", "EL_Cu_3x50", "EL_Al_3x50"
                 Diam = 28.8
-            Case "EL_3x70"
+            Case "EL_3x70", "EL_Cu_3x70", "EL_Al_3x70"
                 Diam = 28.8
-            Case "EL_3x95"
+            Case "EL_3x95", "EL_Cu_3x95", "EL_Al_3x95"
                 Diam = 33.1
-            Case "EL_3x120"
+            Case "EL_3x120", "EL_Cu_3x120", "EL_Al_3x120"
                 Diam = 35.9
-            Case "EL_3x150"
+            Case "EL_3x150", "EL_Cu_3x150", "EL_Al_3x150"
                 Diam = 39.3
-            Case "EL_3x185"
+            Case "EL_3x185", "EL_Cu_3x185", "EL_Al_3x185"
                 Diam = 43.8
-            Case "EL_3x240"
+            Case "EL_3x240", "EL_Cu_3x240", "EL_Al_3x240"
                 Diam = 49.4
-            Case "EL_3х25+16"
+            Case "EL_3х25+16", "EL_Cu_3х25+16", "EL_Al_3х25+16"
                 Diam = 24.4
-            Case "EL_3х35+16"
+            Case "EL_3х35+16", "EL_Cu_3х35+16", "EL_Al_3х35+16"
                 Diam = 27.1
-            Case "EL_3х50+25"
+            Case "EL_3х50+25", "EL_Cu_3х50+25", "EL_Al_3х50+25"
                 Diam = 30.8
-            Case "EL_3х70+35"
+            Case "EL_3х70+35", "EL_Cu_3х70+35", "EL_Al_3х70+35"
                 Diam = 31.8
-            Case "EL_3х95+50"
+            Case "EL_3х95+50", "EL_Cu_3х95+50", "EL_Al_3х95+50"
                 Diam = 36.8
-            Case "EL_3х120+70"
+            Case "EL_3х120+70", "EL_Cu_3х120+70", "EL_Al_3х120+70"
                 Diam = 40.1
-            Case "EL_3х150+70"
+            Case "EL_3х150+70", "EL_Cu_3х150+70", "EL_Al_3х150+70"
                 Diam = 44.3
-            Case "EL_3х185+95"
+            Case "EL_3х185+95", "EL_Cu_3х185+95", "EL_Al_3х185+95"
                 Diam = 49.3
-            Case "EL_3х240+120"
+            Case "EL_3х240+120", "EL_Cu_3х240+120", "EL_Al_3х240+120"
                 Diam = 55.4
-            Case "EL_4x1_5"
+            Case "EL_4x1_5", "EL_Cu_4x1_5", "EL_Al_4x1_5"
                 Diam = 11
-            Case "EL_4x2_5"
+            Case "EL_4x2_5", "EL_Cu_4x2_5", "EL_Al_4x2_5"
                 Diam = 11.9
-            Case "EL_4x4"
+            Case "EL_4x4", "EL_Cu_4x4", "EL_Al_4x4"
                 Diam = 14.1
-            Case "EL_4x6"
+            Case "EL_4x6", "EL_Cu_4x6", "EL_Al_4x6"
                 Diam = 15.4
-            Case "EL_4x10"
+            Case "EL_4x10", "EL_Cu_4x10", "EL_Al_4x10"
                 Diam = 17.4
-            Case "EL_4x16"
+            Case "EL_4x16", "EL_Cu_4x16", "EL_Al_4x16"
                 Diam = 20.6
-            Case "EL_4x25"
+            Case "EL_4x25", "EL_Cu_4x25", "EL_Al_4x25"
                 Diam = 25.2
-            Case "EL_4x35"
+            Case "EL_4x35", "EL_Cu_4x35", "EL_Al_4x35"
                 Diam = 28
-            Case "EL_4x50"
+            Case "EL_4x50", "EL_Cu_4x50", "EL_Al_4x50"
                 Diam = 32
-            Case "EL_4x70"
+            Case "EL_4x70", "EL_Cu_4x70", "EL_Al_4x70"
                 Diam = 33
-            Case "EL_4x95"
+            Case "EL_4x95", "EL_Cu_4x95", "EL_Al_4x95"
                 Diam = 38.1
-            Case "EL_4x120"
+            Case "EL_4x120", "EL_Cu_4x120", "EL_Al_4x120"
                 Diam = 41.4
-            Case "EL_4x150"
+            Case "EL_4x150", "EL_Cu_4x150", "EL_Al_4x150"
                 Diam = 46
-            Case "EL_4x185"
+            Case "EL_4x185", "EL_Cu_4x185", "EL_Al_4x185"
                 Diam = 51.1
-            Case "EL_4x240"
+            Case "EL_4x240", "EL_Cu_4x240", "EL_Al_4x240"
                 Diam = 58
-            Case "EL_5x1_5"
+            Case "EL_5x1_5", "EL_Cu_5x1_5", "EL_Al_5x1_5"
                 Diam = 11.8
-            Case "EL_5x2_5"
+            Case "EL_5x2_5", "EL_Cu_5x2_5", "EL_Al_5x2_5"
                 Diam = 12.8
-            Case "EL_5x4"
+            Case "EL_5x4", "EL_Cu_5x4", "EL_Al_5x4"
                 Diam = 15.5
-            Case "EL_5x6"
+            Case "EL_5x6", "EL_Cu_5x6", "EL_Al_5x6"
                 Diam = 16.8
-            Case "EL_5x10"
+            Case "EL_5x10", "EL_Cu_5x10", "EL_Al_5x10"
                 Diam = 19.2
-            Case "EL_5x16"
+            Case "EL_5x16", "EL_Cu_5x16", "EL_Al_5x16"
                 Diam = 23.2
-            Case "EL_5x25"
+            Case "EL_5x25", "EL_Cu_5x25", "EL_Al_5x25"
                 Diam = 27.9
-            Case "EL_5x35"
+            Case "EL_5x35", "EL_Cu_5x35", "EL_Al_5x35"
                 Diam = 32.4
-            Case "EL_5x50"
+            Case "EL_5x50", "EL_Cu_5x50", "EL_Al_5x50"
                 Diam = 36.9
-            Case "EL_5x70"
+            Case "EL_5x70", "EL_Cu_5x70", "EL_Al_5x70"
                 Diam = 42
-            Case "EL_5x95"
+            Case "EL_5x95", "EL_Cu_5x95", "EL_Al_5x95"
                 Diam = 48.7
             Case "EL_JC_2x05_sig", "EL_JC_2x05_zahr", "EL_JC_2x15_А", "EL_JC_2x15_Б",
                  "EL_JC_2x05", "EL_JC_2x10", "EL_JC_2x75",
@@ -1287,17 +1320,41 @@ Public Class CommonUtil
             Case "EL_2x1_5", "EL_2x2_5",
                  "EL_3x1_5", "EL_3x2_5",
                  "EL_4x1_5", "EL_4x2_5",
-                 "EL_5x1_5", "EL_5x2_5"
+                 "EL_5x1_5", "EL_5x2_5",
+                 "EL_Cu_2x1_5", "EL_Cu_2x2_5",
+                 "EL_Cu_3x1_5", "EL_Cu_3x2_5",
+                 "EL_Cu_4x1_5", "EL_Cu_4x2_5",
+                 "EL_Cu_5x1_5", "EL_Cu_5x2_5",
+                 "EL_Al_2x1_5", "EL_Al_2x2_5",
+                 "EL_Al_3x1_5", "EL_Al_3x2_5",
+                 "EL_Al_4x1_5", "EL_Al_4x2_5",
+                 "EL_Al_5x1_5", "EL_Al_5x2_5"
                 Line_Type = "PVC Ф20"
             Case "EL_2x4", "EL_2x6",
                  "EL_3x4", "EL_3x6",
                  "EL_4x4", "EL_4x6",
-                 "EL_5x4", "EL_5x6"
+                 "EL_5x4", "EL_5x6",
+                "EL_Cu_2x4", "EL_Cu_2x6",
+                 "EL_Cu_3x4", "EL_3x6",
+                 "EL_Cu_4x4", "EL_Cu_4x6",
+                 "EL_Cu_5x4", "EL_Cu_5x6",
+                "EL_Al_2x4", "EL_Al_2x6",
+                 "EL_Al_3x4", "EL_Al_3x6",
+                 "EL_Al_4x4", "EL_Al_4x6",
+                 "EL_Al_5x4", "EL_Al_5x6"
                 Line_Type = "PVC Ф25"
             Case "EL_2x10", "EL_2x16",
                  "EL_3x10", "EL_3x16",
                  "EL_4x10", "EL_4x16",
-                 "EL_5x10", "EL_5x16"
+                 "EL_5x10", "EL_5x16",
+                 "EL_Cu_2x10", "EL_Cu_2x16",
+                 "EL_Cu_3x10", "EL_Cu_3x16",
+                 "EL_Cu_4x10", "EL_Cu_4x16",
+                 "EL_Cu_5x10", "EL_Cu_5x16",
+                 "EL_Al_2x10", "EL_Al_2x16",
+                 "EL_Al_3x10", "EL_Al_3x16",
+                 "EL_Al_4x10", "EL_Al_4x16",
+                 "EL_Al_5x10", "EL_Al_5x16"
                 Line_Type = "PVC Ф32"
             Case " "
                 Line_Type = "PVC Ф50"
@@ -1305,8 +1362,18 @@ Public Class CommonUtil
                  "EL_2x25", "EL_2x35",
                  "EL_4x25", "EL_4x35",
                  "EL_3х25+16", "EL_3х35+16",
-                 "EL_3х25+16", "EL_3х35+16"
-                Line_Type = "PVC Ф55"
+                 "EL_3х25+16", "EL_3х35+16",
+                "EL_Cu_5x25", "EL_Cu_5x35",
+                 "EL_Cu_2x25", "EL_Cu_2x35",
+                 "EL_Cu_4x25", "EL_Cu_4x35",
+                 "EL_Cu_3х25+16", "EL_Cu_3х35+16",
+                 "EL_Cu_3х25+16", "EL_Cu_3х35+16",
+                "EL_Al_5x25", "EL_Al_5x35",
+                 "EL_Al_2x25", "EL_Al_2x35",
+                 "EL_Al_4x25", "EL_Al_4x35",
+                 "EL_Al_3х25+16", "EL_Al_3х35+16",
+                 "EL_Al_3х25+16", "EL_Al_3х35+16"
+                Line_Type = "PVC Ф50"
             Case "EL_HDMI"
                 Line_Type = "PVC Ф40"
             Case "EL_JC_2x05", "EL_JC_2x10", "EL_JC_2x75",
@@ -1727,65 +1794,7 @@ Public Class CommonUtil
         Return blkRecIdNow
     End Function
 
-    <CommandMethod("TextAlignment")>
-    Public Sub TextAlignment()
-        '' Get the current document and database
-        Dim acDoc As Document = Application.DocumentManager.MdiActiveDocument
-        Dim acCurDb As Database = acDoc.Database
-        '' Start a transaction
-        Using acTrans As Transaction = acCurDb.TransactionManager.StartTransaction()
-            '' Open the Block table for read
-            Dim acBlkTbl As BlockTable
-            acBlkTbl = acTrans.GetObject(acCurDb.BlockTableId,
-                                               OpenMode.ForRead)
 
-            '' Open the Block table record Model space for write
-            Dim acBlkTblRec As BlockTableRecord
-            acBlkTblRec = acTrans.GetObject(acBlkTbl(BlockTableRecord.ModelSpace),
-                                                  OpenMode.ForWrite)
-            Dim textString(0 To 2) As String
-            textString(0) = "Left"
-            textString(1) = "Center"
-            textString(2) = "Right"
-            Dim textAlign(0 To 2) As Integer
-            textAlign(0) = TextHorizontalMode.TextLeft
-            textAlign(1) = TextHorizontalMode.TextCenter
-            textAlign(2) = TextHorizontalMode.TextRight
-
-            Dim acPtIns As Point3d = New Point3d(3, 3, 0)
-            Dim acPtAlign As Point3d = New Point3d(3, 3, 0)
-            Dim nCnt As Integer = 0
-            For Each strVal As String In textString
-                '' Create a single-line text object
-                Dim acText As DBText = New DBText()
-                acText.SetDatabaseDefaults()
-                acText.Position = acPtIns
-                acText.Height = 0.5
-                acText.TextString = strVal
-                '' Set the alignment for the text
-                acText.HorizontalMode = textAlign(nCnt)
-                If acText.HorizontalMode <> TextHorizontalMode.TextLeft Then
-                    acText.AlignmentPoint = acPtAlign
-                End If
-                acBlkTblRec.AppendEntity(acText)
-                acTrans.AddNewlyCreatedDBObject(acText, True)
-                ' Create a point over the alignment point of the text
-                'Dim acPoint As DBPoint = New DBPoint(acPtAlign)
-                '' acPoint.SetDatabaseDefaults()
-                'acPoint.ColorIndex = 1
-                'acBlkTblRec.AppendEntity(acPoint)
-                'acTrans.AddNewlyCreatedDBObject(acPoint, True)
-                ' Adjust the insertion and alignment points
-                acPtIns = New Point3d(acPtIns.X, acPtIns.Y + 3, 0)
-                acPtAlign = acPtIns
-                nCnt = nCnt + 1
-            Next
-            '' Set the point style to crosshair
-            Application.SetSystemVariable("PDMODE", 2)
-            '' Save the changes and dispose of the transaction
-            acTrans.Commit()
-        End Using
-    End Sub
     Public Function GetAparati(SelectedSet As SelectionSet) As Array
         ' Получаване на текущия документ в AutoCAD
         Dim acDoc As Document = Application.DocumentManager.MdiActiveDocument
@@ -2102,153 +2111,6 @@ Public Class CommonUtil
             Next
             ' Потвърди транзакцията.
             acTrans.Commit()
-        End Using
-    End Sub
-End Class
-Public Class Commands_original
-    <CommandMethod("GXD")>
-    Public Shared Sub GetXData()
-        Dim doc As Document = Application.DocumentManager.MdiActiveDocument
-        Dim ed As Editor = doc.Editor
-        Dim opt As PromptEntityOptions = New PromptEntityOptions(vbLf & "Select entity: ")
-        Dim res As PromptEntityResult = ed.GetEntity(opt)
-
-        If res.Status = PromptStatus.OK Then
-            Dim tr As Transaction = doc.TransactionManager.StartTransaction()
-
-            Using tr
-                Dim obj As DBObject = tr.GetObject(res.ObjectId, OpenMode.ForRead)
-                Dim rb As ResultBuffer = obj.XData
-
-                If rb Is Nothing Then
-                    ed.WriteMessage(vbLf & "Entity does not have XData attached.")
-                Else
-                    Dim n As Integer = 0
-
-                    For Each tv As TypedValue In rb
-                        ed.WriteMessage(vbLf & "TypedValue {0} - type: {1}, value: {2}",
-                                        Math.Min(System.Threading.Interlocked.Increment(n), n - 1),
-                                        tv.TypeCode,
-                                        tv.Value)
-                    Next
-                    rb.Dispose()
-                End If
-            End Using
-        End If
-    End Sub
-    <CommandMethod("SXD")>
-    Public Shared Sub SetXData()
-        Dim doc As Document = Application.DocumentManager.MdiActiveDocument
-        Dim ed As Editor = doc.Editor
-        Dim opt As PromptEntityOptions = New PromptEntityOptions(vbLf & "Select entity: ")
-        Dim res As PromptEntityResult = ed.GetEntity(opt)
-
-        If res.Status = PromptStatus.OK Then
-            Dim tr As Transaction = doc.TransactionManager.StartTransaction()
-
-            Using tr
-                Dim obj As DBObject = tr.GetObject(res.ObjectId, OpenMode.ForWrite)
-                AddRegAppTableRecord("EWG")
-                Dim rb As ResultBuffer = New ResultBuffer(New TypedValue(1001, "KEAN"),
-                                                          New TypedValue(1000, "This 1"),
-                                                          New TypedValue(1000, "This 2"),
-                                                          New TypedValue(1000, "This 3"))
-                rb.Add(New TypedValue(1001, "This 4"))
-
-                obj.XData = rb
-                rb.Dispose()
-                tr.Commit()
-            End Using
-        End If
-    End Sub
-    Private Shared Sub AddRegAppTableRecord(ByVal regAppName As String)
-        Dim doc As Document = Application.DocumentManager.MdiActiveDocument
-        Dim ed As Editor = doc.Editor
-        Dim db As Database = doc.Database
-        Dim tr As Transaction = doc.TransactionManager.StartTransaction()
-
-        Using tr
-            Dim rat As RegAppTable = CType(tr.GetObject(db.RegAppTableId, OpenMode.ForRead, False), RegAppTable)
-
-            If Not rat.Has(regAppName) Then
-                rat.UpgradeOpen()
-                Dim ratr As RegAppTableRecord = New RegAppTableRecord()
-                ratr.Name = regAppName
-                rat.Add(ratr)
-                tr.AddNewlyCreatedDBObject(ratr, True)
-            End If
-            tr.Commit()
-        End Using
-    End Sub
-
-End Class
-Public Class Commands_Modifi
-    Public Shared Sub GetXData()
-        Dim doc As Document = Application.DocumentManager.MdiActiveDocument
-        Dim ed As Editor = doc.Editor
-        Dim opt As PromptEntityOptions = New PromptEntityOptions(vbLf & "Select entity: ")
-        Dim res As PromptEntityResult = ed.GetEntity(opt)
-
-        If res.Status = PromptStatus.OK Then
-            Dim tr As Transaction = doc.TransactionManager.StartTransaction()
-
-            Using tr
-                Dim obj As DBObject = tr.GetObject(res.ObjectId, OpenMode.ForRead)
-                Dim rb As ResultBuffer = obj.XData
-
-                If rb Is Nothing Then
-                    ed.WriteMessage(vbLf & "Entity does not have XData attached.")
-                Else
-                    Dim n As Integer = 0
-
-                    For Each tv As TypedValue In rb
-                        ed.WriteMessage(vbLf & "TypedValue {0} - type: {1}, value: {2}",
-                                        Math.Min(System.Threading.Interlocked.Increment(n), n - 1),
-                                        tv.TypeCode,
-                                        tv.Value)
-                    Next
-                    rb.Dispose()
-                End If
-            End Using
-        End If
-    End Sub
-    Public Shared Sub SetXData()
-        Dim doc As Document = Application.DocumentManager.MdiActiveDocument
-        Dim ed As Editor = doc.Editor
-        Dim opt As PromptEntityOptions = New PromptEntityOptions(vbLf & "Select entity: ")
-        Dim res As PromptEntityResult = ed.GetEntity(opt)
-
-        If res.Status = PromptStatus.OK Then
-            Dim tr As Transaction = doc.TransactionManager.StartTransaction()
-
-            Using tr
-                Dim obj As DBObject = tr.GetObject(res.ObjectId, OpenMode.ForWrite)
-                AddRegAppTableRecord("EWG_Tablo")
-                Dim rb As ResultBuffer = New ResultBuffer(New TypedValue(1001, "EWG_Tablo"))
-
-                obj.XData = rb
-                rb.Dispose()
-                tr.Commit()
-            End Using
-        End If
-    End Sub
-    Public Shared Sub AddRegAppTableRecord(ByVal regAppName As String)
-        Dim doc As Document = Application.DocumentManager.MdiActiveDocument
-        Dim ed As Editor = doc.Editor
-        Dim db As Database = doc.Database
-        Dim tr As Transaction = doc.TransactionManager.StartTransaction()
-
-        Using tr
-            Dim rat As RegAppTable = CType(tr.GetObject(db.RegAppTableId, OpenMode.ForRead, False), RegAppTable)
-            Dim ratr As RegAppTableRecord = New RegAppTableRecord()
-
-            If Not rat.Has(regAppName) Then
-                rat.UpgradeOpen()
-                ratr.Name = regAppName
-                rat.Add(ratr)
-                tr.AddNewlyCreatedDBObject(ratr, True)
-            End If
-            tr.Commit()
         End Using
     End Sub
 End Class

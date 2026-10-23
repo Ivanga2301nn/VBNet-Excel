@@ -280,6 +280,14 @@ Public Class Legend
                                     arrBlock(index).blInsert = vbFalse
                                     index += 1
                             End Select
+                        Case "ШИНА"
+
+                            arrBlock(index).blName = blName
+                                    arrBlock(index).blVisibility = Visibility
+                                    arrBlock(index).blText = "- " + BlockText(blName, Visibility)
+                                    arrBlock(index).blInsert = vbFalse
+                            index += 1
+
                         Case Else
                             '"Кабел", "Вентилации", "uli4no", "Качване",
                             ' "Ramka_Samo_ramka_EWG", "Ramka_Samo_ramka",
@@ -352,8 +360,14 @@ Public Class Legend
                     ' Ако блокът е - Силово разпределително табло, пропускаме го
                     ' Домофонна централа, Пожароизвестителна централа и Слаботоково табло ги слагаме
                     If iarrBlock.blVisibility = "Табло" Then Continue For
+                    ' Създаваме локална променлива за X координатата на този конкретен блок
+                    Dim currentBlockX As Double = ipX
+                    If iarrBlock.blName = "LED_lenta" Or iarrBlock.blName = "ШИНА" Then
+                        ' Променяме само локалната променлива, без да пипаме глобалното ipX
+                        currentBlockX = currentBlockX - 50
+                    End If
                     ' Определяме точка за вмъкване на блока – текущите координати ipX, ipY
-                    Dim insPointBlock As Point3d = New Point3d(ipX, ipY, 0)
+                    Dim insPointBlock As Point3d = New Point3d(currentBlockX, ipY, 0)
                     ' Вземаме името на блока от текущия елемент
                     Dim sss As String = iarrBlock.blName
                     ' Ако блокът няма име → прекратяваме цикъла (няма смисъл да продължаваме)
@@ -391,6 +405,7 @@ Public Class Legend
                     Dim Position_X As Double = -100
                     Dim Position_Y As Double = 0
                     Dim Distance As Double = 12
+                    Dim Дължина As Double = 60
                     ' Обхождаме всички динамични свойства на блока
                     For Each prop As DynamicBlockReferenceProperty In props
                         ' Ако има свойство "Visibility" или "Visibility1" → задаваме видимостта от iarrBlock
@@ -400,6 +415,7 @@ Public Class Legend
                         If prop.PropertyName = "Position X" Then prop.Value = Position_X
                         If prop.PropertyName = "Position Y" Then prop.Value = Position_Y
                         If prop.PropertyName = "Distance" Then prop.Value = Distance
+                        If prop.PropertyName = "Дължина" Then prop.Value = Дължина
                         ' Задаваме ъгъл на завъртане от iarrBlock
                         If prop.PropertyName = "Angle" Then prop.Value = iarrBlock.blAngle
                         ' Ако има свойство "Тип" → задаваме специфични стойности за дължина и ширина на лампата
@@ -593,6 +609,7 @@ Public Class Legend
                             Tekst1 += "Врата: "
                             Tekst1 += Apar.bl_4 + vbCrLf
                             Tekst1 += "Степен на защита: IP66"
+                            Tekst1 += vbCrLf + "Клас по реакция на огън: А2"
                             cu.InsertMText(Tekst1, New Point3d(InsertPoint.X + ipX_Text, InsertPoint.Y + ipY_Text, 0), "EL__DIM", 12)
                             Tablo_Name = False
                             Tablo_Text = Apar.bl_Табло
@@ -619,6 +636,7 @@ Public Class Legend
                                     Tekst1 += Apar.bl_3
                             End Select
                             Tekst1 += vbCrLf + "Степен на защита: IP65"
+                            Tekst1 += vbCrLf + "Клас по реакция на огън:C или V-0"
                             cu.InsertMText(Tekst1, New Point3d(InsertPoint.X + ipX_Text, InsertPoint.Y + ipY_Text, 0), "EL__DIM", 12)
                             Tablo_Name = False
                             Tablo_Text = Apar.bl_Табло
@@ -631,11 +649,12 @@ Public Class Legend
                             Tekst1 += "; Врата: "
                             Tekst1 += Apar.bl_2 + vbCrLf
                             Tekst1 += "Степен на защита: IP40"
+                            Tekst1 += vbCrLf + "Клас по реакция на огън:C или V-0"
                             cu.InsertMText(Tekst1, New Point3d(InsertPoint.X + ipX_Text, InsertPoint.Y + ipY_Text, 0), "EL__DIM", 12)
                             Tablo_Name = False
                             Tablo_Text = Apar.bl_Табло
                             Continue For
-                        Case "E60", "Е60", "C120", "iC60N",
+                        Case "E60", "Е60", "C120", "iC60",
                              "Е120", "iK60", "NG160",
                              "EZ9 MCB", "EZ9 MCB "
                             Tekst1 = Tekst1 + " " + Apar.bl_1
@@ -1389,6 +1408,17 @@ Public Class Legend
                         strBlockText = "Вентилатор за баня"
                     Case "Вентилатор - правоъг"
                         strBlockText = "Вентилатор"
+                End Select
+            Case "ШИНА"
+                Select Case Visibility
+                    Case "Магнитна за вграждане"
+                        strBlockText = "Шина магнитна за вграждане"
+                    Case "Магнитна за открит монтаж"
+                        strBlockText = "Шина магнитна за открит монтаж"
+                    Case "Релсова монофазна"
+                        strBlockText = "Шина релсова монофазна"
+                    Case "Релсова трифазна"
+                        strBlockText = "Шина релсова трифазна"
                 End Select
             Case Else
                 strBlockText = "################################"

@@ -385,7 +385,6 @@ Public Class Form_Tablo_new
             ' Тук формата знае, че е избрано цяло табло (напр. "Т-1")
             ' Можеш да извлечеш името му чрез: selectedObject.Tablo
             ' Пример за бъдеща логика: Филтриране на таблицата само за това табло.
-
             Case "Консуматор"
             ' --------------------------------------------------------
             ' ПОТРЕБИТЕЛЯТ Е КЛИКНАЛ ВЪРХУ КОНКРЕТЕН ТОКОВ КРЪГ
@@ -451,6 +450,22 @@ Public Class Form_Tablo_new
     Private Sub ToolStripButton_Вмъкни_Autocad_Click(sender As Object, e As EventArgs) Handles ToolStripButton_Вмъкни_Autocad.Click
         AppSettings.AutoCadInserter.ExecuteInsert(GetSelectedTreePathParts())
     End Sub
+    ''' <summary>
+    ''' Отваря формата за сортиране на приоритетите и обновява визуализацията на избраното табло.
+    '''
+    ''' Процедурата запазва текущо избрания възел от TreeView,
+    ''' отваря формата за настройка на приоритетите и при потвърждение
+    ''' извлича обекта от Tag на избрания възел.
+    '''
+    ''' След успешно сортиране обновява структурата на DataGridView
+    ''' чрез DataGridViewManager.DisplayBoardStructure,
+    ''' така че промененият ред на токовите кръгове да бъде отразен
+    ''' незабавно във визуализацията.
+    '''
+    ''' По време на обновяването управлява флага за състоянието
+    ''' на грида, за да предотврати нежелано изпълнение на събития
+    ''' при зареждането на данните.
+    ''' </summary>
     Private Sub ToolStripButton_Сортиране_Click(sender As Object, e As EventArgs) Handles ToolStripButton_Сортиране.Click
         ' 1. Преди да отворим формата, вземаме текущо избрания възел в дървото
         Dim selectedNode As TreeNode = TreeView_Табло.SelectedNode

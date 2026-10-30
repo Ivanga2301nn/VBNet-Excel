@@ -240,7 +240,7 @@ Public Class DataGridViewManager
         For i As Integer = _dgv.Columns.Count - 1 To 2 Step -1
             _dgv.Columns.RemoveAt(i)
         Next
-        ' 3. Взимаме токовите кръгове за това табло
+        ' 3. Взимаме токовите кръгове за това табло БЕЗ ТАБЛАТА КЪМ НЕГО
         Dim circuitsList As List(Of clsTokow) = selectedObject.GetMyCircuits()
         Dim disconnectorList As List(Of clsTokow) = circuitsList.Where(Function(c) c.Device = "Разединител").ToList()
         ' 3. АКО ИМА РАЗЕДИНИТЕЛ: Едва тогава "мъчим компа" да дели и пренарежда шините!

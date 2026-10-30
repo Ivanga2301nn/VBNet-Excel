@@ -84,7 +84,7 @@ Public Class clsTokow
     ''' </summary>
     Public Function GetMyCircuits() As List(Of clsTokow)
         ' Защита: Ако текущият обект НЕ Е табло, няма смисъл да търсим кръгове за него
-        'If Me.Device <> "Табло" Then Return New List(Of clsTokow)()
+        ' If Me.Device <> "Табло" Then Return New List(Of clsTokow)()
         ' Използваме Me, за да вземем данните на текущото табло
         Return AppSettings.ListTokow.Where(Function(krug)
                                                Return krug.BuildingName = Me.BuildingName AndAlso

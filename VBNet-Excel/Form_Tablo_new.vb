@@ -104,7 +104,6 @@ Public Module AppSettings
         End Set
     End Property
     Private _dataGridViewManager As DataGridViewManager
-
     Public Property DataGridViewManager As DataGridViewManager
         Get
             If _DataGridViewManager Is Nothing Then
@@ -136,17 +135,14 @@ Public Module AppSettings
             Return _gridUpdateDepth > 0
         End Get
     End Property
-
     Public Sub EnterGridUpdate()
         System.Threading.Interlocked.Increment(_gridUpdateDepth)
     End Sub
-
     Public Sub ExitGridUpdate()
         If System.Threading.Interlocked.Decrement(_gridUpdateDepth) < 0 Then
             System.Threading.Interlocked.Exchange(_gridUpdateDepth, 0)
         End If
     End Sub
-
     ''' <summary>
     ''' Глобален флаг срещу рекурсия при обработка на RCD логика.
     ''' </summary>
@@ -423,14 +419,11 @@ Public Class Form_Tablo_new
         ' - Focused: Показва дали самият Grid има фокус от мишката/клавиатурата
         ' - IsGridUpdating: Ползваме твоя вграден флаг за активна обновеност
         If Not DataGridView1.IsCurrentCellInEditMode AndAlso Not DataGridView1.Focused Then Exit Sub
-
         ' 3. Игнорираме служебни колони
         Dim columnName As String = DataGridView1.Columns(e.ColumnIndex).Name
         If columnName = "colParameter" OrElse columnName = "colUnit" Then Exit Sub
-
         Dim cellValue As Object = DataGridView1.Rows(e.RowIndex).Cells(e.ColumnIndex).Value
         Dim newValue As String = If(cellValue IsNot Nothing, cellValue.ToString(), "")
-
         ' 4. Подаване към мениджъра
         AppSettings.EnterGridUpdate()
         Try
@@ -529,5 +522,6 @@ Public Class Form_Tablo_new
     Private Sub ToolStripButton_Балансирай_фазите_Click(sender As Object, e As EventArgs) Handles ToolStripButton_Балансирай_фазите.Click
         Dim pathParts = GetSelectedTreePathParts()
         AppSettings.PanelBalanceManager.BalancePhases(pathParts(0), pathParts(2))
+
     End Sub
 End Class

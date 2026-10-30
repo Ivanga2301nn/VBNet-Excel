@@ -21,20 +21,20 @@ Public Class DataGridViewManager
                      "Часовник"
                      }
     ' Динамични списъци (зареждат се в паметта от каталога за прекъсвачи BreakerCatalog)
-    Private _ComboItems_breakerType As New List(Of String)        ' Списък за ред "Тип на апарата" (сериите: iC60, EZ9 и др.)
-    Private _ComboItems_breakerIn As New List(Of String)          ' Списък за ред "Номинален ток" (амперажите: 10А, 16А, 25А и др.)
-    Private _ComboItems_breakerCurve As New List(Of String)       ' Списък за ред "Крива" (характеристиките: B, C, D)
-    Private _ComboItems_breakerUnit As New List(Of String)        ' Списък за ред "Защитен блок" (Vigi модули и електронни блокове)
+    Private ReadOnly _ComboItems_breakerType As New List(Of String)        ' Списък за ред "Тип на апарата" (сериите: iC60, EZ9 и др.)
+    Private ReadOnly _ComboItems_breakerIn As New List(Of String)          ' Списък за ред "Номинален ток" (амперажите: 10А, 16А, 25А и др.)
+    Private ReadOnly _ComboItems_breakerCurve As New List(Of String)       ' Списък за ред "Крива" (характеристиките: B, C, D)
+    Private ReadOnly _ComboItems_breakerUnit As New List(Of String)        ' Списък за ред "Защитен блок" (Vigi модули и електронни блокове)
 
     ' Динамични списъци (зареждат се в паметта от каталога за кабели CableCatalog)
-    Private _ComboItems_cableType As New List(Of String)          ' Списък за ред "Тип кабел" (материалите: СВТ, NYM, ПВ-А1 и др.)
-    Private _ComboItems_cableInstallation As New List(Of String)  ' Списък за ред "Начин на монтаж" (кодовете по стандарт: A1, B1, C, E и др.)
+    Private ReadOnly _ComboItems_cableType As New List(Of String)          ' Списък за ред "Тип кабел" (материалите: СВТ, NYM, ПВ-А1 и др.)
+    Private ReadOnly _ComboItems_cableInstallation As New List(Of String)  ' Списък за ред "Начин на монтаж" (кодовете по стандарт: A1, B1, C, E и др.)
     Private ReadOnly _ComboItems_cableEnvironment As String() = {
                      "Във въздух", "В земя"}                        ' Списък за ред "Начин на полагане" (Основна среда за охлаждане на кабела)
 
     ' Динамични списъци (зареждат се в паметта от каталога за разединители DisconnectorCatalog)
-    Private _ComboItems_disconType As New List(Of String)       ' Списък за ред "Тип на апарата" при разединители (напр. Interpact INS, iSW)
-    Private _ComboItems_disconIn As New List(Of String)         ' Списък за ред "Номинален ток" за разединители (напр. 40А, 63А, 100А...)
+    Private ReadOnly _ComboItems_disconType As New List(Of String)       ' Списък за ред "Тип на апарата" при разединители (напр. Interpact INS, iSW)
+    Private ReadOnly _ComboItems_disconIn As New List(Of String)         ' Списък за ред "Номинален ток" за разединители (напр. 40А, 63А, 100А...)
 
     ' Пазим референция към контролата, за да може целият клас да си я знае
     Private ReadOnly _dgv As DataGridView
@@ -166,7 +166,7 @@ Public Class DataGridViewManager
             Dim cellType As String = row(2)
             ' Генериране на клетки за динамичните колони
             For colIndex As Integer = 2 To _dgv.Columns.Count - 2
-                Dim cell As DataGridViewCell = Nothing
+                Dim cell As DataGridViewCell
                 Select Case cellType
                     Case "Combo"
                         cell = New DataGridViewComboBoxCell()
@@ -480,7 +480,7 @@ Public Class DataGridViewManager
             Dim parameterName As String = data(0).ToString()
             Dim cellType As String = data(2).ToString()
 
-            Dim specialCell As DataGridViewCell = Nothing
+            Dim specialCell As DataGridViewCell
 
             Select Case cellType
                 Case "Combo"

@@ -1185,8 +1185,6 @@ Public Class Tablo
                                    Optional Broj_kab As Integer = 1,    ' Брой кабели положени паралелно на скара
                                    Optional Kabel As Integer = 0        ' 0 - Кабел; 1 - проводник
                                    ) As String                          ' Избира сечение на меден кабел
-
-
         Dim calc As String = ""
         Dim Inom As Double = Val(Ibreaker)
         Dim Idop As Double = 0
@@ -1196,7 +1194,6 @@ Public Class Tablo
         Dim Qok As Double
         Dim K2 As Double = 0
         Dim K1 As Double = 0
-
 
         If Polag = 0 Then
             Qok = 35
@@ -1363,8 +1360,9 @@ Public Class Tablo
                         End Select
                 End Select
                 Return IIf(NumberPoles = "3p", "4x1х", "2x1х") + calc
+            Case Else
+                Return ""
         End Select
-
     End Function
     ' Връща коефициент в зависимост от броя паралелно положени кабели
     Function GetK1(Broj_kab As Integer, Polag As Integer) As Double
@@ -1617,8 +1615,9 @@ Public Class Tablo
                         End Select
                 End Select
                 Return IIf(NumberPoles = "3p", "4x1х", "2x1х") + calc
+            Case Else
+                Return ""
         End Select
-
     End Function
     Private Function calc_cable_AlR(Ibreaker As String,     ' Ток на Автоматичния прекъсвач
                                    NumberPoles As String    ' Брой на фазите

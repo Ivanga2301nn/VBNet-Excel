@@ -4,15 +4,15 @@ Imports iTextSharp.text.pdf.qrcode.Version
 
 Public Class DataGridViewChangeManager
     ' Пазим препратки към шестте компонента
-    Private _cableCatalog As CableCatalog
-    Private _breakerCatalog As BreakerCatalog
-    Private _disconnectorCatalog As DisconnectorCatalog
-    Private _rcdCatalog As RCDCatalog
-    Private _calculationEngine As ElectricalCalculationEngine
-    Private _allCircuits As List(Of clsTokow)
-    Private _boardManager As BoardStructureManager
-    Private _PanelBalanceManager As PanelBalanceManager
-    Private _DataGridViewManager As DataGridViewManager
+    Private ReadOnly _cableCatalog As CableCatalog
+    Private ReadOnly _breakerCatalog As BreakerCatalog
+    Private ReadOnly _disconnectorCatalog As DisconnectorCatalog
+    Private ReadOnly _rcdCatalog As RCDCatalog
+    Private ReadOnly _calculationEngine As ElectricalCalculationEngine
+    Private ReadOnly _allCircuits As List(Of clsTokow)
+    Private ReadOnly _boardManager As BoardStructureManager
+    Private ReadOnly _PanelBalanceManager As PanelBalanceManager
+    Private ReadOnly _DataGridViewManager As DataGridViewManager
     ''' <summary>
     ''' Конструкторът вече приема точно шестте компонента от формата
     ''' </summary>

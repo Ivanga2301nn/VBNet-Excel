@@ -182,6 +182,7 @@ Public Class Ka4vane
             ' не запълва масива!!!
             '
             For br = 0 To UBound(Kabel)
+                If Kabel(br).Layer = "" Then Exit For
                 Dim ddd As String = tgKABEL + br.ToString
                 If ПОЛАГ = "Скара" Or ПОЛАГ = "Канал" Then
                     Kabel(br).Linetype = ПОЛАГ
@@ -212,6 +213,7 @@ Public Class Ka4vane
                     Next
                 Case "Тръби"
                     For br = 0 To UBound(Kabel_)
+                        If Kabel_(br, 0) = "" Then Exit For
                         '
                         ' Kabel (*,0) - Тип на линията
                         ' Kabel (*,1) - Тип на тръбата
@@ -224,7 +226,7 @@ Public Class Ka4vane
             End Select
             Dim posokaText As String = ""
             For br = 0 To UBound(Kabel_)
-                If Kabel_(br, 2) = "0" Then
+                If Kabel_(br, 2) = Nothing Then
                     If OT_KYM = True Then
                         posokaText = "от кота "
                     Else

@@ -926,6 +926,10 @@ Public Class CommonUtil
         Return laye
     End Function
     Private Function new_line_Layer(ByVal Layer As String) As String
+        If Layer = Nothing Then
+            Layer = ""
+            Exit Function
+        End If
         Dim laye As String = Layer
         ' Стандартните сечения, подредени по големина
         Dim StandardPhaseSizes As String() = {
@@ -1334,11 +1338,11 @@ Public Class CommonUtil
                  "EL_3x4", "EL_3x6",
                  "EL_4x4", "EL_4x6",
                  "EL_5x4", "EL_5x6",
-                "EL_Cu_2x4", "EL_Cu_2x6",
-                 "EL_Cu_3x4", "EL_3x6",
+                 "EL_Cu_2x4", "EL_Cu_2x6",
+                 "EL_Cu_3x4", "EL_Cu_3x6",
                  "EL_Cu_4x4", "EL_Cu_4x6",
                  "EL_Cu_5x4", "EL_Cu_5x6",
-                "EL_Al_2x4", "EL_Al_2x6",
+                 "EL_Al_2x4", "EL_Al_2x6",
                  "EL_Al_3x4", "EL_Al_3x6",
                  "EL_Al_4x4", "EL_Al_4x6",
                  "EL_Al_5x4", "EL_Al_5x6"

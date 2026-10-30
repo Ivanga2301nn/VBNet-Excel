@@ -466,7 +466,6 @@ Public Class Kabel
     '   ObjectId на вмъкнатия блок, или ObjectId.Null при грешка
     '==============================
     Function Insert_Block_Kabel(Kabel As Array) As ObjectId
-
         ' Вземане на текущия AutoCAD документ
         Dim acDoc As Document = Application.DocumentManager.MdiActiveDocument
         ' Вземане на базата данни на документа

@@ -1,10 +1,10 @@
 ﻿Imports System.Windows.Forms
 Public Class PanelBalanceManager
     ' 1. Пазим локални референции на ниво клас
-    Private _rcdCatalog As RCDCatalog
-    Private _disconnectorCatalog As DisconnectorCatalog
-    Private _cableCatalog As CableCatalog
-    Private _electricalCalculationEngine As ElectricalCalculationEngine
+    Private ReadOnly _rcdCatalog As RCDCatalog
+    Private ReadOnly _disconnectorCatalog As DisconnectorCatalog
+    Private ReadOnly _cableCatalog As CableCatalog
+    Private ReadOnly _electricalCalculationEngine As ElectricalCalculationEngine
     ''' <summary>
     ''' КОНСТРУКТОР: Приема създадените каталози и списъка с токови кръгове от формата
     ''' </summary>

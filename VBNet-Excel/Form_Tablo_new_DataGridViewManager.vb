@@ -262,6 +262,23 @@ Public Class DataGridViewManager
                 CreateAndFillColumn(circuit)
             Next
         End If
+
+        ' 5. ДОБАВЯНЕ НА ДЪЩЕРНИТЕ ТАБЛА
+        Dim childPanels As List(Of clsTokow) = AppSettings.ListTokow _
+    .Where(Function(p) String.Equals(p.Device, "Табло", StringComparison.OrdinalIgnoreCase) AndAlso
+                      String.Equals(p.BuildingName, selectedObject.BuildingName, StringComparison.OrdinalIgnoreCase) AndAlso
+                      String.Equals(p.Табло_Родител, selectedObject.Tablo, StringComparison.OrdinalIgnoreCase) AndAlso
+                      String.Equals(p.ТоковКръг, "ОБЩО", StringComparison.OrdinalIgnoreCase)) _
+    .GroupBy(Function(p) p.Tablo, StringComparer.OrdinalIgnoreCase) _
+    .Select(Function(g) g.First()) _
+    .ToList()
+
+        For Each childPanel As clsTokow In childPanels
+            CreateAndFillColumn(childPanel, True)
+        Next
+
+
+
         ' 5. ФИНАЛЕН АКОРД: Добавяме и пълним колоната за ОБЩО
         ' Гарантираме, че за ОБЩО винаги подаваме обекта "Табло", а не Разединителя
         Dim mainBoardObject As clsTokow = AppSettings.ListTokow.FirstOrDefault(
@@ -399,20 +416,37 @@ Public Class DataGridViewManager
     ''' Ако параметърът е Nothing,
     ''' процедурата прекратява изпълнението си.
     ''' </param>
-    Private Sub CreateAndFillColumn(ByVal circuit As clsTokow)
+    Private Sub CreateAndFillColumn(ByVal circuit As clsTokow,
+                                Optional ByVal isChildBoard As Boolean = False)
         If circuit Is Nothing Then Exit Sub
         ' 1. Определяме името и заглавието на колоната спрямо обекта
         Dim columnName As String = ""
         Dim columnHeader As String = ""
         Dim NameColumn As String = circuit.Tablo & "|" & circuit.BuildingName
-        If circuit.Device = "Табло" Then
+
+        'If circuit.Device = "Табло" Then
+        '    columnName = "colTotal|" & NameColumn
+        '    columnHeader = "ОБЩО"
+        'Else
+        '    ' Ако има име (напр. "Кръг 1"), правим динамично име на колоната
+        '    columnName = "col|" & NameColumn & "|" & circuit.ТоковКръг
+        '    columnHeader = circuit.ТоковКръг
+        'End If
+
+        If isChildBoard Then
+            ' ДЪЩЕРНО ТАБЛО
+            columnName = "col|" & NameColumn & "|ОБЩО"
+            columnHeader = circuit.Tablo
+        ElseIf circuit.Device = "Табло" Then
+            ' ТЕКУЩО ТАБЛО
             columnName = "colTotal|" & NameColumn
             columnHeader = "ОБЩО"
         Else
-            ' Ако има име (напр. "Кръг 1"), правим динамично име на колоната
+            ' ОБИКНОВЕН ТОКОВ КРЪГ
             columnName = "col|" & NameColumn & "|" & circuit.ТоковКръг
             columnHeader = circuit.ТоковКръг
         End If
+
         ' 2. Създаваме самата колона в края на Grid-a
         Dim newCol As New DataGridViewColumn()
         With newCol
@@ -671,12 +705,19 @@ Public Class DataGridViewManager
             extractedBuilding = nameParts(2)     ' Име на сградата
             extractedCircuit = "ОБЩО"            ' Име на токовия кръг
         End If
-        ' Намираме 100% точния обект по трите критерия наведнъж
+        '' Намираме 100% точния обект по трите критерия наведнъж
+        'Dim currentCircuit As clsTokow = AppSettings.ListTokow.FirstOrDefault(
+        '                                 Function(c) c.Tablo = extractedTablo AndAlso
+        '                                 c.BuildingName = extractedBuilding AndAlso
+        '                                 c.ТоковКръг = extractedCircuit
+        '                                 )
+        ' Намираме точния обект по трите критерия
         Dim currentCircuit As clsTokow = AppSettings.ListTokow.FirstOrDefault(
-                                         Function(c) c.Tablo = extractedTablo AndAlso
-                                         c.BuildingName = extractedBuilding AndAlso
-                                         c.ТоковКръг = extractedCircuit
-                                         )
+                              Function(c) c.Tablo = extractedTablo AndAlso
+                              c.BuildingName = extractedBuilding AndAlso
+                              c.ТоковКръг = extractedCircuit AndAlso
+                              (extractedCircuit <> "ОБЩО" OrElse c.Device = "Табло")
+)
         _changeManager.UpdateCircuitProperty(currentCircuit, procedureToExecute, newValue)
         FillColumnValues(colIndex, currentCircuit)
     End Sub

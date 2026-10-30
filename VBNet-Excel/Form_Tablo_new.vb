@@ -536,7 +536,7 @@ Public Class Form_Tablo_new
     End Function
     Private Sub ToolStripButton_Балансирай_фазите_Click(sender As Object, e As EventArgs) Handles ToolStripButton_Балансирай_фазите.Click
         Dim pathParts = GetSelectedTreePathParts()
-        AppSettings.PanelBalanceManager.BalancePhases(pathParts(0), pathParts(2))
+        AppSettings.PanelBalanceManager.BalancePhases(pathParts(0), If(pathParts.Count = 3, pathParts(2), pathParts(1)))
 
     End Sub
 End Class

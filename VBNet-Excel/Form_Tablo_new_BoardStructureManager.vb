@@ -222,8 +222,20 @@
             ' ==========================================
             ' ЧАСТ 1: ГАРАНТИРАНЕ НА КОРЕНЕН ЗАПИС (Root Node) ЗА СГРАДАТА
             ' ==========================================
+            'Dim rootExists As Boolean = AppSettings.ListTokow.Any(Function(x) x.Tablo = ROOT_NODE_TEXT AndAlso
+            '                                                  x.BuildingName = bName)
+
+
             Dim rootExists As Boolean = AppSettings.ListTokow.Any(Function(x) x.Tablo = ROOT_NODE_TEXT AndAlso
-                                                              x.BuildingName = bName)
+                                                              x.BuildingName = bName AndAlso
+                                                              x.Device = "Табло" AndAlso
+                                                              x.ТоковКръг = "ОБЩО")
+
+
+
+
+
+
             If Not rootExists Then
                 Dim rootPanel As New clsTokow With {
                 .BuildingName = bName,

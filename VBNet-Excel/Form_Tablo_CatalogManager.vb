@@ -933,12 +933,12 @@ Public Class DisconnectorCatalog
                         FirstOrDefault()
         ' 4️⃣ ПРОВЕРКА И ЗАПИС
         If suitable IsNot Nothing Then
-            tokow.Breaker_Номинален_Ток = suitable.NominalCurrent
-            tokow.Breaker_Тип_Апарат = suitable.Type
-            'tokow.Breaker_Крива = "-"
+            tokow.Disconnector_Номинален_Ток = suitable.NominalCurrent
+            tokow.Disconnector_Тип_Апарат = suitable.Type
         Else
-            ' Съобщение за грешка с конкретно търсената марка
-            MsgBox(String.Format("Грешка: Не е намерен разединител от марка '{0}' за {1}А с {2} полюса.", brand, tokow.Ток, tokow.Брой_Полюси))
+            MsgBox(String.Format(
+        "Грешка: Не е намерен разединител от марка '{0}' за {1}А с {2} полюса.",
+        brand, tokow.Ток, tokow.Брой_Полюси))
         End If
     End Sub
     ''' <summary>

@@ -48,8 +48,10 @@ Public Class DataGridViewChangeManager
             ' Изход от процедурата
             Exit Sub
         End If
-        If tokow.Device = "Разединител" OrElse
-           tokow.Device = "Съществуващ" OrElse
+        'If tokow.Device = "Разединител" OrElse
+        '   tokow.Device = "Съществуващ" OrElse
+        '   tokow.Device = "Резерва" Then Exit Sub
+        If tokow.Device = "Съществуващ" OrElse
            tokow.Device = "Резерва" Then Exit Sub
         ' Тъй като вече си подсигурил защитите във формата, тук директно търсим метода
         Try
@@ -190,18 +192,14 @@ Public Class DataGridViewChangeManager
     Public Sub HandleNominalCurrentChange(ByVal circuit As clsTokow,
                                       ByVal value As String,
                                       ByVal isBoardTotal As Boolean)
-
-        If String.IsNullOrEmpty(value) Then Exit Sub
+        If circuit Is Nothing OrElse String.IsNullOrEmpty(value) Then Exit Sub
         ' 1. Определяме вида на апарата
         Dim isDisconnector As Boolean = isBoardTotal OrElse
         String.Equals(circuit.Device, "Разединител", StringComparison.OrdinalIgnoreCase)
         ' 2. Вземаме текущия номинален ток
-        Dim currentNominal As String
-        If isDisconnector Then
-            currentNominal = circuit.Disconnector_Номинален_Ток
-        Else
-            currentNominal = circuit.Breaker_Номинален_Ток
-        End If
+        Dim currentNominal As String = If(isDisconnector,
+                                      circuit.Disconnector_Номинален_Ток,
+                                      circuit.Breaker_Номинален_Ток)
         ' 3. Проверяваме дали новият номинал е по-малък
         If Val(value) < Val(currentNominal) Then
             Dim msg As String = "Сигурен ли си в това, което правиш? " & vbCrLf &
@@ -218,7 +216,7 @@ Public Class DataGridViewChangeManager
                 Exit Sub
             End If
         End If
-        ' 4. Записваме в правилното поле
+        ' 4. Записваме номиналния ток в правилното поле
         If isDisconnector Then
             circuit.Disconnector_Номинален_Ток = value
         Else
@@ -226,7 +224,9 @@ Public Class DataGridViewChangeManager
         End If
         ' 5. Преизчисляваме кабела
         _cableCatalog.CalculateCable(circuit)
-    End Sub    ' =============================================================
+    End Sub
+
+    ' =============================================================
     ' Процедура: HandleRcdToggleChange
     ' =============================================================
     ''' <summary>

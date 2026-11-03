@@ -199,8 +199,13 @@ Public Class CableCatalog
         If layMethod IsNot Nothing Then currentLayMethod = layMethod
         If String.IsNullOrWhiteSpace(currentLayMethod) Then currentLayMethod = tokow.Кабел_Полагане
         If String.IsNullOrWhiteSpace(currentLayMethod) Then currentLayMethod = "Във въздух"
-        ' Изчисляваме Inom като вземаме по-голямото число между двете
-        Dim Inom As Double = Math.Max(Val(tokow.Breaker_Номинален_Ток), tokow.Ток)
+        ' Изчисляваме Inom като вземаме по-голямото число между:
+        ' Breaker_Номинален_Ток,
+        ' Disconnector_Номинален_Ток
+        ' и tokow.Ток
+        Dim Inom As Double = Math.Max(
+                             Math.Max(Val(tokow.Breaker_Номинален_Ток), Val(tokow.Disconnector_Номинален_Ток)),
+                             tokow.Ток)
         Dim NumberPoles As String = tokow.Брой_Полюси
 
         Dim filteredCables = CableList.Where(
@@ -930,7 +935,7 @@ Public Class DisconnectorCatalog
         If suitable IsNot Nothing Then
             tokow.Breaker_Номинален_Ток = suitable.NominalCurrent
             tokow.Breaker_Тип_Апарат = suitable.Type
-            tokow.Breaker_Крива = "-"
+            'tokow.Breaker_Крива = "-"
         Else
             ' Съобщение за грешка с конкретно търсената марка
             MsgBox(String.Format("Грешка: Не е намерен разединител от марка '{0}' за {1}А с {2} полюса.", brand, tokow.Ток, tokow.Брой_Полюси))

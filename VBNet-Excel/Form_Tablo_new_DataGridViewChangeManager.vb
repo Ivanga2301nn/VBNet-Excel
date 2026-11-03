@@ -29,7 +29,10 @@ Public Class DataGridViewChangeManager
     ''' Главната входна точка. Взема името на процедурата от формата (Индекс 4) 
     ''' и я извиква динамично чрез Reflection.
     ''' </summary>
-    Public Sub UpdateCircuitProperty(ByVal tokow As clsTokow, ByVal procedureToExecute As String, ByVal newValue As String)
+    Public Sub UpdateCircuitProperty(ByVal tokow As clsTokow,
+                                 ByVal procedureToExecute As String,
+                                 ByVal newValue As String,
+                                 Optional ByVal isBoardTotal As Boolean = False)
         ' ------------------------------------------------------------
         ' 🛡️ ОБЩА ПРОВЕРКА ЗА КОРЕКТНОСТ (За трите параметъра)
         ' ------------------------------------------------------------
@@ -54,7 +57,12 @@ Public Class DataGridViewChangeManager
             Dim method As MethodInfo = Me.GetType().GetMethod(procedureToExecute)
             If method IsNot Nothing Then
                 ' Изпълнява намерената процедура, подавайки tokow и newValue като аргументи
-                method.Invoke(Me, New Object() {tokow, newValue})
+                Dim parameters As ParameterInfo() = method.GetParameters()
+                If parameters.Length = 3 Then
+                    method.Invoke(Me, New Object() {tokow, newValue, isBoardTotal})
+                Else
+                    method.Invoke(Me, New Object() {tokow, newValue})
+                End If
             End If
         Catch ex As TargetInvocationException
             ' Улавяме грешка, възникнала вътре в самата инженерна процедура (напр. в изчислителния модул)
@@ -131,78 +139,94 @@ Public Class DataGridViewChangeManager
     ''' Сменя: "Тип на апарата". 
     ''' Филтрира каталозите според вида на устройството и връща новите списъци за ComboBox клетките.
     ''' </summary>
-    Public Function HandleBreakerTypeChange(ByVal circuit As clsTokow, ByVal value As String) As Dictionary(Of String, List(Of String))
-        ' Създаваме речник, в който ще запишем филтрираните списъци за различните редове
+    Public Function HandleBreakerTypeChange(ByVal circuit As clsTokow,
+                                         ByVal value As String,
+                                         ByVal isBoardTotal As Boolean) As Dictionary(Of String, List(Of String))
         Dim resultLists As New Dictionary(Of String, List(Of String))()
         If circuit Is Nothing OrElse String.IsNullOrEmpty(value) Then Return resultLists
-        ' 1. Записваме новия избран тип апарат в обекта
-        circuit.Breaker_Тип_Апарат = value
-        ' 2. Разделяме логиката според типа на устройството (Device)
-        Select Case circuit.Device
-            Case "Разединител", "Табло"
-                ' Използваме инжектирания каталог за разединители
-                If _disconnectorCatalog IsNot Nothing Then
-                    ' Филтрираме разединителите по избрания тип (selectedValue)
-                    Dim filteredDisco = _disconnectorCatalog.Disconnectors.Where(Function(b) b.Type = value).ToList()
+        ' 1. Определяме вида на апарата
+        Dim isDisconnector As Boolean = isBoardTotal OrElse
+        String.Equals(circuit.Device, "Разединител", StringComparison.OrdinalIgnoreCase)
+        ' 2. РАЗЕДИНИТЕЛ
+        If isDisconnector Then
+            circuit.Disconnector_Тип_Апарат = value
+            If _disconnectorCatalog IsNot Nothing Then
+                Dim filteredDisco = _disconnectorCatalog.Disconnectors _
+                .Where(Function(b) b.Type = value).ToList()
+                Dim valuesForCombo = filteredDisco _
+                .Select(Function(b) b.NominalCurrent.ToString()) _
+                .Distinct() _
+                .ToList()
+                resultLists.Add("Номинален ток", valuesForCombo)
+            End If
+        Else
+            ' 3. АВТОМАТИЧЕН ПРЕКЪСВАЧ
+            circuit.Breaker_Тип_Апарат = value
+            If _breakerCatalog IsNot Nothing Then
+                Dim filteredBreakers = _breakerCatalog.Breakers _
+                .Where(Function(b) b.Series = value).ToList()
+                If filteredBreakers.Count = 0 Then Return resultLists
+                circuit.Breaker_Изкл_Възможност = filteredBreakers.First().Ics_kA & "kA"
+                Dim valuesNominal = filteredBreakers _
+                .Select(Function(b) b.NominalCurrent.ToString()) _
+                .Distinct().ToList()
+                resultLists.Add("Номинален ток", valuesNominal)
+                Dim valuesCurve = filteredBreakers _
+                .Select(Function(b) b.Curve.ToString()) _
+                .Distinct().ToList()
+                resultLists.Add("Крива", valuesCurve)
+                Dim valuesTripUnit = filteredBreakers _
+                .Select(Function(b) b.TripUnit) _
+                .Distinct().ToList()
+                resultLists.Add("Защитен блок", valuesTripUnit)
+            End If
+        End If
 
-                    ' Извличаме уникалните номинални токове
-                    Dim valuesForCombo = filteredDisco _
-                                    .Select(Function(b) b.NominalCurrent.ToString()) _
-                                    .Distinct() _
-                                    .ToList()
-                    ' Записваме в речника, че за ред "Номинален ток" имаме нов списък
-                    resultLists.Add("Номинален ток", valuesForCombo)
-                End If
-            Case Else
-                ' За автоматични прекъсвачи – използваме инжектирания каталог _breakerCatalog
-                If _breakerCatalog IsNot Nothing Then
-                    ' Филтрираме прекъсвачите по избраната серия (Series)
-                    Dim filteredBreakers = _breakerCatalog.Breakers.Where(Function(b) b.Series = value).ToList()
-                    If filteredBreakers.Count = 0 Then Return resultLists
-                    ' 3. Записваме автоматично изключвателната възможност (Ics) в обекта
-                    circuit.Breaker_Изкл_Възможност = filteredBreakers.First().Ics_kA & "kA"
-                    ' 4. Генерираме уникалните списъци за ComboBox-овете в Grid-а
-                    ' Списък за "Номинален ток"
-                    Dim valuesNominal = filteredBreakers.Select(Function(b) b.NominalCurrent.ToString()).Distinct().ToList()
-                    resultLists.Add("Номинален ток", valuesNominal)
-                    ' Списък за "Крива"
-                    Dim valuesCurve = filteredBreakers.Select(Function(b) b.Curve.ToString()).Distinct().ToList()
-                    resultLists.Add("Крива", valuesCurve)
-                    ' Списък за "Защитен блок"
-                    Dim valuesTripUnit = filteredBreakers.Select(Function(b) b.TripUnit).Distinct().ToList()
-                    resultLists.Add("Защитен блок", valuesTripUnit)
-                End If
-        End Select
-        ' Връщаме събраните списъци обратно към формата
         Return resultLists
     End Function
     ''' <summary>
     ''' Сменя: "Номинален ток"
     ''' </summary>
-    Public Sub HandleNominalCurrentChange(ByVal circuit As clsTokow, ByVal value As String)
+    Public Sub HandleNominalCurrentChange(ByVal circuit As clsTokow,
+                                      ByVal value As String,
+                                      ByVal isBoardTotal As Boolean)
+
         If String.IsNullOrEmpty(value) Then Exit Sub
-        If Val(value) >= Val(circuit.Breaker_Номинален_Ток) Then
-            circuit.Breaker_Номинален_Ток = value
+        ' 1. Определяме вида на апарата
+        Dim isDisconnector As Boolean = isBoardTotal OrElse
+        String.Equals(circuit.Device, "Разединител", StringComparison.OrdinalIgnoreCase)
+        ' 2. Вземаме текущия номинален ток
+        Dim currentNominal As String
+        If isDisconnector Then
+            currentNominal = circuit.Disconnector_Номинален_Ток
         Else
+            currentNominal = circuit.Breaker_Номинален_Ток
+        End If
+        ' 3. Проверяваме дали новият номинал е по-малък
+        If Val(value) < Val(currentNominal) Then
             Dim msg As String = "Сигурен ли си в това, което правиш? " & vbCrLf &
-                               "Избраният ток е по-малък от текущия." & vbCrLf &
-                               "Искаш ли наистина да продължиш към Тъмната страна?"
+                           "Избраният ток е по-малък от текущия." & vbCrLf &
+                           "Искаш ли наистина да продължиш към Тъмната страна?"
             Dim result As DialogResult = MessageBox.Show(
-                msg, "Внимание: Инженерна мисъл в действие!",
-                MessageBoxButtons.YesNo, MessageBoxIcon.Warning)
-            If result = DialogResult.Yes Then
-                circuit.Breaker_Номинален_Ток = value
-            Else
+            msg, "Внимание: Инженерна мисъл в действие!",
+            MessageBoxButtons.YesNo, MessageBoxIcon.Warning)
+            If result <> DialogResult.Yes Then
                 MessageBox.Show("Мъдро решение! Спести си един ремонт.",
-                                "Браво!",
-                                MessageBoxButtons.OK,
-                                MessageBoxIcon.Information)
+                            "Браво!",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information)
                 Exit Sub
             End If
         End If
+        ' 4. Записваме в правилното поле
+        If isDisconnector Then
+            circuit.Disconnector_Номинален_Ток = value
+        Else
+            circuit.Breaker_Номинален_Ток = value
+        End If
+        ' 5. Преизчисляваме кабела
         _cableCatalog.CalculateCable(circuit)
-    End Sub
-    ' =============================================================
+    End Sub    ' =============================================================
     ' Процедура: HandleRcdToggleChange
     ' =============================================================
     ''' <summary>

@@ -346,15 +346,27 @@ Public Class DataGridViewManager
         Dim comboCell As DataGridViewComboBoxCell = DirectCast(_dgv.Rows(rowIndex).Cells(colIndex), DataGridViewComboBoxCell)
         comboCell.Items.Clear()
         comboCell.Items.Add("---") ' Опция по подразбиране
+
         ' 1. Вземане на текущите филтри от обекта
         Dim currentPoles As String = If(circuit.Брой_Полюси > 0, circuit.Брой_Полюси.ToString() & "p", "1p")
-        Dim currentBreakerType As String = circuit.Breaker_Тип_Апарат
-        Dim currentIn As String = circuit.Breaker_Номинален_Ток
-        ' 2. Логика за автоматично разпознаване на апарата (Главен или Кръг)
-        Dim isDisconnector As Boolean = False
-        If circuit.Device.ToLower().Contains("табло") OrElse
-           circuit.Device = "Разединител" Then
-            isDisconnector = True
+
+        ' 2. Определяне дали работим с колоната ОБЩО на текущото табло
+        Dim isBoardTotal As Boolean = _dgv.Columns(colIndex).Name.StartsWith("colTotal|", StringComparison.OrdinalIgnoreCase)
+
+        ' 3. Определяне на каталога
+        Dim isDisconnector As Boolean = isBoardTotal OrElse
+                                String.Equals(circuit.Device, "Разединител", StringComparison.OrdinalIgnoreCase)
+
+        ' 4. Вземане на правилните характеристики на апарата
+        Dim currentApparatusType As String
+        Dim currentIn As String
+
+        If isDisconnector Then
+            currentApparatusType = circuit.Disconnector_Тип_Апарат
+            currentIn = circuit.Disconnector_Номинален_Ток
+        Else
+            currentApparatusType = circuit.Breaker_Тип_Апарат
+            currentIn = circuit.Breaker_Номинален_Ток
         End If
         ' 3. Наливане на опциите според параметъра
         Select Case parameterName
@@ -366,17 +378,17 @@ Public Class DataGridViewManager
                 End If
             Case "Номинален ток"
                 If isDisconnector Then
-                    comboCell.Items.AddRange(_disconnectorCatalog.GetUniqueDisconnectorCurrents(currentBreakerType, currentPoles).ToArray())
+                    comboCell.Items.AddRange(_disconnectorCatalog.GetUniqueDisconnectorCurrents(currentApparatusType, currentPoles).ToArray())
                 Else
-                    comboCell.Items.AddRange(_breakerCatalog.GetUniqueBreakerCurrents(currentBreakerType, currentPoles).ToArray())
+                    comboCell.Items.AddRange(_breakerCatalog.GetUniqueBreakerCurrents(currentApparatusType, currentPoles).ToArray())
                 End If
             Case "Крива"
                 If Not isDisconnector Then
-                    comboCell.Items.AddRange(_breakerCatalog.GetUniqueBreakerCurves(currentBreakerType, currentPoles).ToArray())
+                    comboCell.Items.AddRange(_breakerCatalog.GetUniqueBreakerCurves(currentApparatusType, currentPoles).ToArray())
                 End If
             Case "Защитен блок"
                 If Not isDisconnector Then
-                    comboCell.Items.AddRange(_breakerCatalog.GetUniqueBreakerUnits(currentBreakerType, currentPoles).ToArray())
+                    comboCell.Items.AddRange(_breakerCatalog.GetUniqueBreakerUnits(currentApparatusType, currentPoles).ToArray())
                 End If
         ' --- Кабели и Управление ---
             Case "Тип кабел"
@@ -632,6 +644,35 @@ Public Class DataGridViewManager
                     ' просто вземаме самия текст или го оставяме празно
                     rawValue = If(data.Length > 3, data(3), "")
                 End If
+
+                ' 1. Определяме вида на апарата според колоната
+                Dim parameterName As String = data(0).ToString()
+
+                Dim isBoardTotal As Boolean = _dgv.Columns(colIndex).Name.StartsWith("colTotal|", StringComparison.OrdinalIgnoreCase)
+
+                Dim isDisconnector As Boolean = isBoardTotal OrElse
+                                                String.Equals(circuit.Device, "Разединител", StringComparison.OrdinalIgnoreCase)
+
+                ' 2. Зареждаме правилните стойности
+                Select Case parameterName
+                    Case "Тип на апарата"
+                        If isDisconnector Then
+                            rawValue = circuit.Disconnector_Тип_Апарат
+                        Else
+                            rawValue = circuit.Breaker_Тип_Апарат
+                        End If
+
+                    Case "Номинален ток"
+                        If isDisconnector Then
+                            rawValue = circuit.Disconnector_Номинален_Ток
+                        Else
+                            rawValue = circuit.Breaker_Номинален_Ток
+                        End If
+
+                    Case "Изкл. възможн.", "Крива", "Защитен блок"
+                        If isDisconnector Then rawValue = ""
+                End Select
+
                 Dim targetCell As DataGridViewCell = _dgv.Rows(rowIndex).Cells(colIndex)
                 'Dim rawValue As Object = resolver.DynamicInvoke(circuit)
                 If cellType = "Combo" Then
@@ -690,6 +731,7 @@ Public Class DataGridViewManager
         Dim columnName As String = _dgv.Columns(colIndex).Name
         ' Г. Разделяме останалия текст по символа "|"
         Dim nameParts As String() = columnName.Split("|"c)
+        Dim isBoardTotal As Boolean = nameParts(0).Equals("colTotal", StringComparison.OrdinalIgnoreCase)
         ' Декларираме си променливите предварително, за да са достъпни надолу в кода
         Dim extractedTablo As String = ""
         Dim extractedBuilding As String = ""
@@ -718,7 +760,7 @@ Public Class DataGridViewManager
                               c.ТоковКръг = extractedCircuit AndAlso
                               (extractedCircuit <> "ОБЩО" OrElse c.Device = "Табло")
 )
-        _changeManager.UpdateCircuitProperty(currentCircuit, procedureToExecute, newValue)
+        _changeManager.UpdateCircuitProperty(currentCircuit, procedureToExecute, newValue, isBoardTotal)
         FillColumnValues(colIndex, currentCircuit)
     End Sub
     ''' <summary>

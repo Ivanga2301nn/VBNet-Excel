@@ -89,9 +89,35 @@ Public Class Form_Tablo_new_AutoCadInserter
         Dim filterBuilding As String = selectedTablo(0)
         Dim filterTablo As String = selectedTablo(selectedTablo.Length - 1)
         ' 2. Филтрираме централния списък ListTokow
-        Dim panelCircuits As List(Of clsTokow) = AppSettings.ListTokow _
-            .Where(Function(c) c.BuildingName = filterBuilding AndAlso c.Tablo = filterTablo) _
-            .ToList()
+        Dim panelCircuits As New List(Of clsTokow)
+        ' 1. Собствени консуматори
+        panelCircuits.AddRange(
+            AppSettings.ListTokow.Where(
+            Function(c) c.BuildingName = filterBuilding AndAlso
+                    c.Tablo = filterTablo AndAlso
+                    c.Device <> "Табло" AndAlso
+                    c.ТоковКръг <> "ОБЩО"
+                    ).ToList()
+                    )
+        ' 2. Дъщерни табла
+        panelCircuits.AddRange(
+            AppSettings.ListTokow.Where(
+            Function(c) c.BuildingName = filterBuilding AndAlso
+            c.Device = "Табло" AndAlso
+            c.Табло_Родител = filterTablo AndAlso
+            c.Tablo <> filterTablo
+            ).ToList()
+            )
+        ' 3. Истинското ОБЩО на избраното табло
+        Dim panelTotal = AppSettings.ListTokow.FirstOrDefault(
+            Function(c) c.BuildingName = filterBuilding AndAlso
+            c.Tablo = filterTablo AndAlso
+            c.Device = "Табло" AndAlso
+            c.ТоковКръг = "ОБЩО"
+            )
+        If panelTotal IsNot Nothing Then
+            panelCircuits.Add(panelTotal)
+        End If
         ' ВЗЕМИ БАЗОВА ТОЧКА ОТ ПОТРЕБИТЕЛЯ
         Dim ptBasePointRes As PromptPointResult
         Dim pPtOpts As PromptPointOptions = New PromptPointOptions("")
@@ -121,7 +147,7 @@ Public Class Form_Tablo_new_AutoCadInserter
                 DrawRCDBusbar(acDoc, acCurDb, ptBasePoint, panelCircuits)                   ' Тук чертаем ДЗТ за токовите кръгове (прекъсвачи, текстове, линии)
 
 
-                DrawGrounding(acDoc, acCurDb, ptBasePoint.X, ptBasePoint, filterTablo)   ' Чертaем заземление само за главно разпределително табло
+                DrawGrounding(acDoc, acCurDb, ptBasePoint.X, ptBasePoint, filterTablo)     ' Чертaем заземление само за главно разпределително табло
                 DrawAnnotations(ptBasePoint, panelCircuits)                                ' Процедурата създава текстови анотации
             Catch ex As Exception
                 trans.Abort()
@@ -515,7 +541,14 @@ Public Class Form_Tablo_new_AutoCadInserter
                 DrawCircuitTexts(acDoc, acCurDb, basePoint, circuit, X)
                 ' Ако е запис "Табло" → пишем само текстовете
                 ' Не се чертаят прекъсвачи и линии
-                If circuit.Device = "Табло" Then Continue For
+                ' Пропускаме чертането на прекъсвач за истинското ОБЩО
+                If circuit.Device = "Табло" AndAlso
+                   circuit.ТоковКръг = "ОБЩО" AndAlso
+                   String.IsNullOrWhiteSpace(circuit.Табло_Родител) Then
+
+                    colIndex += 1
+                    Continue For
+                End If
                 ' Вмъква блок за прекъсвач
                 DrawBreakerBlock(acDoc, acCurDb, basePoint, circuit, X, Y_Shina)
                 ' Чертaе управляващо устройство (ако има)
@@ -562,8 +595,26 @@ Public Class Form_Tablo_new_AutoCadInserter
                          circuit As clsTokow, X As Double)
         Dim Y_Base As Double = basePoint.Y
         Dim textLayer As String = "EL__DIM"
+
+        Dim circuitText As String = circuit.ТоковКръг
+        Dim consumerText As String = circuit.Консуматор
+        Dim purposeText As String = circuit.предназначение
+
+        ' Проверка дали записът представлява дъщерно табло
+        Dim isChildPanel As Boolean =
+            circuit.Device = "Табло" AndAlso
+            circuit.ТоковКръг = "ОБЩО" AndAlso
+            Not String.IsNullOrWhiteSpace(circuit.Табло_Родител)
+
+        ' Специално представяне на дъщерно табло
+        If isChildPanel Then
+            circuitText = circuit.Tablo
+            consumerText = "Табло"
+            purposeText = ChrW(34) & circuit.Tablo & ChrW(34)
+        End If
+
         ' Токов кръг (ред 1)
-        cu.InsertText(circuit.ТоковКръг,
+        cu.InsertText(circuitText,
                   New Point3d(X + padingText, Y_Base + 9 * heightRow + heightRow / 2, 0),
                   textLayer, heightText, TextHorizontalMode.TextMid, TextVerticalMode.TextBase)
         ' Брой лампи (ред 2)
@@ -591,11 +642,11 @@ Public Class Form_Tablo_new_AutoCadInserter
                   New Point3d(X + padingText, Y_Base + 3 * heightRow + heightRow / 2, 0),
                   textLayer, heightText, TextHorizontalMode.TextMid, TextVerticalMode.TextBase)
         ' Консуматор (ред 8) - ляво подравнен
-        cu.InsertText(circuit.Консуматор,
+        cu.InsertText(consumerText,
                   New Point3d(X - widthColom / 2 + padingText, Y_Base + 2 * heightRow + (heightRow - heightText) / 2, 0),
                   textLayer, 12, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
         ' Предназначение (ред 9) - ляво подравнен
-        cu.InsertText(circuit.предназначение,
+        cu.InsertText(purposeText,
                   New Point3d(X - widthColom / 2 + padingText, Y_Base + 1 * heightRow + (heightRow - heightText) / 2, 0),
                   textLayer, 12, TextHorizontalMode.TextLeft, TextVerticalMode.TextBase)
     End Sub

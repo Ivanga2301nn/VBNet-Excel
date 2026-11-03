@@ -363,4 +363,52 @@ Public Class DataGridViewChangeManager
         ' Записваме новата стойност на тикчето
         Boolean.TryParse(value, circuit.Шина)
     End Sub
+    ''' <summary>
+    ''' Обработва промяна в предназначението на токов кръг и при необходимост преизчислява коефициента Ке.
+    '''
+    ''' Процедурата записва подаденото предназначение в свойството
+    ''' „предназначение“ на съответния обект clsTokow.
+    '''
+    ''' Когато промяната се отнася до общия ред „ОБЩО“ на главното
+    ''' разпределително табло, извлича предоставената мощност от текста
+    ''' на предназначението и изчислява коефициента Ке спрямо
+    ''' инсталираната мощност на таблото.
+    '''
+    ''' Резултатът се записва в свойството „Консуматор“ във формат
+    ''' „Ке=0.00“. Ако липсват необходимите данни или мощността
+    ''' не може да бъде разчетена, преизчисляване не се извършва.
+    ''' </summary>
+    ''' <param name="circuit">Обект clsTokow, чийто токов кръг или общ ред се актуализира.</param>
+    ''' <param name="value">Новото текстово предназначение, съдържащо при необходимост предоставената мощност.</param>
+    ''' <param name="isBoardTotal">Указва дали обработваният ред е общият ред „ОБЩО“ на таблото.</param>
+    Public Sub HandlePurposeChange(ByVal circuit As clsTokow,
+                               ByVal value As String,
+                               ByVal isBoardTotal As Boolean)
+        If circuit Is Nothing Then Exit Sub
+        ' Записваме новото предназначение
+        circuit.предназначение = value
+        ' Преизчисляваме Ке само за ОБЩО на главното табло
+        If Not isBoardTotal OrElse
+       Not circuit.Tablo.Contains("Гл.Р.Т.") Then Exit Sub
+        ' Извличаме предоставената мощност
+        Dim equalIndex As Integer = value.IndexOf("="c)
+        Dim kwIndex As Integer = value.IndexOf("кW",
+                                           StringComparison.OrdinalIgnoreCase)
+        If kwIndex < 0 Then
+            kwIndex = value.IndexOf("kW",
+                                StringComparison.OrdinalIgnoreCase)
+        End If
+        If equalIndex < 0 OrElse kwIndex <= equalIndex Then Exit Sub
+        Dim powerText As String =
+        value.Substring(equalIndex + 1,
+                        kwIndex - equalIndex - 1).Trim()
+        Dim providedPower As Double
+        If Double.TryParse(powerText,
+                       Globalization.NumberStyles.Number,
+                       Globalization.CultureInfo.CurrentCulture,
+                       providedPower) AndAlso circuit.Мощност > 0 Then
+            circuit.Консуматор =
+            "Ке=" & (providedPower / circuit.Мощност).ToString("F2")
+        End If
+    End Sub
 End Class

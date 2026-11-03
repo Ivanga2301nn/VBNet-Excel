@@ -101,6 +101,7 @@ Public Class DataGridViewManager
         }
         End Get
     End Property
+
     ''' <summary>
     ''' Създава и конфигурира основната структура на DataGridView за показване на електрически табла и кръгове.
     ''' Изграждат се фиксирани колони (Параметър, Мерна единица, ОБЩО) и динамични колони според rowData.
@@ -640,19 +641,18 @@ Public Class DataGridViewManager
                     Dim resolver As [Delegate] = DirectCast(data(3), [Delegate])
                     rawValue = resolver.DynamicInvoke(circuit)
                 Else
-                    ' Ако не е делегат (а е текст, напр. за разделител или празен ред), 
+                    ' Ако не е делегат (а е текст, например за разделител или празен ред),
                     ' просто вземаме самия текст или го оставяме празно
                     rawValue = If(data.Length > 3, data(3), "")
                 End If
-
-                ' 1. Определяме вида на апарата според колоната
+                ' 1. Определяме вида на параметъра и колоната
                 Dim parameterName As String = data(0).ToString()
-
-                Dim isBoardTotal As Boolean = _dgv.Columns(colIndex).Name.StartsWith("colTotal|", StringComparison.OrdinalIgnoreCase)
-
-                Dim isDisconnector As Boolean = isBoardTotal OrElse
-                                                String.Equals(circuit.Device, "Разединител", StringComparison.OrdinalIgnoreCase)
-
+                Dim isBoardTotal As Boolean =
+                _dgv.Columns(colIndex).Name.StartsWith(
+                    "colTotal|",
+                    StringComparison.OrdinalIgnoreCase)
+                ' Само колоната ОБЩО използва данните за разединител
+                Dim isDisconnector As Boolean = isBoardTotal
                 ' 2. Зареждаме правилните стойности
                 Select Case parameterName
                     Case "Тип на апарата"
@@ -661,20 +661,28 @@ Public Class DataGridViewManager
                         Else
                             rawValue = circuit.Breaker_Тип_Апарат
                         End If
-
                     Case "Номинален ток"
                         If isDisconnector Then
                             rawValue = circuit.Disconnector_Номинален_Ток
                         Else
                             rawValue = circuit.Breaker_Номинален_Ток
                         End If
-
                     Case "Изкл. възможн.", "Крива", "Защитен блок"
                         If isDisconnector Then rawValue = ""
                 End Select
-
+                ' 3. Специално представяне на дъщерно табло в родителското табло
+                If Not isBoardTotal AndAlso
+               String.Equals(circuit.Device, "Табло",
+                             StringComparison.OrdinalIgnoreCase) Then
+                    Select Case parameterName.Trim().ToLowerInvariant()
+                        Case "консуматор"
+                            rawValue = "Табло"
+                        Case "предназначение"
+                            rawValue = ChrW(34) & circuit.Tablo & ChrW(34)
+                    End Select
+                End If
+                ' 4. Записваме стойността в клетката
                 Dim targetCell As DataGridViewCell = _dgv.Rows(rowIndex).Cells(colIndex)
-                'Dim rawValue As Object = resolver.DynamicInvoke(circuit)
                 If cellType = "Combo" Then
                     Dim comboCell = DirectCast(targetCell, DataGridViewComboBoxCell)
                     Dim valStr As String = If(rawValue IsNot Nothing, rawValue.ToString(), "")
@@ -695,7 +703,6 @@ Public Class DataGridViewManager
                 End If
             Next
         Catch ex As Exception
-
         End Try
     End Sub
     ''' <summary>

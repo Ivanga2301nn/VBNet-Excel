@@ -5,6 +5,7 @@ Public Class PanelBalanceManager
     Private ReadOnly _disconnectorCatalog As DisconnectorCatalog
     Private ReadOnly _cableCatalog As CableCatalog
     Private ReadOnly _electricalCalculationEngine As ElectricalCalculationEngine
+    Private ReadOnly _breakerCatalog As BreakerCatalog
     ''' <summary>
     ''' КОНСТРУКТОР: Приема създадените каталози и списъка с токови кръгове от формата
     ''' </summary>
@@ -13,6 +14,7 @@ Public Class PanelBalanceManager
         Me._disconnectorCatalog = AppSettings.DisconnectorCatalog                  ' 👈 Запаметяваме каталога с прекъсвачи в класа при създаването му
         Me._cableCatalog = AppSettings.CableCatalog                                ' 👈 Запаметяваме каталога с кабели в класа при създаването му   
         Me._electricalCalculationEngine = AppSettings.ElectricalCalculationEngine  ' 👈 Запаметяваме електрическия калкулатор в класа при създаването му     
+        Me._breakerCatalog = AppSettings.BreakerCatalog
     End Sub
     ''' <summary>
     ''' Клас за групиране на токови кръгове за балансиране на фазите
@@ -145,8 +147,23 @@ Public Class PanelBalanceManager
             .brKontakt = totalContacts
             ' Специфична логика за главното табло на сградата
             If .Tablo.Contains("Гл.Р.Т.") Then
-                .Консуматор = "Ке="
                 .предназначение = "Рпр.=15кW"
+
+                ' Извличане на предоставената мощност
+                Dim startIndex As Integer = .предназначение.IndexOf("="c) + 1
+                Dim endIndex As Integer = .предназначение.IndexOf("кW")
+
+                Dim providedPower As Double
+
+                If startIndex > 0 AndAlso endIndex > startIndex AndAlso
+       Double.TryParse(
+           .предназначение.Substring(startIndex, endIndex - startIndex).Trim(),
+           Globalization.NumberStyles.Number,
+           Globalization.CultureInfo.CurrentCulture,
+           providedPower) AndAlso .Мощност > 0 Then
+
+                    .Консуматор = "Ке=" & (providedPower / .Мощност).ToString("F2")
+                End If
             End If
         End With
         ' 5. ЕЛЕКТРИЧЕСКИ ИЗЧИСЛЕНИЯ
@@ -161,6 +178,7 @@ Public Class PanelBalanceManager
         Else
             totalTokow.Ток = _electricalCalculationEngine.calc_Inom(totalTokow.Мощност, totalTokow.Брой_Полюси)
         End If
+        _breakerCatalog.CalculateBreaker(totalTokow)
         _disconnectorCatalog.CalculateDisconnector(totalTokow)
         _cableCatalog.CalculateCable(totalTokow)
     End Sub

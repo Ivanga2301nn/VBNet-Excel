@@ -204,7 +204,7 @@ Public Class CableCatalog
         ' Disconnector_Номинален_Ток
         ' и tokow.Ток
         Dim Inom As Double = Math.Max(
-                             Math.Max(Val(tokow.Breaker_Номинален_Ток), Val(tokow.Disconnector_Номинален_Ток)),
+                             Val(tokow.Breaker_Номинален_Ток),
                              tokow.Ток)
         Dim NumberPoles As String = tokow.Брой_Полюси
 

@@ -685,7 +685,7 @@ Public Class Form_Tablo_new_AutoCadInserter
             Case circuit.Device = "Резерва"
                 rcd_Yes = "Резерва"
                 blockName = "s_c60_circ_break"
-            ' Първи приоритет: Резерви
+            ' Първи приоритет: Съществуващ
             Case circuit.Device = "Съществуващ"
                 rcd_Yes = "Съществуващ"
                 blockName = "s_c60_circ_break"
@@ -697,7 +697,7 @@ Public Class Form_Tablo_new_AutoCadInserter
                 rcd_Yes = "Моторна защита"
                 blockName = "s_GV2"
             ' Трети приоритет: Проверка за RCD (ако има попълнен тип)
-            Case Not String.IsNullOrWhiteSpace(circuit.RCD_Тип)
+            Case Not String.IsNullOrWhiteSpace(circuit.RCD_Бранд)
                 rcd_Yes = "RCD"
                 blockName = "s_dpnn_vigi_circ_break"
                 ' Всичко останало (Default)

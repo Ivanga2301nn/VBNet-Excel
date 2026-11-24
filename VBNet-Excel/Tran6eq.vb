@@ -391,7 +391,19 @@ Public Class Tran6eq
                 Dyno = pKeyRes.StringResult
             Else
                 Dyno = pKeyRes.Value.ToString()
-
+            End If
+            Dim nastilkaVisibility As String = "Терен"
+            Dim pKwOpts As New PromptKeywordOptions(vbCrLf & "Изберете вид настилка [Тротоар/Асфалт/Терен]: ")
+            With pKwOpts
+                .Keywords.Add("Тротоар")
+                .Keywords.Add("Асфалт")
+                .Keywords.Add("Терен")
+                .Keywords.Default = "Терен"
+                .AllowNone = True
+            End With
+            Dim pKwRes As PromptResult = acDoc.Editor.GetKeywords(pKwOpts)
+            If pKwRes.Status = PromptStatus.OK AndAlso Not String.IsNullOrEmpty(pKwRes.StringResult) Then
+                nastilkaVisibility = pKwRes.StringResult
             End If
             'Dim poz_X As Double = 0
             'Dim poz_Y As Double = 100
@@ -438,65 +450,97 @@ Public Class Tran6eq
                 pPtOpts.Message = vbLf & "Изберете точка на вмъкване на блока: "
                 pPtRes = acDoc.Editor.GetPoint(pPtOpts)
             End Using
+
+
+
             Dim InsertPoint As Point3d = pPtRes.Value
             Dim poz_Tryba As Point3d
             Dim acBlkRef As BlockReference
             Dim props As DynamicBlockReferencePropertyCollection
-            '
-            ' Вмъква блок Траншея
-            '
+
             Using acTrans As Transaction = acCurDb.TransactionManager.StartTransaction()
+                Dim btrSpace As BlockTableRecord = DirectCast(acTrans.GetObject(acCurDb.CurrentSpaceId, OpenMode.ForRead), BlockTableRecord)
+                Dim dot As DrawOrderTable = Nothing
+                If Not btrSpace.DrawOrderTableId.IsNull Then
+                    dot = DirectCast(acTrans.GetObject(btrSpace.DrawOrderTableId, OpenMode.ForWrite), DrawOrderTable)
+                End If
+
+                Dim topIds As New ObjectIdCollection()
+
+                ' 1. Вмъква блок Траншея
                 blkRecId_Tran6 = cu.InsertBlock("Траншея", InsertPoint, "EL_РАМКА", New Scale3d(1, 1, 1))
                 acBlkRef = DirectCast(acTrans.GetObject(blkRecId_Tran6, OpenMode.ForWrite), BlockReference)
                 props = acBlkRef.DynamicBlockReferencePropertyCollection
                 For Each prop As DynamicBlockReferenceProperty In props
-                    If prop.PropertyName = "Сигнална лента" Then prop.Value = 350.0
-                    If prop.PropertyName = "Дълбочина" Then prop.Value = Dulbochina
-                    If prop.PropertyName = "D_1" Then prop.Value = 100.0
-                    If prop.PropertyName = "D_2" Then prop.Value = 100.0
-                    If prop.PropertyName = "D_3" Then prop.Value = 100.0
-                    If prop.PropertyName = "D_4" Then prop.Value = 400.0
-                    If prop.PropertyName = "Пясък" Then prop.Value = 600.0
-                    If prop.PropertyName = "D_Пясък" Then prop.Value = Dyno
-                    If prop.PropertyName = "Дъно" Then prop.Value = Dyno
-                    If prop.PropertyName = "Лента" Then prop.Value = Dyno / 2
+                    If prop.ReadOnly Then Continue For
+                    Try
+                        Select Case prop.PropertyName
+                            Case "Visibility" : prop.Value = nastilkaVisibility
+                            Case "Сигнална лента" : prop.Value = 350.0
+                            Case "Дълбочина" : prop.Value = Dulbochina
+                            Case "D_1" : prop.Value = 100.0
+                            Case "D_2" : prop.Value = 100.0
+                            Case "D_3" : prop.Value = 100.0
+                            Case "D_4" : prop.Value = 400.0
+                            Case "Пясък" : prop.Value = 600.0
+                            Case "D_Пясък" : prop.Value = Dyno
+                            Case "Дъно" : prop.Value = Dyno
+                            Case "Лента" : prop.Value = Dyno / 2
+                        End Select
+                    Catch
+                    End Try
                 Next
-                acTrans.Commit()
-            End Using
-            '
-            ' Вмъква блок ТРЪБИТЕ и КАБЕЛИТЕ
-            '
-            Using acTrans As Transaction = acCurDb.TransactionManager.StartTransaction()
+
                 For i = 0 To Tryba.Length - 1
                     If Tryba(i).Count_Cab = 0 Then Exit For
 
                     poz_Tryba = New Point3d(InsertPoint.X + Tryba(i).Poz_X, InsertPoint.Y - Dulbochina, 0.0)
 
-                    If Tryba(i).Kabel_Type <> "Резервна" Then
-                        Dim blkRecId_Kabel = cu.InsertBlock("Траншея_кабел", poz_Tryba, "EL_РАМКА", New Scale3d(1, 1, 1))
-                        acBlkRef = DirectCast(acTrans.GetObject(blkRecId_Kabel, OpenMode.ForWrite), BlockReference)
-                        props = acBlkRef.DynamicBlockReferencePropertyCollection
-
-                        For Each prop As DynamicBlockReferenceProperty In props
-                            If prop.PropertyName = "Visibility" Then prop.Value = IIf(Tryba(i).Kabel_Type = "СрН", "СрН", "НН")
-                            If prop.PropertyName = "Diam" Then prop.Value = Tryba(i).Kabel_Diam
-                            If prop.PropertyName = "Височина" Then prop.Value = Tryba(i).Poz_Y + IIf(Tryba(i).Type <> "изкоп", Tryba(i).D_OD - Tryba(i).D_IN, 0)
-                            If prop.PropertyName = "Начало" Then prop.Value = Tryba(i).Poz_X
-                        Next
-                    End If
-
+                    ' 2. Вмъква блок ТРЪБА
                     If Tryba(i).Type <> "изкоп" Then
-                        Dim blkRecId_tryba = cu.InsertBlock("Траншея_тръба", poz_Tryba, "EL_РАМКА", New Scale3d(1, 1, 1))
+                        Dim blkRecId_tryba As ObjectId = cu.InsertBlock("Траншея_тръба", poz_Tryba, "EL_РАМКА", New Scale3d(1, 1, 1))
                         acBlkRef = DirectCast(acTrans.GetObject(blkRecId_tryba, OpenMode.ForWrite), BlockReference)
                         props = acBlkRef.DynamicBlockReferencePropertyCollection
                         For Each prop As DynamicBlockReferenceProperty In props
-                            If prop.PropertyName = "D_OD" Then prop.Value = Tryba(i).D_OD
-                            If prop.PropertyName = "D_IN" Then prop.Value = Tryba(i).D_IN
-                            If prop.PropertyName = "Височина" Then prop.Value = Tryba(i).Poz_Y
-                            If prop.PropertyName = "Visibility" Then prop.Value = "Без размери"
+                            If prop.ReadOnly Then Continue For
+                            Try
+                                Select Case prop.PropertyName
+                                    Case "D_OD" : prop.Value = Tryba(i).D_OD
+                                    Case "D_IN" : prop.Value = Tryba(i).D_IN
+                                    Case "Височина" : prop.Value = Tryba(i).Poz_Y
+                                    Case "Visibility" : prop.Value = "Без размери"
+                                End Select
+                            Catch
+                            End Try
                         Next
+                        topIds.Add(blkRecId_tryba)
+                    End If
+
+                    ' 3. Вмъква блок КАБЕЛ
+                    If Tryba(i).Kabel_Type <> "Резервна" Then
+                        Dim blkRecId_Kabel As ObjectId = cu.InsertBlock("Траншея_кабел", poz_Tryba, "EL_РАМКА", New Scale3d(1, 1, 1))
+                        acBlkRef = DirectCast(acTrans.GetObject(blkRecId_Kabel, OpenMode.ForWrite), BlockReference)
+                        props = acBlkRef.DynamicBlockReferencePropertyCollection
+                        For Each prop As DynamicBlockReferenceProperty In props
+                            If prop.ReadOnly Then Continue For
+                            Try
+                                Select Case prop.PropertyName
+                                    Case "Visibility" : prop.Value = IIf(Tryba(i).Kabel_Type = "СрН", "СрН", "НН")
+                                    Case "Diam" : prop.Value = Tryba(i).Kabel_Diam
+                                    Case "Височина" : prop.Value = Tryba(i).Poz_Y + IIf(Tryba(i).Type <> "изкоп", Tryba(i).D_OD - Tryba(i).D_IN, 0)
+                                    Case "Начало" : prop.Value = Tryba(i).Poz_X
+                                End Select
+                            Catch
+                            End Try
+                        Next
+                        topIds.Add(blkRecId_Kabel)
                     End If
                 Next
+
+                If dot IsNot Nothing AndAlso topIds.Count > 0 Then
+                    dot.MoveToTop(topIds)
+                End If
+
                 acTrans.Commit()
             End Using
             '

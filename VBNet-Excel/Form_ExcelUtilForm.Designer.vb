@@ -684,9 +684,9 @@ Partial Class Form_ExcelUtilForm
         'TabPage3
         '
         Me.TabPage3.Controls.Add(Me.TableLayoutPanel2)
-        Me.TabPage3.Location = New System.Drawing.Point(4, 29)
+        Me.TabPage3.Location = New System.Drawing.Point(4, 22)
         Me.TabPage3.Name = "TabPage3"
-        Me.TabPage3.Size = New System.Drawing.Size(961, 452)
+        Me.TabPage3.Size = New System.Drawing.Size(961, 465)
         Me.TabPage3.TabIndex = 2
         Me.TabPage3.Text = "Контакти"
         Me.TabPage3.UseVisualStyleBackColor = True
@@ -716,7 +716,7 @@ Partial Class Form_ExcelUtilForm
         Me.TableLayoutPanel2.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 37.0!))
         Me.TableLayoutPanel2.RowStyles.Add(New System.Windows.Forms.RowStyle())
         Me.TableLayoutPanel2.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20.0!))
-        Me.TableLayoutPanel2.Size = New System.Drawing.Size(961, 452)
+        Me.TableLayoutPanel2.Size = New System.Drawing.Size(961, 465)
         Me.TableLayoutPanel2.TabIndex = 8
         '
         'Button_Вземи_Контакти
@@ -1793,10 +1793,10 @@ Partial Class Form_ExcelUtilForm
         '
         Me.TabPage4.Controls.Add(Me.TableLayoutPanel12)
         Me.TabPage4.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.TabPage4.Location = New System.Drawing.Point(4, 22)
+        Me.TabPage4.Location = New System.Drawing.Point(4, 29)
         Me.TabPage4.Name = "TabPage4"
         Me.TabPage4.Padding = New System.Windows.Forms.Padding(3)
-        Me.TabPage4.Size = New System.Drawing.Size(961, 465)
+        Me.TabPage4.Size = New System.Drawing.Size(961, 452)
         Me.TabPage4.TabIndex = 8
         Me.TabPage4.Text = "Външно захранване"
         Me.TabPage4.UseVisualStyleBackColor = True
@@ -1824,7 +1824,7 @@ Partial Class Form_ExcelUtilForm
         Me.TableLayoutPanel12.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 37.0!))
         Me.TableLayoutPanel12.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 37.0!))
         Me.TableLayoutPanel12.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100.0!))
-        Me.TableLayoutPanel12.Size = New System.Drawing.Size(955, 459)
+        Me.TableLayoutPanel12.Size = New System.Drawing.Size(955, 446)
         Me.TableLayoutPanel12.TabIndex = 24
         '
         'Button_Изчисти_ВЪНШНО_Траншея

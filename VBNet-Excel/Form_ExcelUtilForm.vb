@@ -7680,9 +7680,7 @@ Public Class Form_ExcelUtilForm
     End Sub
     Private Sub Button_Генератор_ВЪНШНО_Click(sender As Object, e As EventArgs) Handles Button_Генератор_ВЪНШНО.Click
         Dim response = MsgBox("За изчисление на кабелите на които ще се прави разделка е необходимо да се ЗАПИШЕ броя на кабелите!" & vbCrLf & vbCrLf & "Ако няма кабели със сечение над 16mm² не е необходмо.", vbYesNo)
-        If response = vbNo Then
-            Exit Sub
-        End If
+        If response = vbNo Then Exit Sub
         Dim index As Integer = 0
         Dim i As Integer
         ProgressBar_Extrat.Maximum = ProgressBar_Maximum
@@ -7702,15 +7700,15 @@ Public Class Form_ExcelUtilForm
         index += 1
         Dim Text_Dostawka As String = ""
         Dim Кабел_Общо As Double = 0
+        Dim Кабел_ALR As Double = 0
         '
         ' ИЗКОП
         '
         For i = 3 To 2000
             If Trim(wsLines.Cells(i, 2).Value) = "" Then Exit For
             ProgressBar_Extrat.Value = i
-            If wsLines.Cells(i, 1).Value = "ТРАНШЕЯ-КАБЕЛ" Then
-                Кабел_Общо = Кабел_Общо + wsLines.Cells(i, 6).Value
-            End If
+            If wsLines.Cells(i, 1).Value = "ТРАНШЕЯ-КАБЕЛ" Then Кабел_Общо += wsLines.Cells(i, 6).Value
+            If wsLines.Cells(i, 2).Value = "изт. въздушно" Then Кабел_ALR += wsLines.Cells(i, 6).Value
         Next
         If Кабел_Общо > 0 Then
             With wsKol_Smetka
@@ -7755,7 +7753,7 @@ Public Class Form_ExcelUtilForm
         '
         ' РЕПЕРИ
         '
-        If wsKoef.Cells(29, 2).Value > 0 Then
+        If wsKoef.Cells(31, 2).Value > 0 Then
             With wsKol_Smetka
                 .Cells(index, 2).Value = "Направа репери за кабелна линия"
                 .Cells(index, 2).VerticalAlignment = excel.XlVAlign.xlVAlignTop
@@ -7811,61 +7809,55 @@ Public Class Form_ExcelUtilForm
 
         Dim stylb = wsKoef.Cells(red_Външно + 3, 2).Value +  ' "Табло електромерно на стълб"
                     wsKoef.Cells(red_Външно + 4, 2).Value +  ' "Табло електромерно на пилoн"
-                    wsKoef.Cells(red_Външно + 7, 2).Value +  '  "Стълб-съществуващ"
-                    wsKoef.Cells(red_Външно + 8, 2).Value +  '  "Стълб-нов НЦ 835"
-                    wsKoef.Cells(red_Външно + 9, 2).Value +  '  "Стълб-нов НЦ 590"
-                    wsKoef.Cells(red_Външно + 10, 2).Value + '  "Стълб-нов НЦ 250"
-                    wsKoef.Cells(red_Външно + 11, 2).Value + '  "Стълб-нов"
-                    wsKoef.Cells(red_Външно + 15, 2).Value + '  "Пилон-нов СЪС Заземител"
-                    wsKoef.Cells(red_Външно + 0, 5).Value +  '  "Табло електромерно на СЪЩЕСТУВАЩ стълб"
-                    wsKoef.Cells(red_Външно + 1, 5).Value ' Табло електромерно на СЪЩЕСТУВАЩ  пилoн
+                    wsKoef.Cells(red_Външно + 7, 2).Value +  ' "Стълб-съществуващ"
+                    wsKoef.Cells(red_Външно + 8, 2).Value +  ' "Стълб-нов НЦ 835"
+                    wsKoef.Cells(red_Външно + 9, 2).Value +  ' "Стълб-нов НЦ 590"
+                    wsKoef.Cells(red_Външно + 10, 2).Value + ' "Стълб-нов НЦ 250"
+                    wsKoef.Cells(red_Външно + 11, 2).Value + ' "Стълб-нов"
+                    wsKoef.Cells(red_Външно + 15, 2).Value + ' "Пилон-нов СЪС Заземител"
+                    wsKoef.Cells(red_Външно + 0, 5).Value +  ' "Табло електромерно на СЪЩЕСТУВАЩ стълб"
+                    wsKoef.Cells(red_Външно + 1, 5).Value    ' "Табло електромерно на СЪЩЕСТУВАЩ пилoн"
+        If Кабел_ALR > 0 Then
+            If krep > 0 Or stylb > 0 Then
+                ' проверка брой крепежни елементи в чертежа
+                If krep = 0 Then MsgBox("Някой трябваше да се сети да сложи ОПЪВАЧИ!!!")
+                If stylb = 0 Then MsgBox("Те'з ОПЪВАЧИ де жа ги сложиш????")
 
+                If krep Mod 2 = 0 Then
+                    krep = krep / 2
+                Else
+                    krep = 0
+                    MsgBox("Броя на Опъвачите в чертежа не се дели на 2!!!")
+                End If
 
+                If krep <> stylb Then MsgBox("Броя на Опъвачите в чертежа не съответства на броя на стълбовете!!!")
 
-
-
-        If krep > 0 Or stylb > 0 Then
-            ' проверка брой крепежни елементи в чертежа
-            If krep = 0 Then
-                MsgBox("Някой трябваше да се сети да сложи ОПЪВАЧИ!!!")
+                If krep <> 0 Then
+                    Text_Dostawka = "комплект крепежни елементи за усукан кабел;"
+                    Text_Dostawka += " в т.ч. опъвач - нерегулируем;"
+                    Text_Dostawka += " опъвач - регулируем;"
+                    Text_Dostawka += IIf(wsKoef.Cells(red_Външно + 19, 2).Value = 0, " кука с дюбел Ф12мм;", "")
+                End If
+                Text_Dostawka += " пресови маншони"
+                With wsKol_Smetka
+                    .Cells(index, 2).Value = "Доставка и монтаж на " + Text_Dostawka
+                    .Cells(index, 2).VerticalAlignment = excel.XlVAlign.xlVAlignTop
+                    .Cells(index, 2).HorizontalAlignment = excel.XlHAlign.xlHAlignLeft
+                    .Cells(index, 3).Value = "бр."
+                    .Cells(index, 4).Value = krep
+                End With
+                index += 1
+                Text_Dostawka = "Полагане на кабел тип Al/R по стълб;"
+                Text_Dostawka += " в т.ч. крепежни елементи;"
+                With wsKol_Smetka
+                    .Cells(index, 2).Value = Text_Dostawka
+                    .Cells(index, 2).VerticalAlignment = excel.XlVAlign.xlVAlignTop
+                    .Cells(index, 2).HorizontalAlignment = excel.XlHAlign.xlHAlignLeft
+                    .Cells(index, 3).Value = "m"
+                    .Cells(index, 4).Value = 6
+                End With
+                index += 1
             End If
-            If stylb = 0 Then
-                MsgBox("Те'з ОПЪВАЧИ де жа ги сложиш????")
-            End If
-            If krep Mod 2 = 0 Then
-                krep = krep / 2
-            Else
-                krep = 0
-                MsgBox("Броя на Опъвачите в чертежа не се дели на 2!!!")
-            End If
-            If krep <> stylb Then
-                MsgBox("Броя на Опъвачите в чертежа не съответства на броя на стълбовете!!!")
-            End If
-            If krep <> 0 Then
-                Text_Dostawka = "комплект крепежни елементи за усукан кабел;"
-                Text_Dostawka += " в т.ч. опъвач - нерегулируем;"
-                Text_Dostawka += " опъвач - регулируем;"
-                Text_Dostawka += IIf(wsKoef.Cells(red_Външно + 19, 2).Value = 0, " кука с дюбел Ф12мм;", "")
-            End If
-            Text_Dostawka += " пресови маншони"
-            With wsKol_Smetka
-                .Cells(index, 2).Value = "Доставка и монтаж на " + Text_Dostawka
-                .Cells(index, 2).VerticalAlignment = excel.XlVAlign.xlVAlignTop
-                .Cells(index, 2).HorizontalAlignment = excel.XlHAlign.xlHAlignLeft
-                .Cells(index, 3).Value = "бр."
-                .Cells(index, 4).Value = krep
-            End With
-            index += 1
-            Text_Dostawka = "Полагане на кабел тип Al/R по стълб;"
-            Text_Dostawka += " в т.ч. крепежни елементи;"
-            With wsKol_Smetka
-                .Cells(index, 2).Value = Text_Dostawka
-                .Cells(index, 2).VerticalAlignment = excel.XlVAlign.xlVAlignTop
-                .Cells(index, 2).HorizontalAlignment = excel.XlHAlign.xlHAlignLeft
-                .Cells(index, 3).Value = "m"
-                .Cells(index, 4).Value = 6
-            End With
-            index += 1
         End If
         '
         ' Надпокривна конзола
